@@ -1,0 +1,30 @@
+---
+- name: Comprobar el sistema operativo
+  ansible.builtin.assert:
+    that: preflight_os | length == 0 or (ansible_distribution | lower) in preflight_os
+    fail_msg: "Este proyecto necesita {{ preflight_os | join(' o ') }}, y el servidor tiene {{ ansible_distribution }} {{ ansible_distribution_version }}."
+    quiet: true
+
+- name: Comprobar la memoria RAM (mínimo {{ preflight_ram_mb }} MB)
+  ansible.builtin.assert:
+    that: ansible_memtotal_mb >= preflight_ram_mb
+    fail_msg: "Hacen falta {{ preflight_ram_mb }} MB de RAM y el servidor tiene {{ ansible_memtotal_mb }} MB."
+    quiet: true
+  when: preflight_ram_mb | int > 0
+
+- name: Comprobar el espacio libre en disco (mínimo {{ preflight_disk_gb }} GB)
+  vars:
+    libre_gb: "{{ ((ansible_mounts | selectattr('mount', 'equalto', '/') | first).size_available / 1073741824) | round(1) }}"
+  ansible.builtin.assert:
+    that: libre_gb | float >= preflight_disk_gb | float
+    fail_msg: "Hacen falta {{ preflight_disk_gb }} GB libres en / y hay {{ libre_gb }} GB."
+    quiet: true
+  when: preflight_disk_gb | int > 0
+
+- name: Carpeta de secretos del proyecto
+  ansible.builtin.file:
+    path: "{{ draupnode_secrets_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"

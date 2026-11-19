@@ -1,0 +1,86 @@
+---
+- name: Detectar si el servidor es un contenedor
+  ansible.builtin.set_fact:
+    base_en_contenedor: "{{ ansible_virtualization_role | default('') == 'guest' and ansible_virtualization_type | default('') in ['docker', 'container', 'podman', 'lxc', 'containerd'] }}"
+
+- name: Actualizar el índice de paquetes
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 600
+
+- name: Instalar paquetes básicos
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+    lock_timeout: 600
+  when: base_packages | length > 0
+
+- name: Leer la zona horaria actual
+  ansible.builtin.command: timedatectl show -p Timezone --value
+  register: base_tz_actual
+  changed_when: false
+  check_mode: false
+
+- name: Fijar la zona horaria ({{ base_timezone }})
+  ansible.builtin.command: timedatectl set-timezone {{ base_timezone | quote }}
+  when: base_timezone | length > 0 and base_tz_actual.stdout != base_timezone
+
+# En un contenedor (p. ej. el servidor de pruebas) el swap sería el del
+# equipo anfitrión: no se toca.
+- name: Swap no disponible dentro de un contenedor
+  ansible.builtin.debug:
+    msg: "Swap omitido: el servidor es un contenedor ({{ ansible_virtualization_type }}) y el swap sería el del equipo anfitrión."
+  when: base_swap_mb | int > 0 and base_en_contenedor
+
+- name: Crear /swapfile de {{ base_swap_mb }} MB
+  when: base_swap_mb | int > 0 and not base_en_contenedor
+  block:
+    - name: Reservar /swapfile
+      ansible.builtin.command: fallocate -l {{ base_swap_mb | int }}M /swapfile
+      args:
+        creates: /swapfile
+      register: base_swap_creado
+
+    - name: Permisos de /swapfile
+      ansible.builtin.file:
+        path: /swapfile
+        mode: "0600"
+      when: not ansible_check_mode
+
+    - name: Formatear /swapfile como swap
+      ansible.builtin.command: mkswap /swapfile
+      when: base_swap_creado.changed and not ansible_check_mode
+
+    - name: Comprobar si el swap está activo
+      ansible.builtin.command: swapon --show=NAME --noheadings
+      register: base_swap_activo
+      changed_when: false
+      check_mode: false
+
+    - name: Activar el swap
+      ansible.builtin.command: swapon /swapfile
+      when: "'/swapfile' not in base_swap_activo.stdout"
+
+    - name: Swap permanente en /etc/fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: /swapfile none swap sw 0 0
+        regexp: '^/swapfile\s'
+
+- name: Actualizaciones de seguridad automáticas
+  when: base_auto_updates | bool
+  block:
+    - name: Instalar unattended-upgrades
+      ansible.builtin.apt:
+        name: unattended-upgrades
+        state: present
+        lock_timeout: 600
+
+    - name: Activar unattended-upgrades
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";

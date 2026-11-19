@@ -1,0 +1,38 @@
+---
+- name: Abrir los puertos del panel de Coolify
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ item }}"
+    ctstate: NEW
+    jump: ACCEPT
+    action: insert
+    comment: draupnode-coolify
+  loop: ["8000", "6001", "6002"]
+  when: coolify_open_ports | bool
+  notify: Guardar reglas de iptables (Coolify)
+
+- name: ¿Está Coolify instalado?
+  ansible.builtin.stat:
+    path: /data/coolify/source
+  register: coolify_instalado
+
+- name: Instalar Coolify
+  when: not coolify_instalado.stat.exists
+  block:
+    - name: Descargar el instalador oficial
+      ansible.builtin.get_url:
+        url: https://cdn.coollabs.io/coolify/install.sh
+        dest: /tmp/coolify-install.sh
+        mode: "0700"
+
+    - name: Ejecutar el instalador de Coolify (tarda varios minutos)
+      ansible.builtin.command: bash /tmp/coolify-install.sh
+      args:
+        creates: /data/coolify/source/.env
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Panel de Coolify: http://{{ draupnode_host }}:8000 — entra ya y crea tu usuario (el primero que entra queda de administrador)."

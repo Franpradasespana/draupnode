@@ -1,0 +1,3 @@
+---
+- name: Guardar reglas de iptables
+  ansible.builtin.command: netfilter-persistent save

@@ -1,0 +1,63 @@
+---
+- name: ¿Está Docker instalado?
+  ansible.builtin.stat:
+    path: /usr/bin/docker
+  register: docker_bin
+
+- name: Instalar Docker con el script oficial (get.docker.com)
+  when: not docker_bin.stat.exists
+  block:
+    - name: Descargar get-docker.sh
+      ansible.builtin.get_url:
+        url: https://get.docker.com
+        dest: /tmp/get-docker.sh
+        mode: "0700"
+
+    - name: Ejecutar get-docker.sh (tarda un par de minutos)
+      ansible.builtin.command: sh /tmp/get-docker.sh
+      args:
+        creates: /usr/bin/docker
+
+- name: ¿Está Coolify ya instalado?
+  ansible.builtin.stat:
+    path: /data/coolify/source
+  register: docker_coolify
+
+- name: Almacenamiento clásico overlay2
+  when: docker_classic_storage | bool and not docker_coolify.stat.exists
+  block:
+    - name: Carpeta /etc/docker
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: "0755"
+
+    - name: Leer /etc/docker/daemon.json
+      ansible.builtin.slurp:
+        src: /etc/docker/daemon.json
+      register: docker_daemon_actual
+      failed_when: false
+
+    - name: Desactivar el image store de containerd
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        mode: "0644"
+        content: >-
+          {{ ((docker_daemon_actual.content | b64decode | from_json) if docker_daemon_actual.content is defined else {})
+             | combine({'features': {'containerd-snapshotter': false}}, recursive=True) | to_nice_json }}
+      notify: Reiniciar Docker
+
+- name: Docker arrancado y al inicio
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+  when: not ansible_check_mode or docker_bin.stat.exists
+
+- name: Usuarios en el grupo docker
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ ([draupnode_ssh_user] + docker_users) | unique | reject('equalto', 'root') | list }}"
+  when: not ansible_check_mode or docker_bin.stat.exists

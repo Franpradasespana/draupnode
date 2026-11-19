@@ -1,0 +1,43 @@
+---
+- name: Guardar las reglas automáticamente al instalar iptables-persistent
+  ansible.builtin.debconf:
+    name: iptables-persistent
+    question: "{{ item }}"
+    vtype: boolean
+    value: "true"
+  loop:
+    - iptables-persistent/autosave_v4
+    - iptables-persistent/autosave_v6
+
+- name: Instalar iptables y netfilter-persistent
+  ansible.builtin.apt:
+    name: [iptables, netfilter-persistent, iptables-persistent]
+    state: present
+    lock_timeout: 600
+
+- name: Comprobar si iptables ya está instalado
+  ansible.builtin.command: which iptables
+  register: firewall_iptables_bin
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Al previsualizar en un servidor sin iptables, su instalación solo se simula:
+# no se pueden leer las reglas, así que se avisa en vez de fallar.
+- name: Previsualización sin iptables instalado
+  ansible.builtin.debug:
+    msg: "Al aplicar se abrirán los puertos TCP {{ ((['22'] + firewall_tcp_ports) | unique) | join(', ') }} (ahora no se pueden comprobar porque iptables aún no está instalado)."
+  when: ansible_check_mode and firewall_iptables_bin.rc != 0
+
+- name: Abrir puertos TCP
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ item }}"
+    ctstate: NEW
+    jump: ACCEPT
+    action: insert
+    comment: draupnode
+  loop: "{{ (['22'] + firewall_tcp_ports) | unique }}"
+  when: not ansible_check_mode or firewall_iptables_bin.rc == 0
+  notify: Guardar reglas de iptables

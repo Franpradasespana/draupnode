@@ -1,0 +1,35 @@
+id: base
+name: Sistema base
+version: 1.0.0
+category: 1 · Sistema
+description: Paquetes básicos, zona horaria, memoria de intercambio (swap) y actualizaciones de seguridad automáticas.
+details: |
+  Espera a que apt quede libre (en un servidor recién creado suele estar ocupado
+  con actualizaciones), instala los paquetes indicados, fija la zona horaria,
+  crea /swapfile si se pide y activa unattended-upgrades para los parches de seguridad.
+requires:
+  os: [ubuntu, debian]
+variables:
+  - name: base_packages
+    label: Paquetes a instalar
+    type: list
+    default: [curl, ca-certificates, gnupg, jq, openssl, python3, logrotate, htop, unzip]
+    pattern: '^[a-z0-9][a-z0-9.+-]*$'
+    pattern_help: Nombre de paquete apt (minúsculas, números, . + -)
+  - name: base_timezone
+    label: Zona horaria
+    type: string
+    default: Europe/Madrid
+    pattern: '^[A-Za-z_]+(/[A-Za-z0-9_+-]+)*$'
+    pattern_help: 'Formato Región/Ciudad, p. ej. Europe/Madrid'
+  - name: base_swap_mb
+    label: Swap (MB)
+    help: Memoria de intercambio en /swapfile. 0 = no crear. Útil en servidores con poca RAM.
+    type: int
+    default: 2048
+    min: 0
+    max: 65536
+  - name: base_auto_updates
+    label: Actualizaciones de seguridad automáticas
+    type: bool
+    default: true

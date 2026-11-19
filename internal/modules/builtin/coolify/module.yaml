@@ -1,0 +1,20 @@
+id: coolify
+name: Coolify
+version: 1.0.0
+category: 3 · Plataformas
+description: Panel para desplegar tus apps desde GitHub/GitLab con dominio y HTTPS automáticos (proxy Traefik + Let's Encrypt).
+details: |
+  Instala Coolify con su instalador oficial. Al terminar, entra ENSEGUIDA en
+  http://IP:8000 y crea tu usuario: el primero que entre se queda de administrador.
+  Coolify se actualiza solo desde su panel.
+depends: [docker, firewall]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 1800
+  min_disk_gb: 30
+variables:
+  - name: coolify_open_ports
+    label: Abrir los puertos del panel (8000, 6001 y 6002)
+    help: Hacen falta hasta que el panel tenga dominio propio. En Oracle Cloud ábrelos también en la Security List.
+    type: bool
+    default: true

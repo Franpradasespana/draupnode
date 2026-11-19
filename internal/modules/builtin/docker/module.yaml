@@ -1,0 +1,28 @@
+id: docker
+name: Docker
+version: 1.0.0
+category: 2 · Contenedores
+description: Instala Docker Engine con el script oficial, lo deja arrancado y da permisos a tu usuario.
+details: |
+  Si se marca «almacenamiento clásico», desactiva el image store de containerd
+  ANTES de que se descarguen imágenes. Sin eso cAdvisor no puede medir CPU/RAM
+  por contenedor en Grafana. Si Coolify ya está instalado no se toca, porque
+  cambiarlo después dejaría sus contenedores sin arrancar.
+depends: [base]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 900
+  min_disk_gb: 10
+variables:
+  - name: docker_classic_storage
+    label: Almacenamiento clásico overlay2
+    help: Necesario para ver CPU/RAM por contenedor en la monitorización.
+    type: bool
+    default: true
+  - name: docker_users
+    label: Otros usuarios en el grupo docker
+    help: Tu usuario de conexión se añade siempre.
+    type: list
+    default: []
+    pattern: '^[a-z_][a-z0-9_-]{0,31}$'
+    pattern_help: Nombre de usuario de Linux

@@ -1,0 +1,27 @@
+# Generado por Draupnode (módulo postgres). No lo edites a mano: se reescribe.
+name: draupnode-postgres
+
+services:
+  postgres:
+    image: postgres:{{ postgres_version }}-alpine
+    container_name: {{ postgres_container }}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks: [{{ postgres_network }}]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  pg_data:
+
+networks:
+  {{ postgres_network }}:
+    external: true

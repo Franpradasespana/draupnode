@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Draupnode
+GenericName=Preparador de servidores
+Comment=Zero-to-host forge: prepara servidores Linux desde cero con SSH y Ansible
+Exec=draupnode
+Icon=draupnode
+Terminal=false
+Categories=Development;System;Network;
+Keywords=ssh;ansible;servidor;server;docker;coolify;devops;
+StartupWMClass=draupnode
+StartupNotify=true
