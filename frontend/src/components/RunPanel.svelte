@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Linkify from './Linkify.svelte'
   import { tick } from 'svelte'
   import { LoaderCircle, CircleCheck, CircleX, CircleDot, CircleMinus, Square, ScrollText, ListChecks, Info, Eye, Hammer } from '@lucide/svelte'
   import { api } from '../lib/api'
@@ -122,7 +123,7 @@
   {#if run.notes.length}
     <div class="notes">
       <div class="notes-t">Para que lo sepas</div>
-      {#each run.notes as n}<p><Info size={15} /> <span class="selectable">{n}</span></p>{/each}
+      {#each run.notes as n}<p><Info size={15} /> <span class="selectable"><Linkify text={n} /></span></p>{/each}
     </div>
   {/if}
 
@@ -157,7 +158,7 @@
               {stLabel(t.status)}
             </span>
           </div>
-          {#if t.msg}<pre class="msg selectable">{t.msg}</pre>{/if}
+          {#if t.msg}<pre class="msg selectable"><Linkify text={t.msg} /></pre>{/if}
           {#each t.diffs as d}<pre class="diff selectable">{d}</pre>{/each}
         {/each}
       {/each}

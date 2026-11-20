@@ -142,3 +142,6 @@ Petición del usuario tras la primera prueba:
 - **Cortafuegos**: probado en el servidor de pruebas que abre 8000/6001/6002 y los guarda en `/etc/iptables/rules.v4`. Quita las reglas antiguas con la etiqueta `draupnode-coolify` (las abría el módulo Coolify hasta la 0.6.0), que quedaban duplicadas. Segunda simulación: 0 cambios.
 - **Estudio de módulos nuevos** en `docs/ESTUDIO_MODULOS.md`: cambios de formato previos (tipo `secret`, `conflicts`, avisos de choques, puertos desde variable, listas de varias columnas), orden propuesto (SSH endurecido + fail2ban, restic, monitorización, importar secretos, apps por API de Coolify, nginx/Caddy…) y decisiones pendientes.
 - Probado en un servidor de pruebas desechable (Ubuntu limpio): instalación de Coolify con correo de administrador y sin actualizaciones automáticas → 0 fallos; el usuario existe en la base de Coolify, la contraseña guardada en el servidor es la que acepta y no aparece en el registro de la ejecución; `.env` con `AUTOUPDATE=false`.
+
+### 2026-11-20 — Enlaces clicables en los mensajes de una ejecución
+- Las direcciones http(s) de las notas («Para que lo sepas») y de los mensajes de las tareas se abren en el navegador al pulsarlas (componente `Linkify`; la puntuación final como «).» no entra en el enlace). P. ej. el panel de Coolify en la nota «Coolify ya estaba instalado…».
