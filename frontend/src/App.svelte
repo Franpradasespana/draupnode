@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { LayoutDashboard, Server, Boxes, FolderGit2, FileCode, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp } from '@lucide/svelte'
+  import { LayoutDashboard, Server, Boxes, FolderGit2, FileCode, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X } from '@lucide/svelte'
   import Logo from './components/Logo.svelte'
   import Dashboard from './views/Dashboard.svelte'
   import Servers from './views/Servers.svelte'
@@ -34,6 +34,13 @@
   }
 
   let ready = $state(false)
+  // Menú lateral plegado en pantallas estrechas (botón hamburguesa).
+  let menuOpen = $state(false)
+  function go(v: View) {
+    ui.view = v
+    if (v === 'projects') { ui.projectId = null; ui.projectServer = null }
+    menuOpen = false
+  }
   onMount(async () => {
     // En la demo del navegador, #servers, #settings… abren esa pantalla.
     const h = location.hash.slice(1) as View
@@ -50,6 +57,9 @@
 
 <div class="shell">
   <header class="topbar">
+    <button class="burger" onclick={() => (menuOpen = !menuOpen)} aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuOpen}>
+      {#if menuOpen}<X size={20} />{:else}<Menu size={20} />{/if}
+    </button>
     <div class="brand">
       <Logo size={28} />
       <span>DRAUPNODE</span>
@@ -57,16 +67,17 @@
     <div class="crumb">{titles[ui.view]}</div>
     <div class="top-right">
       {#if !isDesktop}<span class="badge accent" title="Abierto en el navegador: datos simulados">Demo navegador</span>{/if}
-      <button class="btn ghost sm" class:active={ui.view === 'settings'} onclick={() => (ui.view = 'settings')}>
-        <Settings size={15} /> Ajustes
+      <button class="btn ghost sm" class:active={ui.view === 'settings'} onclick={() => go('settings')} title="Ajustes">
+        <Settings size={15} /> <span class="lbl">Ajustes</span>
       </button>
     </div>
   </header>
 
-  <aside class="sidebar">
+  {#if menuOpen}<div class="scrim" role="presentation" onclick={() => (menuOpen = false)}></div>{/if}
+  <aside class="sidebar" class:open={menuOpen}>
     <nav>
       {#each nav as item}
-        <button class="nav-item" class:active={ui.view === item.id} onclick={() => { ui.view = item.id; if (item.id === 'projects') { ui.projectId = null; ui.projectServer = null } }}>
+        <button class="nav-item" class:active={ui.view === item.id} onclick={() => go(item.id)}>
           <item.icon size={17} strokeWidth={1.8} />
           <span>{item.label}</span>
           {#if item.soon}<em>pronto</em>{/if}
@@ -74,7 +85,7 @@
       {/each}
     </nav>
     <div class="side-foot">
-      <button class="nav-item help-btn" onclick={() => (ui.help = ui.view)} title="Ayuda de esta pantalla">
+      <button class="nav-item help-btn" onclick={() => { ui.help = ui.view; menuOpen = false }} title="Ayuda de esta pantalla">
         <CircleHelp size={17} strokeWidth={1.8} />
         <span>Ayuda</span>
       </button>
@@ -170,6 +181,30 @@
   .ver { font-size: 11.5px; color: var(--sidebar-muted); opacity: .7; font-family: var(--mono); }
 
   .content { overflow-y: auto; padding: 28px 32px 40px; }
+
+  .burger {
+    display: none; align-items: center; justify-content: center; width: 36px; height: 36px; margin-left: -6px;
+    background: none; border: 0; border-radius: 8px; color: var(--sidebar-text); cursor: pointer; --wails-draggable: no-drag;
+  }
+  .burger:hover { background: var(--sidebar-hover); }
+  .scrim { display: none; }
+
+  /* Pantalla estrecha (p. ej. media pantalla): el menú se pliega. */
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .burger { display: inline-flex; }
+    .brand { width: auto; }
+    .sidebar {
+      position: fixed; top: 52px; bottom: 30px; left: 0; width: 240px; z-index: 30;
+      transform: translateX(-100%); transition: transform .18s ease-out; box-shadow: var(--shadow);
+    }
+    .sidebar.open { transform: none; }
+    .scrim { display: block; position: fixed; inset: 52px 0 30px; z-index: 29; background: rgba(0, 0, 0, .45); }
+    .content { padding: 20px 16px 32px; }
+  }
+  @media (max-width: 640px) {
+    .crumb, .top-right .lbl, .brand span { display: none; }
+  }
 
   .toast {
     position: fixed; right: 22px; bottom: 22px; z-index: 50;

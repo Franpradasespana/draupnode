@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"draupnode/internal/lab"
+	"draupnode/internal/store"
 )
 
 // ServerLive es lo que muestra la barra de estado de un servidor: si su SSH
@@ -53,7 +54,7 @@ func (a *App) ServerLive(id string) (ServerLive, error) {
 	}()
 
 	var cands []webCandidate
-	if srv.Host == lab.Host && srv.Port == lab.SSHPort {
+	if isLabServer(srv) {
 		cands = []webCandidate{{fmt.Sprintf("http://%s:%d", lab.Host, lab.CoolifyPort), "Coolify"}}
 	} else {
 		h := srv.Host
@@ -114,3 +115,14 @@ func firstWeb(ctx context.Context, cands []webCandidate) (webCandidate, bool) {
 	}
 	return webCandidate{}, false
 }
+
+// coolifyURLFor es donde se ve el panel de Coolify de un servidor desde este
+// equipo: en el servidor de pruebas el 8000 del contenedor se publica en otro puerto.
+func coolifyURLFor(srv store.Server) string {
+	if isLabServer(srv) {
+		return fmt.Sprintf("http://%s:%d", lab.Host, lab.CoolifyPort)
+	}
+	return ""
+}
+
+func isLabServer(srv store.Server) bool { return srv.Host == lab.Host && srv.Port == lab.SSHPort }

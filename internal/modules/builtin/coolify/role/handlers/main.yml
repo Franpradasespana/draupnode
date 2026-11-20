@@ -1,3 +1,0 @@
----
-- name: Guardar reglas de iptables (Coolify)
-  ansible.builtin.command: netfilter-persistent save

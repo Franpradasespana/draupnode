@@ -12,9 +12,18 @@
     quiet: true
   when: preflight_ram_mb | int > 0
 
+# df en vez de ansible_mounts: en contenedores y algunos servidores «/» no
+# aparece en esa lista.
+- name: Medir el espacio libre en /
+  ansible.builtin.command: df -Pk /
+  register: preflight_df
+  changed_when: false
+  check_mode: false
+  when: preflight_disk_gb | int > 0
+
 - name: Comprobar el espacio libre en disco (mínimo {{ preflight_disk_gb }} GB)
   vars:
-    libre_gb: "{{ ((ansible_mounts | selectattr('mount', 'equalto', '/') | first).size_available / 1073741824) | round(1) }}"
+    libre_gb: "{{ ((preflight_df.stdout_lines[-1].split()[3] | int) / 1048576) | round(1) }}"
   ansible.builtin.assert:
     that: libre_gb | float >= preflight_disk_gb | float
     fail_msg: "Hacen falta {{ preflight_disk_gb }} GB libres en / y hay {{ libre_gb }} GB."

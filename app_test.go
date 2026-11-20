@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -223,5 +225,28 @@ func TestProyectoVacioYAplicado(t *testing.T) {
 	changed, _ := a.SaveProject(same)
 	if !changed.UpdatedAt.After(*changed.AppliedAt) {
 		t.Fatal("un cambio debería pedir aplicar otra vez")
+	}
+}
+
+// La interfaz recorre las listas de la comprobación: nunca deben llegar como null
+// (pasaba con «warnings» en un servidor ya comprobado y bloqueaba el editor).
+func TestCheckProjectSinNulls(t *testing.T) {
+	a := newTestApp(t, secrets.Memory{})
+	srv, _ := a.SaveServer(srvPassword(), "", false, "")
+	_ = a.store.SetLastCheck(srv.ID, store.CheckResult{OK: true, Facts: map[string]string{
+		"os_id": "ubuntu", "mem_kb": "16777216", "disk_free_kb": "209715200"}})
+	for _, mods := range [][]string{{"base"}, {"coolify"}, {}} {
+		var pm []store.ProjectModule
+		for _, id := range mods {
+			pm = append(pm, store.ProjectModule{ID: id, Values: map[string]any{}})
+		}
+		b, _ := json.Marshal(a.CheckProject(store.Project{Name: "x", ServerID: srv.ID, Modules: pm}))
+		if strings.Contains(string(b), "null") {
+			t.Fatalf("%v: hay un null en %s", mods, b)
+		}
+	}
+	m, _ := a.cat().Get("coolify")
+	if fmt.Sprint(m.FirewallPorts) != "[8000 6001 6002]" {
+		t.Fatalf("Coolify debe declarar sus puertos: %v", m.FirewallPorts)
 	}
 }

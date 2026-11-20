@@ -81,6 +81,13 @@
   li p { margin: 0; line-height: 1.55; font-size: 13.5px; }
   .shot { display: block; margin-top: 10px; padding: 0; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: none; cursor: zoom-in; max-width: 100%; }
   .shot img { display: block; width: 100%; height: auto; }
+  @media (max-width: 720px) {
+    .help { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px; }
+    .nav-title { display: none; }
+    nav button { white-space: nowrap; padding: 6px 10px; }
+    section { padding: 16px 18px 24px; }
+  }
   .zoom { position: fixed; inset: 0; z-index: 46; background: rgba(0, 0, 0, .8); display: grid; place-items: center; padding: 24px; cursor: zoom-out; }
   .zoom img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: var(--shadow); }
 </style>

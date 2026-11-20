@@ -33,6 +33,7 @@ export const HELP: HelpSection[] = [
       { title: '3 · Crea un proyecto', text: 'En «Proyectos», elige el servidor y marca los módulos (Docker, Coolify, PostgreSQL…).', img: 'proyecto' },
       { title: '4 · Previsualiza y aplica', text: '«Previsualizar» dice qué cambiaría sin tocar nada; «Aplicar» lo instala. También puedes exportar un único instalar.sh.' },
       { title: 'La barra de abajo', text: 'Muestra el servidor elegido: si responde ahora mismo, cuándo se probó la conexión, lo que se está instalando y un botón para abrir su web (Coolify si está instalado). Cambia de servidor con su desplegable.', img: 'barra-estado' },
+      { title: 'Ventana estrecha', text: 'Si la ventana es estrecha (por ejemplo, a media pantalla), el menú de la izquierda se pliega: ábrelo con el botón ☰ de arriba a la izquierda.' },
     ],
   },
   {

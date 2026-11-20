@@ -473,6 +473,7 @@ export namespace modules {
 	    depends: string[];
 	    requires: Requires;
 	    variables: Variable[];
+	    firewallPorts?: number[];
 	    source: string;
 	    files: string[];
 	
@@ -491,6 +492,7 @@ export namespace modules {
 	        this.depends = source["depends"];
 	        this.requires = this.convertValues(source["requires"], Requires);
 	        this.variables = this.convertValues(source["variables"], Variable);
+	        this.firewallPorts = source["firewallPorts"];
 	        this.source = source["source"];
 	        this.files = source["files"];
 	    }

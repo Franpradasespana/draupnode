@@ -115,6 +115,7 @@ export interface Module {
   depends: string[] | null
   requires: { os?: string[]; minRamMb?: number; minDiskGb?: number }
   variables: ModVariable[] | null
+  firewallPorts?: number[] | null
   source: 'builtin' | 'user'
   files: string[] | null
 }
@@ -672,7 +673,7 @@ const MOCK_MODULES: Module[] = [
   { id: 'coolify', name: 'Coolify', version: '1.0.0', category: '3 · Plataformas', source: 'builtin', depends: ['docker', 'firewall'], requires: { os: ['ubuntu', 'debian'], minRamMb: 1800, minDiskGb: 30 },
     description: "Panel para desplegar tus apps desde GitHub/GitLab con dominio y HTTPS automáticos (proxy Traefik + Let's Encrypt).",
     files: ['tasks/main.yml', 'handlers/main.yml'],
-    variables: [{ name: 'coolify_open_ports', label: 'Abrir los puertos del panel (8000, 6001 y 6002)', type: 'bool', default: true }] },
+    firewallPorts: [8000, 6001, 6002], variables: [] },
   { id: 'postgres', name: 'PostgreSQL compartido', version: '1.0.0', category: '4 · Bases de datos', source: 'builtin', depends: ['docker'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900 },
     description: 'Un PostgreSQL en Docker para todas tus apps, con una base y un usuario por app. Las contraseñas se generan en el servidor.',
     files: ['tasks/main.yml', 'templates/docker-compose.yml.j2'],

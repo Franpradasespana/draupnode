@@ -57,7 +57,7 @@
         {#each ui.servers as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
       </select>
     </label>
-    <span class="mono muted selectable">{srv.user}@{srv.host}{srv.port !== 22 ? ':' + srv.port : ''}</span>
+    <span class="mono muted selectable hide-sm">{srv.user}@{srv.host}{srv.port !== 22 ? ':' + srv.port : ''}</span>
 
     <span class="sep"></span>
     {#if !live}
@@ -68,13 +68,13 @@
       <span class="bad-t" title={live.error}>No responde</span>
     {/if}
 
-    <span class="sep"></span>
+    <span class="sep hide-md"></span>
     {#if lc?.ok}
-      <span class="muted">Conexión SSH comprobada {timeAgo(lc.at)}{lc.facts?.os ? ' · ' + lc.facts.os : ''}</span>
+      <span class="muted hide-md">Conexión SSH comprobada {timeAgo(lc.at)}{lc.facts?.os ? ' · ' + lc.facts.os : ''}</span>
     {:else if lc}
-      <span class="bad-t" title={lc.error}>La última prueba de conexión falló</span>
+      <span class="bad-t hide-md" title={lc.error}>La última prueba de conexión falló</span>
     {:else}
-      <button class="lnk" onclick={() => (ui.view = 'servers')}>Sin probar la conexión</button>
+      <button class="lnk hide-md" onclick={() => (ui.view = 'servers')}>Sin probar la conexión</button>
     {/if}
 
     {#if running.length}
@@ -87,7 +87,7 @@
     {/if}
 
     <span class="grow"></span>
-    <button class="lnk" onclick={() => openServerProjects(srv.id)} title="Proyectos de este servidor">
+    <button class="lnk hide-sm" onclick={() => openServerProjects(srv.id)} title="Proyectos de este servidor">
       <Activity size={12} /> {nProj} {nProj === 1 ? 'proyecto' : 'proyectos'}
     </button>
     <button class="icon-b" onclick={refresh} disabled={checking} title="Volver a comprobar" aria-label="Volver a comprobar">
@@ -130,6 +130,8 @@
   .pick option { background: var(--panel); color: var(--text); }
   .sep { width: 1px; height: 14px; background: var(--border); flex: none; }
   .grow { flex: 1; }
+  @media (max-width: 1100px) { .hide-md { display: none; } }
+  @media (max-width: 700px) { .hide-sm { display: none; } .run { max-width: 180px; } }
   .ok-t { color: var(--success); }
   .bad-t { color: var(--danger); }
   .lnk, .icon-b, .web {

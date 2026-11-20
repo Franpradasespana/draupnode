@@ -1,15 +1,23 @@
 <script lang="ts">
   // Un campo del formulario de un módulo, generado a partir de su variable.
+  import { untrack } from 'svelte'
   import type { ModVariable } from '../lib/api'
 
   let { v, value = $bindable(), error }: { v: ModVariable; value: unknown; error?: string } = $props()
 
   // Las listas se editan como texto, un elemento por línea.
   let listText = $state(Array.isArray(value) ? (value as string[]).join('\n') : '')
+  const parse = (t: string) => t.split('\n').map((x) => x.trim()).filter(Boolean)
   function onList(t: string) {
     listText = t
-    value = t.split('\n').map((x) => x.trim()).filter(Boolean)
+    value = parse(t)
   }
+  // Si la lista cambia desde fuera (p. ej. Coolify añade sus puertos al
+  // Cortafuegos), se refleja aquí; lo que se está escribiendo no se toca.
+  $effect(() => {
+    const ext = Array.isArray(value) ? (value as unknown[]).map(String) : []
+    if (ext.join('\n') !== untrack(() => parse(listText)).join('\n')) listText = ext.join('\n')
+  })
 </script>
 
 <div class="vf" class:bad={!!error}>

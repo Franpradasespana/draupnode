@@ -71,6 +71,9 @@ type Module struct {
 	Depends     []string   `yaml:"depends" json:"depends"`
 	Requires    Requires   `yaml:"requires" json:"requires"`
 	Variables   []Variable `yaml:"variables" json:"variables"`
+	// FirewallPorts son puertos TCP que el módulo necesita abiertos: al
+	// marcarlo se añaden a la lista del Cortafuegos (y se quitan al desmarcarlo).
+	FirewallPorts []int `yaml:"firewall_ports" json:"firewallPorts,omitempty"`
 
 	Source string   `yaml:"-" json:"source"` // builtin | user
 	Files  []string `yaml:"-" json:"files"`  // ficheros del rol (para verlos)
@@ -95,6 +98,11 @@ func (m *Module) validate() error {
 	}
 	if m.Name == "" {
 		return errors.New("falta name")
+	}
+	for _, p := range m.FirewallPorts {
+		if p < 1 || p > 65535 {
+			return fmt.Errorf("firewall_ports: %d no es un puerto válido", p)
+		}
 	}
 	seen := map[string]bool{}
 	for i := range m.Variables {

@@ -162,6 +162,9 @@ func (a *App) resolveProject(p store.Project) (ProjectCheck, []bundle.Selection)
 	if srv, err := a.store.Server(p.ServerID); err == nil && srv.LastCheck != nil && srv.LastCheck.OK {
 		res.Warnings = requirementWarnings(sel, srv.LastCheck.Facts)
 	}
+	if res.Warnings == nil {
+		res.Warnings = []string{} // la interfaz espera una lista, nunca null
+	}
 	return res, sel
 }
 
@@ -242,7 +245,7 @@ func (a *App) buildScript(p store.Project) ([]byte, store.Server, error) {
 		return nil, srv, errors.New(msg)
 	}
 	sc, err := bundle.Script(bundle.Options{
-		Project: p.Name, Slug: bundle.Slug(p.Name), Host: srv.Host, SSHUser: srv.User,
+		Project: p.Name, Slug: bundle.Slug(p.Name), Host: srv.Host, SSHUser: srv.User, CoolifyURL: coolifyURLFor(srv),
 		AppVersion: Version, Now: time.Now(),
 	}, sel)
 	return sc, srv, err

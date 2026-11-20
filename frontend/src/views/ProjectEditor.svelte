@@ -36,7 +36,9 @@
   const running = $derived(!!run && !run.done)
   const server = $derived(ui.servers.find((s) => s.id === draft.serverId))
   const ordered = $derived(
-    (check?.order.length ? check.order : draft.modules.map((m) => m.id)).filter((mid) => selected.has(mid)),
+    // Orden del backend (por dependencias) y, mientras llega, los recién marcados al final:
+    // así la ventana aparece o desaparece al instante.
+    [...new Set([...(check?.order ?? []), ...draft.modules.map((m) => m.id)])].filter((mid) => selected.has(mid)),
   )
   const errorCount = $derived(Object.values(check?.errors ?? {}).reduce((n, e) => n + Object.keys(e).length, 0))
 
@@ -50,6 +52,28 @@
     return Object.fromEntries((m.variables ?? []).map((v) => [v.name, $state.snapshot(v.default)]))
   }
 
+  // Puertos que un módulo necesita abiertos: se añaden a (o quitan de) la
+  // lista del Cortafuegos, para que lo que se ve sea lo que se abre.
+  const FW_VAR = 'firewall_tcp_ports'
+  function fwList(): string[] | null {
+    const fw = draft.modules.find((x) => x.id === 'firewall')
+    if (!fw) return null
+    if (!Array.isArray(fw.values[FW_VAR])) fw.values[FW_VAR] = []
+    return fw.values[FW_VAR] as string[]
+  }
+  function addPorts(m: Module) {
+    const list = fwList()
+    if (!list) return
+    for (const p of m.firewallPorts ?? []) if (!list.includes(String(p))) list.push(String(p))
+  }
+  function removePorts(m: Module) {
+    const list = fwList()
+    if (!list) return
+    const stillNeeded = new Set(draft.modules.filter((x) => x.id !== m.id).flatMap((x) => byId(x.id)?.firewallPorts ?? []).map(String))
+    const drop = new Set((m.firewallPorts ?? []).map(String).filter((p) => !stillNeeded.has(p)))
+    if (drop.size) draft.modules.find((x) => x.id === 'firewall')!.values[FW_VAR] = list.filter((p) => !drop.has(String(p)))
+  }
+
   // Al marcar un módulo se añaden también sus dependencias.
   function add(mid: string, added: string[] = []) {
     const m = byId(mid)
@@ -58,14 +82,25 @@
     if (!draft.modules.some((x) => x.id === mid)) {
       draft.modules.push({ id: mid, values: defaults(m) })
       added.push(mid)
+      // Si es el propio Cortafuegos, recoge los puertos de los que ya estaban.
+      if (mid === 'firewall') for (const x of draft.modules) { const xm = byId(x.id); if (xm) addPorts(xm) }
+      else addPorts(m)
     }
     return added
   }
 
-  function toggle(mid: string) {
+  // Módulos que no se pueden desmarcar porque los necesita otro marcado.
+  const requiredBy = (mid: string) => draft.modules.filter((x) => byId(x.id)?.depends?.includes(mid)).map((x) => moduleName(x.id))
+
+  function toggle(e: Event, mid: string) {
     if (selected.has(mid)) {
-      const users = draft.modules.filter((x) => byId(x.id)?.depends?.includes(mid)).map((x) => moduleName(x.id))
-      if (users.length) return toast(`No se puede quitar: lo necesita ${users.join(', ')}`, 'error')
+      const users = requiredBy(mid)
+      if (users.length) {
+        ;(e.currentTarget as HTMLInputElement).checked = true // la casilla no debe quedarse desmarcada
+        return toast(`No se puede quitar: lo necesita ${users.join(', ')}`, 'error')
+      }
+      const m = byId(mid)
+      if (m) removePorts(m)
       draft.modules = draft.modules.filter((x) => x.id !== mid)
       return
     }
@@ -281,13 +316,13 @@
   <RunPanel {run} onclose={closeRun} />
 {/if}
 
-{#if check?.warnings.length}
+{#if check?.warnings?.length}
   <div class="card warns">
     {#each check.warnings as w}<p><TriangleAlert size={15} /> {w}</p>{/each}
     <p class="muted small">Según la última comprobación del servidor. La ejecución vuelve a comprobarlo y se detiene si no se cumple.</p>
   </div>
 {/if}
-{#if check?.general.length && draft.modules.length}
+{#if check?.general?.length && draft.modules.length}
   <div class="card warns">{#each check.general as g}<p><TriangleAlert size={15} /> {g}</p>{/each}</div>
 {/if}
 
@@ -297,13 +332,16 @@
     {#each groups as [cat, list]}
       <div class="cat">{cat.replace(/^\d+\s*·\s*/, '')}</div>
       {#each list as m (m.id)}
-        {@const isDep = draft.modules.some((x) => byId(x.id)?.depends?.includes(m.id))}
+        {@const users = requiredBy(m.id)}
+        {@const isDep = users.length > 0}
         <label class="pick" class:on={selected.has(m.id)}>
-          <input type="checkbox" checked={selected.has(m.id)} onchange={() => toggle(m.id)} disabled={running} />
+          <input type="checkbox" checked={selected.has(m.id)} onchange={(e) => toggle(e, m.id)} disabled={running || (isDep && selected.has(m.id))}
+            title={isDep && selected.has(m.id) ? `Lo necesita ${users.join(', ')}: desmárcalo antes` : ''} />
           <div>
             <strong>{m.name}</strong>
             <span>{m.description}</span>
-            {#if isDep && selected.has(m.id)}<em><Lock size={11} /> lo necesitan otros módulos</em>{/if}
+            {#if isDep && selected.has(m.id)}<em><Lock size={11} /> lo necesita {users.join(', ')}</em>{/if}
+            {#if m.firewallPorts?.length}<em class="ports">abre los puertos {m.firewallPorts.join(', ')} en el Cortafuegos</em>{/if}
           </div>
         </label>
       {/each}
@@ -375,6 +413,7 @@
   .pick strong { font-size: 13.5px; }
   .pick span { font-size: 12px; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .pick em { font-style: normal; font-size: 11.5px; color: var(--accent); display: flex; gap: 4px; align-items: center; }
+  .pick em.ports { color: var(--muted); }
   .forms { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px; text-align: center; color: var(--muted); }
   .mod { padding: 0; }
@@ -384,6 +423,9 @@
   @media (max-width: 1100px) {
     .cols { grid-template-columns: 1fr; }
     .picker { position: static; max-height: none; }
-    .title-row { grid-template-columns: 1fr; }
+    .title-row { grid-template-columns: 1fr auto; grid-template-areas: "name btn" "srv srv"; align-items: center; }
+    .title-row .name { grid-area: name; min-width: 0; }
+    .title-row .srv { grid-area: srv; }
+    .title-row > .btn { grid-area: btn; }
   }
 </style>

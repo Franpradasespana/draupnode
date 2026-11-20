@@ -58,7 +58,7 @@ func TestSiteYAML(t *testing.T) {
 	for _, want := range []string{
 		"role: draupnode_preflight", "preflight_ram_mb: 1800", "preflight_disk_gb: 30",
 		`draupnode_secrets_dir: !unsafe "/etc/draupnode/secretos/oracle-produccion"`,
-		`- !unsafe "tienda"`, "base_swap_mb: 2048", "coolify_open_ports: true",
+		`- !unsafe "tienda"`, "base_swap_mb: 2048",
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("falta %q en:\n%s", want, s)
@@ -96,5 +96,17 @@ func TestScriptDesempaqueta(t *testing.T) {
 	}
 	if !strings.Contains(string(sc), "Módulos, en este orden: base → docker → postgres") {
 		t.Fatal("cabecera")
+	}
+}
+
+func TestCoolifyURL(t *testing.T) {
+	if got := (Options{Host: "203.0.113.10"}).coolifyURL(); got != "http://203.0.113.10:8000" {
+		t.Fatal(got)
+	}
+	if got := (Options{Host: "2001:db8::1"}).coolifyURL(); got != "http://[2001:db8::1]:8000" {
+		t.Fatal(got)
+	}
+	if got := (Options{Host: "127.0.0.1", CoolifyURL: "http://127.0.0.1:18000"}).coolifyURL(); got != "http://127.0.0.1:18000" {
+		t.Fatal(got)
 	}
 }

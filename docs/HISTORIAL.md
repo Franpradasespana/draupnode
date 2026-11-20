@@ -114,3 +114,19 @@ Petición del usuario tras la primera prueba:
 - Leyenda de estados y nombres más claros: «ya está bien», «se cambiará» / «hecho», «no hace falta», «fallo». Las notas van bajo «Para que lo sepas» (avisos, no errores).
 - Quitado el mensaje «El servidor ya está como pide el proyecto…» (confundía): sin cambios pendientes solo se dice «Todo correcto».
 - Mensajes del resultado más claros: simulación con cambios → «Simulación completada. Todavía no se ha aplicado nada… pulsa Aplicar» + lista; simulación sin nada pendiente → «Configuración ya aplicada en el servidor. No es necesario pulsar Aplicar», y además cuenta como aplicado (`appliedAt`), así que el botón Aplicar desaparece; aplicación → «Configuración aplicada en el servidor».
+
+## 2026-11-19 · 0.6.0 · Coolify probado en el servidor de pruebas e interfaz adaptable
+
+- **Probado de verdad** en el servidor de pruebas un proyecto con Coolify (trae Sistema base, Docker y Cortafuegos): simulación 0 fallos → aplicar 0 fallos (10 cambios, Docker dentro del contenedor + instalador oficial de Coolify) → panel responde en http://127.0.0.1:18000 → segunda simulación 0 cambios.
+- Arreglos que salieron al probar:
+  - Comprobación de espacio libre: usaba `ansible_mounts`, donde en contenedores (y algunos servidores) no aparece «/». Ahora `df -Pk /`.
+  - Simulación sin Docker instalado: el handler «Reiniciar Docker» fallaba (el servicio no existe aún); se salta. Igual para abrir los puertos de Coolify sin iptables.
+  - Dirección del panel de Coolify: nueva variable `draupnode_coolify_url` (en el servidor de pruebas, el puerto 18000). En la simulación la nota dice «Cuando se aplique, el panel estará en…».
+- **Interfaz adaptable**: ventana mínima 600×480 (antes 960×640, más de media pantalla). Por debajo de 900 px el menú lateral se pliega en un botón ☰ (se abre por encima y se cierra al elegir); la barra de estado oculta lo secundario; el editor de proyecto pone «Eliminar» junto al nombre; la ayuda pasa su índice arriba. Comprobado con capturas a 680 y 600 px.
+
+### 2026-11-20 · 0.6.1 — Editor de proyectos: ventanas de módulos congeladas y puertos de Coolify
+- **Fallo**: tras el primer cambio, marcar/desmarcar módulos no ponía ni quitaba su ventana (p. ej. Docker, PostgreSQL). Causa: con un servidor ya comprobado, `CheckProject` devolvía `warnings: null` (slice nil de Go) y la interfaz hacía `.length` sobre null; el error cortaba el repintado del editor. Arreglado en los dos lados (Go siempre `[]`, interfaz con `?.`) + test que comprueba que la comprobación no lleva ningún null. No salía en la demo porque el simulador devolvía `[]`; se reprodujo con `wails dev` + Chrome sin ventana contra el backend real.
+- Las ventanas aparecen/desaparecen al instante (antes esperaban a la comprobación del backend).
+- Un módulo que necesita otro marcado queda bloqueado (candado + «lo necesita X»); antes la casilla se desmarcaba sin efecto y quedaba descuadrada.
+- **Puertos de Coolify**: nuevo campo de módulo `firewall_ports`. Al marcar Coolify se añaden 8000, 6001 y 6002 a la lista del Cortafuegos (y se quitan al desmarcarlo si ningún otro los pide), así que lo que se ve es lo que se abre. Quitada la casilla «Abrir los puertos del panel» y la tarea de iptables propia de Coolify.
+- Las listas de los formularios se actualizan si cambian desde fuera.

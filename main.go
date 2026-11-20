@@ -43,8 +43,8 @@ func main() {
 		Title:     "Draupnode",
 		Width:     1280,
 		Height:    820,
-		MinWidth:  960,
-		MinHeight: 640,
+		MinWidth:  600,
+		MinHeight: 480,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

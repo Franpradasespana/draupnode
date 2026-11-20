@@ -39,8 +39,22 @@ type Options struct {
 	Slug       string // para rutas: /etc/draupnode/secretos/<slug>
 	Host       string // IP o dominio con el que se conecta Draupnode
 	SSHUser    string // usuario de conexión (se añade al grupo docker, etc.)
+	// CoolifyURL es la dirección del panel de Coolify vista desde este equipo
+	// (en el servidor de pruebas el puerto 8000 se publica en otro). Vacío = http://Host:8000.
+	CoolifyURL string
 	AppVersion string
 	Now        time.Time
+}
+
+func (o Options) coolifyURL() string {
+	if o.CoolifyURL != "" {
+		return o.CoolifyURL
+	}
+	h := o.Host
+	if strings.Contains(h, ":") && !strings.HasPrefix(h, "[") {
+		h = "[" + h + "]" // IPv6
+	}
+	return "http://" + h + ":8000"
 }
 
 var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
@@ -164,7 +178,8 @@ func SiteYAML(o Options, sel []Selection) ([]byte, error) {
 		"hosts":        plain("localhost"),
 		"connection":   plain("local"),
 		"gather_facts": valueNode(true),
-		"vars": mapNode([]string{"draupnode_project", "draupnode_host", "draupnode_ssh_user", "draupnode_secrets_dir"}, map[string]*yaml.Node{
+		"vars": mapNode([]string{"draupnode_project", "draupnode_host", "draupnode_ssh_user", "draupnode_secrets_dir", "draupnode_coolify_url"}, map[string]*yaml.Node{
+			"draupnode_coolify_url": str(o.coolifyURL()),
 			"draupnode_project":     str(o.Slug),
 			"draupnode_host":        str(o.Host),
 			"draupnode_ssh_user":    str(o.SSHUser),

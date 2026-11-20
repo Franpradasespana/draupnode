@@ -3,3 +3,5 @@
   ansible.builtin.service:
     name: docker
     state: restarted
+  # Al previsualizar sin Docker instalado todavía, el servicio no existe.
+  when: not ansible_check_mode or docker_bin.stat.exists
