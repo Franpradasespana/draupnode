@@ -6,8 +6,24 @@ export function AppInfo() {
   return window['go']['main']['App']['AppInfo']();
 }
 
+export function BackupDownload(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['BackupDownload'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+export function BackupLs(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['BackupLs'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function BackupNow(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['BackupNow'](arg1, arg2, arg3, arg4);
+}
+
+export function BackupRestore(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['BackupRestore'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+export function BackupRestoreDB(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
+  return window['go']['main']['App']['BackupRestoreDB'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 }
 
 export function BackupSnapshots(arg1, arg2, arg3, arg4, arg5) {

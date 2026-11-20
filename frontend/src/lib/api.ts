@@ -227,6 +227,18 @@ export interface MonitorResult extends RunStart {
   stats?: MonitorStats
 }
 
+export interface SnapEntry {
+  name: string
+  path: string
+  type: string
+  size: number
+  mtime: string
+}
+
+export interface BackupRestoreResult extends BackupResult {
+  entries?: SnapEntry[]
+}
+
 export interface BackupFetchProgress {
   projectId: string
   done: number
@@ -356,6 +368,10 @@ interface Backend {
   BackupNow(projectId: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   FetchBackups(projectId: string, dest: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   ChooseBackupFolder(projectId: string): Promise<string>
+  BackupLs(projectId: string, snapId: string, dir: string, secret: string, accept: string, sudoPassword: string): Promise<BackupRestoreResult>
+  BackupRestore(projectId: string, snapId: string, target: string, paths: string[], secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
+  BackupRestoreDB(projectId: string, snapId: string, dumpPath: string, container: string, dbName: string, replace: boolean, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
+  BackupDownload(projectId: string, snapId: string, paths: string[], dest: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   DefaultBackupFolder(projectId: string): Promise<string>
   CheckUninstall(projectId: string, modules: string[]): Promise<UninstallCheck>
   UninstallModules(projectId: string, modules: string[], purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
@@ -642,6 +658,35 @@ function mockBackend(): Backend {
     async BackupNow() {
       await wait(1800)
       return { status: 'ok', ok: true, output: '[2026-11-20 03:30:01] Volcando PostgreSQL (pg-compartido)\n[2026-11-20 03:30:04] Copiando archivos\n[2026-11-20 03:30:05] Borrando copias viejas\n[2026-11-20 03:30:06] Comprobando el repositorio\n[2026-11-20 03:30:09] Copia terminada. 14 copias en total' }
+    },
+    async BackupLs(_id, _snap, dir) {
+      await wait(350)
+      const t = new Date().toISOString()
+      const tree: Record<string, SnapEntry[]> = {
+        '/': [{ name: 'postgres-pg-compartido', path: '/postgres-pg-compartido', type: 'dir', size: 0, mtime: t }, { name: 'etc', path: '/etc', type: 'dir', size: 0, mtime: t }],
+        '/postgres-pg-compartido': [
+          { name: 'tienda.dump', path: '/postgres-pg-compartido/tienda.dump', type: 'file', size: 2_400_000, mtime: t },
+          { name: 'blog.dump', path: '/postgres-pg-compartido/blog.dump', type: 'file', size: 820_000, mtime: t },
+          { name: 'usuarios-y-permisos.sql', path: '/postgres-pg-compartido/usuarios-y-permisos.sql', type: 'file', size: 1_900, mtime: t }],
+        '/etc': [{ name: 'draupnode', path: '/etc/draupnode', type: 'dir', size: 0, mtime: t }],
+        '/etc/draupnode': [{ name: 'secretos', path: '/etc/draupnode/secretos', type: 'dir', size: 0, mtime: t }],
+      }
+      return { status: 'ok', ok: true, entries: tree[dir] ?? [] }
+    },
+    async BackupRestore(_id, snap, target, paths) {
+      await wait(900)
+      return { status: 'ok', ok: true, output: `restoring snapshot ${snap} to ${target}\nSummary: Restored ${paths.length * 3} files/dirs (1.2 MiB) in 0:01` }
+    },
+    async BackupRestoreDB(_id, snap, _dump, _ctr, db, replace) {
+      await wait(1200)
+      return { status: 'ok', ok: true, output: (replace ? `Cerrando las conexiones a ${db} y borrándola…\n` : '') + `Base ${db} restaurada desde la copia ${snap}.` }
+    },
+    async BackupDownload(id, snap, paths, dest) {
+      for (let d = 0; d <= 3_000_000; d += 1_000_000) {
+        mockEmit('backupfetch', { projectId: id, done: d, total: 0, stage: 'Descargando ' + paths[0] })
+        await wait(250)
+      }
+      return { status: 'ok', ok: true, output: `4 fichero(s), 3220000 bytes, en ${dest}/copia-${snap}`, fetch: { dir: `${dest}/copia-${snap}`, bytes: 3_220_000, files: 4, at: new Date().toISOString() } }
     },
     async ChooseBackupFolder() {
       return '/home/demo/Draupnode-copias/demo'

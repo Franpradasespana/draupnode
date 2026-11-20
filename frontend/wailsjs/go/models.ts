@@ -85,6 +85,45 @@ export namespace main {
 	        this.os = source["os"];
 	    }
 	}
+	export class SnapEntry {
+	    name: string;
+	    path: string;
+	    type: string;
+	    size: number;
+	    // Go type: time
+	    mtime: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new SnapEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.type = source["type"];
+	        this.size = source["size"];
+	        this.mtime = this.convertValues(source["mtime"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Snapshot {
 	    id: string;
 	    // Go type: time
@@ -106,6 +145,56 @@ export namespace main {
 	        this.paths = source["paths"];
 	        this.host = source["host"];
 	        this.bytes = source["bytes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class BackupRestoreResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    snapshots?: Snapshot[];
+	    output?: string;
+	    ok: boolean;
+	    fetch?: store.FetchInfo;
+	    entries?: SnapEntry[];
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupRestoreResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.snapshots = this.convertValues(source["snapshots"], Snapshot);
+	        this.output = source["output"];
+	        this.ok = source["ok"];
+	        this.fetch = this.convertValues(source["fetch"], store.FetchInfo);
+	        this.entries = this.convertValues(source["entries"], SnapEntry);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -621,6 +710,7 @@ export namespace main {
 		    return a;
 		}
 	}
+	
 	
 	
 	export class TestResult {

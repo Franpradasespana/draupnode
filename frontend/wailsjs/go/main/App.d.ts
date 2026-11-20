@@ -6,7 +6,15 @@ import {sshx} from '../models';
 
 export function AppInfo():Promise<main.AppInfo>;
 
+export function BackupDownload(arg1:string,arg2:string,arg3:Array<string>,arg4:string,arg5:string,arg6:string,arg7:string):Promise<main.BackupResult>;
+
+export function BackupLs(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<main.BackupRestoreResult>;
+
 export function BackupNow(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.BackupResult>;
+
+export function BackupRestore(arg1:string,arg2:string,arg3:string,arg4:Array<string>,arg5:string,arg6:string,arg7:string):Promise<main.BackupResult>;
+
+export function BackupRestoreDB(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:boolean,arg7:string,arg8:string,arg9:string):Promise<main.BackupResult>;
 
 export function BackupSnapshots(arg1:string,arg2:boolean,arg3:string,arg4:string,arg5:string):Promise<main.BackupResult>;
 

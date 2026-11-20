@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -404,8 +405,210 @@ Para verlas o restaurarlas necesitas restic (código abierto):
   export RESTIC_PASSWORD_FILE="` + filepath.Join(dest, "restic-password") + `"
   restic snapshots                           # lista las copias
   restic restore latest --target /tmp/restaurado
-  restic dump --tag postgres latest /postgres-pg-compartido.sql > bases.sql   # volcado de PostgreSQL
+  restic ls --tag postgres latest /          # dónde están los volcados de PostgreSQL
+  restic dump --tag postgres latest /postgres-pg-compartido/BASE.dump > BASE.dump
+  pg_restore -d BASE BASE.dump               # (una base; los usuarios están en usuarios-y-permisos.sql)
 
 Cada vez que pulses «Traer copias al equipo» solo se descarga lo nuevo.
 `
+}
+
+// ---------------------------------------------------------------- restaurar
+
+// SnapEntry es un fichero o carpeta dentro de una copia.
+type SnapEntry struct {
+	Name  string    `json:"name"`
+	Path  string    `json:"path"`
+	Type  string    `json:"type"` // dir | file | symlink…
+	Size  int64     `json:"size"`
+	Mtime time.Time `json:"mtime"`
+}
+
+// BackupRestoreResult amplía BackupResult con el listado de una carpeta.
+type BackupRestoreResult struct {
+	BackupResult
+	Entries []SnapEntry `json:"entries,omitempty"`
+}
+
+var snapIDRe = regexp.MustCompile(`^[0-9a-f]{8,64}$`)
+var dbNameRe = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,62}$`)
+
+func badRequest(msg string) BackupResult {
+	return BackupResult{RunStart: RunStart{Status: "error", Message: msg}}
+}
+
+// scriptErr traduce un fallo del script de copias; si es de una versión
+// anterior sin estas órdenes, pide aplicar el proyecto.
+func scriptErr(prefix, errOut string, err error) BackupResult {
+	msg := firstLine(errOut, err)
+	if strings.Contains(errOut, "Uso:") {
+		msg = "el script de copias del servidor es de una versión anterior: pulsa Aplicar en el proyecto para actualizarlo"
+	}
+	return badRequest(prefix + msg)
+}
+
+func validPath(p string) bool {
+	return strings.HasPrefix(p, "/") && !strings.ContainsAny(p, "\n\x00") && path.Clean(p) == p
+}
+
+// BackupLs lista una carpeta de una copia.
+func (a *App) BackupLs(projectID, snapID, dir, secret, accept, sudoPassword string) BackupRestoreResult {
+	if !snapIDRe.MatchString(snapID) || !validPath(dir) {
+		return BackupRestoreResult{BackupResult: badRequest("copia o carpeta no válida")}
+	}
+	var entries []SnapEntry
+	r := a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
+		out, errOut, err := execOut(c, su, bundle.ShellQuote(bp.Script)+" ls "+snapID+" "+bundle.ShellQuote(dir))
+		if err != nil {
+			return scriptErr("no se pudo leer la copia: ", errOut, err)
+		}
+		entries = parseLs(out, dir)
+		return BackupResult{OK: true}
+	})
+	if entries == nil {
+		entries = []SnapEntry{}
+	}
+	return BackupRestoreResult{BackupResult: r, Entries: entries}
+}
+
+// parseLs lee la salida JSON (una línea por objeto) de «restic ls --json»
+// y se queda con lo que está directamente dentro de dir.
+func parseLs(out, dir string) []SnapEntry {
+	entries := []SnapEntry{}
+	for _, line := range strings.Split(out, "\n") {
+		var n struct {
+			StructType string    `json:"struct_type"`
+			Name       string    `json:"name"`
+			Type       string    `json:"type"`
+			Path       string    `json:"path"`
+			Size       int64     `json:"size"`
+			Mtime      time.Time `json:"mtime"`
+		}
+		if json.Unmarshal([]byte(line), &n) != nil || n.StructType != "node" || n.Path == dir || path.Dir(n.Path) != dir {
+			continue
+		}
+		entries = append(entries, SnapEntry{Name: n.Name, Path: n.Path, Type: n.Type, Size: n.Size, Mtime: n.Mtime})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if (entries[i].Type == "dir") != (entries[j].Type == "dir") {
+			return entries[i].Type == "dir"
+		}
+		return entries[i].Name < entries[j].Name
+	})
+	return entries
+}
+
+// BackupRestore restaura rutas de una copia en el servidor, en target
+// («/» = en su sitio original, sobrescribiendo).
+func (a *App) BackupRestore(projectID, snapID, target string, paths []string, secret, accept, sudoPassword string) BackupResult {
+	if !snapIDRe.MatchString(snapID) || !validPath(target) || len(paths) == 0 {
+		return badRequest("copia, destino o rutas no válidas")
+	}
+	args := []string{snapID, bundle.ShellQuote(target)}
+	for _, p := range paths {
+		if !validPath(p) {
+			return badRequest("ruta no válida: " + p)
+		}
+		args = append(args, bundle.ShellQuote(p))
+	}
+	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
+		out, errOut, err := execOut(c, su, bundle.ShellQuote(bp.Script)+" restaurar "+strings.Join(args, " "))
+		if err != nil {
+			return scriptErr("no se pudo restaurar: ", errOut, err)
+		}
+		return BackupResult{OK: true, Output: strings.TrimSpace(out + "\n" + errOut)}
+	})
+}
+
+// BackupRestoreDB restaura una base de PostgreSQL desde un volcado
+// (<carpeta>/<base>.dump) de una copia: en una base nueva (newName) o
+// sustituyendo la actual (replace).
+func (a *App) BackupRestoreDB(projectID, snapID, dumpPath, container, dbName string, replace bool, secret, accept, sudoPassword string) BackupResult {
+	if !snapIDRe.MatchString(snapID) || !validPath(dumpPath) || !strings.HasSuffix(dumpPath, ".dump") || !dbNameRe.MatchString(container) || !dbNameRe.MatchString(dbName) {
+		return badRequest("datos no válidos para restaurar la base")
+	}
+	mode := ""
+	if replace {
+		mode = " sustituir"
+	}
+	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
+		out, errOut, err := execOut(c, su, bundle.ShellQuote(bp.Script)+" restaurar-bd "+snapID+" "+bundle.ShellQuote(dumpPath)+" "+container+" "+dbName+mode)
+		if err != nil {
+			return scriptErr("no se pudo restaurar la base: ", errOut, err)
+		}
+		return BackupResult{OK: true, Output: strings.TrimSpace(out + "\n" + errOut)}
+	})
+}
+
+// BackupDownload descarga a dest (en este equipo) rutas de una copia, dentro
+// de una carpeta con la fecha y el id de la copia. No toca el servidor.
+func (a *App) BackupDownload(projectID, snapID string, paths []string, dest, secret, accept, sudoPassword string) BackupResult {
+	dest = strings.TrimSpace(dest)
+	if !snapIDRe.MatchString(snapID) || len(paths) == 0 || dest == "" || !filepath.IsAbs(dest) {
+		return badRequest("copia, rutas o carpeta no válidas")
+	}
+	for _, p := range paths {
+		if !validPath(p) {
+			return badRequest("ruta no válida: " + p)
+		}
+	}
+	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
+		root := filepath.Join(dest, "copia-"+snapID)
+		if err := os.MkdirAll(root, 0o700); err != nil {
+			return badRequest(err.Error())
+		}
+		var done int64
+		files := 0
+		last := time.Now()
+		for _, sp := range paths {
+			pr, pw := io.Pipe()
+			var errb bytes.Buffer
+			go func() {
+				err := runner.Exec(context.Background(), c, su, bundle.ShellQuote(bp.Script)+" dump "+snapID+" "+bundle.ShellQuote(sp), nil, pw, &errb)
+				pw.CloseWithError(err)
+			}()
+			tr := tar.NewReader(bufio.NewReaderSize(pr, 1<<20))
+			for {
+				h, err := tr.Next()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					pr.CloseWithError(err)
+					return scriptErr("no se pudo descargar: ", errb.String(), err)
+				}
+				name := strings.TrimPrefix(path.Clean("/"+h.Name), "/")
+				if name == "" || !safeRel(name) {
+					continue
+				}
+				target := filepath.Join(root, filepath.FromSlash(name))
+				switch h.Typeflag {
+				case tar.TypeDir:
+					_ = os.MkdirAll(target, 0o700)
+				case tar.TypeReg:
+					if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+						return badRequest(err.Error())
+					}
+					f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+					if err != nil {
+						return badRequest(err.Error())
+					}
+					n, err := io.Copy(f, tr)
+					f.Close()
+					if err != nil {
+						return badRequest(err.Error())
+					}
+					_ = os.Chtimes(target, h.ModTime, h.ModTime)
+					done += n
+					files++
+					if time.Since(last) > 150*time.Millisecond {
+						a.emit("backupfetch", BackupFetchProgress{ProjectID: projectID, Done: done, Stage: "Descargando " + name})
+						last = time.Now()
+					}
+				}
+			}
+		}
+		_ = os.Chmod(root, 0o700)
+		return BackupResult{OK: true, Output: fmt.Sprintf("%d fichero(s), %d bytes, en %s", files, done, root), Fetch: &store.FetchInfo{Dir: root, Bytes: done, Files: files, At: time.Now()}}
+	})
 }

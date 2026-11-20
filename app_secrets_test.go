@@ -156,3 +156,20 @@ func TestRutasSegurasYCopias(t *testing.T) {
 		t.Fatalf("%v %+v", err, snaps)
 	}
 }
+
+func TestListadoDeUnaCopia(t *testing.T) {
+	out := `{"time":"2026-11-20T03:30:00Z","paths":["/x"],"struct_type":"snapshot"}
+{"name":"postgres-pg","type":"dir","path":"/postgres-pg","size":0,"mtime":"2026-11-20T03:30:00Z","struct_type":"node"}
+{"name":"tienda.dump","type":"file","path":"/postgres-pg/tienda.dump","size":4096,"mtime":"2026-11-20T03:30:00Z","struct_type":"node"}
+{"name":"a","type":"dir","path":"/postgres-pg/a","size":0,"mtime":"2026-11-20T03:30:00Z","struct_type":"node"}
+{"name":"b.txt","type":"file","path":"/postgres-pg/a/b.txt","size":1,"mtime":"2026-11-20T03:30:00Z","struct_type":"node"}`
+	e := parseLs(out, "/postgres-pg")
+	if len(e) != 2 || e[0].Name != "a" || e[1].Size != 4096 {
+		t.Fatalf("%+v", e)
+	}
+	for p, ok := range map[string]bool{"/": true, "/etc/x": true, "x": false, "/a/../b": false, "/a/": false, "/a\nb": false} {
+		if validPath(p) != ok {
+			t.Errorf("validPath(%q) != %v", p, ok)
+		}
+	}
+}

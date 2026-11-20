@@ -2,10 +2,11 @@
   // Copias de seguridad del proyecto (módulo «backups»): hacer una ahora,
   // verlas y traerlas a este equipo.
   import { onDestroy } from 'svelte'
-  import { DatabaseBackup, Play, List, Download, FolderOpen, LoaderCircle, CircleCheck, CircleX, Cloud } from '@lucide/svelte'
+  import { DatabaseBackup, Play, List, Download, FolderOpen, LoaderCircle, CircleCheck, CircleX, Cloud, RotateCcw } from '@lucide/svelte'
   import { api, onEvent, type BackupFetchProgress, type BackupResult, type Project, type Snapshot } from '../lib/api'
   import { toast, timeAgo, ui, refreshProjects } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
+  import RestoreDialog from './RestoreDialog.svelte'
 
   let { project, disabled = false }: { project: Project; disabled?: boolean } = $props()
 
@@ -19,6 +20,7 @@
   let output = $state<{ ok: boolean; text: string } | null>(null)
   let dest = $state('')
   let progress = $state<BackupFetchProgress | null>(null)
+  let restoring = $state<Snapshot | null>(null)
 
   $effect(() => {
     void project.id
@@ -79,7 +81,7 @@
     return `${n.toFixed(i ? 1 : 0)} ${u[i]}`
   }
   const what = (s: Snapshot) =>
-    s.tags.includes('postgres') ? 'PostgreSQL' : s.tags.includes('coolify') ? 'Base de datos de Coolify'
+    s.tags.includes('postgres') ? 'PostgreSQL (bases)' : s.tags.includes('coolify') ? 'Base de datos de Coolify'
       : s.tags.includes('coolify-archivos') ? 'Configuración de Coolify' : 'Archivos'
   const fmtDate = (iso: string) => new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })
 </script>
@@ -127,9 +129,10 @@
             <tr>
               <td class="d">{fmtDate(s.time)}</td>
               <td>{what(s)}</td>
-              <td class="muted small p">{s.paths.join(', ')}</td>
+              <td class="muted small p">{s.paths.map((x) => x.replace(/^\/var\/tmp\/draupnode-volcado-[^/]+\//, '')).join(', ')}</td>
               <td class="muted small r">{size(s.bytes)}</td>
               <td class="mono small muted">{s.id}</td>
+              <td class="act">{#if !snapsRemote}<button class="btn sm ghost" onclick={() => (restoring = s)} disabled={disabled || !!busy}><RotateCcw size={13} /> Restaurar…</button>{/if}</td>
             </tr>
           {/each}
         </tbody>
@@ -158,6 +161,10 @@
   </div>
 </section>
 
+{#if restoring}
+  <RestoreDialog {project} snap={restoring} onclose={() => (restoring = null)} />
+{/if}
+
 <style>
   .bk { padding: 12px 16px; margin: 14px 0; display: flex; flex-direction: column; gap: 10px; }
   .head { display: flex; gap: 12px; align-items: center; }
@@ -178,6 +185,7 @@
   td.d { white-space: nowrap; }
   td.p { overflow-wrap: anywhere; }
   td.r { text-align: right; white-space: nowrap; }
+  td.act { text-align: right; white-space: nowrap; }
   .mono { font-family: var(--mono); }
   .fetch { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border-soft); padding-top: 10px; }
   .fetch-t { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 13px; }

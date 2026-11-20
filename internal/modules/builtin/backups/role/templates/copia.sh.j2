@@ -3,6 +3,12 @@
 #   copia            hace una copia ahora (es lo que lanza el temporizador)
 #   copia snapshots  lista las copias (JSON)
 #   copia remoto     lista las copias del destino remoto (JSON)
+#   copia ls ID RUTA                          contenido de una carpeta de una copia (JSON)
+#   copia dump ID RUTA                        una ruta de una copia, en tar, por la salida
+#   copia restaurar ID DESTINO RUTA...        restaura rutas en DESTINO («/» = su sitio)
+#   copia restaurar-bd ID VOLCADO CONTENEDOR BASE [sustituir]
+#                    restaura una base: en una base nueva (si BASE ya existe, no
+#                    hace nada) o, con «sustituir», borrando antes la que hay
 set -euo pipefail
 umask 077
 export RESTIC_REPOSITORY={{ backups_repo | quote }}
@@ -23,8 +29,48 @@ remoto() {
 }
 {% endif %}
 
+# Validación de lo que llega de Draupnode.
+id_ok()   { [[ "$1" =~ ^[0-9a-f]{8,64}$ ]] || { echo "Copia no válida: $1" >&2; exit 2; }; }
+ruta_ok() { [[ "$1" == /* && "$1" != *$'\n'* && "$1" != *'/../'* && "$1" != *'/..' ]] || { echo "Ruta no válida: $1" >&2; exit 2; }; }
+nombre_ok() { [[ "$1" =~ ^[a-z_][a-z0-9_-]{0,62}$ ]] || { echo "Nombre no válido: $1" >&2; exit 2; }; }
+
 case "${1:-copia}" in
   snapshots) exec restic snapshots --json ;;
+  ls) id_ok "$2"; ruta_ok "$3"; exec restic ls --json "$2" "$3" ;;
+  dump) id_ok "$2"; ruta_ok "$3"; exec restic dump --archive tar "$2" "$3" ;;
+  restaurar)
+    id_ok "$2"; ruta_ok "$3"; destino="$3"; id="$2"; shift 3
+    inc=(); for r in "$@"; do ruta_ok "$r"; inc+=(--include "$r"); done
+    [ -n "${inc[*]:-}" ] || { echo "Elige qué restaurar" >&2; exit 2; }
+    mkdir -p "$destino"
+    restic restore "$id" --target "$destino" "${inc[@]}"
+    exit ;;
+  restaurar-bd)
+    # VOLCADO: ruta de un .dump (pg_dump -Fc) dentro de la copia.
+    id_ok "$2"; ruta_ok "$3"; nombre_ok "$4"; nombre_ok "$5"
+    id="$2"; volcado="$3"; ctr="$4"; base="$5"; modo="${6:-nueva}"
+    docker inspect --type container "$ctr" >/dev/null 2>&1 || { echo "No existe el contenedor $ctr" >&2; exit 2; }
+    dueno=$(basename "$volcado" .dump)
+    nombre_ok "$dueno"
+    psql() { docker exec -i "$ctr" psql -U postgres -v ON_ERROR_STOP=1 -qAt "$@"; }
+    restic cat config >/dev/null  # que la copia se puede abrir, antes de tocar nada
+    existe=$(psql -c "SELECT 1 FROM pg_database WHERE datname='$base'")
+    if [ "$modo" = sustituir ]; then
+      echo "Cerrando las conexiones a $base y borrándola…"
+      psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$base' AND pid <> pg_backend_pid()" >/dev/null
+      psql -c "DROP DATABASE IF EXISTS \"$base\""
+    elif [ -n "$existe" ]; then
+      echo "Ya existe una base llamada $base: elige otro nombre." >&2; exit 3
+    fi
+    # Se crea con el dueño original (el usuario de la app) si existe.
+    if [ -n "$(psql -c "SELECT 1 FROM pg_roles WHERE rolname='$dueno'")" ]; then
+      psql -c "CREATE DATABASE \"$base\" OWNER \"$dueno\""
+    else
+      psql -c "CREATE DATABASE \"$base\""
+    fi
+    restic dump "$id" "$volcado" | docker exec -i "$ctr" pg_restore -U postgres -d "$base" --exit-on-error --no-acl
+    echo "Base $base restaurada desde la copia $id."
+    exit ;;
 {% if backups_remote_type != 'no' %}
   remoto) remoto snapshots --json; exit ;;
 {% endif %}
@@ -37,11 +83,23 @@ fallos=0
 etiqueta="draupnode-{{ draupnode_project }}"
 {% if backups_postgres | bool %}
 
-if docker inspect --type container {{ backups_postgres_container | quote }} >/dev/null 2>&1; then
-  log "Volcando PostgreSQL ({{ backups_postgres_container }})"
-  docker exec {{ backups_postgres_container | quote }} pg_dumpall -U postgres \
-    | restic backup --quiet --stdin --stdin-filename postgres-{{ backups_postgres_container }}.sql --tag "$etiqueta" --tag postgres \
-    || { log "FALLO al volcar PostgreSQL"; fallos=1; }
+# Cada base por separado (pg_dump -Fc: se puede restaurar una sola) más los
+# usuarios y permisos (pg_dumpall --globals-only), en una sola copia.
+pg={{ backups_postgres_container | quote }}
+if docker inspect --type container "$pg" >/dev/null 2>&1; then
+  log "Volcando PostgreSQL ($pg)"
+  vol="/var/tmp/draupnode-volcado-{{ draupnode_project }}"
+  rm -rf "$vol"; mkdir -p "$vol/postgres-$pg"
+  trap 'rm -rf "$vol"' EXIT
+  if docker exec "$pg" pg_dumpall -U postgres --globals-only > "$vol/postgres-$pg/usuarios-y-permisos.sql"; then
+    for db in $(docker exec "$pg" psql -U postgres -qAt -c "SELECT datname FROM pg_database WHERE NOT datistemplate AND datname <> 'postgres'"); do
+      docker exec "$pg" pg_dump -U postgres -Fc "$db" > "$vol/postgres-$pg/$db.dump" || { log "FALLO al volcar la base $db"; fallos=1; }
+    done
+    (cd "$vol" && restic backup --quiet "postgres-$pg" --tag "$etiqueta" --tag postgres) || { log "FALLO al guardar los volcados"; fallos=1; }
+  else
+    log "FALLO al volcar PostgreSQL"; fallos=1
+  fi
+  rm -rf "$vol"
 fi
 {% endif %}
 {% if backups_coolify | bool %}
