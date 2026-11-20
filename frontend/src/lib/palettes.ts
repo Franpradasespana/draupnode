@@ -145,6 +145,11 @@ export function cssVars(c: Colors): Record<string, string> {
     '--success-soft': alpha(c.success, 0.14),
     '--danger': c.danger,
     '--danger-soft': alpha(c.danger, 0.14),
+    // Fijos (no van en la paleta): azul = se instalará, ámbar = lo necesita otro módulo.
+    '--info': isDark ? '#60a5fa' : '#2563eb',
+    '--info-soft': alpha(isDark ? '#60a5fa' : '#2563eb', 0.14),
+    '--warning': isDark ? '#fbbf24' : '#b45309',
+    '--warning-soft': alpha(isDark ? '#fbbf24' : '#d97706', 0.16),
     '--on-danger': readableOn(c.danger),
     '--sidebar-text': sidebarText,
     '--sidebar-muted': sidebarMuted,

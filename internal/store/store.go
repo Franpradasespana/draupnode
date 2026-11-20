@@ -109,6 +109,9 @@ type Project struct {
 	// (/etc/draupnode/secretos/<slug>). Se fija la primera vez y no cambia
 	// aunque se renombre el proyecto: si cambiara, se generarían contraseñas nuevas.
 	Slug string `json:"slug,omitempty"`
+	// InstalledModules: módulos que este proyecto ha aplicado bien alguna vez.
+	// Solo crece: quitar un módulo del proyecto no lo desinstala del servidor.
+	InstalledModules []string `json:"installedModules,omitempty"`
 }
 
 type data struct {
@@ -153,6 +156,17 @@ func Open(dir string) (*Store, error) {
 	}
 	if err := json.Unmarshal(raw, &s.d); err != nil {
 		return nil, fmt.Errorf("%s está dañado: %w", s.path, err)
+	}
+	// Proyectos aplicados antes de la 0.8.1: si no han cambiado desde la
+	// última aplicación, sus módulos son los instalados.
+	for i := range s.d.Projects {
+		p := &s.d.Projects[i]
+		if len(p.InstalledModules) == 0 && p.AppliedAt != nil && !p.UpdatedAt.After(*p.AppliedAt) {
+			for _, m := range p.Modules {
+				p.InstalledModules = append(p.InstalledModules, m.ID)
+			}
+			sort.Strings(p.InstalledModules)
+		}
 	}
 	return s, nil
 }
@@ -370,6 +384,7 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 			}
 			p.AppliedAt = old.AppliedAt
 			p.Collapsed = old.Collapsed // solo lo cambia SetCollapsed
+			p.InstalledModules = old.InstalledModules // solo lo cambia SetLastRun
 			if old.Slug != "" {
 				p.Slug = old.Slug // fijo para siempre
 			}
@@ -396,6 +411,12 @@ func (s *Store) SetLastRun(id string, r RunSummary) error {
 			if r.OK && !r.Canceled && (!r.Check || r.Changed == 0) {
 				at := r.At
 				s.d.Projects[i].AppliedAt = &at
+				for _, m := range s.d.Projects[i].Modules {
+					if !containsStr(s.d.Projects[i].InstalledModules, m.ID) {
+						s.d.Projects[i].InstalledModules = append(s.d.Projects[i].InstalledModules, m.ID)
+					}
+				}
+				sort.Strings(s.d.Projects[i].InstalledModules)
 			}
 			return s.saveLocked()
 		}
@@ -436,4 +457,13 @@ func sameContent(a, b Project) bool {
 	ja, _ := json.Marshal([]any{a.Name, a.ServerID, a.Modules})
 	jb, _ := json.Marshal([]any{b.Name, b.ServerID, b.Modules})
 	return string(ja) == string(jb)
+}
+
+func containsStr(l []string, x string) bool {
+	for _, v := range l {
+		if v == x {
+			return true
+		}
+	}
+	return false
 }

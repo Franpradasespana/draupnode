@@ -175,3 +175,8 @@ Petición del usuario tras la primera prueba:
 - `sshd -t` rechazando (opción inválida en otro fichero): configuración intacta y SSH sin reiniciar.
 - Fallos encontrados al probar y arreglados: el `instalar.sh` exportado se paraba con `set -u` si no había `SSH_CLIENT` (al lanzarlo con sudo); `docker inspect` de un contenedor inexistente imprime `[]` y se tomaba como existente; el aviso en bucle salía como «All items completed»; PostgreSQL fallaba al previsualizar si su carpeta aún no existía (fallo anterior).
 - Interfaz comprobada con Chrome sin ventana sobre la demo: orden (SSH tras el Cortafuegos), puertos al marcar/cambiar/desmarcar, recuadro de contraseñas, sin errores de JavaScript.
+
+### 2026-11-20 · 0.8.1 — Colores de estado de los módulos y aviso al quitar uno instalado
+- Lista de módulos del editor: **verde** = instalado en el servidor por este proyecto; **azul** = marcado, se instalará al aplicar; **ámbar** = lo necesita otro módulo marcado; borde verde discontinuo sin marcar = sigue instalado pero el proyecto ya no lo gestiona. Leyenda arriba de la lista. Colores fijos nuevos `--info` y `--warning` (con versión para temas oscuros).
+- Nuevo `Project.installedModules`: lo rellena una aplicación correcta (o una simulación sin nada pendiente) y solo crece. Los proyectos aplicados antes y sin cambios desde entonces se rellenan al abrir.
+- **Quitar un módulo del proyecto NO lo desinstala del servidor** (Ansible solo ejecuta lo marcado). Al desmarcar uno instalado, la app lo explica y pide confirmar. Desinstalar queda como posible mejora (cada módulo necesitaría su rol de desinstalación).

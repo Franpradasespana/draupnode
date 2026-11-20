@@ -108,15 +108,28 @@
     return added
   }
 
+  // Instalados en el servidor por este proyecto (aunque ya no estén marcados).
+  const installed = $derived(new Set(stored?.installedModules ?? []))
+
   // Módulos que no se pueden desmarcar porque los necesita otro marcado.
   const requiredBy = (mid: string) => draft.modules.filter((x) => byId(x.id)?.depends?.includes(mid)).map((x) => moduleName(x.id))
 
-  function toggle(e: Event, mid: string) {
+  async function toggle(e: Event, mid: string) {
+    const box = e.currentTarget as HTMLInputElement
     if (selected.has(mid)) {
       const users = requiredBy(mid)
       if (users.length) {
-        ;(e.currentTarget as HTMLInputElement).checked = true // la casilla no debe quedarse desmarcada
+        box.checked = true // la casilla no debe quedarse desmarcada
         return toast(`No se puede quitar: lo necesita ${users.join(', ')}`, 'error')
+      }
+      if (installed.has(mid)) {
+        box.checked = true
+        const ok = await confirmDialog({
+          title: `Quitar ${moduleName(mid)} del proyecto`,
+          message: `Quitarlo NO lo desinstala: ${moduleName(mid)} seguirá instalado y funcionando en el servidor. Draupnode solo dejará de gestionarlo (no lo comprobará ni lo actualizará al aplicar). Si quieres desinstalarlo, hay que hacerlo en el servidor.`,
+          confirmLabel: 'Quitar del proyecto',
+        })
+        if (!ok) return
       }
       draft.modules = draft.modules.filter((x) => x.id !== mid)
       return
@@ -362,19 +375,30 @@
 <div class="cols">
   <aside class="card picker">
     <h3>Módulos</h3>
+    <div class="legend">
+      <span><i class="dot ok"></i> instalado</span>
+      <span><i class="dot new"></i> se instalará al aplicar</span>
+      <span><i class="dot req"></i> lo necesita otro</span>
+    </div>
     {#each groups as [cat, list]}
       <div class="cat">{cat.replace(/^\d+\s*·\s*/, '')}</div>
       {#each list as m (m.id)}
         {@const users = requiredBy(m.id)}
         {@const isDep = users.length > 0}
         {@const clash = selected.has(m.id) ? [] : clashesWith(m.id, selected, byId)}
-        <label class="pick" class:on={selected.has(m.id)} class:clash={clash.length > 0}>
+        {@const sel = selected.has(m.id)}
+        {@const inst = installed.has(m.id)}
+        <label class="pick" class:clash={clash.length > 0}
+          class:st-ok={sel && inst} class:st-req={sel && !inst && isDep} class:st-new={sel && !inst && !isDep} class:st-left={!sel && inst}>
           <input type="checkbox" checked={selected.has(m.id)} onchange={(e) => toggle(e, m.id)} disabled={running || (isDep && selected.has(m.id)) || clash.length > 0}
             title={isDep && selected.has(m.id) ? `Lo necesita ${users.join(', ')}: desmárcalo antes` : clash.length ? `Choca con ${clash.map(moduleName).join(', ')}` : ''} />
           <div>
             <strong>{m.name}</strong>
             <span>{m.description}</span>
-            {#if isDep && selected.has(m.id)}<em><Lock size={11} /> lo necesita {users.join(', ')}</em>{/if}
+            {#if sel && inst}<em class="ok"><CircleCheck size={11} /> instalado en el servidor</em>
+            {:else if sel}<em class="new">se instalará al aplicar</em>
+            {:else if inst}<em class="left">sigue instalado en el servidor (ya no lo gestiona este proyecto)</em>{/if}
+            {#if isDep && sel}<em class="req"><Lock size={11} /> lo necesita {users.join(', ')}</em>{/if}
             {#if clash.length}<em><Lock size={11} /> choca con {clash.map(moduleName).join(', ')}</em>{/if}
             {#if m.firewallPorts?.length}<em class="ports">abre los puertos {m.firewallPorts.join(', ')} en el Cortafuegos</em>{/if}
             {#if m.firewallPortsFrom?.length}<em class="ports">abre su puerto en el Cortafuegos</em>{/if}
@@ -447,13 +471,28 @@
   .cat { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; margin: 10px 0 4px; }
   .pick { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; }
   .pick:hover { background: var(--sidebar-hover); }
-  .pick.on { border-color: var(--border); background: var(--accent-soft); }
+  .pick.st-ok { border-color: color-mix(in srgb, var(--success) 55%, transparent); background: var(--success-soft); }
+  .pick.st-new { border-color: color-mix(in srgb, var(--info) 55%, transparent); background: var(--info-soft); }
+  .pick.st-req { border-color: color-mix(in srgb, var(--warning) 55%, transparent); background: var(--warning-soft); }
+  .pick.st-left { border: 1px dashed color-mix(in srgb, var(--success) 50%, transparent); }
+  .pick input { accent-color: var(--info); }
+  .pick.st-ok input { accent-color: var(--success); }
+  .pick.st-req input { accent-color: var(--warning); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dot.ok { background: var(--success); }
+  .dot.new { background: var(--info); }
+  .dot.req { background: var(--warning); }
   .pick.clash { opacity: .6; cursor: not-allowed; }
-  .pick input { accent-color: var(--accent); margin-top: 3px; }
+  .pick input { margin-top: 3px; }
   .pick div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .pick strong { font-size: 13.5px; }
   .pick span { font-size: 12px; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .pick em { font-style: normal; font-size: 11.5px; color: var(--accent); display: flex; gap: 4px; align-items: center; }
+  .pick em.ok, .pick em.left { color: var(--success); }
+  .pick em.new { color: var(--info); }
+  .pick em.req { color: var(--warning); }
   .pick em.ports { color: var(--muted); }
   .forms { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px; text-align: center; color: var(--muted); }

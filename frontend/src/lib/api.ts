@@ -163,6 +163,8 @@ export interface Project {
   appliedAt?: string | null
   collapsed?: string[] | null
   slug?: string
+  /** Módulos que el proyecto ha instalado alguna vez (quitar uno del proyecto no lo desinstala). */
+  installedModules?: string[] | null
 }
 
 export interface ProjectSecretsSummary {
@@ -523,7 +525,7 @@ function mockBackend(): Backend {
       const prev = projects.find((x) => x.id === p.id)
       const same = prev && JSON.stringify([prev.name, prev.serverId, prev.modules]) === JSON.stringify([p.name.trim(), p.serverId, mods])
       const np: Project = { ...p, name: p.name.trim(), modules: mods, id: p.id || Math.random().toString(16).slice(2, 10),
-        updatedAt: same ? prev!.updatedAt : new Date().toISOString(), lastRun: prev?.lastRun, appliedAt: prev?.appliedAt, collapsed: prev?.collapsed }
+        updatedAt: same ? prev!.updatedAt : new Date().toISOString(), lastRun: prev?.lastRun, appliedAt: prev?.appliedAt, collapsed: prev?.collapsed, installedModules: prev?.installedModules }
       projects = prev ? projects.map((x) => (x.id === np.id ? np : x)) : [...projects, np]
       save('projects', projects)
       return np
@@ -714,7 +716,8 @@ function mockBackend(): Backend {
     setTimeout(() => {
       const c = cancelled.has(runId)
       const summary: RunSummary = { at: new Date(start).toISOString(), check, ok: !c, canceled: c, changed, failed: 0, tasks: 20, durationMs: Date.now() - start, error: c ? 'cancelado' : undefined }
-      projects = projects.map((x) => (x.id === p.id ? { ...x, lastRun: summary, ...(summary.ok && (!check || summary.changed === 0) ? { appliedAt: summary.at } : {}) } : x))
+      projects = projects.map((x) => (x.id === p.id ? { ...x, lastRun: summary, ...(summary.ok && (!check || summary.changed === 0)
+        ? { appliedAt: summary.at, installedModules: [...new Set([...(x.installedModules ?? []), ...x.modules.map((m) => m.id)])].sort() } : {}) } : x))
       save('projects', projects)
       ev({ kind: 'done', summary })
     }, t + 400)

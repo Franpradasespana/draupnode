@@ -800,6 +800,7 @@ export namespace store {
 	    appliedAt?: any;
 	    collapsed?: string[];
 	    slug?: string;
+	    installedModules?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -817,6 +818,7 @@ export namespace store {
 	        this.appliedAt = this.convertValues(source["appliedAt"], null);
 	        this.collapsed = source["collapsed"];
 	        this.slug = source["slug"];
+	        this.installedModules = source["installedModules"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

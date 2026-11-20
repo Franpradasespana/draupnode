@@ -3,6 +3,7 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -105,5 +106,23 @@ func TestPlegadoNoEsCambio(t *testing.T) {
 	s2, _ := Open(s.Dir())
 	if got, _ := s2.Project(p.ID); len(got.Collapsed) != 2 {
 		t.Fatal("no persiste")
+	}
+}
+
+func TestModulosInstalados(t *testing.T) {
+	s, _ := Open(t.TempDir())
+	srv, _ := s.SaveServer(Server{Name: "o", Host: "203.0.113.10", User: "u", AuthMethod: AuthPassword})
+	p, _ := s.SaveProject(Project{Name: "P", ServerID: srv.ID, Modules: []ProjectModule{{ID: "docker"}, {ID: "base"}}})
+	s.SetLastRun(p.ID, RunSummary{Check: true, OK: true, Changed: 3}) // simulación con cambios: no instala
+	if got, _ := s.Project(p.ID); len(got.InstalledModules) != 0 {
+		t.Fatal("una simulación no instala nada")
+	}
+	s.SetLastRun(p.ID, RunSummary{OK: true, Changed: 3})
+	p.Modules = []ProjectModule{{ID: "base"}} // se quita docker del proyecto
+	p, _ = s.SaveProject(p)
+	s.SetLastRun(p.ID, RunSummary{OK: true})
+	got, _ := s.Project(p.ID)
+	if strings.Join(got.InstalledModules, ",") != "base,docker" {
+		t.Fatalf("docker sigue instalado en el servidor: %v", got.InstalledModules)
 	}
 }
