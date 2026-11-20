@@ -1,0 +1,68 @@
+id: monitoring
+name: Monitorización (métricas)
+version: 1.0.0
+category: 6 · Monitorización
+description: Prometheus y Grafana con paneles listos para la CPU, la RAM y el disco del servidor, cada contenedor y PostgreSQL. Grafana se abre desde Draupnode por un túnel SSH.
+details: |
+  Todo en Docker y de código abierto: Prometheus, node-exporter (el servidor),
+  cAdvisor (cada contenedor), postgres-exporter (si hay PostgreSQL de este
+  proyecto) y Grafana OSS con los paneles «Recursos» y «PostgreSQL».
+  Grafana y Prometheus solo escuchan en el propio servidor (127.0.0.1): no se
+  abren a internet ni en el Cortafuegos. Draupnode los abre por la misma
+  conexión SSH («Abrir Grafana» en la página del módulo). El usuario es admin;
+  la contraseña se genera en el servidor y la tienes en sus contraseñas.
+  Ocupa unos 400-600 MB de RAM.
+depends: [docker]
+after: [postgres]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 1500
+  min_disk_gb: 5
+secrets:
+  - file: grafana_admin
+    label: Acceso a Grafana
+uninstall_warning: Para y quita Prometheus, Grafana y los exportadores. Si están los Registros (Loki), desinstálalos antes.
+uninstall_data: Borrar también las métricas guardadas y la configuración de Grafana (paneles que hayas cambiado, usuarios).
+variables:
+  - name: monitoring_retention_days
+    label: Días de métricas que se guardan
+    type: int
+    default: 30
+    min: 1
+    max: 365
+  - name: monitoring_cadvisor
+    label: Métricas de cada contenedor (cAdvisor)
+    help: CPU y RAM por contenedor. Necesita el almacenamiento clásico de Docker (opción del módulo Docker).
+    type: bool
+    default: true
+  - name: monitoring_postgres
+    label: Métricas de PostgreSQL
+    help: Solo si PostgreSQL es de este mismo proyecto (usa su contraseña de superusuario).
+    type: bool
+    default: true
+  - name: monitoring_postgres_container
+    label: Contenedor de PostgreSQL
+    type: string
+    default: pg-compartido
+    pattern: '^[a-z][a-z0-9_-]{1,40}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: monitoring_postgres_network
+    label: Red Docker de PostgreSQL
+    type: string
+    default: apps
+    pattern: '^[a-z][a-z0-9_-]{1,40}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: monitoring_grafana_port
+    label: Puerto de Grafana en el servidor
+    help: Solo local (127.0.0.1); Draupnode llega a él por SSH.
+    type: int
+    default: 3000
+    min: 1024
+    max: 65535
+  - name: monitoring_prometheus_port
+    label: Puerto de Prometheus en el servidor
+    help: Solo local. Draupnode lo usa para el resumen de la página del módulo.
+    type: int
+    default: 19090
+    min: 1024
+    max: 65535

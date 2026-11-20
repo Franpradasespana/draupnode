@@ -208,6 +208,25 @@ export interface BackupResult extends RunStart {
   fetch?: FetchInfo
 }
 
+export interface MonitorStats {
+  cpu: number
+  ram: number
+  ramTotal: number
+  disk: number
+  diskFree: number
+  load: number
+  cpus: number
+  uptime: number
+  containers: number
+  targets: { job: string; up: boolean }[]
+  at: string
+}
+
+export interface MonitorResult extends RunStart {
+  url?: string
+  stats?: MonitorStats
+}
+
 export interface BackupFetchProgress {
   projectId: string
   done: number
@@ -331,6 +350,8 @@ interface Backend {
   DeleteProject(id: string): Promise<void>
   SetProjectCollapsed(id: string, modules: string[]): Promise<void>
   SetProjectSecret(projectId: string, variable: string, value: string): Promise<void>
+  OpenGrafana(projectId: string, secret: string, accept: string): Promise<MonitorResult>
+  MonitorSummary(projectId: string, secret: string, accept: string): Promise<MonitorResult>
   BackupSnapshots(projectId: string, remote: boolean, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   BackupNow(projectId: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   FetchBackups(projectId: string, dest: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
@@ -595,6 +616,16 @@ function mockBackend(): Backend {
     async DeleteProject(id) {
       projects = projects.filter((p) => p.id !== id)
       save('projects', projects)
+    },
+    async OpenGrafana() {
+      await wait(600)
+      return { status: 'ok', url: 'https://grafana.com/grafana/dashboards/' }
+    },
+    async MonitorSummary() {
+      await wait(500)
+      const j = (n: number) => n + Math.random() * 4
+      return { status: 'ok', stats: { cpu: j(11), ram: j(46), ramTotal: 24 * 2 ** 30, disk: 38.4, diskFree: 98 * 2 ** 30, load: 0.42, cpus: 4, uptime: 3 * 86400 + 5 * 3600,
+        containers: 9, targets: [{ job: 'prometheus', up: true }, { job: 'node', up: true }, { job: 'cadvisor', up: true }, { job: 'postgres', up: true }], at: new Date().toISOString() } }
     },
     async BackupSnapshots(id, remote) {
       await wait(700)
@@ -886,6 +917,8 @@ const MOCK_MODULES: Module[] = [
       { name: 'ssh_fail2ban_ignore', label: 'IPs que nunca se bloquean', help: 'Además de la tuya, que se añade sola. Una por línea (IP o red, p. ej. 203.0.113.0/24).', type: 'list', default: [] },
     ] },
   {"id": "backups", "name": "Copias de seguridad (restic)", "version": "1.0.0", "category": "5 · Copias", "description": "Copia diaria cifrada con restic de tus bases de datos, Coolify, la carpeta de secretos y las carpetas que elijas. Opcional, una segunda copia fuera del servidor.", "uninstallable": true, "uninstallWarning": "Quita la copia diaria (temporizador y script). Las copias ya hechas se conservan.", "uninstallData": "Borrar también el repositorio local de copias y su contraseña. Las copias del destino remoto no se tocan.", "source": "builtin", "depends": ["base"], "after": ["docker", "postgres", "coolify"], "requires": {"os": ["ubuntu", "debian"], "minDiskGb": 5}, "secrets": [{"file": "restic", "label": "Contraseña de las copias (restic)"}, {"file": "backups_sftp_key.pub", "label": "Clave pública para el servidor de copias (SFTP)"}], "files": ["tasks/main.yml", "tasks/uninstall.yml", "templates/copia.sh.j2", "templates/copia.service.j2", "templates/copia.timer.j2"], "variables": [{"name": "backups_time", "label": "Hora de la copia diaria", "type": "string", "default": "03:30", "help": "Hora del servidor (HH:MM). Se retrasa hasta 10 minutos al azar.", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$", "patternHelp": "Formato HH:MM (p. ej. 03:30)"}, {"name": "backups_paths", "label": "Carpetas que copiar", "type": "list", "default": [], "help": "Una por línea. La carpeta de secretos del proyecto se copia siempre.", "pattern": "^/[A-Za-z0-9._/-]+$", "patternHelp": "Ruta absoluta (empieza por /)"}, {"name": "backups_postgres", "label": "Volcar PostgreSQL", "type": "bool", "default": true, "help": "Todas las bases del contenedor indicado (pg_dumpall), si existe."}, {"name": "backups_postgres_container", "label": "Contenedor de PostgreSQL", "type": "string", "default": "pg-compartido", "pattern": "^[a-z][a-z0-9_-]{1,40}$", "patternHelp": "Minúsculas, números, - y _"}, {"name": "backups_coolify", "label": "Copiar Coolify", "type": "bool", "default": true, "help": "Su base de datos, su .env y sus claves SSH, si Coolify está instalado."}, {"name": "backups_keep_daily", "label": "Copias diarias que se conservan", "type": "int", "default": 7, "min": 1, "max": 90}, {"name": "backups_keep_weekly", "label": "Copias semanales que se conservan", "type": "int", "default": 4, "min": 0, "max": 52}, {"name": "backups_keep_monthly", "label": "Copias mensuales que se conservan", "type": "int", "default": 6, "min": 0, "max": 60}, {"name": "backups_check", "label": "Comprobar el repositorio después de cada copia", "type": "bool", "default": true}, {"name": "backups_run_now", "label": "Hacer la primera copia al aplicar", "type": "bool", "default": true}, {"name": "backups_dir", "label": "Carpeta de las copias en el servidor", "type": "string", "default": "/srv/draupnode/copias", "help": "Dentro se crea una carpeta por proyecto.", "pattern": "^/[A-Za-z0-9._/-]+$", "patternHelp": "Ruta absoluta"}, {"name": "backups_remote_type", "label": "Copia también fuera del servidor", "type": "select", "default": "no", "help": "«sftp» = otro servidor tuyo; «rest-server» = el servidor de copias de restic; «s3» = S3 compatible (MinIO, Garage…).", "options": ["no", "sftp", "rest-server", "s3"]}, {"name": "backups_remote", "label": "Destino remoto", "type": "string", "default": "", "help": "sftp: usuario@203.0.113.40:/srv/copias/web · rest-server: https://copias.ejemplo.com:8000/web · s3: https://minio.ejemplo.com/cubo/web", "pattern": "^[^\\s]+$", "patternHelp": "Sin espacios"}, {"name": "backups_remote_port", "label": "Puerto SSH del destino (sftp)", "type": "int", "default": 22, "min": 1, "max": 65535}, {"name": "backups_remote_user", "label": "Usuario del destino (rest-server) o Access Key (s3)", "type": "string", "default": ""}, {"name": "backups_remote_password", "label": "Contraseña del destino (rest-server) o Secret Key (s3)", "type": "secret", "default": null, "help": "Se guarda cifrada en tu bóveda y solo viaja al servidor al aplicar."}]},
+  {"id": "monitoring", "name": "Monitorización (métricas)", "version": "1.0.0", "category": "6 · Monitorización", "description": "Prometheus y Grafana con paneles listos para la CPU, la RAM y el disco del servidor, cada contenedor y PostgreSQL. Grafana se abre desde Draupnode por un túnel SSH.", "details": "Todo en Docker y de código abierto: Prometheus, node-exporter (el servidor),\ncAdvisor (cada contenedor), postgres-exporter (si hay PostgreSQL de este\nproyecto) y Grafana OSS con los paneles «Recursos» y «PostgreSQL».\nGrafana y Prometheus solo escuchan en el propio servidor (127.0.0.1): no se\nabren a internet ni en el Cortafuegos. Draupnode los abre por la misma\nconexión SSH («Abrir Grafana» en la página del módulo). El usuario es admin;\nla contraseña se genera en el servidor y la tienes en sus contraseñas.\nOcupa unos 400-600 MB de RAM.\n", "uninstallable": true, "uninstallWarning": "Para y quita Prometheus, Grafana y los exportadores. Si están los Registros (Loki), desinstálalos antes.", "uninstallData": "Borrar también las métricas guardadas y la configuración de Grafana (paneles que hayas cambiado, usuarios).", "source": "builtin", "depends": ["docker"], "after": ["postgres"], "requires": {"os": ["ubuntu", "debian"], "minRamMb": 1500, "minDiskGb": 5}, "secrets": [{"file": "grafana_admin", "label": "Acceso a Grafana"}], "files": ["files/dashboards.yml", "files/dashboards/postgres.json", "files/dashboards/recursos.json", "files/datasource-prometheus.yml", "tasks/main.yml", "tasks/uninstall.yml", "templates/docker-compose.yml.j2", "templates/prometheus.yml.j2"], "variables": [{"name": "monitoring_retention_days", "label": "Días de métricas que se guardan", "type": "int", "default": 30, "min": 1, "max": 365}, {"name": "monitoring_cadvisor", "label": "Métricas de cada contenedor (cAdvisor)", "type": "bool", "default": true, "help": "CPU y RAM por contenedor. Necesita el almacenamiento clásico de Docker (opción del módulo Docker)."}, {"name": "monitoring_postgres", "label": "Métricas de PostgreSQL", "type": "bool", "default": true, "help": "Solo si PostgreSQL es de este mismo proyecto (usa su contraseña de superusuario)."}, {"name": "monitoring_postgres_container", "label": "Contenedor de PostgreSQL", "type": "string", "default": "pg-compartido", "pattern": "^[a-z][a-z0-9_-]{1,40}$", "patternHelp": "Minúsculas, números, - y _"}, {"name": "monitoring_postgres_network", "label": "Red Docker de PostgreSQL", "type": "string", "default": "apps", "pattern": "^[a-z][a-z0-9_-]{1,40}$", "patternHelp": "Minúsculas, números, - y _"}, {"name": "monitoring_grafana_port", "label": "Puerto de Grafana en el servidor", "type": "int", "default": 3000, "help": "Solo local (127.0.0.1); Draupnode llega a él por SSH.", "min": 1024, "max": 65535}, {"name": "monitoring_prometheus_port", "label": "Puerto de Prometheus en el servidor", "type": "int", "default": 19090, "help": "Solo local. Draupnode lo usa para el resumen de la página del módulo.", "min": 1024, "max": 65535}]},
+  {"id": "logs", "name": "Registros (Loki)", "version": "1.0.0", "category": "6 · Monitorización", "description": "Guarda y busca en Grafana los registros de todos los contenedores y del sistema (SSH, sudo, servicios). Loki + Grafana Alloy.", "details": "Loki guarda los registros y Grafana Alloy los recoge: la salida de cada\ncontenedor Docker y el diario del sistema (journald). Se buscan en Grafana,\nen el panel «Registros de los contenedores». Todo de código abierto.\nNecesita la Monitorización (usa su Grafana). Ocupa unos 300-500 MB de RAM;\npor eso va aparte.\n", "uninstallable": true, "uninstallWarning": "Para y quita Loki y Alloy, y el panel de registros de Grafana.", "uninstallData": "Borrar también los registros guardados.", "source": "builtin", "depends": ["monitoring"], "after": null, "requires": {"os": ["ubuntu", "debian"], "minRamMb": 2000, "minDiskGb": 5}, "secrets": null, "files": ["files/datasource-loki.yml", "files/registros.json", "tasks/main.yml", "tasks/uninstall.yml", "templates/config.alloy.j2", "templates/docker-compose.yml.j2", "templates/loki.yml.j2"], "variables": [{"name": "logs_retention_days", "label": "Días de registros que se guardan", "type": "int", "default": 14, "min": 1, "max": 180}, {"name": "logs_journal", "label": "Registros del sistema (journald)", "type": "bool", "default": true, "help": "SSH, sudo, servicios, copias de seguridad… además de los contenedores."}]},
   { id: 'postgres', name: 'PostgreSQL compartido', version: '1.0.0', category: '4 · Bases de datos', uninstallable: true, uninstallWarning: "Para y quita el contenedor de PostgreSQL. Las apps que lo usan dejan de tener base de datos.", uninstallData: "Borrar también los DATOS de todas las bases y sus contraseñas. No se puede deshacer.", source: 'builtin', depends: ['docker'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900 },
     description: 'Un PostgreSQL en Docker para todas tus apps, con una base y un usuario por app. Las contraseñas se generan en el servidor.',
     files: ['tasks/main.yml', 'templates/docker-compose.yml.j2'], checks: [{ containerFree: 'postgres_container' }],

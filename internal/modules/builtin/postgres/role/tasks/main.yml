@@ -31,7 +31,7 @@
   when: not ansible_check_mode
 
 - name: Arrancar PostgreSQL
-  ansible.builtin.command: docker compose up -d
+  ansible.builtin.command: docker compose up -d --quiet-pull
   args:
     chdir: "{{ postgres_dir }}"
   register: postgres_up

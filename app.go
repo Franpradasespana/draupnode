@@ -21,7 +21,7 @@ import (
 )
 
 // Version de la aplicación.
-const Version = "0.11.1"
+const Version = "0.12.0"
 
 // Prefijos que la interfaz reconoce en los errores para abrir el diálogo
 // de la bóveda (crear o desbloquear) y reintentar.
@@ -46,13 +46,16 @@ type App struct {
 	labMgr  *lab.Lab
 	labBusy string
 
+	tunMu   sync.Mutex
+	tunnels map[string]*tunnel // túneles SSH abiertos (Grafana, Prometheus), por proyecto
+
 	// emit envía eventos a la interfaz (sustituible en tests).
 	emit func(name string, data any)
 }
 
 // NewApp crea la aplicación con el almacén ya abierto.
 func NewApp(st *store.Store, kr secrets.Keyring, v *secrets.Vault) *App {
-	a := &App{store: st, keyring: kr, vault: v, runs: map[string]context.CancelFunc{}}
+	a := &App{store: st, keyring: kr, vault: v, runs: map[string]context.CancelFunc{}, tunnels: map[string]*tunnel{}}
 	a.emit = func(name string, data any) {
 		if a.ctx != nil {
 			runtime.EventsEmit(a.ctx, name, data)

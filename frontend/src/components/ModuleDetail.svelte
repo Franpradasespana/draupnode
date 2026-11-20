@@ -4,6 +4,7 @@
   import { Hammer, Trash2, Undo2, ExternalLink, Info, ChevronDown, ChevronRight, CircleCheck } from '@lucide/svelte'
   import ModuleForm from './ModuleForm.svelte'
   import BackupsPanel from './BackupsPanel.svelte'
+  import MonitoringPanel from './MonitoringPanel.svelte'
   import ProjectSecrets from './ProjectSecrets.svelte'
   import { api, type Module, type Project, type ProjectModule } from '../lib/api'
   import { timeAgo } from '../lib/state.svelte'
@@ -56,6 +57,13 @@
     <div><button class="btn sm" onclick={() => api.OpenURL(webUrl)}><ExternalLink size={14} /> Abrir el panel de Coolify</button> <span class="muted small">{webUrl}</span></div>
   {/if}
 </section>
+
+{#if m.id === 'monitoring' && installed}
+  <MonitoringPanel {project} />
+{/if}
+{#if m.id === 'logs' && installed}
+  <MonitoringPanel {project} dashboard="logs-apps" />
+{/if}
 
 {#if m.id === 'backups' && installed}
   <BackupsPanel {project} disabled={running} />

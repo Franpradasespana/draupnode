@@ -1,0 +1,41 @@
+---
+- name: ¿Están los Registros (Loki)?
+  ansible.builtin.stat:
+    path: /srv/draupnode/monitor/logs/docker-compose.yml
+  register: monitoring_logs
+
+- name: Antes hay que quitar los Registros
+  ansible.builtin.assert:
+    that: not monitoring_logs.stat.exists
+    fail_msg: Los Registros (Loki) siguen instalados y usan esta monitorización. Desinstálalos antes. No se ha tocado nada.
+    quiet: true
+
+- name: ¿Está su docker-compose.yml?
+  ansible.builtin.stat:
+    path: /srv/draupnode/monitor/docker-compose.yml
+  register: monitoring_compose
+
+- name: Parar y quitar la monitorización
+  ansible.builtin.command: docker compose down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/monitor
+  register: monitoring_down
+  changed_when: "'Removed' in monitoring_down.stderr or 'Stopped' in monitoring_down.stderr"
+  when: monitoring_compose.stat.exists and not ansible_check_mode
+
+- name: Borrar su carpeta y la contraseña de Grafana
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /srv/draupnode/monitor
+    - "{{ draupnode_secrets_dir }}/grafana_admin"
+    - "{{ draupnode_secrets_dir }}/.grafana_pass"
+  when: draupnode_uninstall_purge | bool
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Monitorización {{ 'se quitará' if ansible_check_mode else 'quitada' }}.
+      {{ 'También las métricas y la configuración de Grafana.' if draupnode_uninstall_purge | bool
+         else 'Las métricas y Grafana siguen en sus volúmenes Docker: si la reinstalas, vuelven.' }}

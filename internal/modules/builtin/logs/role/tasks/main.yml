@@ -1,0 +1,72 @@
+---
+- name: Carpetas
+  ansible.builtin.set_fact:
+    logs_home: /srv/draupnode/monitor/logs
+    logs_grafana: /srv/draupnode/monitor/grafana
+
+- name: Hace falta la Monitorización (su Grafana)
+  ansible.builtin.stat:
+    path: /srv/draupnode/monitor/docker-compose.yml
+  register: logs_monitor
+
+- name: Comprobar la Monitorización
+  ansible.builtin.assert:
+    that: logs_monitor.stat.exists or ansible_check_mode
+    fail_msg: No está la Monitorización (métricas) en este servidor; los Registros usan su Grafana.
+    quiet: true
+
+- name: Carpeta de los registros
+  ansible.builtin.file:
+    path: "{{ logs_home }}"
+    state: directory
+    mode: "0755"
+
+- name: Configuración de Loki, Alloy y docker-compose.yml
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ logs_home }}/{{ item }}"
+    mode: "0644"
+  loop: [docker-compose.yml, loki.yml, config.alloy]
+  register: logs_conf
+
+- name: Fuente de datos y panel en Grafana
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ logs_grafana }}/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: datasource-loki.yml, dest: provisioning/datasources/loki.yml }
+    - { src: registros.json, dest: dashboards/registros.json }
+  register: logs_graf
+  when: logs_monitor.stat.exists
+
+- name: Arrancar Loki y Alloy
+  ansible.builtin.command: docker compose up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ logs_home }}"
+  register: logs_up
+  changed_when: "'Started' in logs_up.stderr or 'Created' in logs_up.stderr or 'Recreated' in logs_up.stderr"
+  when: not ansible_check_mode
+
+- name: Recargar Loki y Alloy si cambió su configuración
+  ansible.builtin.command: docker restart dn-loki dn-alloy
+  when: not ansible_check_mode and logs_conf is changed and logs_up is not changed
+
+- name: Recargar Grafana (nueva fuente de datos)
+  ansible.builtin.command: docker restart dn-grafana
+  when: not ansible_check_mode and logs_graf is changed
+
+- name: Esperar a Loki
+  ansible.builtin.command: docker exec dn-grafana wget -qO- http://loki:3100/ready
+  register: logs_ready
+  until: logs_ready.rc == 0 and 'ready' in logs_ready.stdout
+  retries: 40
+  delay: 3
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Registros de los contenedores{{ ' y del sistema' if logs_journal | bool else '' }} en Loki ({{ logs_retention_days }} días).
+      Búscalos en Grafana, panel «Registros de los contenedores».

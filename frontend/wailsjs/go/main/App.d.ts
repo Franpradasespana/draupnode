@@ -18,6 +18,8 @@ export function CheckUninstall(arg1:string,arg2:Array<string>):Promise<main.Unin
 
 export function ChooseBackupFolder(arg1:string):Promise<string>;
 
+export function CloseTunnels():Promise<void>;
+
 export function DefaultBackupFolder(arg1:string):Promise<string>;
 
 export function DeleteProject(arg1:string):Promise<void>;
@@ -47,6 +49,10 @@ export function ListProjects():Promise<Array<store.Project>>;
 export function ListServers():Promise<Array<main.ServerView>>;
 
 export function ModuleFile(arg1:string,arg2:string):Promise<string>;
+
+export function MonitorSummary(arg1:string,arg2:string,arg3:string):Promise<main.MonitorResult>;
+
+export function OpenGrafana(arg1:string,arg2:string,arg3:string):Promise<main.MonitorResult>;
 
 export function OpenModulesDir():Promise<void>;
 

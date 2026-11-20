@@ -1,0 +1,33 @@
+---
+- name: ¿Está su docker-compose.yml?
+  ansible.builtin.stat:
+    path: /srv/draupnode/monitor/logs/docker-compose.yml
+  register: logs_compose
+
+- name: Parar y quitar Loki y Alloy
+  ansible.builtin.command: docker compose down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/monitor/logs
+  register: logs_down
+  changed_when: "'Removed' in logs_down.stderr or 'Stopped' in logs_down.stderr"
+  when: logs_compose.stat.exists and not ansible_check_mode
+
+- name: Quitar su configuración y el panel de Grafana
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /srv/draupnode/monitor/logs
+    - /srv/draupnode/monitor/grafana/provisioning/datasources/loki.yml
+    - /srv/draupnode/monitor/grafana/dashboards/registros.json
+  register: logs_quitado
+
+- name: Recargar Grafana
+  ansible.builtin.shell: docker inspect --type container dn-grafana >/dev/null 2>&1 && docker restart dn-grafana >/dev/null || true
+  when: logs_quitado is changed and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Registros {{ 'se quitarán' if ansible_check_mode else 'quitados' }}.
+      {{ 'También los registros guardados.' if draupnode_uninstall_purge | bool else 'Los registros guardados siguen en su volumen Docker.' }}

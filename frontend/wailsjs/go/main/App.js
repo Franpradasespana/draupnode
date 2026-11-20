@@ -30,6 +30,10 @@ export function ChooseBackupFolder(arg1) {
   return window['go']['main']['App']['ChooseBackupFolder'](arg1);
 }
 
+export function CloseTunnels() {
+  return window['go']['main']['App']['CloseTunnels']();
+}
+
 export function DefaultBackupFolder(arg1) {
   return window['go']['main']['App']['DefaultBackupFolder'](arg1);
 }
@@ -88,6 +92,14 @@ export function ListServers() {
 
 export function ModuleFile(arg1, arg2) {
   return window['go']['main']['App']['ModuleFile'](arg1, arg2);
+}
+
+export function MonitorSummary(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MonitorSummary'](arg1, arg2, arg3);
+}
+
+export function OpenGrafana(arg1, arg2, arg3) {
+  return window['go']['main']['App']['OpenGrafana'](arg1, arg2, arg3);
 }
 
 export function OpenModulesDir() {

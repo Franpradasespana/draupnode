@@ -1,0 +1,42 @@
+# Generado por Draupnode (módulo logs). No lo edites a mano: se reescribe.
+name: draupnode-logs
+
+services:
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: dn-loki
+    restart: unless-stopped
+    labels: { draupnode.proyecto: "{{ draupnode_project }}" }
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    networks: [monitor]
+
+  alloy:
+    image: grafana/alloy:v1.5.1
+    container_name: dn-alloy
+    restart: unless-stopped
+    labels: { draupnode.proyecto: "{{ draupnode_project }}" }
+    user: root
+    command: [run, --storage.path=/var/lib/alloy/data, /etc/alloy/config.alloy]
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+{% if logs_journal | bool %}
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+{% endif %}
+      - alloy_data:/var/lib/alloy/data
+    depends_on: [loki]
+    networks: [monitor]
+
+volumes:
+  loki_data:
+  alloy_data:
+
+networks:
+  monitor:
+    name: dn-monitor
+    external: true

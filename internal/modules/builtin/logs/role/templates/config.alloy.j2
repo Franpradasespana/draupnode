@@ -1,0 +1,65 @@
+// Generado por Draupnode (módulo logs). Grafana Alloy: recoge registros y los manda a Loki.
+
+// --- Contenedores Docker: job="contenedor", container, app (proyecto de compose o nombre), stream
+discovery.docker "contenedores" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "contenedores" {
+  targets = []
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "(.+)"
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+}
+
+loki.source.docker "contenedores" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.contenedores.targets
+  relabel_rules = discovery.relabel.contenedores.rules
+  labels        = { job = "contenedor" }
+  forward_to    = [loki.write.local.receiver]
+}
+{% if logs_journal | bool %}
+
+// --- Diario del sistema (journald): job="sistema", unit
+loki.relabel "sistema" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+loki.source.journal "sistema" {
+  max_age       = "12h"
+  relabel_rules = loki.relabel.sistema.rules
+  labels        = { job = "sistema" }
+  forward_to    = [loki.write.local.receiver]
+}
+{% endif %}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

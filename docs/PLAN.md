@@ -53,3 +53,27 @@
 - Monitorización en dos módulos (métricas / registros), Grafana por túnel SSH.
 - Adoptar lo que ya hay en el servidor real (`pg-compartido`, `monitoring-*`, `apps-backup`) con sus mismos nombres.
 - Botón «Traer contraseñas del servidor» sin tener que Aplicar (hoy se traen al Aplicar).
+
+### Módulos futuros (lista del usuario, 2026-11-20) — todos de código abierto
+
+| Programa | Licencia | Notas para el módulo |
+|---|---|---|
+| WireGuard | GPL-2 | VPN; puerto UDP desde variable (`firewall_ports_from` necesitaría UDP). |
+| Cockpit | LGPL-2.1 | Panel web del sistema en 9090: choca con nada nuestro (Prometheus va en 19090), pero debe quedarse en 127.0.0.1 + túnel como Grafana. |
+| ufw | GPL-3 | `conflicts: [firewall]` (dos cortafuegos sobre iptables). |
+| Samba | GPL-3 | Carpetas compartidas; puertos 139/445 solo en red local/VPN. |
+| Immich | AGPL-3 | Fotos; compose oficial con su PostgreSQL (vectores) y Redis. Pesado (ML). |
+| BorgBackup | BSD-3 | Solapa con restic: ¿alternativa o fuera? |
+| Syncthing | MPL-2 | Sincronización; interfaz 8384 por túnel. |
+| Jellyfin | GPL-2 | Vídeo; 8096. Transcodificación pesada. |
+| Navidrome | GPL-3 | Música; 4533. |
+| Vaultwarden | AGPL-3 | Contraseñas; necesita HTTPS (proxy/Coolify). |
+| Forgejo | GPL-3 (MIT antes de v9) | Git; SSH propio en otro puerto. |
+| Paperless-ngx | GPL-3 | Documentos (OCR); con su Redis y PostgreSQL. |
+| nginx | BSD-2 | `conflicts: [coolify]` (80/443). Mejor Caddy como se decidió, o los dos. |
+| Pi-hole | EUPL-1.2 | DNS (53): `conflicts: [adguard]`; cuidado con systemd-resolved. |
+| AdGuard Home | GPL-3 | Igual que Pi-hole. |
+| MariaDB | GPL-2 | Como el PostgreSQL compartido (una base y usuario por app). |
+| Prometheus | Apache-2 | Hecho (módulo Monitorización, 0.12.0). |
+
+Muchos son «apps» que encajan mejor desplegadas por Coolify o con un módulo genérico «App con Docker Compose» (estudio, sección 7) que con un módulo cada una.

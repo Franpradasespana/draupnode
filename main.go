@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"log"
 	"path/filepath"
@@ -51,6 +52,7 @@ func main() {
 		// Fondo de la paleta por defecto (Draupnir Gold) mientras carga la interfaz.
 		BackgroundColour: &options.RGBA{R: 14, G: 13, B: 11, A: 1},
 		OnStartup:        app.startup,
+		OnShutdown:       func(context.Context) { app.CloseTunnels() },
 		Bind:             []interface{}{app},
 		Linux: &linux.Options{
 			ProgramName: "draupnode", // debe coincidir con StartupWMClass del .desktop

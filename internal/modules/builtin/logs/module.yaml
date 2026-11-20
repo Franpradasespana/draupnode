@@ -1,0 +1,30 @@
+id: logs
+name: Registros (Loki)
+version: 1.0.0
+category: 6 · Monitorización
+description: Guarda y busca en Grafana los registros de todos los contenedores y del sistema (SSH, sudo, servicios). Loki + Grafana Alloy.
+details: |
+  Loki guarda los registros y Grafana Alloy los recoge: la salida de cada
+  contenedor Docker y el diario del sistema (journald). Se buscan en Grafana,
+  en el panel «Registros de los contenedores». Todo de código abierto.
+  Necesita la Monitorización (usa su Grafana). Ocupa unos 300-500 MB de RAM;
+  por eso va aparte.
+depends: [monitoring]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 2000
+  min_disk_gb: 5
+uninstall_warning: Para y quita Loki y Alloy, y el panel de registros de Grafana.
+uninstall_data: Borrar también los registros guardados.
+variables:
+  - name: logs_retention_days
+    label: Días de registros que se guardan
+    type: int
+    default: 14
+    min: 1
+    max: 180
+  - name: logs_journal
+    label: Registros del sistema (journald)
+    help: SSH, sudo, servicios, copias de seguridad… además de los contenedores.
+    type: bool
+    default: true

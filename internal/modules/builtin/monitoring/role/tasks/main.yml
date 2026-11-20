@@ -1,0 +1,134 @@
+---
+- name: Carpeta de la monitorización
+  ansible.builtin.set_fact:
+    monitoring_home: /srv/draupnode/monitor
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ monitoring_home }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: ["", prometheus, grafana/provisioning/datasources, grafana/provisioning/dashboards, grafana/dashboards]
+
+- name: Contraseña de Grafana (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    monitoring_grafana_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.grafana_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Datos de acceso a Grafana (para verlos en Draupnode)
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/grafana_admin"
+    mode: "0600"
+    content: |
+      Usuario: admin
+      Contraseña: {{ monitoring_grafana_pass }}
+  no_log: true
+  when: not ansible_check_mode
+
+# postgres-exporter: solo con el PostgreSQL de este proyecto (su contraseña).
+- name: ¿Hay contraseña de PostgreSQL en este proyecto?
+  ansible.builtin.stat:
+    path: "{{ draupnode_secrets_dir }}/postgres_superusuario"
+  register: monitoring_pg_secret
+
+- name: ¿Existe el contenedor de PostgreSQL?
+  ansible.builtin.shell: docker inspect --type container {{ monitoring_postgres_container | quote }} >/dev/null 2>&1 && echo si || echo no
+  register: monitoring_pg_ctr
+  changed_when: false
+  check_mode: false
+
+- name: Conexión de postgres-exporter
+  ansible.builtin.set_fact:
+    monitoring_pg_dsn: >-
+      {{ ('postgresql://postgres:' ~ (lookup('ansible.builtin.file', draupnode_secrets_dir ~ '/postgres_superusuario') | urlencode)
+          ~ '@' ~ monitoring_postgres_container ~ ':5432/postgres?sslmode=disable')
+         if (monitoring_postgres | bool and monitoring_pg_secret.stat.exists and monitoring_pg_ctr.stdout == 'si') else '' }}
+  no_log: true
+
+- name: Fichero .env (contraseñas)
+  ansible.builtin.copy:
+    dest: "{{ monitoring_home }}/.env"
+    mode: "0600"
+    content: |
+      GF_SECURITY_ADMIN_PASSWORD={{ monitoring_grafana_pass }}
+      DATA_SOURCE_NAME={{ monitoring_pg_dsn }}
+  no_log: true
+  register: monitoring_env
+  when: not ansible_check_mode
+
+# node-exporter monta «/» con rslave si es un montaje compartido (lo normal
+# con systemd); en algunos contenedores no lo es y Docker lo rechazaría.
+- name: ¿«/» es un montaje compartido?
+  ansible.builtin.command: findmnt -no PROPAGATION /
+  register: monitoring_prop
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_home }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Configuración de Prometheus
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_home }}/prometheus/prometheus.yml"
+    mode: "0644"
+  register: monitoring_prom_conf
+
+- name: Configuración de Grafana
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ monitoring_home }}/grafana/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: datasource-prometheus.yml, dest: provisioning/datasources/prometheus.yml }
+    - { src: dashboards.yml, dest: provisioning/dashboards/draupnode.yml }
+    - { src: dashboards/recursos.json, dest: dashboards/recursos.json }
+  register: monitoring_graf_conf
+
+- name: Panel de PostgreSQL
+  ansible.builtin.copy:
+    src: dashboards/postgres.json
+    dest: "{{ monitoring_home }}/grafana/dashboards/postgres.json"
+    mode: "0644"
+  when: monitoring_pg_dsn | length > 0
+
+- name: Arrancar la monitorización (la primera vez descarga las imágenes)
+  ansible.builtin.command: docker compose up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ monitoring_home }}"
+  register: monitoring_up
+  changed_when: "'Started' in monitoring_up.stderr or 'Created' in monitoring_up.stderr or 'Recreated' in monitoring_up.stderr"
+  when: not ansible_check_mode
+
+- name: Recargar Prometheus y Grafana si cambió su configuración
+  ansible.builtin.command: docker restart {{ item }}
+  loop: "{{ (['dn-prometheus'] if monitoring_prom_conf is changed else []) + (['dn-grafana'] if monitoring_graf_conf is changed else []) }}"
+  when: not ansible_check_mode and monitoring_up is not changed
+
+- name: Esperar a Grafana
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ monitoring_grafana_port }}/api/health"
+  register: monitoring_health
+  until: monitoring_health.status == 200
+  retries: 30
+  delay: 2
+  when: not ansible_check_mode
+
+- name: ¿Hay una monitorización de los scripts de antes?
+  ansible.builtin.shell: docker inspect --type container monitoring-grafana >/dev/null 2>&1 && echo si || echo no
+  register: monitoring_antigua
+  changed_when: false
+  check_mode: false
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Al aplicar, Grafana' if ansible_check_mode else 'Grafana' }} {{ 'escuchará' if ansible_check_mode else 'escucha' }} solo en el servidor
+      (127.0.0.1:{{ monitoring_grafana_port }}): ábrela con «Abrir Grafana» en la página del módulo. Usuario admin; la contraseña está en sus contraseñas.
+      {%- if monitoring_postgres | bool and monitoring_pg_dsn | length == 0 %} Sin métricas de PostgreSQL: no hay un PostgreSQL de este proyecto llamado «{{ monitoring_postgres_container }}».{% endif %}
+      {%- if monitoring_antigua.stdout == 'si' %} Hay otra monitorización de una instalación anterior (monitoring-*): esta va aparte, no la toca.{% endif %}

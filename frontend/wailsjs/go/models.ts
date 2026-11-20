@@ -320,6 +320,116 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class TargetState {
+	    job: string;
+	    up: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new TargetState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.job = source["job"];
+	        this.up = source["up"];
+	    }
+	}
+	export class MonitorStats {
+	    cpu: number;
+	    ram: number;
+	    ramTotal: number;
+	    disk: number;
+	    diskFree: number;
+	    load: number;
+	    cpus: number;
+	    uptime: number;
+	    containers: number;
+	    targets: TargetState[];
+	    // Go type: time
+	    at: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new MonitorStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.cpu = source["cpu"];
+	        this.ram = source["ram"];
+	        this.ramTotal = source["ramTotal"];
+	        this.disk = source["disk"];
+	        this.diskFree = source["diskFree"];
+	        this.load = source["load"];
+	        this.cpus = source["cpus"];
+	        this.uptime = source["uptime"];
+	        this.containers = source["containers"];
+	        this.targets = this.convertValues(source["targets"], TargetState);
+	        this.at = this.convertValues(source["at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class MonitorResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    url?: string;
+	    stats?: MonitorStats;
+	
+	    static createFrom(source: any = {}) {
+	        return new MonitorResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.url = source["url"];
+	        this.stats = this.convertValues(source["stats"], MonitorStats);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class ProjectCheck {
 	    order: string[];
 	    added: string[];
@@ -511,6 +621,7 @@ export namespace main {
 		    return a;
 		}
 	}
+	
 	
 	export class TestResult {
 	    status: string;
