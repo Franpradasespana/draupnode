@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, ChevronRight, Server as ServerIcon } from '@lucide/svelte'
+  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, ChevronRight, Server as ServerIcon, ArrowDownUp } from '@lucide/svelte'
   import RunPanel from '../components/RunPanel.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
   import UninstallDialog from '../components/UninstallDialog.svelte'
@@ -134,10 +134,28 @@
     if (st === 'left') return 'Instalado, pero ya no lo gestiona este proyecto'
     return ''
   }
-  const availGroups = $derived.by(() => {
+  // Orden de las tarjetas: por categoría (todo junto) o primero los
+  // instalados y luego el resto, cada parte en orden alfabético. Se recuerda.
+  const SORT_KEY = 'draupnode.moduleSort'
+  let sortMode = $state<'category' | 'installed'>((() => {
+    try { return localStorage.getItem(SORT_KEY) === 'installed' ? 'installed' : 'category' } catch { return 'category' }
+  })())
+  function toggleSort() {
+    sortMode = sortMode === 'category' ? 'installed' : 'category'
+    try { localStorage.setItem(SORT_KEY, sortMode) } catch { /* sin almacenamiento */ }
+  }
+  const byName = (x: Module, y: Module) => x.name.localeCompare(y.name, 'es')
+  const sections = $derived.by((): { title: string; list: Module[]; empty: string }[] => {
+    if (sortMode === 'installed') {
+      return [
+        { title: `Instalados en ${server?.name ?? 'el servidor'}`, list: [...installedList].sort(byName), empty: 'Todavía no hay nada instalado por este proyecto.' },
+        { title: 'Sin instalar', list: [...available].sort(byName), empty: 'Ya están todos instalados.' },
+      ]
+    }
     const by: Record<string, Module[]> = {}
-    for (const m of available) (by[m.category || 'Otros'] ||= []).push(m)
+    for (const m of mods) (by[m.category || 'Otros'] ||= []).push(m)
     return Object.entries(by).sort(([x], [y]) => x.localeCompare(y))
+      .map(([cat, list]) => ({ title: cat.replace(/^\d+\s*·\s*/, ''), list: list.sort(byName), empty: '' }))
   })
 
   // Instalados cuya configuración ha cambiado desde la última aplicación.
@@ -429,29 +447,24 @@
     {/if}
 
     <section class="sec">
-      <h3>Instalado en {server?.name ?? 'el servidor'} <span class="muted small">· pulsa uno para verlo y configurarlo</span></h3>
-      {#if installedList.length}
-        <div class="grid">
-          {#each installedList as m (m.id)}
-            <ModuleCard {m} state={cardState(m)} note={cardNote(m)} errors={Object.keys(check?.errors[m.id] ?? {}).length} onclick={() => (openMod = m.id)} />
-          {/each}
-        </div>
-      {:else}
-        <p class="muted empty">Todavía no hay nada instalado por este proyecto.</p>
-      {/if}
-    </section>
-
-    <section class="sec">
-      <h3>Añadir módulos <span class="muted small">· pulsa para marcar; se configuran al aplicar</span></h3>
-      {#if !available.length}<p class="muted empty">Ya están todos instalados.</p>{/if}
-      {#each availGroups as [cat, list]}
-        <div class="cat">{cat.replace(/^\d+\s*·\s*/, '')}</div>
-        <div class="grid">
-          {#each list as m (m.id)}
-            <ModuleCard {m} state={cardState(m)} note={cardNote(m)} errors={selected.has(m.id) ? Object.keys(check?.errors[m.id] ?? {}).length : 0}
-              onclick={() => toggleCard(m.id)} disabled={running} />
-          {/each}
-        </div>
+      <div class="sec-h">
+        <h3>Módulos <span class="muted small">· pulsa uno instalado para verlo y configurarlo; uno sin instalar, para marcarlo</span></h3>
+        <button class="btn sm" onclick={toggleSort} title={sortMode === 'category' ? 'Primero los instalados, en orden alfabético' : 'Agrupados por categoría'}>
+          <ArrowDownUp size={14} /> {sortMode === 'category' ? 'Instalados' : 'Por categoría'}
+        </button>
+      </div>
+      {#each sections as sec (sec.title)}
+        <div class="cat">{sec.title}</div>
+        {#if sec.list.length}
+          <div class="grid">
+            {#each sec.list as m (m.id)}
+              <ModuleCard {m} state={cardState(m)} note={cardNote(m)} errors={selected.has(m.id) ? Object.keys(check?.errors[m.id] ?? {}).length : 0}
+                onclick={() => (installed.has(m.id) ? (openMod = m.id) : toggleCard(m.id))} disabled={running && !installed.has(m.id)} />
+            {/each}
+          </div>
+        {:else}
+          <p class="muted empty">{sec.empty}</p>
+        {/if}
       {/each}
     </section>
   </div>
@@ -497,7 +510,8 @@
   .warns p { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 0; }
   .warns :global(svg) { color: var(--warning); flex: none; margin-top: 2px; }
   .sec { margin-top: 22px; }
-  .sec h3 { margin: 0 0 10px; font-size: 15px; }
+  .sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .sec h3 { margin: 0; font-size: 15px; }
   .cat { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; margin: 14px 0 8px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
   .empty { font-size: 13.5px; }

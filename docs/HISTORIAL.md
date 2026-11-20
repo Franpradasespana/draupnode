@@ -231,3 +231,6 @@ Petición del usuario: configurar bajando por una página larga era tedioso y lo
 - La demo rellena con valores por defecto las opciones vacías de los datos de ejemplo. Capturas de la ayuda rehechas; textos de la ayuda de Proyectos actualizados.
 - Ya no hay ventanas plegables en el editor (`SetProjectCollapsed` queda sin uso en la interfaz).
 - Comprobado en la demo con Chrome sin ventana: marcar dos módulos, asistente de 3 pasos, aplicar, abrir la página de un módulo instalado; sin errores de JavaScript.
+
+### 2026-11-20 · 0.11.1 — Ordenar los módulos: «Instalados» / «Por categoría»
+- Una sola sección «Módulos» con botón de orden: «Instalados» (primero los instalados en orden alfabético y debajo «Sin instalar», también alfabético) o «Por categoría» (todo agrupado, instalados y sin instalar juntos con sus colores). El botón muestra el modo al que cambia y se recuerda (localStorage). Pulsar un instalado abre su página; uno sin instalar lo marca.
