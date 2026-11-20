@@ -19,7 +19,7 @@ import (
 
 // Event es una línea de salida o un evento «@@DN {json}» del callback.
 type Event struct {
-	Kind string         `json:"kind"` // line | ev
+	Kind string         `json:"kind"` // line | ev | secrets (lo generado en el servidor, en base64: nunca se enseña ni se guarda)
 	Text string         `json:"text,omitempty"`
 	Ev   map[string]any `json:"ev,omitempty"`
 }
@@ -103,6 +103,20 @@ func Upload(c *ssh.Client, script []byte) (string, error) {
 // Run sube el script y lo ejecuta. emit recibe cada línea/evento.
 // Devuelve el código de salida del script (o error si no se pudo lanzar).
 func Run(ctx context.Context, c *ssh.Client, script []byte, check bool, su Sudo, emit func(Event)) (int, error) {
+	return RunOpts(ctx, c, script, Opts{Check: check}, su, emit)
+}
+
+// Opts ajusta una ejecución.
+type Opts struct {
+	Check bool
+	// SecretsBack: al terminar, el script devuelve lo que hay en la carpeta de
+	// secretos del proyecto (evento Kind "secrets"). Solo al Aplicar.
+	SecretsBack bool
+}
+
+// RunOpts es Run con opciones.
+func RunOpts(ctx context.Context, c *ssh.Client, script []byte, o Opts, su Sudo, emit func(Event)) (int, error) {
+	check := o.Check
 	path, err := Upload(c, script)
 	if err != nil {
 		return -1, err
@@ -137,8 +151,14 @@ func Run(ctx context.Context, c *ssh.Client, script []byte, check bool, su Sudo,
 	}
 	// «stty -echo» antes del aviso @@DN-READY: la contraseña de sudo no se
 	// repite en la salida aunque haya terminal.
-	cmd := fmt.Sprintf(`stty -echo 2>/dev/null; echo @@DN-READY; %s env DRAUPNODE_EVENTS=1 bash %s%s; rc=$?; rm -f %s; exit $rc`,
-		sudo, path, arg, path)
+	extra := ""
+	if o.SecretsBack && !check {
+		extra = " DRAUPNODE_SECRETS_BACK=1"
+	}
+	// DRAUPNODE_CLIENT_IP: la IP desde la que se conecta este equipo (sudo
+	// borra SSH_CLIENT); fail2ban la deja siempre entrar.
+	cmd := fmt.Sprintf(`stty -echo 2>/dev/null; echo @@DN-READY; %s env DRAUPNODE_EVENTS=1%s DRAUPNODE_CLIENT_IP="${SSH_CLIENT%%%% *}" bash %s%s; rc=$?; rm -f %s; exit $rc`,
+		sudo, extra, path, arg, path)
 	if err := s.Start(cmd); err != nil {
 		return -1, err
 	}
@@ -158,6 +178,8 @@ func Run(ctx context.Context, c *ssh.Client, script []byte, check bool, su Sudo,
 				}
 				// Nada más necesita leer del teclado: se cierra la entrada.
 				_ = stdin.Close()
+			case strings.HasPrefix(line, "@@DN-SECRETS "):
+				emit(Event{Kind: "secrets", Text: strings.TrimSpace(line[len("@@DN-SECRETS "):])})
 			case strings.HasPrefix(line, "@@DN "):
 				var ev map[string]any
 				if json.Unmarshal([]byte(line[5:]), &ev) == nil {

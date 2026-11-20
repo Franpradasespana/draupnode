@@ -88,3 +88,53 @@ func TestModulosDelUsuario(t *testing.T) {
 		t.Fatalf("errores esperados 2: %v", c.Errors)
 	}
 }
+
+// writeMod crea un módulo de usuario mínimo en dir.
+func writeMod(t *testing.T, dir, id, yml string) {
+	t.Helper()
+	d := filepath.Join(dir, id)
+	os.MkdirAll(filepath.Join(d, "role", "tasks"), 0o755)
+	os.WriteFile(filepath.Join(d, "role", "tasks", "main.yml"), []byte("---\n[]\n"), 0o644)
+	os.WriteFile(filepath.Join(d, "module.yaml"), []byte("id: "+id+"\nname: "+id+"\n"+yml), 0o644)
+}
+
+func TestFormatoNuevo(t *testing.T) {
+	dir := t.TempDir()
+	writeMod(t, dir, "zeta", "after: [aaa]\nconflicts: [coolify]\n")
+	writeMod(t, dir, "aaa", "variables:\n  - name: aaa_token\n    type: secret\n    required: true\n  - name: aaa_puerto\n    type: int\n    default: 9000\nfirewall_ports_from: [aaa_puerto]\nsecrets:\n  - file: aaa_*\n    label: Clave de aaa\n")
+	writeMod(t, dir, "malo", "variables:\n  - name: malo_x\n    type: string\nfirewall_ports_from: [malo_x]\n")
+	c, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Errors) != 1 || !strings.Contains(c.Errors[0], "malo") {
+		t.Fatalf("firewall_ports_from con texto debería fallar: %v", c.Errors)
+	}
+	// «after»: zeta va detrás de aaa solo si aaa está en el proyecto.
+	ord, _, _ := c.Resolve([]string{"zeta", "aaa"})
+	if !reflect.DeepEqual(ord, []string{"aaa", "zeta"}) {
+		t.Fatalf("orden con after: %v", ord)
+	}
+	if ord, _, _ := c.Resolve([]string{"zeta"}); !reflect.DeepEqual(ord, []string{"zeta"}) {
+		t.Fatalf("after no debe añadir módulos: %v", ord)
+	}
+	// El SSH va después del Cortafuegos si están los dos.
+	ord, _, _ = c.Resolve([]string{"ssh", "firewall"})
+	if !reflect.DeepEqual(ord, []string{"base", "firewall", "ssh"}) {
+		t.Fatalf("orden ssh: %v", ord)
+	}
+	if cl := c.Clashes([]string{"coolify", "zeta"}); len(cl) != 1 {
+		t.Fatalf("choque: %v", cl)
+	}
+	if cl := c.Clashes([]string{"zeta", "aaa"}); len(cl) != 0 {
+		t.Fatalf("choque falso: %v", cl)
+	}
+	m, _ := c.Get("aaa")
+	vals, errs := m.Values(map[string]any{"aaa_token": "no debe guardarse"})
+	if _, ok := vals["aaa_token"]; ok || len(errs) != 0 {
+		t.Fatalf("un secreto no va en los valores: %v %v", vals, errs)
+	}
+	if len(m.SecretVars()) != 1 || m.SecretLabel("aaa_x") != "Clave de aaa" || m.SecretLabel("otro") != "" {
+		t.Fatal("secretos del módulo")
+	}
+}

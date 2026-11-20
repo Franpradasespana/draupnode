@@ -78,6 +78,14 @@ export function PickKeyFile() {
   return window['go']['main']['App']['PickKeyFile']();
 }
 
+export function ProjectSecrets(arg1, arg2) {
+  return window['go']['main']['App']['ProjectSecrets'](arg1, arg2);
+}
+
+export function ProjectSecretsInfo(arg1) {
+  return window['go']['main']['App']['ProjectSecretsInfo'](arg1);
+}
+
 export function ReadRunLog(arg1, arg2) {
   return window['go']['main']['App']['ReadRunLog'](arg1, arg2);
 }
@@ -120,6 +128,10 @@ export function ServerLive(arg1) {
 
 export function SetProjectCollapsed(arg1, arg2) {
   return window['go']['main']['App']['SetProjectCollapsed'](arg1, arg2);
+}
+
+export function SetProjectSecret(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetProjectSecret'](arg1, arg2, arg3);
 }
 
 export function SetSecretBackend(arg1) {

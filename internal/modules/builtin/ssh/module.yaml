@@ -1,0 +1,77 @@
+id: ssh
+name: SSH seguro + fail2ban
+version: 1.0.0
+category: 1 · Sistema
+description: Cierra el SSH a lo imprescindible (sin root, sin contraseñas, pocos intentos) y bloquea con fail2ban a quien pruebe contraseñas.
+details: |
+  Escribe /etc/ssh/sshd_config.d/01-draupnode.conf (manda sobre el resto, como
+  el 50-cloud-init.conf que pone PasswordAuthentication yes) y lo comprueba con
+  «sshd -t» antes de recargar: si algo está mal, lo deja como estaba.
+  Para que no te quedes fuera, Draupnode no te deja quitar la contraseña si
+  entra con ella, ni prohibir root si entra como root, y al aplicar comprueba
+  que tu usuario tiene una clave autorizada.
+  fail2ban nunca bloquea la IP desde la que te conectas.
+  Si cambias el puerto, se abre en el Cortafuegos antes de cambiar el SSH y
+  Draupnode actualiza el servidor al terminar. En Oracle Cloud ábrelo también
+  en la Security List ANTES de aplicar. El 22 queda abierto en el Cortafuegos
+  hasta que lo quites tú.
+depends: [base]
+after: [firewall]
+firewall_ports_from: [ssh_port]
+requires:
+  os: [ubuntu, debian]
+variables:
+  - name: ssh_port
+    label: Puerto SSH
+    help: 22 es el habitual. Cambiarlo reduce el ruido de los robots, no es seguridad de verdad.
+    type: int
+    default: 22
+    min: 1
+    max: 65535
+  - name: ssh_password_auth
+    label: Permitir entrar con contraseña
+    help: Desmarcado = solo con clave SSH (lo recomendado).
+    type: bool
+    default: false
+  - name: ssh_root_login
+    label: Entrar como root
+    help: «no» = nadie entra como root (se usa sudo). «solo-con-clave» = root sí, pero nunca con contraseña.
+    type: select
+    options: ["no", "solo-con-clave"]
+    default: "no"
+  - name: ssh_allow_users
+    label: Solo pueden entrar estos usuarios
+    help: Uno por línea. Vacío = cualquier usuario con clave.
+    type: list
+    default: []
+    pattern: '^[a-z_][a-z0-9_.-]{0,31}$'
+    pattern_help: Nombre de usuario de Linux (minúsculas, números, _ . -)
+  - name: ssh_max_auth_tries
+    label: Intentos por conexión
+    type: int
+    default: 4
+    min: 2
+    max: 10
+  - name: ssh_fail2ban
+    label: Instalar fail2ban
+    type: bool
+    default: true
+  - name: ssh_fail2ban_maxretry
+    label: Fallos antes de bloquear
+    type: int
+    default: 5
+    min: 2
+    max: 20
+  - name: ssh_fail2ban_bantime
+    label: Tiempo de bloqueo
+    help: Quien reincide se bloquea una semana (cárcel «recidive»).
+    type: select
+    options: ["10m", "1h", "1d", "1w"]
+    default: "1h"
+  - name: ssh_fail2ban_ignore
+    label: IPs que nunca se bloquean
+    help: Además de la tuya, que se añade sola. Una por línea (IP o red, p. ej. 203.0.113.0/24).
+    type: list
+    default: []
+    pattern: '^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$'
+    pattern_help: Una IP o una red (203.0.113.7 o 203.0.113.0/24)

@@ -1,6 +1,8 @@
 # Estudio: módulos nuevos para el catálogo
 
-Fecha: 2026-11-20 · Estado: propuesta, nada implementado.
+Fecha: 2026-11-20 · Estado: secciones 0 (formato, salvo el rol común de timers y «usa el valor de…») y 1 (SSH + fail2ban) hechas en la 0.8.0; el resto, propuesta.
+
+Decisiones del usuario (2026-11-20): las recomendadas en la conversación — secretos en la bóveda; copias locales + S3 opcional; Grafana por túnel; monitorización en dos módulos; Caddy; quitar contraseña SSH solo si se entra con clave y puerto opcional; adoptar lo existente en el servidor real; k3s/OpenTofu después de la 1.0.
 
 Punto de partida: los 5 módulos incluidos (`base`, `firewall`, `docker`, `coolify`, `postgres`) y lo que ya
 funcionaba en los scripts antiguos (`1 PUBLICACION_COOLIFY/1_instalar_servidor.sh`, `2_alta_apps.sh`,

@@ -169,7 +169,7 @@ func TestProyectoDependenciasYAvisos(t *testing.T) {
 	if strings.Join(ids, ",") != "base,docker,firewall,coolify,postgres" {
 		t.Fatalf("módulos guardados %v", ids)
 	}
-	sc, _, err := a.buildScript(saved)
+	sc, _, err := a.buildScript(saved, false)
 	if err != nil || !strings.Contains(string(sc), "__DRAUPNODE_PAYLOAD__") {
 		t.Fatalf("script: %v", err)
 	}

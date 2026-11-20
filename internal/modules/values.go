@@ -132,6 +132,9 @@ func (m *Module) Values(in map[string]any) (map[string]any, map[string]string) {
 	out := map[string]any{}
 	errs := map[string]string{}
 	for _, v := range m.Variables {
+		if v.Type == TypeSecret {
+			continue // los secretos no van en los valores del proyecto (están en la bóveda)
+		}
 		raw, ok := in[v.Name]
 		if !ok {
 			raw = v.Default
@@ -144,4 +147,15 @@ func (m *Module) Values(in map[string]any) (map[string]any, map[string]string) {
 		out[v.Name] = val
 	}
 	return out, errs
+}
+
+// SecretVars devuelve las variables de tipo secreto del módulo.
+func (m *Module) SecretVars() []Variable {
+	var out []Variable
+	for _, v := range m.Variables {
+		if v.Type == TypeSecret {
+			out = append(out, v)
+		}
+	}
+	return out
 }

@@ -94,7 +94,7 @@ export interface ModVariable {
   name: string
   label: string
   help?: string
-  type: 'string' | 'int' | 'bool' | 'select' | 'list'
+  type: 'string' | 'int' | 'bool' | 'select' | 'list' | 'secret'
   default: unknown
   options?: string[]
   required?: boolean
@@ -116,6 +116,14 @@ export interface Module {
   requires: { os?: string[]; minRamMb?: number; minDiskGb?: number }
   variables: ModVariable[] | null
   firewallPorts?: number[] | null
+  /** Variables (int) cuyo valor es un puerto que hay que abrir en el Cortafuegos. */
+  firewallPortsFrom?: string[] | null
+  /** Módulos que no pueden ir en el mismo proyecto. */
+  conflicts?: string[] | null
+  /** Si están en el proyecto, este módulo va detrás. */
+  after?: string[] | null
+  checks?: { containerFree?: string }[] | null
+  secrets?: { file: string; label: string }[] | null
   source: 'builtin' | 'user'
   files: string[] | null
 }
@@ -154,6 +162,22 @@ export interface Project {
   lastRun?: RunSummary | null
   appliedAt?: string | null
   collapsed?: string[] | null
+  slug?: string
+}
+
+export interface ProjectSecretsSummary {
+  vaultExists: boolean
+  generated: number
+  typed: string[]
+  at?: string
+}
+
+export interface ProjectSecret {
+  kind: 'generated' | 'typed'
+  module: string
+  label: string
+  name: string
+  value: string
 }
 
 export interface ProjectCheck {
@@ -165,7 +189,7 @@ export interface ProjectCheck {
 }
 
 export type RunStatus =
-  | 'started' | 'needs_secret' | 'bad_secret' | 'vault_locked' | 'unknown_host'
+  | 'started' | 'needs_secret' | 'bad_secret' | 'vault_locked' | 'vault_missing' | 'unknown_host'
   | 'host_changed' | 'needs_sudo' | 'bad_sudo' | 'busy' | 'error'
 
 export interface RunStart {
@@ -256,6 +280,9 @@ interface Backend {
   SaveProject(p: Project): Promise<Project>
   DeleteProject(id: string): Promise<void>
   SetProjectCollapsed(id: string, modules: string[]): Promise<void>
+  SetProjectSecret(projectId: string, variable: string, value: string): Promise<void>
+  ProjectSecretsInfo(projectId: string): Promise<ProjectSecretsSummary>
+  ProjectSecrets(projectId: string, master: string): Promise<ProjectSecret[]>
   ExportProject(id: string): Promise<string>
   RunProject(id: string, check: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   CancelRun(runId: string): Promise<boolean>
@@ -319,6 +346,7 @@ function mockBackend(): Backend {
   const trusted = new Set<string>(load('trusted', []))
   const stored: Record<string, string> = load('secrets', {})
   let vault = { exists: false, unlocked: false, master: '' }
+  const mockTyped: Record<string, string> = {} // datos secretos escritos (demo, solo en memoria)
   let projects: Project[] = load('projects', [])
   const cancelled = new Set<string>()
   // ?sindocker en la URL simula un equipo sin Docker.
@@ -504,6 +532,29 @@ function mockBackend(): Backend {
       projects = projects.filter((p) => p.id !== id)
       save('projects', projects)
     },
+    async SetProjectSecret(id, variable, value) {
+      if (!vault.exists) throw 'VAULT_MISSING: no hay bóveda'
+      if (!vault.unlocked) throw 'VAULT_LOCKED: la bóveda está bloqueada'
+      const k = `${id}:${variable}`
+      if (value) mockTyped[k] = value
+      else delete mockTyped[k]
+    },
+    async ProjectSecretsInfo(id) {
+      const p = projects.find((x) => x.id === id)
+      const gen = p?.appliedAt ? mockGenerated(p).length : 0
+      return { vaultExists: vault.exists, generated: gen, typed: Object.keys(mockTyped).filter((k) => k.startsWith(id + ':')).map((k) => k.slice(id.length + 1)),
+        at: gen ? p?.appliedAt ?? undefined : undefined }
+    },
+    async ProjectSecrets(id, master) {
+      await wait(500)
+      if (!vault.exists) throw 'no hay bóveda'
+      if (master !== vault.master) throw 'la contraseña de la bóveda no es correcta'
+      vault.unlocked = true
+      const p = projects.find((x) => x.id === id)
+      const typed = Object.entries(mockTyped).filter(([k]) => k.startsWith(id + ':'))
+        .map(([k, value]) => ({ kind: 'typed' as const, module: '', label: k.slice(id.length + 1), name: k.slice(id.length + 1), value }))
+      return [...(p ? mockGenerated(p) : []), ...typed]
+    },
     async SetProjectCollapsed(id, modules) {
       projects = projects.map((p) => (p.id === id ? { ...p, collapsed: [...modules].sort() } : p))
       save('projects', projects)
@@ -581,6 +632,21 @@ function mockBackend(): Backend {
     const m = MOCK_MODULES.find((x) => x.id === id)
     return Object.fromEntries((m?.variables ?? []).map((v) => [v.name, v.default]))
   }
+  // Contraseñas de ejemplo (demo): las que generarían los módulos marcados.
+  function mockGenerated(p: Project): ProjectSecret[] {
+    const out: ProjectSecret[] = []
+    const ids = p.modules.map((m) => m.id)
+    if (ids.includes('postgres')) {
+      out.push({ kind: 'generated', module: 'PostgreSQL compartido', label: 'Superusuario «postgres»', name: 'postgres_superusuario', value: 'Xr7Qp2LmV9sKdT4wNbHc8ZyF3jAeUg6P' })
+      for (const db of (p.modules.find((m) => m.id === 'postgres')?.values.postgres_databases as string[] | undefined) ?? [])
+        out.push({ kind: 'generated', module: 'PostgreSQL compartido', label: 'Usuario de la base', name: 'postgres_' + db, value: 'Hm3Ws8KqZ1vPx6DnRt4YbLc9Fj2Ga7Ue' })
+    }
+    if (ids.includes('coolify') && p.modules.find((m) => m.id === 'coolify')?.values.coolify_admin_email)
+      out.push({ kind: 'generated', module: 'Coolify', label: 'Administrador de Coolify', name: 'coolify_admin',
+        value: `Usuario: admin\nCorreo: ${p.modules.find((m) => m.id === 'coolify')?.values.coolify_admin_email}\nContraseña: Tq5Nv2Bx8KmPz4Wr7Ld3Hs6F-Aa9` })
+    return out
+  }
+
   function mockCheck(p: Project): ProjectCheck {
     const want = p.modules.map((m) => m.id)
     const order: string[] = []
@@ -679,14 +745,29 @@ const MOCK_MODULES: Module[] = [
   { id: 'coolify', name: 'Coolify', version: '1.0.0', category: '3 · Plataformas', source: 'builtin', depends: ['docker', 'firewall'], requires: { os: ['ubuntu', 'debian'], minRamMb: 1800, minDiskGb: 30 },
     description: "Panel para desplegar tus apps desde GitHub/GitLab con dominio y HTTPS automáticos (proxy Traefik + Let's Encrypt).",
     files: ['tasks/main.yml'],
-    firewallPorts: [8000, 6001, 6002], variables: [
+    firewallPorts: [8000, 6001, 6002], secrets: [{ file: 'coolify_admin', label: 'Administrador de Coolify' }], variables: [
       { name: 'coolify_admin_email', label: 'Correo del administrador', help: 'Vacío = el primero que entre al panel crea el administrador.', type: 'string', default: '', placeholder: 'tu@ejemplo.com', pattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$', patternHelp: 'Un correo válido (nombre@dominio.ext)' },
       { name: 'coolify_admin_user', label: 'Nombre del administrador', type: 'string', default: 'admin', pattern: '^[A-Za-z0-9._-]{3,40}$', patternHelp: '3 a 40 letras, números, . _ o -' },
       { name: 'coolify_autoupdate', label: 'Actualizaciones automáticas', help: 'Coolify se actualiza solo a cada versión nueva. Desactívalo si prefieres actualizar tú desde el panel.', type: 'bool', default: true },
     ] },
+  { id: 'ssh', name: 'SSH seguro + fail2ban', version: '1.0.0', category: '1 · Sistema', source: 'builtin', depends: ['base'], after: ['firewall'], firewallPortsFrom: ['ssh_port'], requires: { os: ['ubuntu', 'debian'] },
+    description: 'Cierra el SSH a lo imprescindible (sin root, sin contraseñas, pocos intentos) y bloquea con fail2ban a quien pruebe contraseñas.',
+    files: ['tasks/main.yml', 'handlers/main.yml', 'templates/01-draupnode.conf.j2', 'templates/jail-draupnode.local.j2'],
+    variables: [
+      { name: 'ssh_port', label: 'Puerto SSH', help: '22 es el habitual. Cambiarlo reduce el ruido de los robots, no es seguridad de verdad.', type: 'int', default: 22, min: 1, max: 65535 },
+      { name: 'ssh_password_auth', label: 'Permitir entrar con contraseña', help: 'Desmarcado = solo con clave SSH (lo recomendado).', type: 'bool', default: false },
+      { name: 'ssh_root_login', label: 'Entrar como root', help: '«no» = nadie entra como root (se usa sudo). «solo-con-clave» = root sí, pero nunca con contraseña.', type: 'select', options: ['no', 'solo-con-clave'], default: 'no' },
+      { name: 'ssh_allow_users', label: 'Solo pueden entrar estos usuarios', help: 'Uno por línea. Vacío = cualquier usuario con clave.', type: 'list', default: [] },
+      { name: 'ssh_max_auth_tries', label: 'Intentos por conexión', type: 'int', default: 4, min: 2, max: 10 },
+      { name: 'ssh_fail2ban', label: 'Instalar fail2ban', type: 'bool', default: true },
+      { name: 'ssh_fail2ban_maxretry', label: 'Fallos antes de bloquear', type: 'int', default: 5, min: 2, max: 20 },
+      { name: 'ssh_fail2ban_bantime', label: 'Tiempo de bloqueo', help: 'Quien reincide se bloquea una semana (cárcel «recidive»).', type: 'select', options: ['10m', '1h', '1d', '1w'], default: '1h' },
+      { name: 'ssh_fail2ban_ignore', label: 'IPs que nunca se bloquean', help: 'Además de la tuya, que se añade sola. Una por línea (IP o red, p. ej. 203.0.113.0/24).', type: 'list', default: [] },
+    ] },
   { id: 'postgres', name: 'PostgreSQL compartido', version: '1.0.0', category: '4 · Bases de datos', source: 'builtin', depends: ['docker'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900 },
     description: 'Un PostgreSQL en Docker para todas tus apps, con una base y un usuario por app. Las contraseñas se generan en el servidor.',
-    files: ['tasks/main.yml', 'templates/docker-compose.yml.j2'],
+    files: ['tasks/main.yml', 'templates/docker-compose.yml.j2'], checks: [{ containerFree: 'postgres_container' }],
+    secrets: [{ file: 'postgres_superusuario', label: 'Superusuario «postgres»' }, { file: 'postgres_*', label: 'Usuario de la base' }],
     variables: [
       { name: 'postgres_version', label: 'Versión de PostgreSQL', type: 'select', options: ['15', '16', '17'], default: '16' },
       { name: 'postgres_container', label: 'Nombre del contenedor', type: 'string', default: 'pg-compartido', pattern: '^[a-z][a-z0-9_-]{1,40}$', patternHelp: 'Minúsculas, números, - y _' },

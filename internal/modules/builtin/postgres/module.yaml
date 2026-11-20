@@ -12,6 +12,13 @@ depends: [docker]
 requires:
   os: [ubuntu, debian]
   min_ram_mb: 900
+checks:
+  - container_free: postgres_container
+secrets:
+  - file: postgres_superusuario
+    label: Superusuario «postgres»
+  - file: postgres_*
+    label: Usuario de la base
 variables:
   - name: postgres_version
     label: Versión de PostgreSQL

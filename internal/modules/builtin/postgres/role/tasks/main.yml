@@ -36,6 +36,9 @@
     chdir: "{{ postgres_dir }}"
   register: postgres_up
   changed_when: "'Started' in postgres_up.stderr or 'Created' in postgres_up.stderr or 'Recreated' in postgres_up.stderr"
+  # Al previsualizar la carpeta puede no existir aún (el módulo command falla
+  # al entrar en ella aunque no vaya a ejecutar nada).
+  when: not ansible_check_mode
 
 - name: Esperar a que PostgreSQL acepte conexiones
   ansible.builtin.command: docker exec {{ postgres_container | quote }} pg_isready -U postgres

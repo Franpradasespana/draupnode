@@ -145,3 +145,33 @@ Petición del usuario tras la primera prueba:
 
 ### 2026-11-20 — Enlaces clicables en los mensajes de una ejecución
 - Las direcciones http(s) de las notas («Para que lo sepas») y de los mensajes de las tareas se abren en el navegador al pulsarlas (componente `Linkify`; la puntuación final como «).» no entra en el enlace). P. ej. el panel de Coolify en la nota «Coolify ya estaba instalado…».
+
+## 2026-11-20 · 0.8.0 · Formato de módulos ampliado, contraseñas por proyecto y SSH seguro + fail2ban
+
+**Formato de `module.yaml`** (lo que pedía `docs/ESTUDIO_MODULOS.md`, sección 0):
+- `type: secret`: dato que escribe el usuario (token, clave). Se guarda en la bóveda por proyecto (`proj:<id>:var:<variable>`), nunca en `draupnode.json`. Al Aplicar viaja en `secretos.yml` dentro del script temporal (0600, se borra al terminar); el `instalar.sh` exportado no lo lleva y lo pide al ejecutarse (`read -s`) o lo lee de `DN_SECRET_<NOMBRE>`. Valores `!unsafe`. En el editor: campo de contraseña con «Guardar / Cambiar / Borrar».
+- `conflicts: [...]`: módulos que no pueden ir juntos (en los dos sentidos). El editor los bloquea con candado («choca con…») y el backend lo rechaza.
+- `after: [...]`: orden blando: si ese módulo está en el proyecto, este va detrás (sin añadirlo). Lo usa SSH para ir después del Cortafuegos.
+- `checks: [{container_free: <variable>}]`: el preflight busca un contenedor con ese nombre que no lleve la etiqueta `draupnode.proyecto=<proyecto>`. Al previsualizar avisa; al aplicar se detiene sin tocar nada. PostgreSQL lo usa (y su compose lleva ya la etiqueta): así saldría el choque con el `pg-compartido` del servidor real.
+- `firewall_ports_from: [<variable int>]`: puertos que salen de un valor (el puerto SSH). El editor ajusta la lista del Cortafuegos al marcar/desmarcar o cambiar el valor (el 22 no se quita nunca); el backend avisa si falta un puerto en la lista.
+- `secrets: [{file, label}]`: nombre legible de los ficheros que genera el módulo en el servidor (admite `*`).
+
+**Contraseñas del proyecto** (petición del usuario):
+- Al Aplicar, el script devuelve la carpeta `/etc/draupnode/secretos/<proyecto>/` (sin ficheros ocultos) en una línea `@@DN-SECRETS` que el runner aparta: no se enseña ni se guarda en el registro, va directa a la bóveda (`proj:<id>:gen:<fichero>`). Lo que ya no está en el servidor se quita.
+- Si el proyecto genera contraseñas o tiene datos secretos, Aplicar exige la bóveda: la crea o desbloquea antes de empezar (`vault_missing` / `vault_locked`).
+- Recuadro «Contraseñas del proyecto» en el editor: «Ver contraseñas» pide SIEMPRE la contraseña de la bóveda, las enseña tapadas con botones de mostrar y copiar (las de varias líneas «Clave: valor», como el administrador de Coolify, fila a fila) y se ocultan solas a los 2 minutos. Por proyecto: cada uno tiene las suyas aunque compartan servidor. Borrar el proyecto las borra de la bóveda.
+- **Arreglo**: la carpeta de secretos salía del nombre del proyecto; renombrarlo habría generado contraseñas nuevas. Ahora `Project.slug` se fija al crearlo (único entre proyectos) y no cambia. Los proyectos anteriores se quedan con el de su nombre actual.
+
+**Módulo «SSH seguro + fail2ban»** (`ssh`):
+- `sshd_config.d/01-draupnode.conf` (manda sobre `50-cloud-init.conf` y similares): puerto, root (no / solo con clave), contraseña sí/no, intentos, `AllowUsers`. Se valida con `sshd -t`; si falla, se restaura lo anterior y no se recarga. Ubuntu 24.04+ (ssh.socket): `daemon-reload` + reinicio del socket; las conexiones abiertas no se cortan. Comprueba que escucha en el puerto nuevo.
+- Para no quedarse fuera: la app no deja quitar la contraseña si entra con ella, prohibir root si entra como root, una lista de usuarios sin el suyo, ni cambiar el puerto en un servidor con puerto redirigido (el de pruebas). El rol además comprueba que el usuario tiene claves autorizadas. Si cambia el puerto, se abre en iptables antes (si no lo abrió ya el Cortafuegos) y, al terminar bien, Draupnode actualiza el puerto del servidor (aviso en «Para que lo sepas»).
+- fail2ban (`sshd` con backend systemd + `recidive`), nunca bloquea la IP desde la que conecta Draupnode (el runner pasa `DRAUPNODE_CLIENT_IP`; el script exportado la saca de `SSH_CLIENT` o `who -m`, y si no puede lo dice).
+- Avisos de Draupnode (contraseñas guardadas, puerto cambiado) salen en «Para que lo sepas» (evento `notice`).
+
+**Probado** en un servidor Ubuntu 24.04 limpio y desechable, con la app por dentro (conexión, Aplicar, bóveda):
+- base + Cortafuegos + SSH + Docker: 0 fallos; `sshd -T` con puerto 22, sin contraseña, sin root, 4 intentos; fail2ban con `sshd` y `recidive` y la IP del equipo en `ignoreip`; segunda simulación 0 cambios.
+- Contenedor ajeno «pg-compartido»: la simulación avisa y Aplicar se detiene. Quitado: PostgreSQL instalado, 2 contraseñas traídas a la bóveda e iguales a las del servidor, ninguna en los registros, simulación final 0 cambios. Con la bóveda cerrada, Aplicar la pide.
+- Cambio de puerto 22 → 2200: escucha en 2200, el 22 deja de responder, la sesión abierta sigue; una sola regla de iptables; relanzar = 0 cambios.
+- `sshd -t` rechazando (opción inválida en otro fichero): configuración intacta y SSH sin reiniciar.
+- Fallos encontrados al probar y arreglados: el `instalar.sh` exportado se paraba con `set -u` si no había `SSH_CLIENT` (al lanzarlo con sudo); `docker inspect` de un contenedor inexistente imprime `[]` y se tomaba como existente; el aviso en bucle salía como «All items completed»; PostgreSQL fallaba al previsualizar si su carpeta aún no existía (fallo anterior).
+- Interfaz comprobada con Chrome sin ventana sobre la demo: orden (SSH tras el Cortafuegos), puertos al marcar/cambiar/desmarcar, recuadro de contraseñas, sin errores de JavaScript.

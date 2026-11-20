@@ -2,7 +2,10 @@
   import { untrack } from 'svelte'
   import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, ChevronDown, ChevronRight, Package, Lock, LoaderCircle, CircleCheck } from '@lucide/svelte'
   import VarField from '../components/VarField.svelte'
+  import SecretField from '../components/SecretField.svelte'
   import RunPanel from '../components/RunPanel.svelte'
+  import ProjectSecrets from '../components/ProjectSecrets.svelte'
+  import { orderModules, clashesWith, modulePorts } from '../lib/modules'
   import { api, errorText, type Module, type Project, type ProjectCheck } from '../lib/api'
   import {
     ui, toast, refreshProjects, moduleName, timeAgo, startRun, ask, confirmDialog, requestVault,
@@ -47,20 +50,7 @@
   // Orden de ejecución calculado aquí mismo (igual que Catalog.Resolve en Go:
   // ids ordenados y, antes de cada uno, sus dependencias), para que una ventana
   // nueva aparezca ya en su sitio sin esperar al backend.
-  const ordered = $derived.by(() => {
-    const out: string[] = []
-    const seen = new Set<string>()
-    const visit = (mid: string, path: Set<string>) => {
-      if (seen.has(mid) || path.has(mid)) return
-      path.add(mid)
-      for (const d of [...(byId(mid)?.depends ?? [])].sort()) visit(d, path)
-      path.delete(mid)
-      seen.add(mid)
-      out.push(mid)
-    }
-    for (const mid of [...selected].sort()) visit(mid, new Set())
-    return out.filter((mid) => selected.has(mid))
-  })
+  const ordered = $derived(orderModules(selected, byId).filter((mid) => selected.has(mid)))
   const errorCount = $derived(Object.values(check?.errors ?? {}).reduce((n, e) => n + Object.keys(e).length, 0))
 
   const groups = $derived.by(() => {
@@ -82,18 +72,29 @@
     if (!Array.isArray(fw.values[FW_VAR])) fw.values[FW_VAR] = []
     return fw.values[FW_VAR] as string[]
   }
-  function addPorts(m: Module) {
-    const list = fwList()
-    if (!list) return
-    for (const p of m.firewallPorts ?? []) if (!list.includes(String(p))) list.push(String(p))
-  }
-  function removePorts(m: Module) {
-    const list = fwList()
-    if (!list) return
-    const stillNeeded = new Set(draft.modules.filter((x) => x.id !== m.id).flatMap((x) => byId(x.id)?.firewallPorts ?? []).map(String))
-    const drop = new Set((m.firewallPorts ?? []).map(String).filter((p) => !stillNeeded.has(p)))
-    if (drop.size) draft.modules.find((x) => x.id === 'firewall')!.values[FW_VAR] = list.filter((p) => !drop.has(String(p)))
-  }
+  // Se vigila qué puertos necesita cada módulo (fijos o de una variable, como
+  // el puerto de SSH): al marcar/desmarcar un módulo o cambiar ese valor, la
+  // lista del Cortafuegos se ajusta sola. El 22 no se quita nunca.
+  let lastPorts: Record<string, string[]> | null = null
+  let hadFw = false
+  $effect(() => {
+    const now: Record<string, string[]> = {}
+    for (const x of draft.modules) now[x.id] = modulePorts(byId(x.id), x.values)
+    const hasFw = draft.modules.some((x) => x.id === 'firewall')
+    untrack(() => {
+      const before = lastPorts
+      lastPorts = now
+      const wasFw = hadFw
+      hadFw = hasFw
+      if (before === null || !hasFw) return // al abrir el editor no se cambia nada
+      const list = fwList()!
+      const needed = new Set(Object.values(now).flat())
+      const old = new Set(wasFw ? Object.values(before).flat() : [])
+      for (const p of needed) if (!old.has(p) && !list.includes(p)) list.push(p)
+      const drop = [...old].filter((p) => !needed.has(p) && p !== '22')
+      if (drop.length) draft.modules.find((x) => x.id === 'firewall')!.values[FW_VAR] = list.filter((p) => !drop.includes(String(p)))
+    })
+  })
 
   // Al marcar un módulo se añaden también sus dependencias.
   function add(mid: string, added: string[] = []) {
@@ -103,9 +104,6 @@
     if (!draft.modules.some((x) => x.id === mid)) {
       draft.modules.push({ id: mid, values: defaults(m) })
       added.push(mid)
-      // Si es el propio Cortafuegos, recoge los puertos de los que ya estaban.
-      if (mid === 'firewall') for (const x of draft.modules) { const xm = byId(x.id); if (xm) addPorts(xm) }
-      else addPorts(m)
     }
     return added
   }
@@ -120,17 +118,24 @@
         ;(e.currentTarget as HTMLInputElement).checked = true // la casilla no debe quedarse desmarcada
         return toast(`No se puede quitar: lo necesita ${users.join(', ')}`, 'error')
       }
-      const m = byId(mid)
-      if (m) removePorts(m)
       draft.modules = draft.modules.filter((x) => x.id !== mid)
       return
+    }
+    const clash = clashesWith(mid, selected, byId)
+    if (clash.length) {
+      ;(e.currentTarget as HTMLInputElement).checked = false
+      return toast(`${moduleName(mid)} no puede ir con ${clash.map(moduleName).join(', ')}: quita antes ${clash.length > 1 ? 'esos' : 'ese'}`, 'error')
     }
     const added = add(mid).filter((x) => x !== mid)
     if (added.length) toast(`También se añade ${added.map(moduleName).join(', ')} (lo necesita ${moduleName(mid)})`)
   }
 
   // Validación en vivo (con un pequeño retardo mientras se escribe).
+  // recheck: vuelve a comprobar aunque el borrador no cambie (p. ej. al
+  // guardar un dato secreto, que va a la bóveda y no al proyecto).
+  let recheck = $state(0)
   $effect(() => {
+    void recheck
     const snap = JSON.stringify(draft)
     const t = setTimeout(async () => {
       try {
@@ -245,7 +250,10 @@
           break
         }
         case 'vault_locked':
-          if (!(await requestVault('unlock', 'La contraseña de este servidor está en la bóveda.'))) return
+          if (!(await requestVault('unlock', r.message || 'La contraseña de este servidor está en la bóveda.'))) return
+          break
+        case 'vault_missing':
+          if (!(await requestVault('create', r.message || 'Las contraseñas de este proyecto se guardan en la bóveda cifrada.'))) return
           break
         case 'unknown_host': {
           const ok = await confirmDialog({
@@ -337,6 +345,10 @@
   <RunPanel {run} onclose={closeRun} />
 {/if}
 
+{#if draft.id}
+  <ProjectSecrets projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} />
+{/if}
+
 {#if check?.warnings?.length}
   <div class="card warns">
     {#each check.warnings as w}<p><TriangleAlert size={15} /> {w}</p>{/each}
@@ -355,14 +367,17 @@
       {#each list as m (m.id)}
         {@const users = requiredBy(m.id)}
         {@const isDep = users.length > 0}
-        <label class="pick" class:on={selected.has(m.id)}>
-          <input type="checkbox" checked={selected.has(m.id)} onchange={(e) => toggle(e, m.id)} disabled={running || (isDep && selected.has(m.id))}
-            title={isDep && selected.has(m.id) ? `Lo necesita ${users.join(', ')}: desmárcalo antes` : ''} />
+        {@const clash = selected.has(m.id) ? [] : clashesWith(m.id, selected, byId)}
+        <label class="pick" class:on={selected.has(m.id)} class:clash={clash.length > 0}>
+          <input type="checkbox" checked={selected.has(m.id)} onchange={(e) => toggle(e, m.id)} disabled={running || (isDep && selected.has(m.id)) || clash.length > 0}
+            title={isDep && selected.has(m.id) ? `Lo necesita ${users.join(', ')}: desmárcalo antes` : clash.length ? `Choca con ${clash.map(moduleName).join(', ')}` : ''} />
           <div>
             <strong>{m.name}</strong>
             <span>{m.description}</span>
             {#if isDep && selected.has(m.id)}<em><Lock size={11} /> lo necesita {users.join(', ')}</em>{/if}
+            {#if clash.length}<em><Lock size={11} /> choca con {clash.map(moduleName).join(', ')}</em>{/if}
             {#if m.firewallPorts?.length}<em class="ports">abre los puertos {m.firewallPorts.join(', ')} en el Cortafuegos</em>{/if}
+            {#if m.firewallPortsFrom?.length}<em class="ports">abre su puerto en el Cortafuegos</em>{/if}
           </div>
         </label>
       {/each}
@@ -392,7 +407,11 @@
           {#if !collapsed[mid] && m.variables?.length}
             <div class="vars">
               {#each m.variables as v (v.name)}
-                <VarField {v} bind:value={pm.values[v.name]} error={errs[v.name]} />
+                {#if v.type === 'secret'}
+                  <SecretField {v} projectId={draft.id} error={errs[v.name]} onchange={() => recheck++} />
+                {:else}
+                  <VarField {v} bind:value={pm.values[v.name]} error={errs[v.name]} />
+                {/if}
               {/each}
             </div>
           {/if}
@@ -429,6 +448,7 @@
   .pick { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; }
   .pick:hover { background: var(--sidebar-hover); }
   .pick.on { border-color: var(--border); background: var(--accent-soft); }
+  .pick.clash { opacity: .6; cursor: not-allowed; }
   .pick input { accent-color: var(--accent); margin-top: 3px; }
   .pick div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .pick strong { font-size: 13.5px; }

@@ -1,0 +1,14 @@
+# Generado por Draupnode (módulo ssh). No lo edites a mano: se reescribe al aplicar.
+# Va el primero: en sshd manda el primer valor que se lee.
+Port {{ ssh_port }}
+PermitRootLogin {{ 'no' if ssh_root_login == 'no' else 'prohibit-password' }}
+PubkeyAuthentication yes
+PasswordAuthentication {{ 'yes' if ssh_password_auth | bool else 'no' }}
+KbdInteractiveAuthentication {{ 'yes' if ssh_password_auth | bool else 'no' }}
+PermitEmptyPasswords no
+MaxAuthTries {{ ssh_max_auth_tries }}
+LoginGraceTime 30
+X11Forwarding no
+{% if ssh_allow_users | length > 0 %}
+AllowUsers {{ ssh_allow_users | join(' ') }}
+{% endif %}

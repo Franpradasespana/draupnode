@@ -150,22 +150,72 @@ func (a *App) resolveProject(p store.Project) (ProjectCheck, []bundle.Selection)
 	if res.Added == nil {
 		res.Added = []string{}
 	}
+	res.General = append(res.General, c.Clashes(order)...)
 	var sel []bundle.Selection
 	for _, id := range order {
 		m, _ := c.Get(id)
 		v, errs := m.Values(vals[id])
+		// Datos secretos obligatorios: tienen que estar en la bóveda.
+		for _, sv := range m.SecretVars() {
+			if sv.Required && (p.ID == "" || !a.vault.Has(varName(p.ID, sv.Name))) {
+				errs[sv.Name] = "falta: escríbelo (se guarda cifrado en la bóveda)"
+			}
+		}
 		if len(errs) > 0 {
 			res.Errors[id] = errs
 		}
 		sel = append(sel, bundle.Selection{Module: m, Values: v})
 	}
-	if srv, err := a.store.Server(p.ServerID); err == nil && srv.LastCheck != nil && srv.LastCheck.OK {
-		res.Warnings = requirementWarnings(sel, srv.LastCheck.Facts)
+	res.Warnings = append(res.Warnings, missingPorts(sel)...)
+	srv, srvErr := a.store.Server(p.ServerID)
+	if srvErr == nil {
+		sshRules(srv, sel, &res)
+	}
+	if srvErr == nil && srv.LastCheck != nil && srv.LastCheck.OK {
+		res.Warnings = append(res.Warnings, requirementWarnings(sel, srv.LastCheck.Facts)...)
 	}
 	if res.Warnings == nil {
 		res.Warnings = []string{} // la interfaz espera una lista, nunca null
 	}
 	return res, sel
+}
+
+// ModulePorts: puertos TCP que necesita abiertos un módulo con estos valores.
+func ModulePorts(m *modules.Module, vals map[string]any) []string {
+	var out []string
+	for _, p := range m.FirewallPorts {
+		out = append(out, strconv.Itoa(p))
+	}
+	for _, name := range m.FirewallPortsFrom {
+		if n, ok := vals[name].(int); ok && n > 0 {
+			out = append(out, strconv.Itoa(n))
+		}
+	}
+	return out
+}
+
+// missingPorts avisa si el Cortafuegos no abre un puerto que necesita otro módulo.
+func missingPorts(sel []bundle.Selection) []string {
+	var fw []string
+	found := false
+	for _, s := range sel {
+		if s.Module.ID == "firewall" {
+			fw, _ = s.Values["firewall_tcp_ports"].([]string)
+			found = true
+		}
+	}
+	if !found {
+		return nil
+	}
+	var w []string
+	for _, s := range sel {
+		for _, p := range ModulePorts(s.Module, s.Values) {
+			if p != "22" && !contains(fw, p) {
+				w = append(w, fmt.Sprintf("%s necesita el puerto %s y no está en la lista del Cortafuegos: añádelo o no se podrá entrar.", s.Module.Name, p))
+			}
+		}
+	}
+	return w
 }
 
 func requirementWarnings(sel []bundle.Selection, f map[string]string) []string {
@@ -201,6 +251,11 @@ func contains(l []string, s string) bool {
 // SaveProject valida y guarda. Las dependencias que falten se añaden al
 // proyecto con sus valores por defecto, en el orden de ejecución.
 func (a *App) SaveProject(p store.Project) (store.Project, error) {
+	if p.ID == "" {
+		p.Slug = a.uniqueSlug(p.Name, "")
+	} else if old, err := a.store.Project(p.ID); err == nil {
+		p.Slug = slugOf(old) // los de antes de la 0.8 se quedan con el de su nombre actual
+	}
 	// Un proyecto recién creado se guarda sin módulos (se eligen después);
 	// para ejecutarlo sí hace falta al menos uno.
 	if len(p.Modules) == 0 {
@@ -227,7 +282,11 @@ func (a *App) DeleteProject(id string) error {
 		return errors.New("el proyecto se está ejecutando: cancélalo antes")
 	}
 	_ = os.RemoveAll(filepath.Join(a.store.Dir(), "runs", id))
-	return a.store.DeleteProject(id)
+	if err := a.store.DeleteProject(id); err != nil {
+		return err
+	}
+	a.deleteProjectSecrets(id)
+	return nil
 }
 
 // SetProjectCollapsed recuerda qué ventanas de módulo están plegadas en el editor.
@@ -236,7 +295,9 @@ func (a *App) SetProjectCollapsed(id string, modules []string) error {
 }
 
 // buildScript genera el instalar.sh del proyecto.
-func (a *App) buildScript(p store.Project) ([]byte, store.Server, error) {
+// withSecrets: incluye los datos secretos del usuario (al ejecutar desde la
+// app); al exportar van fuera y el script los pide.
+func (a *App) buildScript(p store.Project, withSecrets bool) ([]byte, store.Server, error) {
 	srv, err := a.store.Server(p.ServerID)
 	if err != nil {
 		return nil, srv, err
@@ -249,10 +310,16 @@ func (a *App) buildScript(p store.Project) ([]byte, store.Server, error) {
 		}
 		return nil, srv, errors.New(msg)
 	}
-	sc, err := bundle.Script(bundle.Options{
-		Project: p.Name, Slug: bundle.Slug(p.Name), Host: srv.Host, SSHUser: srv.User, CoolifyURL: coolifyURLFor(srv),
-		AppVersion: Version, Now: time.Now(),
-	}, sel)
+	o := bundle.Options{
+		Project: p.Name, Slug: slugOf(p), Host: srv.Host, SSHUser: srv.User, CoolifyURL: coolifyURLFor(srv),
+		AppVersion: Version, Now: time.Now(), SSHAuth: srv.AuthMethod,
+	}
+	if withSecrets {
+		if o.Secrets, err = a.secretValues(p.ID, sel); err != nil {
+			return nil, srv, vaultErr(err)
+		}
+	}
+	sc, err := bundle.Script(o, sel)
 	return sc, srv, err
 }
 
@@ -262,7 +329,7 @@ func (a *App) ExportProject(id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sc, _, err := a.buildScript(p)
+	sc, _, err := a.buildScript(p, false)
 	if err != nil {
 		return "", err
 	}
@@ -270,7 +337,7 @@ func (a *App) ExportProject(id string) (string, error) {
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		Title:            "Guardar instalar.sh",
 		DefaultDirectory: home,
-		DefaultFilename:  "instalar-" + bundle.Slug(p.Name) + ".sh",
+		DefaultFilename:  "instalar-" + slugOf(p) + ".sh",
 		Filters:          []runtime.FileFilter{{DisplayName: "Script bash (*.sh)", Pattern: "*.sh"}},
 	})
 	if err != nil || path == "" {
@@ -286,7 +353,7 @@ func (a *App) ExportProject(id string) (string, error) {
 
 // RunStart es la respuesta al pedir una ejecución.
 type RunStart struct {
-	// started | needs_secret | bad_secret | vault_locked | unknown_host | host_changed | needs_sudo | bad_sudo | busy | error
+	// started | needs_secret | bad_secret | vault_locked | vault_missing | unknown_host | host_changed | needs_sudo | bad_sudo | busy | error
 	Status      string `json:"status"`
 	RunID       string `json:"runId,omitempty"`
 	Message     string `json:"message,omitempty"`
@@ -328,8 +395,22 @@ func (a *App) RunProject(id string, check bool, secret, accept, sudoPassword str
 	if a.projectRunning(id) {
 		return RunStart{Status: "busy", Message: "este proyecto ya se está ejecutando"}
 	}
-	script, srv, err := a.buildScript(p)
+	// Contraseñas del proyecto: la bóveda tiene que existir y estar abierta
+	// para guardar lo que se genere (al aplicar) o leer lo que escribiste.
+	if _, sel := a.resolveProject(p); projectNeedsVault(sel, check) {
+		st := a.vault.Status()
+		if !st.Exists {
+			return RunStart{Status: "vault_missing", Message: "Las contraseñas de este proyecto se guardan en la bóveda cifrada de Draupnode: créala primero."}
+		}
+		if !st.Unlocked {
+			return RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: ahí se guardan las contraseñas de este proyecto."}
+		}
+	}
+	script, srv, err := a.buildScript(p, true)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), codeVaultLocked) {
+			return RunStart{Status: "vault_locked"}
+		}
 		return RunStart{Status: "error", Message: err.Error()}
 	}
 	kind := "passphrase"
@@ -409,7 +490,19 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		e.RunID, e.ProjectID = runID, p.ID
 		a.emit("run", e)
 	}
-	code, err := runner.Run(ctx, c, script, check, su, func(e runner.Event) {
+	var secretsMsg string
+	code, err := runner.RunOpts(ctx, c, script, runner.Opts{Check: check, SecretsBack: true}, su, func(e runner.Event) {
+		if e.Kind == "secrets" {
+			// Nunca al registro ni a la interfaz: directo a la bóveda.
+			n, err := a.storeGenerated(p.ID, e.Text)
+			switch {
+			case err != nil:
+				secretsMsg = "No se pudieron guardar en la bóveda las contraseñas generadas: " + vaultErr(err).Error() + ". Vuelve a Aplicar con la bóveda desbloqueada."
+			case n > 0:
+				secretsMsg = fmt.Sprintf("%d contraseña(s) del servidor guardadas en tu bóveda: míralas en «Contraseñas del proyecto».", n)
+			}
+			return
+		}
 		if lw != nil {
 			writeLog(lw, e)
 		}
@@ -434,6 +527,21 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		sum.Error = fmt.Sprintf("terminó con errores (código %d)", code)
 	default:
 		sum.OK = true
+	}
+	// Avisos de Draupnode: salen en «Para que lo sepas» y en el registro.
+	notice := func(msg string) {
+		if lw != nil {
+			fmt.Fprintf(lw, "NOTA DE DRAUPNODE: %s\n", msg)
+		}
+		send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "notice", "msg": msg}})
+	}
+	if secretsMsg != "" {
+		notice(secretsMsg)
+	}
+	if sum.OK && !check {
+		if msg := a.afterApply(p); msg != "" {
+			notice(msg)
+		}
 	}
 	if lw != nil {
 		fmt.Fprintf(lw, "# Fin: ok=%v cambios=%d fallos=%d %s\n", sum.OK, sum.Changed, sum.Failed, sum.Error)

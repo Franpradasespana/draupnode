@@ -42,6 +42,10 @@ export function OpenURL(arg1:string):Promise<void>;
 
 export function PickKeyFile():Promise<string>;
 
+export function ProjectSecrets(arg1:string,arg2:string):Promise<Array<main.ProjectSecret>>;
+
+export function ProjectSecretsInfo(arg1:string):Promise<main.ProjectSecretsSummary>;
+
 export function ReadRunLog(arg1:string,arg2:string):Promise<string>;
 
 export function ReloadModules():Promise<main.ModulesInfo>;
@@ -63,6 +67,8 @@ export function SecretsInfo():Promise<main.SecretsInfo>;
 export function ServerLive(arg1:string):Promise<main.ServerLive>;
 
 export function SetProjectCollapsed(arg1:string,arg2:Array<string>):Promise<void>;
+
+export function SetProjectSecret(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SetSecretBackend(arg1:string):Promise<void>;
 

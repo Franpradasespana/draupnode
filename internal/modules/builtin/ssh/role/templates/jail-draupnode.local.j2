@@ -1,0 +1,17 @@
+# Generado por Draupnode (módulo ssh). No lo edites a mano: se reescribe al aplicar.
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1{% for ip in ssh_ignore_all %} {{ ip }}{% endfor %}
+
+bantime = {{ ssh_fail2ban_bantime }}
+findtime = 10m
+maxretry = {{ ssh_fail2ban_maxretry }}
+
+[sshd]
+enabled = true
+port = {{ ssh_port }}
+backend = systemd
+
+[recidive]
+enabled = true
+bantime = 1w
+findtime = 1d

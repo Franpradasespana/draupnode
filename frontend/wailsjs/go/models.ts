@@ -251,6 +251,44 @@ export namespace main {
 	        this.warnings = source["warnings"];
 	    }
 	}
+	export class ProjectSecret {
+	    kind: string;
+	    module: string;
+	    label: string;
+	    name: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProjectSecret(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.module = source["module"];
+	        this.label = source["label"];
+	        this.name = source["name"];
+	        this.value = source["value"];
+	    }
+	}
+	export class ProjectSecretsSummary {
+	    vaultExists: boolean;
+	    generated: number;
+	    typed: string[];
+	    at?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProjectSecretsSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.vaultExists = source["vaultExists"];
+	        this.generated = source["generated"];
+	        this.typed = source["typed"];
+	        this.at = source["at"];
+	    }
+	}
 	export class RunStart {
 	    status: string;
 	    runId?: string;
@@ -413,6 +451,32 @@ export namespace main {
 
 export namespace modules {
 	
+	export class Check {
+	    containerFree?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Check(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.containerFree = source["containerFree"];
+	    }
+	}
+	export class SecretFile {
+	    file: string;
+	    label: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SecretFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.label = source["label"];
+	    }
+	}
 	export class Variable {
 	    name: string;
 	    label: string;
@@ -474,6 +538,11 @@ export namespace modules {
 	    requires: Requires;
 	    variables: Variable[];
 	    firewallPorts?: number[];
+	    firewallPortsFrom?: string[];
+	    conflicts?: string[];
+	    after?: string[];
+	    checks?: Check[];
+	    secrets?: SecretFile[];
 	    source: string;
 	    files: string[];
 	
@@ -493,6 +562,11 @@ export namespace modules {
 	        this.requires = this.convertValues(source["requires"], Requires);
 	        this.variables = this.convertValues(source["variables"], Variable);
 	        this.firewallPorts = source["firewallPorts"];
+	        this.firewallPortsFrom = source["firewallPortsFrom"];
+	        this.conflicts = source["conflicts"];
+	        this.after = source["after"];
+	        this.checks = this.convertValues(source["checks"], Check);
+	        this.secrets = this.convertValues(source["secrets"], SecretFile);
 	        this.source = source["source"];
 	        this.files = source["files"];
 	    }
@@ -515,6 +589,7 @@ export namespace modules {
 		    return a;
 		}
 	}
+	
 	
 
 }
@@ -724,6 +799,7 @@ export namespace store {
 	    // Go type: time
 	    appliedAt?: any;
 	    collapsed?: string[];
+	    slug?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -740,6 +816,7 @@ export namespace store {
 	        this.lastRun = this.convertValues(source["lastRun"], RunSummary);
 	        this.appliedAt = this.convertValues(source["appliedAt"], null);
 	        this.collapsed = source["collapsed"];
+	        this.slug = source["slug"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

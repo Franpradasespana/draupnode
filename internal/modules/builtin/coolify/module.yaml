@@ -21,6 +21,9 @@ requires:
   min_ram_mb: 1800
   min_disk_gb: 30
 firewall_ports: [8000, 6001, 6002]
+secrets:
+  - file: coolify_admin
+    label: Administrador de Coolify
 variables:
   - name: coolify_admin_email
     label: Correo del administrador

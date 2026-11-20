@@ -105,6 +105,10 @@ type Project struct {
 	// Collapsed: módulos cuya ventana está plegada en el editor. Es solo de la
 	// interfaz: no cuenta como cambio del proyecto (ver SetCollapsed).
 	Collapsed []string `json:"collapsed,omitempty"`
+	// Slug da nombre a la carpeta de secretos del servidor
+	// (/etc/draupnode/secretos/<slug>). Se fija la primera vez y no cambia
+	// aunque se renombre el proyecto: si cambiara, se generarían contraseñas nuevas.
+	Slug string `json:"slug,omitempty"`
 }
 
 type data struct {
@@ -366,6 +370,9 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 			}
 			p.AppliedAt = old.AppliedAt
 			p.Collapsed = old.Collapsed // solo lo cambia SetCollapsed
+			if old.Slug != "" {
+				p.Slug = old.Slug // fijo para siempre
+			}
 			// Guardar sin cambios no cuenta como modificación (no pide aplicar otra vez).
 			if sameContent(old, p) {
 				p.UpdatedAt = old.UpdatedAt

@@ -44,6 +44,11 @@ type Options struct {
 	CoolifyURL string
 	AppVersion string
 	Now        time.Time
+	// SSHAuth: cómo entra Draupnode al servidor ("key" | "password"; "" = no se sabe, p. ej. al exportar).
+	SSHAuth string
+	// Secrets: valores de las variables de tipo secreto (nombre → valor). Solo
+	// al Aplicar desde la app; al Exportar va vacío y el script los pide.
+	Secrets map[string]string
 }
 
 func (o Options) coolifyURL() string {
@@ -151,13 +156,26 @@ func SiteYAML(o Options, sel []Selection) ([]byte, error) {
 	osNodes := make([]string, len(osList))
 	copy(osNodes, osList)
 
+	containers := &yaml.Node{Kind: yaml.SequenceNode}
+	for _, s := range sel {
+		for _, c := range s.Module.Checks {
+			name, _ := s.Values[c.ContainerFree].(string)
+			if name == "" {
+				continue
+			}
+			containers.Content = append(containers.Content, mapNode([]string{"name", "module"}, map[string]*yaml.Node{
+				"name": str(name), "module": str(s.Module.Name),
+			}))
+		}
+	}
 	roles := &yaml.Node{Kind: yaml.SequenceNode}
 	roles.Content = append(roles.Content, mapNode([]string{"role", "vars"}, map[string]*yaml.Node{
 		"role": plain("draupnode_preflight"),
-		"vars": mapNode([]string{"preflight_os", "preflight_ram_mb", "preflight_disk_gb"}, map[string]*yaml.Node{
-			"preflight_os":      valueNode(osNodes),
-			"preflight_ram_mb":  valueNode(ram),
-			"preflight_disk_gb": valueNode(disk),
+		"vars": mapNode([]string{"preflight_os", "preflight_ram_mb", "preflight_disk_gb", "preflight_containers"}, map[string]*yaml.Node{
+			"preflight_os":         valueNode(osNodes),
+			"preflight_ram_mb":     valueNode(ram),
+			"preflight_disk_gb":    valueNode(disk),
+			"preflight_containers": containers,
 		}),
 	}))
 	for _, s := range sel {
@@ -173,13 +191,20 @@ func SiteYAML(o Options, sel []Selection) ([]byte, error) {
 		entry := map[string]*yaml.Node{"role": plain(s.Module.ID), "vars": mapNode(keys, vals)}
 		roles.Content = append(roles.Content, mapNode([]string{"role", "vars"}, entry))
 	}
-	play := mapNode([]string{"name", "hosts", "connection", "gather_facts", "vars", "roles"}, map[string]*yaml.Node{
+	keys := []string{"name", "hosts", "connection", "gather_facts", "vars"}
+	if len(secretVars(sel)) > 0 {
+		keys = append(keys, "vars_files")
+	}
+	keys = append(keys, "roles")
+	play := mapNode(keys, map[string]*yaml.Node{
+		"vars_files": {Kind: yaml.SequenceNode, Content: []*yaml.Node{plain("secretos.yml")}},
 		"name":         str("Draupnode · " + o.Project),
 		"hosts":        plain("localhost"),
 		"connection":   plain("local"),
 		"gather_facts": valueNode(true),
-		"vars": mapNode([]string{"draupnode_project", "draupnode_host", "draupnode_ssh_user", "draupnode_secrets_dir", "draupnode_coolify_url"}, map[string]*yaml.Node{
+		"vars": mapNode([]string{"draupnode_project", "draupnode_host", "draupnode_ssh_user", "draupnode_ssh_auth", "draupnode_secrets_dir", "draupnode_coolify_url"}, map[string]*yaml.Node{
 			"draupnode_coolify_url": str(o.coolifyURL()),
+			"draupnode_ssh_auth":    str(o.SSHAuth),
 			"draupnode_project":     str(o.Slug),
 			"draupnode_host":        str(o.Host),
 			"draupnode_ssh_user":    str(o.SSHUser),
@@ -197,6 +222,31 @@ func SiteYAML(o Options, sel []Selection) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// secretVars lista las variables secretas de todos los módulos elegidos.
+func secretVars(sel []Selection) []modules.Variable {
+	var out []modules.Variable
+	for _, s := range sel {
+		out = append(out, s.Module.SecretVars()...)
+	}
+	return out
+}
+
+// SecretsYAML genera el fichero de variables secretas (todas !unsafe).
+func SecretsYAML(vars []modules.Variable, vals map[string]string) ([]byte, error) {
+	n := &yaml.Node{Kind: yaml.MappingNode}
+	for _, v := range vars {
+		n.Content = append(n.Content, plain(v.Name), str(vals[v.Name]))
+	}
+	return yaml.Marshal(&yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{n}})
+}
+
+// shq pone un texto entre comillas simples para bash.
+func shq(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+
+// SecretEnv es la variable de entorno con la que se puede dar un secreto al
+// instalar.sh exportado sin teclearlo (DN_SECRET_<NOMBRE>).
+func SecretEnv(name string) string { return "DN_SECRET_" + strings.ToUpper(name) }
 
 type tarWriter struct {
 	tw  *tar.Writer
@@ -240,6 +290,17 @@ func Payload(o Options, sel []Selection) ([]byte, error) {
 	if err := t.add("site.yml", site, 0o644); err != nil {
 		return nil, err
 	}
+	// Los secretos solo viajan dentro del script que sube la app (0600, se borra
+	// al terminar). En el exportado no van: el script los pide al ejecutarlo.
+	if sv := secretVars(sel); len(sv) > 0 && o.Secrets != nil {
+		b, err := SecretsYAML(sv, o.Secrets)
+		if err != nil {
+			return nil, err
+		}
+		if err := t.add("secretos.yml", b, 0o600); err != nil {
+			return nil, err
+		}
+	}
 	for _, s := range sel {
 		if err := t.addFS(s.Module.Role(), "roles/"+s.Module.ID); err != nil {
 			return nil, fmt.Errorf("módulo %s: %w", s.Module.ID, err)
@@ -278,8 +339,16 @@ for a in "$@"; do
   esac
 done
 
+# IP desde la que te conectas (fail2ban no la bloquea nunca).
+DRAUPNODE_CLIENT_IP="${DRAUPNODE_CLIENT_IP:-${SSH_CLIENT:-}}"
+DRAUPNODE_CLIENT_IP="${DRAUPNODE_CLIENT_IP%% *}"
+if [ -z "$DRAUPNODE_CLIENT_IP" ]; then
+  DRAUPNODE_CLIENT_IP="$(who -m 2>/dev/null | sed -n 's/.*(\([0-9A-Fa-f:.]*\)).*/\1/p' | head -n1)"
+fi
+export DRAUPNODE_CLIENT_IP
+
 if [ "$(id -u)" -ne 0 ]; then
-  exec sudo bash "$0" "$@"
+  exec sudo env DRAUPNODE_CLIENT_IP="$DRAUPNODE_CLIENT_IP" bash "$0" "$@"
 fi
 
 etapa() {
@@ -337,6 +406,22 @@ trap 'rm -rf "$TRABAJO"' EXIT
 LINEA=$(awk '/^__DRAUPNODE_PAYLOAD__$/ { print NR + 1; exit }' "$0")
 tail -n +"$LINEA" "$0" | base64 -d | tar -xz -C "$TRABAJO"
 cd "$TRABAJO"
+{{- if .SecretPrompts}}
+
+# Datos secretos que escribe el usuario: Draupnode los manda al Aplicar; en el
+# script exportado se piden aquí (o se leen de DN_SECRET_<NOMBRE>).
+if [ ! -f secretos.yml ]; then
+  (umask 077; : > secretos.yml)
+  pedir() { # nombre, variable de entorno, texto
+    local v="${!2:-}"
+    if [ -z "$v" ]; then
+      [ -r /dev/tty ] || { echo "Falta $3: dalo en la variable $2" >&2; exit 2; }
+      read -rsp "$3: " v </dev/tty; echo >/dev/tty
+    fi
+    printf '%s: !unsafe %s\n' "$1" "$(printf '%s' "$v" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" >> secretos.yml
+  }
+{{.SecretPrompts}}fi
+{{- end}}
 
 export ANSIBLE_CONFIG="$TRABAJO/ansible.cfg"
 export ANSIBLE_LOCALHOST_WARNING=False
@@ -347,8 +432,15 @@ fi
 export PYTHONUNBUFFERED=1
 
 etapa "Ejecutando Ansible"
-"$VENV/bin/ansible-playbook" -i localhost, -c local site.yml "${MODO[@]}"
-exit 0
+rc=0
+"$VENV/bin/ansible-playbook" -i localhost, -c local site.yml "${MODO[@]}" || rc=$?
+
+# Draupnode (al Aplicar) recoge lo generado para guardarlo en tu bóveda. Esta
+# línea no se enseña ni se guarda en el registro.
+if [ -n "${DRAUPNODE_SECRETS_BACK:-}" ] && [ ${#MODO[@]} -eq 0 ] && [ -d {{.SecretsDirQ}} ]; then
+  printf '@@DN-SECRETS %s\n' "$(tar -C {{.SecretsDirQ}} --exclude='./.*' -cz . | base64 -w0)"
+fi
+exit $rc
 __DRAUPNODE_PAYLOAD__
 `))
 
@@ -362,8 +454,14 @@ func Script(o Options, sel []Selection) ([]byte, error) {
 	for i, s := range sel {
 		ids[i] = s.Module.ID
 	}
+	var prompts strings.Builder
+	for _, v := range secretVars(sel) {
+		fmt.Fprintf(&prompts, "  pedir %s %s %s\n", v.Name, SecretEnv(v.Name), shq(oneLine(v.Label)))
+	}
 	var buf bytes.Buffer
 	err = scriptTmpl.Execute(&buf, map[string]string{
+		"SecretPrompts": prompts.String(),
+		"SecretsDirQ":   shq(SecretsDir(o.Slug)),
 		"AppVersion": o.AppVersion,
 		"Date":       o.Now.Format("2006-01-02 15:04"),
 		"Project":    oneLine(o.Project),

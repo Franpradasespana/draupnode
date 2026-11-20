@@ -165,3 +165,49 @@ func filepathGlob(p string) ([]string, error) {
 	}
 	return strings.Fields(string(out)), nil
 }
+
+func TestRunDevuelveSecretos(t *testing.T) {
+	c := startExecServer(t)
+	script := []byte(`#!/usr/bin/env bash
+echo "back=${DRAUPNODE_SECRETS_BACK:-no}"
+echo '@@DN-SECRETS c2VjcmV0bw=='
+`)
+	var got []Event
+	var mu sync.Mutex
+	_, err := RunOpts(context.Background(), c, script, Opts{SecretsBack: true}, Sudo{IsRoot: true}, func(e Event) {
+		mu.Lock()
+		got = append(got, e)
+		mu.Unlock()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sec, lines []string
+	for _, e := range got {
+		switch e.Kind {
+		case "secrets":
+			sec = append(sec, e.Text)
+		case "line":
+			lines = append(lines, e.Text)
+		}
+	}
+	if len(sec) != 1 || sec[0] != "c2VjcmV0bw==" {
+		t.Fatalf("secretos: %v", sec)
+	}
+	all := strings.Join(lines, "|")
+	if strings.Contains(all, "c2VjcmV0bw") || !strings.Contains(all, "back=1") {
+		t.Fatalf("líneas: %q", lines)
+	}
+	// Al previsualizar no se piden.
+	got = nil
+	RunOpts(context.Background(), c, script, Opts{Check: true, SecretsBack: true}, Sudo{IsRoot: true}, func(e Event) {
+		mu.Lock()
+		got = append(got, e)
+		mu.Unlock()
+	})
+	for _, e := range got {
+		if e.Kind == "line" && strings.Contains(e.Text, "back=1") {
+			t.Fatal("previsualizar no debe pedir los secretos")
+		}
+	}
+}

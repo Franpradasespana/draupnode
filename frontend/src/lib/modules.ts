@@ -1,0 +1,54 @@
+// Reglas de los módulos que la interfaz aplica al instante, sin esperar al
+// backend. Son las mismas que internal/modules (Catalog.Resolve y Clashes).
+import type { Module } from './api'
+
+type Lookup = (id: string) => Module | undefined
+
+/** Orden de ejecución: ids ordenados y, delante de cada uno, sus dependencias
+ *  y sus «after» que estén en el proyecto. */
+export function orderModules(ids: Iterable<string>, byId: Lookup): string[] {
+  const want = new Set(ids)
+  const all = new Set<string>()
+  const collect = (id: string) => {
+    if (all.has(id)) return
+    all.add(id)
+    for (const d of byId(id)?.depends ?? []) collect(d)
+  }
+  want.forEach(collect)
+  const out: string[] = []
+  const seen = new Set<string>()
+  const visit = (id: string, path: Set<string>) => {
+    if (seen.has(id) || path.has(id)) return
+    path.add(id)
+    const m = byId(id)
+    const prev = [...(m?.depends ?? []), ...(m?.after ?? []).filter((a) => all.has(a))].sort()
+    for (const d of prev) visit(d, path)
+    path.delete(id)
+    seen.add(id)
+    out.push(id)
+  }
+  for (const id of [...want].sort()) visit(id, new Set())
+  return out
+}
+
+/** Módulos ya elegidos con los que choca mid (en cualquiera de los dos sentidos). */
+export function clashesWith(mid: string, selected: Iterable<string>, byId: Lookup): string[] {
+  const m = byId(mid)
+  const out: string[] = []
+  for (const other of selected) {
+    if (other === mid) continue
+    if (m?.conflicts?.includes(other) || byId(other)?.conflicts?.includes(mid)) out.push(other)
+  }
+  return out
+}
+
+/** Puertos que necesita abiertos un módulo con estos valores. */
+export function modulePorts(m: Module | undefined, values: Record<string, unknown> | undefined): string[] {
+  if (!m) return []
+  const out = (m.firewallPorts ?? []).map(String)
+  for (const name of m.firewallPortsFrom ?? []) {
+    const n = Number(values?.[name])
+    if (Number.isInteger(n) && n > 0) out.push(String(n))
+  }
+  return out
+}

@@ -42,3 +42,14 @@
 
 - Orden de las ventanas calculado en la interfaz, plegado recordado por proyecto y módulo, opciones de Coolify (administrador al instalar + actualizaciones automáticas) y puertos de Coolify abiertos por el Cortafuegos (probado). Detalle en HISTORIAL.md.
 - Estudio de módulos nuevos: `docs/ESTUDIO_MODULOS.md` (orden propuesto y decisiones pendientes del usuario).
+
+### Hecho el 2026-11-20 (0.8.0)
+
+- Formato de módulos ampliado (secret, conflicts, after, checks, firewall_ports_from, secrets), contraseñas por proyecto en la bóveda con visor protegido y módulo «SSH seguro + fail2ban». Detalle en HISTORIAL.md.
+
+### Siguiente (según docs/ESTUDIO_MODULOS.md)
+
+- Copias con restic + «Traer copias al equipo» (destino remoto S3 opcional; las credenciales con `type: secret`).
+- Monitorización en dos módulos (métricas / registros), Grafana por túnel SSH.
+- Adoptar lo que ya hay en el servidor real (`pg-compartido`, `monitoring-*`, `apps-backup`) con sus mismos nombres.
+- Botón «Traer contraseñas del servidor» sin tener que Aplicar (hoy se traen al Aplicar).

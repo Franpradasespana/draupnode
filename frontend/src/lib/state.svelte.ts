@@ -182,10 +182,14 @@ function handleRunEvent(e: RunEvent) {
     r.summary = e.summary
     if (last?.status === 'running') last.status = e.summary?.ok ? 'ok' : 'failed'
     refreshProjects()
+    refreshServers() // p. ej. si al aplicar cambió el puerto SSH
     return
   }
   const ev = e.ev ?? {}
   switch (ev.ev) {
+    case 'notice': // aviso de Draupnode (no de una tarea)
+      r.notes.push(String(ev.msg))
+      break
     case 'stage':
       r.stage = ev.name
       r.lines.push('==> ' + ev.name)

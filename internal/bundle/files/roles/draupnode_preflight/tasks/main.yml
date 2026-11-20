@@ -37,3 +37,42 @@
     owner: root
     group: root
     mode: "0700"
+
+# Comprobaciones «container_free» de los módulos: un contenedor con ese nombre
+# que no sea de este proyecto (etiqueta draupnode.proyecto) chocaría con él.
+- name: Buscar contenedores con el mismo nombre
+  ansible.builtin.shell: command -v docker >/dev/null && docker inspect {{ item.name | quote }} 2>/dev/null || true
+  register: preflight_ctr
+  changed_when: false
+  check_mode: false
+  loop: "{{ preflight_containers | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Contenedores de otra instalación
+  ansible.builtin.set_fact:
+    preflight_ajenos: >-
+      {{ preflight_ctr.results
+         | selectattr('stdout', 'match', '^\s*\[\s*\{')
+         | rejectattr('stdout', 'search', '"draupnode.proyecto":\s*"' ~ draupnode_project ~ '"')
+         | map(attribute='item') | list }}
+  when: preflight_containers | default([]) | length > 0
+
+# Un solo aviso (en un bucle, Ansible solo enseñaría «All items completed»).
+- name: Aviso de contenedores que ya existen
+  ansible.builtin.debug:
+    msg: >-
+      {% for c in preflight_ajenos %}Ya hay un contenedor «{{ c.name }}» que no es de este proyecto
+      ({{ c.module }} quiere usar ese nombre). {% endfor %}Al aplicar se detendrá aquí: cambia el nombre
+      en el módulo o quita el contenedor antiguo.
+  when: ansible_check_mode and preflight_ajenos | default([]) | length > 0
+
+- name: No pisar contenedores de otra instalación
+  ansible.builtin.fail:
+    msg: >-
+      Ya hay un contenedor «{{ preflight_ajenos[0].name }}» que no es de este proyecto
+      ({{ preflight_ajenos[0].module }} quiere usar ese nombre). Cambia el nombre en el módulo
+      o quita el contenedor antiguo; no se ha tocado nada.
+  when:
+    - not ansible_check_mode
+    - preflight_ajenos | default([]) | length > 0
