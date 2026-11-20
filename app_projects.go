@@ -434,21 +434,22 @@ func (m runMode) label() string {
 
 // launch conecta (pidiendo lo que haga falta), comprueba sudo y lanza el
 // script en segundo plano.
-func (a *App) launch(p store.Project, srv store.Server, script []byte, mode runMode, secret, accept, sudoPassword string) RunStart {
-	id := p.ID
+// connectSudo conecta al servidor y comprueba que se puede ser root. Si falta
+// algo (contraseña, huella, sudo…) devuelve qué pedir, como RunStart.
+func (a *App) connectSudo(srv store.Server, secret, accept, sudoPassword string) (*ssh.Client, runner.Sudo, *RunStart) {
 	kind := "passphrase"
 	if srv.AuthMethod == store.AuthPassword {
 		kind = "password"
 	}
 	secret, st := a.secretFor(srv, secret)
 	if st != "" {
-		return RunStart{Status: st, SecretKind: kind}
+		return nil, runner.Sudo{}, &RunStart{Status: st, SecretKind: kind}
 	}
 	dctx, dcancel := context.WithTimeout(a.context(), 30*time.Second)
 	c, fail := a.connect(dctx, srv, secret, accept)
 	dcancel()
 	if fail != nil {
-		return RunStart{Status: fail.Status, Message: fail.Message, SecretKind: kind, KeyType: fail.KeyType, Fingerprint: fail.Fingerprint}
+		return nil, runner.Sudo{}, &RunStart{Status: fail.Status, Message: fail.Message, SecretKind: kind, KeyType: fail.KeyType, Fingerprint: fail.Fingerprint}
 	}
 	// Con usuario y contraseña, la de sudo suele ser la misma: se prueba sola.
 	if sudoPassword == "" && srv.AuthMethod == store.AuthPassword {
@@ -460,9 +461,19 @@ func (a *App) launch(p store.Project, srv store.Server, script []byte, mode runM
 	if err := runner.CheckSudo(c, su); err != nil {
 		c.Close()
 		if errors.Is(err, runner.ErrBadSudoPassword) && srv.AuthMethod != store.AuthPassword {
-			return RunStart{Status: "bad_sudo", Message: err.Error()}
+			return nil, runner.Sudo{}, &RunStart{Status: "bad_sudo", Message: err.Error()}
 		}
-		return RunStart{Status: "needs_sudo", Message: runner.ErrSudoPassword.Error()}
+		return nil, runner.Sudo{}, &RunStart{Status: "needs_sudo", Message: runner.ErrSudoPassword.Error()}
+	}
+
+	return c, su, nil
+}
+
+func (a *App) launch(p store.Project, srv store.Server, script []byte, mode runMode, secret, accept, sudoPassword string) RunStart {
+	id := p.ID
+	c, su, fail := a.connectSudo(srv, secret, accept, sudoPassword)
+	if fail != nil {
+		return *fail
 	}
 
 	runID := newRunID()

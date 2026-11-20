@@ -555,3 +555,6 @@ func moduleList(ids []string, uninstall bool) string {
 	}
 	return "DESINSTALAR " + strings.Join(rev, " → ")
 }
+
+// ShellQuote pone un texto entre comillas simples para sh/bash.
+func ShellQuote(s string) string { return shq(s) }

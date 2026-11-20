@@ -117,6 +117,16 @@ type Project struct {
 	// InstalledValues: valores con los que se instaló cada módulo (para poder
 	// desinstalarlo aunque ya no esté marcado: su carpeta, su contenedor…).
 	InstalledValues map[string]map[string]any `json:"installedValues,omitempty"`
+	// BackupsFetched: la última vez que se trajeron las copias a este equipo.
+	BackupsFetched *FetchInfo `json:"backupsFetched,omitempty"`
+}
+
+// FetchInfo resume una descarga de copias al equipo.
+type FetchInfo struct {
+	At    time.Time `json:"at"`
+	Dir   string    `json:"dir"`
+	Bytes int64     `json:"bytes"` // tamaño total del repositorio en el equipo
+	Files int       `json:"files"` // ficheros descargados esta vez
 }
 
 type data struct {
@@ -393,6 +403,7 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 			p.Collapsed = old.Collapsed               // solo lo cambia SetCollapsed
 			p.InstalledModules = old.InstalledModules // solo lo cambian SetLastRun y MarkUninstalled
 			p.InstalledValues = old.InstalledValues
+			p.BackupsFetched = old.BackupsFetched
 			if old.Slug != "" {
 				p.Slug = old.Slug // fijo para siempre
 			}
@@ -483,6 +494,19 @@ func (s *Store) MarkUninstalled(id string, mods []string) error {
 			delete(pr.InstalledValues, m)
 		}
 		return s.saveLocked()
+	}
+	return fmt.Errorf("proyecto %q no encontrado", id)
+}
+
+// SetBackupsFetched guarda cuándo y dónde se trajeron las copias.
+func (s *Store) SetBackupsFetched(id string, f FetchInfo) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.d.Projects {
+		if s.d.Projects[i].ID == id {
+			s.d.Projects[i].BackupsFetched = &f
+			return s.saveLocked()
+		}
 	}
 	return fmt.Errorf("proyecto %q no encontrado", id)
 }

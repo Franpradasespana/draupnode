@@ -85,6 +85,95 @@ export namespace main {
 	        this.os = source["os"];
 	    }
 	}
+	export class Snapshot {
+	    id: string;
+	    // Go type: time
+	    time: any;
+	    tags: string[];
+	    paths: string[];
+	    host: string;
+	    bytes?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Snapshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.time = this.convertValues(source["time"], null);
+	        this.tags = source["tags"];
+	        this.paths = source["paths"];
+	        this.host = source["host"];
+	        this.bytes = source["bytes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class BackupResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    snapshots?: Snapshot[];
+	    output?: string;
+	    ok: boolean;
+	    fetch?: store.FetchInfo;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.snapshots = this.convertValues(source["snapshots"], Snapshot);
+	        this.output = source["output"];
+	        this.ok = source["ok"];
+	        this.fetch = this.convertValues(source["fetch"], store.FetchInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class KeyResult {
 	    path: string;
 	    name: string;
@@ -422,6 +511,7 @@ export namespace main {
 		    return a;
 		}
 	}
+	
 	export class TestResult {
 	    status: string;
 	    secretKind?: string;
@@ -789,6 +879,43 @@ export namespace store {
 		    return a;
 		}
 	}
+	export class FetchInfo {
+	    // Go type: time
+	    at: any;
+	    dir: string;
+	    bytes: number;
+	    files: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FetchInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.at = this.convertValues(source["at"], null);
+	        this.dir = source["dir"];
+	        this.bytes = source["bytes"];
+	        this.files = source["files"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class RunSummary {
 	    // Go type: time
 	    at: any;
@@ -870,6 +997,7 @@ export namespace store {
 	    slug?: string;
 	    installedModules?: string[];
 	    installedValues?: Record<string, any>;
+	    backupsFetched?: FetchInfo;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -889,6 +1017,7 @@ export namespace store {
 	        this.slug = source["slug"];
 	        this.installedModules = source["installedModules"];
 	        this.installedValues = source["installedValues"];
+	        this.backupsFetched = this.convertValues(source["backupsFetched"], FetchInfo);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

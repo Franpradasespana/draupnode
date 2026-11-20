@@ -181,6 +181,38 @@ export interface Project {
   slug?: string
   /** Módulos que el proyecto ha instalado alguna vez (quitar uno del proyecto no lo desinstala). */
   installedModules?: string[] | null
+  installedValues?: Record<string, Record<string, unknown>> | null
+  backupsFetched?: FetchInfo | null
+}
+
+export interface FetchInfo {
+  at: string
+  dir: string
+  bytes: number
+  files: number
+}
+
+export interface Snapshot {
+  id: string
+  time: string
+  tags: string[]
+  paths: string[]
+  host: string
+  bytes?: number
+}
+
+export interface BackupResult extends RunStart {
+  ok: boolean
+  snapshots?: Snapshot[]
+  output?: string
+  fetch?: FetchInfo
+}
+
+export interface BackupFetchProgress {
+  projectId: string
+  done: number
+  total: number
+  stage: string
 }
 
 export interface ProjectSecretsSummary {
@@ -207,7 +239,7 @@ export interface ProjectCheck {
 }
 
 export type RunStatus =
-  | 'started' | 'needs_secret' | 'bad_secret' | 'vault_locked' | 'vault_missing' | 'unknown_host'
+  | 'started' | 'ok' | 'needs_secret' | 'bad_secret' | 'vault_locked' | 'vault_missing' | 'unknown_host'
   | 'host_changed' | 'needs_sudo' | 'bad_sudo' | 'busy' | 'error'
 
 export interface RunStart {
@@ -299,6 +331,11 @@ interface Backend {
   DeleteProject(id: string): Promise<void>
   SetProjectCollapsed(id: string, modules: string[]): Promise<void>
   SetProjectSecret(projectId: string, variable: string, value: string): Promise<void>
+  BackupSnapshots(projectId: string, remote: boolean, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
+  BackupNow(projectId: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
+  FetchBackups(projectId: string, dest: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
+  ChooseBackupFolder(projectId: string): Promise<string>
+  DefaultBackupFolder(projectId: string): Promise<string>
   CheckUninstall(projectId: string, modules: string[]): Promise<UninstallCheck>
   UninstallModules(projectId: string, modules: string[], purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   ProjectSecretsInfo(projectId: string): Promise<ProjectSecretsSummary>
@@ -551,6 +588,39 @@ function mockBackend(): Backend {
     async DeleteProject(id) {
       projects = projects.filter((p) => p.id !== id)
       save('projects', projects)
+    },
+    async BackupSnapshots(id, remote) {
+      await wait(700)
+      const now = Date.now()
+      const day = 86_400_000
+      const snaps: Snapshot[] = []
+      for (let d = 0; d < (remote ? 3 : 6); d++) {
+        const t = new Date(now - d * day - 3_600_000).toISOString()
+        snaps.push({ id: (0xa1b2c3d4 + d * 7919).toString(16).slice(0, 8), time: t, tags: ['draupnode-' + id, 'postgres'], paths: ['/postgres-pg-compartido.sql'], host: 'srv', bytes: 4_200_000 + d * 1000 })
+        snaps.push({ id: (0x5e6f7a8b + d * 104729).toString(16).slice(0, 8), time: t, tags: ['draupnode-' + id, 'archivos'], paths: ['/etc/draupnode/secretos/' + id], host: 'srv', bytes: 18_400 })
+      }
+      return { status: 'ok', ok: true, snapshots: snaps }
+    },
+    async BackupNow() {
+      await wait(1800)
+      return { status: 'ok', ok: true, output: '[2026-11-20 03:30:01] Volcando PostgreSQL (pg-compartido)\n[2026-11-20 03:30:04] Copiando archivos\n[2026-11-20 03:30:05] Borrando copias viejas\n[2026-11-20 03:30:06] Comprobando el repositorio\n[2026-11-20 03:30:09] Copia terminada. 14 copias en total' }
+    },
+    async ChooseBackupFolder() {
+      return '/home/demo/Draupnode-copias/demo'
+    },
+    async DefaultBackupFolder(id) {
+      return projects.find((x) => x.id === id)?.backupsFetched?.dir ?? '/home/demo/Draupnode-copias/' + id
+    },
+    async FetchBackups(id, dest) {
+      const total = 48_000_000
+      for (let d = 0; d <= total; d += 6_000_000) {
+        mockEmit('backupfetch', { projectId: id, done: d, total, stage: 'Trayendo copias' })
+        await wait(250)
+      }
+      const fetch = { at: new Date().toISOString(), dir: dest, bytes: 52_000_000, files: 37 }
+      projects = projects.map((x) => (x.id === id ? { ...x, backupsFetched: fetch } : x))
+      save('projects', projects)
+      return { status: 'ok', ok: true, fetch }
     },
     async CheckUninstall(id, mods) {
       const p = projects.find((x) => x.id === id)
@@ -808,6 +878,7 @@ const MOCK_MODULES: Module[] = [
       { name: 'ssh_fail2ban_bantime', label: 'Tiempo de bloqueo', help: 'Quien reincide se bloquea una semana (cárcel «recidive»).', type: 'select', options: ['10m', '1h', '1d', '1w'], default: '1h' },
       { name: 'ssh_fail2ban_ignore', label: 'IPs que nunca se bloquean', help: 'Además de la tuya, que se añade sola. Una por línea (IP o red, p. ej. 203.0.113.0/24).', type: 'list', default: [] },
     ] },
+  {"id": "backups", "name": "Copias de seguridad (restic)", "version": "1.0.0", "category": "5 · Copias", "description": "Copia diaria cifrada con restic de tus bases de datos, Coolify, la carpeta de secretos y las carpetas que elijas. Opcional, una segunda copia fuera del servidor.", "uninstallable": true, "uninstallWarning": "Quita la copia diaria (temporizador y script). Las copias ya hechas se conservan.", "uninstallData": "Borrar también el repositorio local de copias y su contraseña. Las copias del destino remoto no se tocan.", "source": "builtin", "depends": ["base"], "after": ["docker", "postgres", "coolify"], "requires": {"os": ["ubuntu", "debian"], "minDiskGb": 5}, "secrets": [{"file": "restic", "label": "Contraseña de las copias (restic)"}, {"file": "backups_sftp_key.pub", "label": "Clave pública para el servidor de copias (SFTP)"}], "files": ["tasks/main.yml", "tasks/uninstall.yml", "templates/copia.sh.j2", "templates/copia.service.j2", "templates/copia.timer.j2"], "variables": [{"name": "backups_time", "label": "Hora de la copia diaria", "type": "string", "default": "03:30", "help": "Hora del servidor (HH:MM). Se retrasa hasta 10 minutos al azar.", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$", "patternHelp": "Formato HH:MM (p. ej. 03:30)"}, {"name": "backups_paths", "label": "Carpetas que copiar", "type": "list", "default": [], "help": "Una por línea. La carpeta de secretos del proyecto se copia siempre.", "pattern": "^/[A-Za-z0-9._/-]+$", "patternHelp": "Ruta absoluta (empieza por /)"}, {"name": "backups_postgres", "label": "Volcar PostgreSQL", "type": "bool", "default": true, "help": "Todas las bases del contenedor indicado (pg_dumpall), si existe."}, {"name": "backups_postgres_container", "label": "Contenedor de PostgreSQL", "type": "string", "default": "pg-compartido", "pattern": "^[a-z][a-z0-9_-]{1,40}$", "patternHelp": "Minúsculas, números, - y _"}, {"name": "backups_coolify", "label": "Copiar Coolify", "type": "bool", "default": true, "help": "Su base de datos, su .env y sus claves SSH, si Coolify está instalado."}, {"name": "backups_keep_daily", "label": "Copias diarias que se conservan", "type": "int", "default": 7, "min": 1, "max": 90}, {"name": "backups_keep_weekly", "label": "Copias semanales que se conservan", "type": "int", "default": 4, "min": 0, "max": 52}, {"name": "backups_keep_monthly", "label": "Copias mensuales que se conservan", "type": "int", "default": 6, "min": 0, "max": 60}, {"name": "backups_check", "label": "Comprobar el repositorio después de cada copia", "type": "bool", "default": true}, {"name": "backups_run_now", "label": "Hacer la primera copia al aplicar", "type": "bool", "default": true}, {"name": "backups_dir", "label": "Carpeta de las copias en el servidor", "type": "string", "default": "/srv/draupnode/copias", "help": "Dentro se crea una carpeta por proyecto.", "pattern": "^/[A-Za-z0-9._/-]+$", "patternHelp": "Ruta absoluta"}, {"name": "backups_remote_type", "label": "Copia también fuera del servidor", "type": "select", "default": "no", "help": "«sftp» = otro servidor tuyo; «rest-server» = el servidor de copias de restic; «s3» = S3 compatible (MinIO, Garage…).", "options": ["no", "sftp", "rest-server", "s3"]}, {"name": "backups_remote", "label": "Destino remoto", "type": "string", "default": "", "help": "sftp: usuario@203.0.113.40:/srv/copias/web · rest-server: https://copias.ejemplo.com:8000/web · s3: https://minio.ejemplo.com/cubo/web", "pattern": "^[^\\s]+$", "patternHelp": "Sin espacios"}, {"name": "backups_remote_port", "label": "Puerto SSH del destino (sftp)", "type": "int", "default": 22, "min": 1, "max": 65535}, {"name": "backups_remote_user", "label": "Usuario del destino (rest-server) o Access Key (s3)", "type": "string", "default": ""}, {"name": "backups_remote_password", "label": "Contraseña del destino (rest-server) o Secret Key (s3)", "type": "secret", "default": null, "help": "Se guarda cifrada en tu bóveda y solo viaja al servidor al aplicar."}]},
   { id: 'postgres', name: 'PostgreSQL compartido', version: '1.0.0', category: '4 · Bases de datos', uninstallable: true, uninstallWarning: "Para y quita el contenedor de PostgreSQL. Las apps que lo usan dejan de tener base de datos.", uninstallData: "Borrar también los DATOS de todas las bases y sus contraseñas. No se puede deshacer.", source: 'builtin', depends: ['docker'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900 },
     description: 'Un PostgreSQL en Docker para todas tus apps, con una base y un usuario por app. Las contraseñas se generan en el servidor.',
     files: ['tasks/main.yml', 'templates/docker-compose.yml.j2'], checks: [{ containerFree: 'postgres_container' }],

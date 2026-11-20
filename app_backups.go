@@ -1,0 +1,411 @@
+package main
+
+import (
+	"archive/tar"
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"draupnode/internal/bundle"
+	"draupnode/internal/runner"
+	"draupnode/internal/store"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/crypto/ssh"
+)
+
+// Copias de seguridad (módulo «backups»): ver las copias, hacer una ahora y
+// traerlas a este equipo por la misma conexión SSH.
+
+const backupsModule = "backups"
+
+// backupPaths son las rutas del módulo en el servidor para un proyecto.
+type backupPaths struct {
+	Repo, Password, Script, Unit string
+	Remote                       bool
+}
+
+func (a *App) backupPathsFor(p store.Project) (backupPaths, error) {
+	if !contains(p.InstalledModules, backupsModule) {
+		return backupPaths{}, errors.New("las copias de seguridad no están instaladas en este proyecto: marca «Copias de seguridad» y pulsa Aplicar")
+	}
+	m, ok := a.cat().Get(backupsModule)
+	if !ok {
+		return backupPaths{}, errors.New("falta el módulo de copias")
+	}
+	v, _ := m.Values(p.InstalledValues[backupsModule])
+	dir, _ := v["backups_dir"].(string)
+	remote, _ := v["backups_remote_type"].(string)
+	slug := slugOf(p)
+	return backupPaths{
+		Repo:     dir + "/" + slug + "/restic-repo",
+		Password: bundle.SecretsDir(slug) + "/restic",
+		Script:   "/usr/local/sbin/draupnode-copia-" + slug,
+		Unit:     "draupnode-copia-" + slug,
+		Remote:   remote != "" && remote != "no",
+	}, nil
+}
+
+// BackupResult es la respuesta de las acciones de copias. Si Status no es
+// «ok», la interfaz pide lo que falte (como en RunProject) y reintenta.
+type BackupResult struct {
+	RunStart
+	Snapshots []Snapshot       `json:"snapshots,omitempty"`
+	Output    string           `json:"output,omitempty"`
+	OK        bool             `json:"ok"`
+	Fetch     *store.FetchInfo `json:"fetch,omitempty"`
+}
+
+// Snapshot es una copia de restic.
+type Snapshot struct {
+	ID    string    `json:"id"`
+	Time  time.Time `json:"time"`
+	Tags  []string  `json:"tags"`
+	Paths []string  `json:"paths"`
+	Host  string    `json:"host"`
+	Bytes int64     `json:"bytes,omitempty"` // tamaño de lo copiado (restic 0.17+)
+}
+
+// withServer conecta al servidor del proyecto y marca el proyecto como ocupado.
+func (a *App) withServer(projectID, secret, accept, sudoPassword string, fn func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult) BackupResult {
+	p, err := a.store.Project(projectID)
+	if err != nil {
+		return BackupResult{RunStart: RunStart{Status: "error", Message: err.Error()}}
+	}
+	bp, err := a.backupPathsFor(p)
+	if err != nil {
+		return BackupResult{RunStart: RunStart{Status: "error", Message: err.Error()}}
+	}
+	if a.projectRunning(projectID) {
+		return BackupResult{RunStart: RunStart{Status: "busy", Message: "el proyecto está ocupado con otra tarea"}}
+	}
+	srv, err := a.store.Server(p.ServerID)
+	if err != nil {
+		return BackupResult{RunStart: RunStart{Status: "error", Message: err.Error()}}
+	}
+	c, su, fail := a.connectSudo(srv, secret, accept, sudoPassword)
+	if fail != nil {
+		return BackupResult{RunStart: *fail}
+	}
+	defer c.Close()
+	_, cancel := context.WithCancel(context.Background())
+	a.runMu.Lock()
+	a.runs["p:"+projectID] = cancel
+	a.runMu.Unlock()
+	defer func() {
+		a.runMu.Lock()
+		delete(a.runs, "p:"+projectID)
+		a.runMu.Unlock()
+		cancel()
+	}()
+	r := fn(p, bp, c, su)
+	if r.Status == "" {
+		r.Status = "ok"
+	}
+	return r
+}
+
+func execOut(c *ssh.Client, su runner.Sudo, cmd string) (string, string, error) {
+	var out, errb bytes.Buffer
+	err := runner.Exec(context.Background(), c, su, cmd, nil, &out, &errb)
+	return out.String(), errb.String(), err
+}
+
+// BackupSnapshots lista las copias (remote: las del destino remoto).
+func (a *App) BackupSnapshots(projectID string, remote bool, secret, accept, sudoPassword string) BackupResult {
+	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
+		arg := "snapshots"
+		if remote {
+			if !bp.Remote {
+				return BackupResult{RunStart: RunStart{Status: "error", Message: "este proyecto no tiene destino remoto"}}
+			}
+			arg = "remoto"
+		}
+		out, errOut, err := execOut(c, su, bundle.ShellQuote(bp.Script)+" "+arg)
+		if err != nil {
+			return BackupResult{RunStart: RunStart{Status: "error", Message: "no se pudieron leer las copias: " + firstLine(errOut, err)}}
+		}
+		snaps, err := parseSnapshots(out)
+		if err != nil {
+			return BackupResult{RunStart: RunStart{Status: "error", Message: "respuesta de restic no válida: " + err.Error()}}
+		}
+		return BackupResult{OK: true, Snapshots: snaps}
+	})
+}
+
+func parseSnapshots(out string) ([]Snapshot, error) {
+	var raw []struct {
+		ShortID  string    `json:"short_id"`
+		Time     time.Time `json:"time"`
+		Tags     []string  `json:"tags"`
+		Paths    []string  `json:"paths"`
+		Hostname string    `json:"hostname"`
+		Summary  *struct {
+			TotalBytesProcessed int64 `json:"total_bytes_processed"`
+		} `json:"summary"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &raw); err != nil {
+		return nil, err
+	}
+	snaps := make([]Snapshot, 0, len(raw))
+	for _, r := range raw {
+		s := Snapshot{ID: r.ShortID, Time: r.Time, Tags: r.Tags, Paths: r.Paths, Host: r.Hostname}
+		if r.Summary != nil {
+			s.Bytes = r.Summary.TotalBytesProcessed
+		}
+		if s.Tags == nil {
+			s.Tags = []string{}
+		}
+		snaps = append(snaps, s)
+	}
+	sort.Slice(snaps, func(i, j int) bool { return snaps[i].Time.After(snaps[j].Time) })
+	return snaps, nil
+}
+
+// BackupNow hace una copia ahora (lo mismo que el temporizador diario).
+func (a *App) BackupNow(projectID, secret, accept, sudoPassword string) BackupResult {
+	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
+		u := bundle.ShellQuote(bp.Unit + ".service")
+		out, errOut, err := execOut(c, su, `t=$(date +%s); systemctl start `+u+`; rc=$?; journalctl -u `+u+` -o cat --no-pager --since @$t; exit $rc`)
+		res := BackupResult{OK: err == nil, Output: strings.TrimSpace(out + errOut)}
+		if err != nil && res.Output == "" {
+			res.Output = err.Error()
+		}
+		return res
+	})
+}
+
+// ChooseBackupFolder abre el diálogo para elegir dónde traer las copias.
+func (a *App) ChooseBackupFolder(projectID string) (string, error) {
+	p, err := a.store.Project(projectID)
+	if err != nil {
+		return "", err
+	}
+	def := ""
+	if p.BackupsFetched != nil {
+		def = filepath.Dir(p.BackupsFetched.Dir)
+	} else if home, err := os.UserHomeDir(); err == nil {
+		def = home
+	}
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:                "¿Dónde guardar las copias?",
+		DefaultDirectory:     def,
+		CanCreateDirectories: true,
+	})
+}
+
+// DefaultBackupFolder: la carpeta donde se trajeron la última vez o
+// ~/Draupnode-copias/<proyecto>.
+func (a *App) DefaultBackupFolder(projectID string) string {
+	p, err := a.store.Project(projectID)
+	if err != nil {
+		return ""
+	}
+	if p.BackupsFetched != nil {
+		return p.BackupsFetched.Dir
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, "Draupnode-copias", slugOf(p))
+}
+
+// BackupFetchProgress es el evento «backupfetch».
+type BackupFetchProgress struct {
+	ProjectID string `json:"projectId"`
+	Done      int64  `json:"done"`
+	Total     int64  `json:"total"`
+	Stage     string `json:"stage"`
+}
+
+// FetchBackups trae a dest (en este equipo) el repositorio de copias y su
+// contraseña. Solo descarga lo que falta: los ficheros de restic no cambian
+// una vez escritos. Lo que ya no está en el servidor (copias viejas) se borra.
+func (a *App) FetchBackups(projectID, dest, secret, accept, sudoPassword string) BackupResult {
+	dest = strings.TrimSpace(dest)
+	if dest == "" || !filepath.IsAbs(dest) {
+		return BackupResult{RunStart: RunStart{Status: "error", Message: "elige una carpeta de este equipo"}}
+	}
+	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
+		progress := func(stage string, done, total int64) {
+			a.emit("backupfetch", BackupFetchProgress{ProjectID: projectID, Done: done, Total: total, Stage: stage})
+		}
+		info, err := fetchRepo(c, su, bp, dest, progress)
+		if err != nil {
+			return BackupResult{RunStart: RunStart{Status: "error", Message: err.Error()}}
+		}
+		info.At = time.Now()
+		_ = a.store.SetBackupsFetched(projectID, info)
+		return BackupResult{OK: true, Fetch: &info}
+	})
+}
+
+func fetchRepo(c *ssh.Client, su runner.Sudo, bp backupPaths, dest string, progress func(string, int64, int64)) (store.FetchInfo, error) {
+	info := store.FetchInfo{Dir: dest}
+	repoDir := filepath.Join(dest, "restic-repo")
+	if err := os.MkdirAll(repoDir, 0o700); err != nil {
+		return info, err
+	}
+	_ = os.Chmod(dest, 0o700)
+
+	// 1. Qué hay en el servidor.
+	progress("Mirando qué hay en el servidor", 0, 0)
+	out, errOut, err := execOut(c, su, "cd "+bundle.ShellQuote(bp.Repo)+" && find . -type f -printf '%P\\t%s\\n'")
+	if err != nil {
+		return info, fmt.Errorf("no se pudo leer el repositorio del servidor (%s): %s", bp.Repo, firstLine(errOut, err))
+	}
+	remote := map[string]int64{}
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		name, size, ok := strings.Cut(line, "\t")
+		if !ok {
+			continue
+		}
+		n, _ := strconv.ParseInt(size, 10, 64)
+		if safeRel(name) {
+			remote[name] = n
+			info.Bytes += n
+		}
+	}
+	if len(remote) == 0 {
+		return info, errors.New("el repositorio del servidor está vacío: haz antes una copia")
+	}
+
+	// 2. Qué falta aquí (o tiene otro tamaño).
+	var need []string
+	var total int64
+	for name, size := range remote {
+		st, err := os.Stat(filepath.Join(repoDir, filepath.FromSlash(name)))
+		if err != nil || st.Size() != size {
+			need = append(need, name)
+			total += size
+		}
+	}
+	sort.Strings(need)
+
+	// 3. Traerlo en un tar (sin comprimir: los datos de restic ya lo están).
+	if len(need) > 0 {
+		var done int64
+		last := time.Now()
+		pr, pw := io.Pipe()
+		var errb bytes.Buffer
+		go func() {
+			err := runner.Exec(context.Background(), c, su, "tar -C "+bundle.ShellQuote(bp.Repo)+" -cf - -T -",
+				strings.NewReader(strings.Join(need, "\n")+"\n"), pw, &errb)
+			pw.CloseWithError(err)
+		}()
+		tr := tar.NewReader(bufio.NewReaderSize(pr, 1<<20))
+		for {
+			h, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return info, fmt.Errorf("al traer las copias: %v %s", err, strings.TrimSpace(errb.String()))
+			}
+			if h.Typeflag != tar.TypeReg || !safeRel(h.Name) {
+				continue
+			}
+			target := filepath.Join(repoDir, filepath.FromSlash(h.Name))
+			if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+				return info, err
+			}
+			tmp := target + ".parcial"
+			f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+			if err != nil {
+				return info, err
+			}
+			n, err := io.Copy(f, tr)
+			f.Close()
+			if err != nil {
+				os.Remove(tmp)
+				return info, err
+			}
+			if err := os.Rename(tmp, target); err != nil {
+				return info, err
+			}
+			info.Files++
+			done += n
+			if time.Since(last) > 150*time.Millisecond {
+				progress("Trayendo copias", done, total)
+				last = time.Now()
+			}
+		}
+		progress("Trayendo copias", total, total)
+	}
+
+	// 4. Borrar aquí lo que ya no está en el servidor (copias viejas, bloqueos).
+	_ = filepath.WalkDir(repoDir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		rel, _ := filepath.Rel(repoDir, p)
+		if _, ok := remote[filepath.ToSlash(rel)]; !ok {
+			_ = os.Remove(p)
+		}
+		return nil
+	})
+
+	// 5. La contraseña y unas instrucciones.
+	progress("Guardando la contraseña", 0, 0)
+	pass, errOut, err := execOut(c, su, "cat "+bundle.ShellQuote(bp.Password))
+	if err != nil {
+		return info, fmt.Errorf("no se pudo leer la contraseña de las copias: %s", firstLine(errOut, err))
+	}
+	if err := os.WriteFile(filepath.Join(dest, "restic-password"), []byte(strings.TrimSpace(pass)+"\n"), 0o600); err != nil {
+		return info, err
+	}
+	_ = os.WriteFile(filepath.Join(dest, "ULTIMA_COPIA.txt"), []byte(time.Now().Format("2006-01-02 15:04:05")+"\n"), 0o600)
+	_ = os.WriteFile(filepath.Join(dest, "LEEME.txt"), []byte(leeme(dest)), 0o600)
+	return info, nil
+}
+
+// safeRel: ruta relativa sin «..» ni nada raro (viene del servidor).
+func safeRel(name string) bool {
+	if name == "" || strings.HasPrefix(name, "/") || strings.Contains(name, "\\") {
+		return false
+	}
+	clean := path.Clean(name)
+	return clean == name && clean != "." && !strings.HasPrefix(clean, "../") && clean != ".."
+}
+
+func firstLine(s string, err error) string {
+	s = strings.TrimSpace(s)
+	if s == "" && err != nil {
+		return err.Error()
+	}
+	if i := strings.IndexByte(s, '\n'); i > 0 {
+		s = s[:i]
+	}
+	return s
+}
+
+func leeme(dest string) string {
+	return `Copias de seguridad traídas por Draupnode
+==========================================
+
+restic-repo/      el repositorio de restic (cifrado)
+restic-password   su contraseña: SIN ELLA NO SE PUEDE ABRIR. Guárdala también
+                  en tu gestor de contraseñas.
+
+Para verlas o restaurarlas necesitas restic (código abierto):
+  Ubuntu/Debian: sudo apt install restic   ·   https://restic.net
+
+  export RESTIC_REPOSITORY="` + filepath.Join(dest, "restic-repo") + `"
+  export RESTIC_PASSWORD_FILE="` + filepath.Join(dest, "restic-password") + `"
+  restic snapshots                           # lista las copias
+  restic restore latest --target /tmp/restaurado
+  restic dump --tag postgres latest /postgres-pg-compartido.sql > bases.sql   # volcado de PostgreSQL
+
+Cada vez que pulses «Traer copias al equipo» solo se descarga lo nuevo.
+`
+}

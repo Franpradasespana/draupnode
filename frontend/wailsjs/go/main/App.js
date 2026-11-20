@@ -6,6 +6,14 @@ export function AppInfo() {
   return window['go']['main']['App']['AppInfo']();
 }
 
+export function BackupNow(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['BackupNow'](arg1, arg2, arg3, arg4);
+}
+
+export function BackupSnapshots(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['BackupSnapshots'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function CancelRun(arg1) {
   return window['go']['main']['App']['CancelRun'](arg1);
 }
@@ -18,6 +26,14 @@ export function CheckUninstall(arg1, arg2) {
   return window['go']['main']['App']['CheckUninstall'](arg1, arg2);
 }
 
+export function ChooseBackupFolder(arg1) {
+  return window['go']['main']['App']['ChooseBackupFolder'](arg1);
+}
+
+export function DefaultBackupFolder(arg1) {
+  return window['go']['main']['App']['DefaultBackupFolder'](arg1);
+}
+
 export function DeleteProject(arg1) {
   return window['go']['main']['App']['DeleteProject'](arg1);
 }
@@ -28,6 +44,10 @@ export function DeleteServer(arg1) {
 
 export function ExportProject(arg1) {
   return window['go']['main']['App']['ExportProject'](arg1);
+}
+
+export function FetchBackups(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['FetchBackups'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function FindKeys() {

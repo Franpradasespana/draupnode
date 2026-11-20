@@ -1,0 +1,48 @@
+---
+- name: Rutas de las copias
+  ansible.builtin.set_fact:
+    backups_home: "{{ backups_dir }}/{{ draupnode_project }}"
+    backups_script: "/usr/local/sbin/draupnode-copia-{{ draupnode_project }}"
+    backups_unit: "draupnode-copia-{{ draupnode_project }}"
+
+- name: Parar el temporizador
+  ansible.builtin.systemd:
+    name: "{{ backups_unit }}.timer"
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Quitar script, servicio y temporizador
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ backups_script }}"
+    - "/etc/systemd/system/{{ backups_unit }}.service"
+    - "/etc/systemd/system/{{ backups_unit }}.timer"
+  register: backups_quitado
+
+- name: Recargar systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: backups_quitado is changed and not ansible_check_mode
+
+- name: Borrar el repositorio local y la contraseña
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ backups_home }}"
+    - "{{ draupnode_secrets_dir }}/restic"
+    - "{{ draupnode_secrets_dir }}/.backups_sftp_key"
+    - "{{ draupnode_secrets_dir }}/.backups_sftp_key.pub"
+    - "{{ draupnode_secrets_dir }}/backups_sftp_key.pub"
+  when: draupnode_uninstall_purge | bool
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Copia diaria {{ 'se quitará' if ansible_check_mode else 'quitada' }}.
+      {{ 'También el repositorio local y su contraseña.' if draupnode_uninstall_purge | bool
+         else 'Las copias siguen en ' ~ backups_home ~ ' y la contraseña en ' ~ draupnode_secrets_dir ~ '/restic.' }}
+      Las copias del destino remoto (si había) no se tocan.

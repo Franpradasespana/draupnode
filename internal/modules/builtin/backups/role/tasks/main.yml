@@ -1,0 +1,133 @@
+---
+- name: Rutas de las copias
+  ansible.builtin.set_fact:
+    backups_home: "{{ backups_dir }}/{{ draupnode_project }}"
+    backups_repo: "{{ backups_dir }}/{{ draupnode_project }}/restic-repo"
+    backups_script: "/usr/local/sbin/draupnode-copia-{{ draupnode_project }}"
+    backups_unit: "draupnode-copia-{{ draupnode_project }}"
+    backups_sftp_key: "{{ draupnode_secrets_dir }}/.backups_sftp_key"
+    backups_known_hosts: "{{ backups_dir }}/{{ draupnode_project }}/known_hosts"
+
+- name: El destino remoto necesita una dirección
+  ansible.builtin.assert:
+    that: backups_remote_type == 'no' or backups_remote | length > 0
+    fail_msg: "Has elegido copiar fuera del servidor ({{ backups_remote_type }}) pero falta el «Destino remoto»."
+    quiet: true
+
+- name: Dirección del rest-server (con usuario y contraseña)
+  ansible.builtin.set_fact:
+    backups_rest_url: >-
+      {{ 'rest:' ~ (backups_remote | regex_replace('^(https?://)', '\1' ~ (backups_remote_user | urlencode | replace('/', '%2F')) ~ ':'
+         ~ (backups_remote_password | default('') | urlencode | replace('/', '%2F')) ~ '@')
+         if backups_remote_user | length > 0 else backups_remote) }}
+  no_log: true
+  when: backups_remote_type == 'rest-server'
+
+- name: Instalar restic
+  ansible.builtin.apt:
+    name: restic
+    state: present
+    lock_timeout: 600
+
+- name: Carpeta de las copias
+  ansible.builtin.file:
+    path: "{{ backups_home }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Contraseña de restic (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    backups_password: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/restic', chars=['ascii_letters', 'digits'], length=40) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Clave SSH para el servidor de copias (sftp)
+  ansible.builtin.shell: |
+    [ -f {{ backups_sftp_key | quote }} ] && exit 0
+    ssh-keygen -q -t ed25519 -N '' -C "draupnode-copias-{{ draupnode_project }}" -f {{ backups_sftp_key | quote }}
+    cp {{ (backups_sftp_key ~ '.pub') | quote }} {{ (draupnode_secrets_dir ~ '/backups_sftp_key.pub') | quote }}
+    echo creada
+  register: backups_clave
+  changed_when: "'creada' in backups_clave.stdout"
+  when: backups_remote_type == 'sftp' and not ansible_check_mode
+
+- name: Script de copia
+  ansible.builtin.template:
+    src: copia.sh.j2
+    dest: "{{ backups_script }}"
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Servicio y temporizador
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/system/{{ backups_unit }}.{{ item.ext }}"
+    mode: "0644"
+  loop:
+    - { src: copia.service.j2, ext: service }
+    - { src: copia.timer.j2, ext: timer }
+  register: backups_units
+
+- name: Crear el repositorio de copias
+  ansible.builtin.shell: |
+    {{ backups_script | quote }} snapshots >/dev/null 2>&1 && exit 0
+    RESTIC_REPOSITORY={{ backups_repo | quote }} RESTIC_PASSWORD_FILE={{ (draupnode_secrets_dir ~ '/restic') | quote }} restic init >/dev/null
+    echo creado
+  register: backups_init
+  changed_when: "'creado' in backups_init.stdout"
+  when: not ansible_check_mode
+
+- name: Crear el repositorio remoto (si no existe)
+  ansible.builtin.shell: |
+    set -e
+    . <(sed -n '/^remoto()/,/^}/p' {{ backups_script | quote }})
+    export RESTIC_PASSWORD_FILE={{ (draupnode_secrets_dir ~ '/restic') | quote }}
+    remoto snapshots >/dev/null 2>&1 && exit 0
+    remoto init --copy-chunker-params --from-repo {{ backups_repo | quote }} --from-password-file "$RESTIC_PASSWORD_FILE" >/dev/null
+    echo creado
+  args:
+    executable: /bin/bash
+  register: backups_init_remoto
+  changed_when: "'creado' in backups_init_remoto.stdout"
+  failed_when: false
+  when: backups_remote_type != 'no' and not ansible_check_mode
+
+- name: Temporizador activo
+  ansible.builtin.systemd:
+    name: "{{ backups_unit }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: "{{ backups_units is changed }}"
+  when: not ansible_check_mode
+
+- name: Primera copia (puede tardar)
+  ansible.builtin.command: systemctl start {{ backups_unit }}.service
+  register: backups_primera
+  failed_when: false
+  when: backups_run_now | bool and backups_init is changed and not ansible_check_mode
+
+- name: Resultado de la primera copia
+  ansible.builtin.shell: journalctl -u {{ backups_unit }}.service -o cat --no-pager | grep -E 'Copia terminada|FALLO' | tail -n 3 | sed 's/^\[[^]]*\] //' | paste -sd ' '
+  register: backups_ultima
+  changed_when: false
+  when: backups_primera is not skipped and backups_primera is defined
+
+- name: ¿Hay una copia antigua de los scripts de antes?
+  ansible.builtin.stat:
+    path: /etc/systemd/system/apps-backup.timer
+  register: backups_antigua
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Al aplicar, se' if ansible_check_mode else 'Se' }} {{ 'hará' if ansible_check_mode else 'hace' }} una copia diaria a las {{ backups_time }}
+      en {{ backups_repo }}{{ (' y otra en ' ~ backups_remote_type ~ ' ' ~ backups_remote) if backups_remote_type != 'no' else '' }}.
+      {%- if backups_ultima.stdout is defined %} Primera copia: {{ backups_ultima.stdout }}.{% endif %}
+      {%- if backups_primera.rc is defined and backups_primera.rc != 0 %} La primera copia tuvo fallos: míralo con «journalctl -u {{ backups_unit }}».{% endif %}
+      {%- if backups_init_remoto.rc is defined and backups_init_remoto.rc != 0 %} NO se pudo conectar con el destino remoto: {{ backups_init_remoto.stderr | default('') | truncate(200) }}{% endif %}
+      {%- if backups_remote_type == 'sftp' and not ansible_check_mode %} Añade esta clave a ~/.ssh/authorized_keys del usuario del destino: {{ lookup('ansible.builtin.file', backups_sftp_key ~ '.pub', errors='ignore') }}{% endif %}
+      La contraseña de las copias está en «Contraseñas del proyecto»: guárdala también fuera, sin ella no se pueden abrir.
+      {%- if backups_antigua.stat.exists %} Hay otra copia diaria de una instalación anterior (apps-backup): esta va aparte, no la toca.{% endif %}

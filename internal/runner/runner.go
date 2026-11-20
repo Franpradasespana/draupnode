@@ -224,3 +224,45 @@ func RunOpts(ctx context.Context, c *ssh.Client, script []byte, o Opts, su Sudo,
 	}
 	return -1, werr
 }
+
+// Exec ejecuta cmd como root (sin terminal: la salida llega tal cual, también
+// binaria) con la entrada y salidas dadas. Para tareas cortas de la app
+// (listar copias, traerlas…), no para aplicar proyectos.
+func Exec(ctx context.Context, c *ssh.Client, su Sudo, cmd string, stdin io.Reader, stdout, stderr io.Writer) error {
+	s, err := c.NewSession()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	prefix := "sudo -n "
+	switch {
+	case su.IsRoot:
+		prefix = ""
+	case su.Password != "":
+		prefix = "sudo -S -p '' "
+		if stdin == nil {
+			stdin = strings.NewReader("")
+		}
+		stdin = io.MultiReader(strings.NewReader(su.Password+"\n"), stdin)
+	}
+	if stdin != nil {
+		s.Stdin = stdin
+	}
+	s.Stdout, s.Stderr = stdout, stderr
+	if err := s.Start(prefix + "sh -c " + shellQuote(cmd)); err != nil {
+		return err
+	}
+	done := make(chan error, 1)
+	go func() { done <- s.Wait() }()
+	select {
+	case <-ctx.Done():
+		_ = s.Signal(ssh.SIGTERM)
+		_ = s.Close()
+		<-done
+		return ctx.Err()
+	case err := <-done:
+		return err
+	}
+}
+
+func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }

@@ -6,7 +6,9 @@
   import RunPanel from '../components/RunPanel.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
   import UninstallDialog from '../components/UninstallDialog.svelte'
+  import BackupsPanel from '../components/BackupsPanel.svelte'
   import { orderModules, clashesWith, modulePorts } from '../lib/modules'
+  import { withConnection } from '../lib/connect'
   import { api, errorText, type Module, type Project, type ProjectCheck, type RunStart, type UninstallCheck, type UninstallChoice } from '../lib/api'
   import {
     ui, toast, refreshProjects, moduleName, timeAgo, startRun, ask, confirmDialog, requestVault,
@@ -278,51 +280,10 @@
 
   // Lanza una ejecución pidiendo lo que haga falta (contraseña, huella, sudo, bóveda).
   async function launch(call: (secret: string, accept: string, sudo: string) => Promise<RunStart>, started: (runId: string) => void) {
-    let secret = '', accept = '', sudo = ''
-    for (let i = 0; i < 6; i++) {
-      const r = await call(secret, accept, sudo)
-      switch (r.status) {
-        case 'started':
-          started(r.runId!)
-          return
-        case 'needs_secret':
-        case 'bad_secret': {
-          const isPw = r.secretKind === 'password'
-          const v = await ask(isPw ? 'Contraseña del usuario' : 'Contraseña de la clave',
-            (r.status === 'bad_secret' ? 'No es correcta. ' : '') + (isPw ? `Contraseña de ${server?.user} en ${server?.name}.` : `La clave SSH de ${server?.name} está protegida.`))
-          if (v === null) return
-          secret = v
-          break
-        }
-        case 'vault_locked':
-          if (!(await requestVault('unlock', r.message || 'La contraseña de este servidor está en la bóveda.'))) return
-          break
-        case 'vault_missing':
-          if (!(await requestVault('create', r.message || 'Las contraseñas de este proyecto se guardan en la bóveda cifrada.'))) return
-          break
-        case 'unknown_host': {
-          const ok = await confirmDialog({
-            title: 'Servidor nuevo: confirma su huella',
-            message: 'Es la primera vez que te conectas a este servidor. Comprueba que la huella es la suya antes de confiar.',
-            detail: `${server?.host}:${server?.port}\n${r.keyType}\n${r.fingerprint}`,
-            confirmLabel: 'Confiar y seguir',
-          })
-          if (!ok) return
-          accept = r.fingerprint!
-          break
-        }
-        case 'needs_sudo':
-        case 'bad_sudo': {
-          const v = await ask('Contraseña de sudo',
-            (r.status === 'bad_sudo' ? 'No es correcta. ' : '') + `El usuario ${server?.user} necesita su contraseña para hacerse administrador (sudo). No se guarda.`)
-          if (v === null) return
-          sudo = v
-          break
-        }
-        default:
-          return toast(r.message || 'No se pudo lanzar', 'error')
-      }
-    }
+    const r = await withConnection(server, call)
+    if (!r) return
+    if (r.status === 'started') started(r.runId!)
+    else toast(r.message || 'No se pudo lanzar', 'error')
   }
 
   function closeRun() {
@@ -396,6 +357,10 @@
 
 {#if draft.id}
   <ProjectSecrets projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} />
+{/if}
+
+{#if stored?.installedModules?.includes('backups')}
+  <BackupsPanel project={stored} disabled={running} />
 {/if}
 
 {#if check?.warnings?.length}

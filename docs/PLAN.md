@@ -49,7 +49,7 @@
 
 ### Siguiente (según docs/ESTUDIO_MODULOS.md)
 
-- Copias con restic + «Traer copias al equipo» (destino remoto S3 opcional; las credenciales con `type: secret`).
+- ~~Copias con restic + «Traer copias al equipo»~~ hecho en la 0.10.0. Pendiente: «Restaurar» desde la app (hoy, con el LEEME y restic).
 - Monitorización en dos módulos (métricas / registros), Grafana por túnel SSH.
 - Adoptar lo que ya hay en el servidor real (`pg-compartido`, `monitoring-*`, `apps-backup`) con sus mismos nombres.
 - Botón «Traer contraseñas del servidor» sin tener que Aplicar (hoy se traen al Aplicar).

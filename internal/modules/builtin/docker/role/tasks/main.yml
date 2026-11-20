@@ -47,6 +47,11 @@
              | combine({'features': {'containerd-snapshotter': false}}, recursive=True) | to_nice_json }}
       notify: Reiniciar Docker
 
+# Ya, no al final: las imágenes que bajen los módulos siguientes (PostgreSQL,
+# Coolify…) tienen que usar el almacenamiento nuevo.
+- name: Reiniciar Docker ahora si ha cambiado
+  ansible.builtin.meta: flush_handlers
+
 - name: Docker arrancado y al inicio
   ansible.builtin.service:
     name: docker

@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Generado por Draupnode (módulo backups, proyecto {{ draupnode_project }}). Se reescribe al aplicar.
+#   copia            hace una copia ahora (es lo que lanza el temporizador)
+#   copia snapshots  lista las copias (JSON)
+#   copia remoto     lista las copias del destino remoto (JSON)
+set -euo pipefail
+umask 077
+export RESTIC_REPOSITORY={{ backups_repo | quote }}
+export RESTIC_PASSWORD_FILE={{ (draupnode_secrets_dir ~ '/restic') | quote }}
+export RESTIC_CACHE_DIR=/var/cache/restic
+{% if backups_remote_type != 'no' %}
+# Destino remoto (credenciales solo en este fichero, 0700 root).
+remoto() {
+{% if backups_remote_type == 's3' %}
+  AWS_ACCESS_KEY_ID={{ backups_remote_user | quote }} AWS_SECRET_ACCESS_KEY={{ backups_remote_password | default('') | quote }} \
+    restic -r {{ ('s3:' ~ backups_remote) | quote }} "$@"
+{% elif backups_remote_type == 'rest-server' %}
+  restic -r {{ backups_rest_url | quote }} "$@"
+{% else %}
+  restic -r {{ ('sftp:' ~ backups_remote) | quote }} \
+    -o sftp.command={{ ('ssh -i ' ~ backups_sftp_key ~ ' -p ' ~ backups_remote_port ~ ' -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=' ~ backups_known_hosts ~ ' ' ~ backups_remote.split(':')[0] ~ ' -s sftp') | quote }} "$@"
+{% endif %}
+}
+{% endif %}
+
+case "${1:-copia}" in
+  snapshots) exec restic snapshots --json ;;
+{% if backups_remote_type != 'no' %}
+  remoto) remoto snapshots --json; exit ;;
+{% endif %}
+  copia) ;;
+  *) echo "Uso: $0 [copia|snapshots{{ '|remoto' if backups_remote_type != 'no' else '' }}]" >&2; exit 2 ;;
+esac
+
+log() { echo "[$(date '+%F %T')] $*"; }
+fallos=0
+etiqueta="draupnode-{{ draupnode_project }}"
+{% if backups_postgres | bool %}
+
+if docker inspect --type container {{ backups_postgres_container | quote }} >/dev/null 2>&1; then
+  log "Volcando PostgreSQL ({{ backups_postgres_container }})"
+  docker exec {{ backups_postgres_container | quote }} pg_dumpall -U postgres \
+    | restic backup --quiet --stdin --stdin-filename postgres-{{ backups_postgres_container }}.sql --tag "$etiqueta" --tag postgres \
+    || { log "FALLO al volcar PostgreSQL"; fallos=1; }
+fi
+{% endif %}
+{% if backups_coolify | bool %}
+
+if docker inspect --type container coolify-db >/dev/null 2>&1; then
+  log "Volcando la base de datos de Coolify"
+  docker exec coolify-db pg_dumpall -U coolify \
+    | restic backup --quiet --stdin --stdin-filename coolify-db.sql --tag "$etiqueta" --tag coolify \
+    || { log "FALLO al volcar Coolify"; fallos=1; }
+  rutas=()
+  for r in /data/coolify/source/.env /data/coolify/ssh; do [ -e "$r" ] && rutas+=("$r"); done
+  [ -n "${rutas[*]:-}" ] && { restic backup --quiet "${rutas[@]}" --tag "$etiqueta" --tag coolify-archivos || { log "FALLO al copiar Coolify"; fallos=1; }; }
+fi
+{% endif %}
+
+log "Copiando archivos"
+rutas=({{ draupnode_secrets_dir | quote }}{% for p in backups_paths %} {{ p | quote }}{% endfor %})
+existen=()
+for r in "${rutas[@]}"; do
+  if [ -e "$r" ]; then existen+=("$r"); else log "AVISO: no existe $r (se salta)"; fi
+done
+restic backup --quiet "${existen[@]}" --tag "$etiqueta" --tag archivos || { log "FALLO al copiar archivos"; fallos=1; }
+
+log "Borrando copias viejas"
+restic forget --quiet --prune --keep-daily {{ backups_keep_daily }} --keep-weekly {{ backups_keep_weekly }} --keep-monthly {{ backups_keep_monthly }} \
+  || { log "FALLO al borrar copias viejas"; fallos=1; }
+{% if backups_check | bool %}
+log "Comprobando el repositorio"
+restic check --quiet || { log "FALLO: el repositorio tiene errores"; fallos=1; }
+{% endif %}
+{% if backups_remote_type != 'no' %}
+
+log "Copiando al destino remoto"
+if ! remoto cat config >/dev/null 2>&1; then
+  log "Creando el repositorio remoto"
+  remoto init --copy-chunker-params --from-repo "$RESTIC_REPOSITORY" --from-password-file "$RESTIC_PASSWORD_FILE" >/dev/null || true
+fi
+if remoto copy --quiet --from-repo "$RESTIC_REPOSITORY" --from-password-file "$RESTIC_PASSWORD_FILE"; then
+  remoto forget --quiet --prune --keep-daily {{ backups_keep_daily }} --keep-weekly {{ backups_keep_weekly }} --keep-monthly {{ backups_keep_monthly }} \
+    || { log "FALLO al borrar copias viejas en el destino remoto"; fallos=1; }
+else
+  log "FALLO al copiar al destino remoto"; fallos=1
+fi
+{% endif %}
+
+log "$( [ $fallos -eq 0 ] && echo 'Copia terminada.' || echo 'Copia terminada CON FALLOS.' ) $(restic snapshots --json | python3 -c 'import json,sys; print(len(json.load(sys.stdin)), "copias en total")')"
+exit $fallos

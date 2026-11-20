@@ -143,3 +143,16 @@ func TestReglasSSH(t *testing.T) {
 		t.Fatalf("puerto %d", s.Port)
 	}
 }
+
+func TestRutasSegurasYCopias(t *testing.T) {
+	for name, ok := range map[string]bool{"data/ab/abcd": true, "config": true, "../x": false, "/etc/passwd": false, "a/../b": false, "": false, ".": false, `a\b`: false} {
+		if safeRel(name) != ok {
+			t.Errorf("safeRel(%q) != %v", name, ok)
+		}
+	}
+	snaps, err := parseSnapshots(`[{"short_id":"aa","time":"2026-11-19T03:30:00Z","tags":["x"],"paths":["/a"],"hostname":"h"},
+		{"short_id":"bb","time":"2026-11-20T03:30:00Z","paths":["/b"],"hostname":"h","summary":{"total_bytes_processed":42}}]`)
+	if err != nil || len(snaps) != 2 || snaps[0].ID != "bb" || snaps[0].Bytes != 42 || snaps[0].Tags == nil {
+		t.Fatalf("%v %+v", err, snaps)
+	}
+}

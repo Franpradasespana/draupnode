@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"encoding/binary"
@@ -209,5 +210,17 @@ echo '@@DN-SECRETS c2VjcmV0bw=='
 		if e.Kind == "line" && strings.Contains(e.Text, "back=1") {
 			t.Fatal("previsualizar no debe pedir los secretos")
 		}
+	}
+}
+
+func TestExecBinarioYEntrada(t *testing.T) {
+	c := startExecServer(t)
+	var out, errb bytes.Buffer
+	err := Exec(context.Background(), c, Sudo{IsRoot: true}, `cat; printf '\000\001fin'; echo "it's" >&2`, strings.NewReader("hola\n"), &out, &errb)
+	if err != nil || out.String() != "hola\n\x00\x01fin" || strings.TrimSpace(errb.String()) != "it's" {
+		t.Fatalf("%v %q %q", err, out.String(), errb.String())
+	}
+	if err := Exec(context.Background(), c, Sudo{IsRoot: true}, "exit 3", nil, &out, &errb); err == nil {
+		t.Fatal("debía fallar")
 	}
 }

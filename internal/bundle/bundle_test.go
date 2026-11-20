@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -227,5 +228,19 @@ func TestPlaybookDesinstalar(t *testing.T) {
 	sc, _ := Script(o, sel)
 	if !strings.Contains(string(sc), "DESINSTALAR postgres → docker") {
 		t.Fatal("cabecera")
+	}
+}
+
+// En las plantillas y tareas «{#» abre un comentario de Jinja: en bash
+// (${#var}) hay que escribirlo de otra forma.
+func TestPlantillasSinComentarioJinja(t *testing.T) {
+	c, _ := modules.Load("")
+	for _, m := range c.All() {
+		for _, f := range m.Files {
+			b, _ := fs.ReadFile(m.Role(), f)
+			if strings.Contains(string(b), "{#") {
+				t.Errorf("%s/%s contiene «{#»", m.ID, f)
+			}
+		}
 	}
 }

@@ -1,0 +1,119 @@
+id: backups
+name: Copias de seguridad (restic)
+version: 1.0.0
+category: 5 · Copias
+description: Copia diaria cifrada con restic de tus bases de datos, Coolify, la carpeta de secretos y las carpetas que elijas. Opcional, una segunda copia fuera del servidor.
+details: |
+  restic (código abierto, BSD) guarda las copias cifradas y sin duplicados en
+  {carpeta}/<proyecto>/restic-repo. Su contraseña se genera en el servidor y
+  Draupnode la trae a tu bóveda: SIN ELLA LAS COPIAS NO SE PUEDEN ABRIR.
+  Cada día a la hora indicada (systemd): vuelca PostgreSQL y la base de
+  Coolify si están, copia la carpeta de secretos del proyecto y tus carpetas,
+  borra las copias viejas según lo que conservas y comprueba el repositorio.
+  Una copia que solo está en el servidor no te salva si pierdes el servidor:
+  usa «Traer copias al equipo» en el proyecto, o un destino remoto propio
+  (otro servidor por SFTP, un rest-server de restic o un S3 compatible como
+  MinIO o Garage; todos de código abierto).
+depends: [base]
+after: [docker, postgres, coolify]
+requires:
+  os: [ubuntu, debian]
+  min_disk_gb: 5
+secrets:
+  - file: restic
+    label: Contraseña de las copias (restic)
+  - file: backups_sftp_key.pub
+    label: Clave pública para el servidor de copias (SFTP)
+uninstall_warning: Quita la copia diaria (temporizador y script). Las copias ya hechas se conservan.
+uninstall_data: Borrar también el repositorio local de copias y su contraseña. Las copias del destino remoto no se tocan.
+variables:
+  - name: backups_time
+    label: Hora de la copia diaria
+    help: Hora del servidor (HH:MM). Se retrasa hasta 10 minutos al azar.
+    type: string
+    default: "03:30"
+    pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+    pattern_help: Formato HH:MM (p. ej. 03:30)
+  - name: backups_paths
+    label: Carpetas que copiar
+    help: Una por línea. La carpeta de secretos del proyecto se copia siempre.
+    type: list
+    default: []
+    pattern: '^/[A-Za-z0-9._/-]+$'
+    pattern_help: Ruta absoluta (empieza por /)
+  - name: backups_postgres
+    label: Volcar PostgreSQL
+    help: Todas las bases del contenedor indicado (pg_dumpall), si existe.
+    type: bool
+    default: true
+  - name: backups_postgres_container
+    label: Contenedor de PostgreSQL
+    type: string
+    default: pg-compartido
+    pattern: '^[a-z][a-z0-9_-]{1,40}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: backups_coolify
+    label: Copiar Coolify
+    help: Su base de datos, su .env y sus claves SSH, si Coolify está instalado.
+    type: bool
+    default: true
+  - name: backups_keep_daily
+    label: Copias diarias que se conservan
+    type: int
+    default: 7
+    min: 1
+    max: 90
+  - name: backups_keep_weekly
+    label: Copias semanales que se conservan
+    type: int
+    default: 4
+    min: 0
+    max: 52
+  - name: backups_keep_monthly
+    label: Copias mensuales que se conservan
+    type: int
+    default: 6
+    min: 0
+    max: 60
+  - name: backups_check
+    label: Comprobar el repositorio después de cada copia
+    type: bool
+    default: true
+  - name: backups_run_now
+    label: Hacer la primera copia al aplicar
+    type: bool
+    default: true
+  - name: backups_dir
+    label: Carpeta de las copias en el servidor
+    help: Dentro se crea una carpeta por proyecto.
+    type: string
+    default: /srv/draupnode/copias
+    pattern: '^/[A-Za-z0-9._/-]+$'
+    pattern_help: Ruta absoluta
+  - name: backups_remote_type
+    label: Copia también fuera del servidor
+    help: «sftp» = otro servidor tuyo; «rest-server» = el servidor de copias de restic; «s3» = S3 compatible (MinIO, Garage…).
+    type: select
+    options: ["no", "sftp", "rest-server", "s3"]
+    default: "no"
+  - name: backups_remote
+    label: Destino remoto
+    help: "sftp: usuario@203.0.113.40:/srv/copias/web · rest-server: https://copias.ejemplo.com:8000/web · s3: https://minio.ejemplo.com/cubo/web"
+    type: string
+    default: ""
+    pattern: '^[^\s]+$'
+    pattern_help: Sin espacios
+  - name: backups_remote_port
+    label: Puerto SSH del destino (sftp)
+    type: int
+    default: 22
+    min: 1
+    max: 65535
+  - name: backups_remote_user
+    label: Usuario del destino (rest-server) o Access Key (s3)
+    type: string
+    default: ""
+  - name: backups_remote_password
+    label: Contraseña del destino (rest-server) o Secret Key (s3)
+    help: Se guarda cifrada en tu bóveda y solo viaja al servidor al aplicar.
+    type: secret

@@ -6,17 +6,27 @@ import {sshx} from '../models';
 
 export function AppInfo():Promise<main.AppInfo>;
 
+export function BackupNow(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.BackupResult>;
+
+export function BackupSnapshots(arg1:string,arg2:boolean,arg3:string,arg4:string,arg5:string):Promise<main.BackupResult>;
+
 export function CancelRun(arg1:string):Promise<boolean>;
 
 export function CheckProject(arg1:store.Project):Promise<main.ProjectCheck>;
 
 export function CheckUninstall(arg1:string,arg2:Array<string>):Promise<main.UninstallCheck>;
 
+export function ChooseBackupFolder(arg1:string):Promise<string>;
+
+export function DefaultBackupFolder(arg1:string):Promise<string>;
+
 export function DeleteProject(arg1:string):Promise<void>;
 
 export function DeleteServer(arg1:string):Promise<void>;
 
 export function ExportProject(arg1:string):Promise<string>;
+
+export function FetchBackups(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.BackupResult>;
 
 export function FindKeys():Promise<Array<sshx.KeyInfo>>;
 
