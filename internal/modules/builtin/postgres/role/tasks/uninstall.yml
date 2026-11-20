@@ -1,0 +1,26 @@
+---
+- name: ¿Está su docker-compose.yml?
+  ansible.builtin.stat:
+    path: "{{ postgres_dir }}/docker-compose.yml"
+  register: postgres_compose
+
+- name: Parar y quitar PostgreSQL
+  ansible.builtin.command: docker compose down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: "{{ postgres_dir }}"
+  register: postgres_down
+  changed_when: "'Removed' in postgres_down.stderr or 'Stopped' in postgres_down.stderr"
+  when: postgres_compose.stat.exists and not ansible_check_mode
+
+- name: Borrar su carpeta y las contraseñas
+  ansible.builtin.shell: |
+    rm -rf {{ postgres_dir | quote }}
+    rm -f {{ draupnode_secrets_dir | quote }}/postgres_*
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      PostgreSQL «{{ postgres_container }}» {{ 'se quitará' if ansible_check_mode else 'quitado' }}.
+      {{ 'También sus datos y contraseñas.' if draupnode_uninstall_purge | bool
+         else 'Los datos siguen en su volumen Docker y las contraseñas en ' ~ draupnode_secrets_dir ~ ': si lo reinstalas, vuelve todo.' }}

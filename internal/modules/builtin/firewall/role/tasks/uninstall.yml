@@ -1,0 +1,27 @@
+---
+# Quita las reglas que abrió Draupnode (etiquetas draupnode y draupnode-coolify),
+# salvo la del 22 y la del puerto en el que escucha el SSH ahora.
+- name: Quitar las reglas de Draupnode (menos el SSH)
+  ansible.builtin.shell: |
+    command -v iptables >/dev/null || exit 0
+    keep=" 22 $(sshd -T 2>/dev/null | awk '/^port /{printf "%s ", $2}')"
+    n=0
+    while read -r rule; do
+      port=$(printf '%s\n' "$rule" | sed -n 's/.*--dport \([0-9]*\).*/\1/p')
+      case "$keep" in *" $port "*) continue ;; esac
+      iptables $(printf '%s\n' "$rule" | sed 's/^-A /-D /') && n=$((n+1))
+    done <<< "$(iptables -S INPUT | grep -E -- '--comment "?draupnode(-coolify)?"? ')"
+    echo "quitadas=$n"
+  args:
+    executable: /bin/bash
+  register: firewall_quitar
+  changed_when: "'quitadas=0' not in firewall_quitar.stdout"
+  when: not ansible_check_mode
+
+- name: Guardar las reglas
+  ansible.builtin.shell: command -v netfilter-persistent >/dev/null && netfilter-persistent save || true
+  when: firewall_quitar is changed
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: Quitadas las reglas que abrió Draupnode (el SSH sigue abierto). iptables y netfilter-persistent siguen instalados, con el resto de reglas del servidor.

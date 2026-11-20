@@ -1,0 +1,66 @@
+---
+# El SSH en sí no se toca: solo se quita lo que añadió este módulo.
+- name: Puerto en el que escucha el SSH
+  ansible.builtin.shell: sshd -T | awk '/^port /{print $2}'
+  register: ssh_puertos
+  changed_when: false
+  check_mode: false
+
+- name: Solo con el SSH en el 22 (si no, al quitar la configuración se perdería la conexión)
+  ansible.builtin.assert:
+    that: "'22' in ssh_puertos.stdout_lines"
+    fail_msg: "El SSH escucha en {{ ssh_puertos.stdout_lines | join(', ') }}: cambia antes el puerto a 22 y aplica. No se ha tocado nada."
+    quiet: true
+
+- name: Quitar la configuración de Draupnode
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/01-draupnode.conf
+    state: absent
+  register: ssh_quitado
+
+- name: Comprobar la configuración que queda (sshd -t)
+  ansible.builtin.command: sshd -t
+  changed_when: false
+  when: ssh_quitado is changed and not ansible_check_mode
+
+- name: ¿El SSH arranca por socket?
+  ansible.builtin.command: systemctl is-enabled ssh.socket
+  register: ssh_socket
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Aplicar (por socket)
+  ansible.builtin.shell: systemctl daemon-reload && systemctl restart ssh.socket
+  when: ssh_quitado is changed and not ansible_check_mode and ssh_socket.stdout == 'enabled'
+
+- name: Aplicar
+  ansible.builtin.service:
+    name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+    state: reloaded
+  when: ssh_quitado is changed and not ansible_check_mode and ssh_socket.stdout != 'enabled'
+
+- name: El SSH sigue escuchando en el 22
+  ansible.builtin.wait_for:
+    port: 22
+    host: 127.0.0.1
+    timeout: 20
+  when: not ansible_check_mode
+
+- name: Quitar la configuración de fail2ban
+  ansible.builtin.file:
+    path: /etc/fail2ban/jail.d/draupnode.local
+    state: absent
+
+- name: Desinstalar fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: absent
+    purge: true
+    lock_timeout: 600
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Se quitará' if ansible_check_mode else 'Quitado' }} el endurecimiento de SSH y fail2ban.
+      El SSH sigue funcionando con la configuración que traía el servidor.

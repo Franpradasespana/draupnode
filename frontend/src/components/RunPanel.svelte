@@ -1,7 +1,7 @@
 <script lang="ts">
   import Linkify from './Linkify.svelte'
   import { tick } from 'svelte'
-  import { LoaderCircle, CircleCheck, CircleX, CircleDot, CircleMinus, Square, ScrollText, ListChecks, Info, Eye, Hammer } from '@lucide/svelte'
+  import { Trash2, LoaderCircle, CircleCheck, CircleX, CircleDot, CircleMinus, Square, ScrollText, ListChecks, Info, Eye, Hammer } from '@lucide/svelte'
   import { api } from '../lib/api'
   import { moduleName, type RunState } from '../lib/state.svelte'
 
@@ -71,7 +71,7 @@
       {/if}
       <div>
         <strong>
-          {#if run.check}<Eye size={14} /> Previsualización{:else}<Hammer size={14} /> Aplicación{/if}
+          {#if run.uninstall?.length}<Trash2 size={14} /> Desinstalación{:else if run.check}<Eye size={14} /> Previsualización{:else}<Hammer size={14} /> Aplicación{/if}
           {#if !run.done} en curso{:else if run.summary?.canceled} cancelada{:else if run.summary?.ok} terminada{:else} con errores{/if}
         </strong>
         <span class="muted">
@@ -97,7 +97,14 @@
 
   {#if run.done && !run.summary?.canceled}
     <div class="verdict" class:good={run.summary?.ok} class:badv={!run.summary?.ok}>
-      {#if run.check && run.summary?.ok}
+      {#if run.uninstall?.length && run.summary?.ok}
+        <p class="big">Desinstalado del servidor.</p>
+        <p>Ya no forma parte del proyecto.</p>
+      {:else if run.uninstall?.length}
+        <p class="big">No se pudo desinstalar del todo: se paró con errores.</p>
+        <p>Lo que se quitó antes del fallo queda quitado. El módulo sigue en el proyecto: corrige el problema y vuelve a intentarlo.</p>
+        <ul>{#each failedTasks as t}<li>{t.name} <span class="muted">· {roleName(t.role)}</span></li>{/each}</ul>
+      {:else if run.check && run.summary?.ok}
         {#if changedTasks.length}
           <p class="big">Simulación completada. Todavía no se ha aplicado nada en el servidor.</p>
           <p>Para aplicar la configuración pulsa <strong>Aplicar</strong>. Se harán estos {changedTasks.length} cambios:</p>

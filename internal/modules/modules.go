@@ -89,6 +89,14 @@ type Module struct {
 	// Secrets: nombres legibles de los ficheros que el módulo genera en la
 	// carpeta de secretos del servidor (admite * como comodín).
 	Secrets []SecretFile `yaml:"secrets" json:"secrets,omitempty"`
+	// Desinstalación: el rol trae tasks/uninstall.yml. UninstallWarning explica
+	// qué se pierde; UninstallData (si no está vacío) describe los datos que
+	// se borran solo si el usuario marca «borrar también los datos».
+	Uninstallable    bool   `yaml:"-" json:"uninstallable"`
+	UninstallWarning string `yaml:"uninstall_warning" json:"uninstallWarning,omitempty"`
+	UninstallData    string `yaml:"uninstall_data" json:"uninstallData,omitempty"`
+	// NoUninstall explica por qué un módulo no se puede desinstalar.
+	NoUninstall string `yaml:"no_uninstall" json:"noUninstall,omitempty"`
 
 	Source string   `yaml:"-" json:"source"` // builtin | user
 	Files  []string `yaml:"-" json:"files"`  // ficheros del rol (para verlos)
@@ -224,6 +232,9 @@ func load(fsys fs.FS, dir, source string) (*Module, error) {
 	}
 	if _, err := fs.Stat(role, "tasks/main.yml"); err != nil {
 		return nil, errors.New("falta role/tasks/main.yml")
+	}
+	if _, err := fs.Stat(role, "tasks/uninstall.yml"); err == nil {
+		m.Uninstallable = true
 	}
 	_ = fs.WalkDir(role, ".", func(p string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() {

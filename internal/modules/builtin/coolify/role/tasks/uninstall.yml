@@ -1,0 +1,40 @@
+---
+- name: ¿Hay Docker?
+  ansible.builtin.stat:
+    path: /usr/bin/docker
+  register: coolify_docker
+
+- name: Quitar los contenedores de Coolify
+  ansible.builtin.shell: |
+    n=0
+    for c in coolify coolify-realtime coolify-db coolify-redis coolify-proxy coolify-sentinel; do
+      if docker inspect --type container "$c" >/dev/null 2>&1; then docker rm -f "$c" >/dev/null && n=$((n+1)); fi
+    done
+    echo "quitados=$n"
+  register: coolify_quitar
+  changed_when: "'quitados=0' not in coolify_quitar.stdout"
+  when: coolify_docker.stat.exists and not ansible_check_mode
+
+- name: Borrar volúmenes y red de Coolify
+  ansible.builtin.shell: |
+    docker volume rm coolify-db coolify-redis >/dev/null 2>&1 || true
+    docker network rm coolify >/dev/null 2>&1 || true
+  when: coolify_docker.stat.exists and draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Borrar /data/coolify y su contraseña de administrador
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /data/coolify
+    - "{{ draupnode_secrets_dir }}/coolify_admin"
+    - "{{ draupnode_secrets_dir }}/.coolify_admin_base"
+  when: draupnode_uninstall_purge | bool
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Coolify {{ 'se quitará' if ansible_check_mode else 'quitado' }}.
+      {{ 'También su configuración (/data/coolify) y sus volúmenes.' if draupnode_uninstall_purge | bool
+         else 'Su configuración sigue en /data/coolify y sus volúmenes: si lo reinstalas, vuelve como estaba.' }}
+      Los puertos 8000, 6001 y 6002 se quitan de la lista del Cortafuegos al aplicar el proyecto.

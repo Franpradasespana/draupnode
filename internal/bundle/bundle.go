@@ -35,10 +35,10 @@ type Selection struct {
 
 // Options describe el proyecto que se empaqueta.
 type Options struct {
-	Project    string // nombre visible
-	Slug       string // para rutas: /etc/draupnode/secretos/<slug>
-	Host       string // IP o dominio con el que se conecta Draupnode
-	SSHUser    string // usuario de conexión (se añade al grupo docker, etc.)
+	Project string // nombre visible
+	Slug    string // para rutas: /etc/draupnode/secretos/<slug>
+	Host    string // IP o dominio con el que se conecta Draupnode
+	SSHUser string // usuario de conexión (se añade al grupo docker, etc.)
 	// CoolifyURL es la dirección del panel de Coolify vista desde este equipo
 	// (en el servidor de pruebas el puerto 8000 se publica en otro). Vacío = http://Host:8000.
 	CoolifyURL string
@@ -49,6 +49,10 @@ type Options struct {
 	// Secrets: valores de las variables de tipo secreto (nombre → valor). Solo
 	// al Aplicar desde la app; al Exportar va vacío y el script los pide.
 	Secrets map[string]string
+	// Uninstall: en vez de instalar, ejecuta tasks/uninstall.yml de cada
+	// módulo, en orden inverso. Purge: borra también sus datos.
+	Uninstall bool
+	Purge     bool
 }
 
 func (o Options) coolifyURL() string {
@@ -152,6 +156,9 @@ func requirements(sel []Selection) (osList []string, ram, disk int) {
 
 // SiteYAML genera el playbook principal.
 func SiteYAML(o Options, sel []Selection) ([]byte, error) {
+	if o.Uninstall {
+		return uninstallYAML(o, sel)
+	}
 	osList, ram, disk := requirements(sel)
 	osNodes := make([]string, len(osList))
 	copy(osNodes, osList)
@@ -197,20 +204,13 @@ func SiteYAML(o Options, sel []Selection) ([]byte, error) {
 	}
 	keys = append(keys, "roles")
 	play := mapNode(keys, map[string]*yaml.Node{
-		"vars_files": {Kind: yaml.SequenceNode, Content: []*yaml.Node{plain("secretos.yml")}},
+		"vars_files":   {Kind: yaml.SequenceNode, Content: []*yaml.Node{plain("secretos.yml")}},
 		"name":         str("Draupnode · " + o.Project),
 		"hosts":        plain("localhost"),
 		"connection":   plain("local"),
 		"gather_facts": valueNode(true),
-		"vars": mapNode([]string{"draupnode_project", "draupnode_host", "draupnode_ssh_user", "draupnode_ssh_auth", "draupnode_secrets_dir", "draupnode_coolify_url"}, map[string]*yaml.Node{
-			"draupnode_coolify_url": str(o.coolifyURL()),
-			"draupnode_ssh_auth":    str(o.SSHAuth),
-			"draupnode_project":     str(o.Slug),
-			"draupnode_host":        str(o.Host),
-			"draupnode_ssh_user":    str(o.SSHUser),
-			"draupnode_secrets_dir": str(SecretsDir(o.Slug)),
-		}),
-		"roles": roles,
+		"vars":         commonVars(o),
+		"roles":        roles,
 	})
 	doc := &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.SequenceNode, Content: []*yaml.Node{play}}}}
 	var buf bytes.Buffer
@@ -247,6 +247,63 @@ func shq(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'
 // SecretEnv es la variable de entorno con la que se puede dar un secreto al
 // instalar.sh exportado sin teclearlo (DN_SECRET_<NOMBRE>).
 func SecretEnv(name string) string { return "DN_SECRET_" + strings.ToUpper(name) }
+
+// commonVars son las variables de Draupnode que ven todos los roles.
+func commonVars(o Options) *yaml.Node {
+	return mapNode([]string{"draupnode_project", "draupnode_host", "draupnode_ssh_user", "draupnode_ssh_auth", "draupnode_secrets_dir", "draupnode_coolify_url"}, map[string]*yaml.Node{
+		"draupnode_coolify_url": str(o.coolifyURL()),
+		"draupnode_ssh_auth":    str(o.SSHAuth),
+		"draupnode_project":     str(o.Slug),
+		"draupnode_host":        str(o.Host),
+		"draupnode_ssh_user":    str(o.SSHUser),
+		"draupnode_secrets_dir": str(SecretsDir(o.Slug)),
+	})
+}
+
+// uninstallYAML: un play que incluye tasks/uninstall.yml de cada módulo
+// (del último al primero: primero lo que depende de otros).
+func uninstallYAML(o Options, sel []Selection) ([]byte, error) {
+	tasks := &yaml.Node{Kind: yaml.SequenceNode}
+	for i := len(sel) - 1; i >= 0; i-- {
+		s := sel[i]
+		if !s.Module.Uninstallable {
+			return nil, fmt.Errorf("%s no se puede desinstalar", s.Module.Name)
+		}
+		keys := make([]string, 0, len(s.Values)+1)
+		for k := range s.Values {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		vals := map[string]*yaml.Node{}
+		for _, k := range keys {
+			vals[k] = valueNode(s.Values[k])
+		}
+		keys = append(keys, "draupnode_uninstall_purge")
+		vals["draupnode_uninstall_purge"] = valueNode(o.Purge)
+		tasks.Content = append(tasks.Content, mapNode([]string{"name", "ansible.builtin.include_role", "vars"}, map[string]*yaml.Node{
+			"name":                         str("Desinstalar " + s.Module.Name),
+			"ansible.builtin.include_role": mapNode([]string{"name", "tasks_from"}, map[string]*yaml.Node{"name": plain(s.Module.ID), "tasks_from": plain("uninstall")}),
+			"vars":                         mapNode(keys, vals),
+		}))
+	}
+	play := mapNode([]string{"name", "hosts", "connection", "gather_facts", "vars", "tasks"}, map[string]*yaml.Node{
+		"name":         str("Draupnode · " + o.Project + " · desinstalar"),
+		"hosts":        plain("localhost"),
+		"connection":   plain("local"),
+		"gather_facts": valueNode(true),
+		"vars":         commonVars(o),
+		"tasks":        tasks,
+	})
+	doc := &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.SequenceNode, Content: []*yaml.Node{play}}}}
+	var buf bytes.Buffer
+	buf.WriteString("# Generado por Draupnode (desinstalar). Se reescribe en cada ejecución.\n")
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(doc); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
 
 type tarWriter struct {
 	tw  *tar.Writer
@@ -292,7 +349,7 @@ func Payload(o Options, sel []Selection) ([]byte, error) {
 	}
 	// Los secretos solo viajan dentro del script que sube la app (0600, se borra
 	// al terminar). En el exportado no van: el script los pide al ejecutarlo.
-	if sv := secretVars(sel); len(sv) > 0 && o.Secrets != nil {
+	if sv := secretVars(sel); len(sv) > 0 && o.Secrets != nil && !o.Uninstall {
 		b, err := SecretsYAML(sv, o.Secrets)
 		if err != nil {
 			return nil, err
@@ -456,17 +513,20 @@ func Script(o Options, sel []Selection) ([]byte, error) {
 	}
 	var prompts strings.Builder
 	for _, v := range secretVars(sel) {
+		if o.Uninstall {
+			break // desinstalar no usa los datos secretos
+		}
 		fmt.Fprintf(&prompts, "  pedir %s %s %s\n", v.Name, SecretEnv(v.Name), shq(oneLine(v.Label)))
 	}
 	var buf bytes.Buffer
 	err = scriptTmpl.Execute(&buf, map[string]string{
 		"SecretPrompts": prompts.String(),
 		"SecretsDirQ":   shq(SecretsDir(o.Slug)),
-		"AppVersion": o.AppVersion,
-		"Date":       o.Now.Format("2006-01-02 15:04"),
-		"Project":    oneLine(o.Project),
-		"ModuleList": strings.Join(ids, " → "),
-		"SecretsDir": SecretsDir(o.Slug),
+		"AppVersion":    o.AppVersion,
+		"Date":          o.Now.Format("2006-01-02 15:04"),
+		"Project":       oneLine(o.Project),
+		"ModuleList":    moduleList(ids, o.Uninstall),
+		"SecretsDir":    SecretsDir(o.Slug),
 	})
 	if err != nil {
 		return nil, err
@@ -484,3 +544,14 @@ func Script(o Options, sel []Selection) ([]byte, error) {
 }
 
 func oneLine(s string) string { return strings.NewReplacer("\n", " ", "\r", " ").Replace(s) }
+
+func moduleList(ids []string, uninstall bool) string {
+	if !uninstall {
+		return strings.Join(ids, " → ")
+	}
+	rev := make([]string, len(ids))
+	for i, id := range ids {
+		rev[len(ids)-1-i] = id
+	}
+	return "DESINSTALAR " + strings.Join(rev, " → ")
+}

@@ -20,6 +20,7 @@ after: [firewall]
 firewall_ports_from: [ssh_port]
 requires:
   os: [ubuntu, debian]
+uninstall_warning: Quita el endurecimiento y fail2ban. El SSH NO se desinstala (es por donde se conecta Draupnode) - vuelve a su configuración de antes; si el servidor la traía así, puede volver a aceptar contraseñas.
 variables:
   - name: ssh_port
     label: Puerto SSH

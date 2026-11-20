@@ -24,6 +24,8 @@ firewall_ports: [8000, 6001, 6002]
 secrets:
   - file: coolify_admin
     label: Administrador de Coolify
+uninstall_warning: Para y quita los contenedores de Coolify (panel, base de datos, proxy). Las apps que desplegaste con Coolify dejan de verse por su dominio, porque su proxy se quita; sus contenedores no se borran.
+uninstall_data: Borrar también /data/coolify y sus volúmenes (la configuración del panel, usuarios, claves SSH y copias). Sin esto, si reinstalas Coolify vuelve todo como estaba.
 variables:
   - name: coolify_admin_email
     label: Correo del administrador

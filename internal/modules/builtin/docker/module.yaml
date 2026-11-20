@@ -13,6 +13,8 @@ requires:
   os: [ubuntu, debian]
   min_ram_mb: 900
   min_disk_gb: 10
+uninstall_warning: Para y desinstala Docker. Se paran TODOS los contenedores del servidor, también los que no instaló Draupnode.
+uninstall_data: Borrar también /var/lib/docker y /var/lib/containerd (imágenes, contenedores y volúmenes de TODAS las apps). Sin esto, si reinstalas Docker vuelve a estar todo.
 variables:
   - name: docker_classic_storage
     label: Almacenamiento clásico overlay2

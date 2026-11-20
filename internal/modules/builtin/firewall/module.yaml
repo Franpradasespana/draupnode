@@ -11,6 +11,7 @@ details: |
 depends: [base]
 requires:
   os: [ubuntu, debian]
+uninstall_warning: Quita las reglas que abrió Draupnode en iptables (salvo el SSH, para no perder la conexión). Las demás reglas del servidor no se tocan.
 variables:
   - name: firewall_tcp_ports
     label: Puertos TCP abiertos

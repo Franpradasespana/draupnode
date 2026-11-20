@@ -88,6 +88,8 @@ type RunSummary struct {
 	Error    string    `json:"error,omitempty"`
 	LogFile  string    `json:"logFile,omitempty"`
 	Duration int64     `json:"durationMs"`
+	// Uninstall: fue una desinstalación (no cuenta como aplicar).
+	Uninstall bool `json:"uninstall,omitempty"`
 }
 
 // Project = un servidor + los módulos que se le aplican.
@@ -112,6 +114,9 @@ type Project struct {
 	// InstalledModules: módulos que este proyecto ha aplicado bien alguna vez.
 	// Solo crece: quitar un módulo del proyecto no lo desinstala del servidor.
 	InstalledModules []string `json:"installedModules,omitempty"`
+	// InstalledValues: valores con los que se instaló cada módulo (para poder
+	// desinstalarlo aunque ya no esté marcado: su carpeta, su contenedor…).
+	InstalledValues map[string]map[string]any `json:"installedValues,omitempty"`
 }
 
 type data struct {
@@ -162,8 +167,10 @@ func Open(dir string) (*Store, error) {
 	for i := range s.d.Projects {
 		p := &s.d.Projects[i]
 		if len(p.InstalledModules) == 0 && p.AppliedAt != nil && !p.UpdatedAt.After(*p.AppliedAt) {
+			p.InstalledValues = map[string]map[string]any{}
 			for _, m := range p.Modules {
 				p.InstalledModules = append(p.InstalledModules, m.ID)
+				p.InstalledValues[m.ID] = m.Values
 			}
 			sort.Strings(p.InstalledModules)
 		}
@@ -383,8 +390,9 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 				p.LastRun = old.LastRun
 			}
 			p.AppliedAt = old.AppliedAt
-			p.Collapsed = old.Collapsed // solo lo cambia SetCollapsed
-			p.InstalledModules = old.InstalledModules // solo lo cambia SetLastRun
+			p.Collapsed = old.Collapsed               // solo lo cambia SetCollapsed
+			p.InstalledModules = old.InstalledModules // solo lo cambian SetLastRun y MarkUninstalled
+			p.InstalledValues = old.InstalledValues
 			if old.Slug != "" {
 				p.Slug = old.Slug // fijo para siempre
 			}
@@ -408,13 +416,18 @@ func (s *Store) SetLastRun(id string, r RunSummary) error {
 			s.d.Projects[i].LastRun = &r
 			// Aplicado: una aplicación completa sin errores, o una simulación
 			// correcta que no encuentra nada pendiente (el servidor ya está así).
-			if r.OK && !r.Canceled && (!r.Check || r.Changed == 0) {
+			if r.OK && !r.Canceled && !r.Uninstall && (!r.Check || r.Changed == 0) {
 				at := r.At
 				s.d.Projects[i].AppliedAt = &at
-				for _, m := range s.d.Projects[i].Modules {
-					if !containsStr(s.d.Projects[i].InstalledModules, m.ID) {
-						s.d.Projects[i].InstalledModules = append(s.d.Projects[i].InstalledModules, m.ID)
+				pr := &s.d.Projects[i]
+				if pr.InstalledValues == nil {
+					pr.InstalledValues = map[string]map[string]any{}
+				}
+				for _, m := range pr.Modules {
+					if !containsStr(pr.InstalledModules, m.ID) {
+						pr.InstalledModules = append(pr.InstalledModules, m.ID)
 					}
+					pr.InstalledValues[m.ID] = m.Values
 				}
 				sort.Strings(s.d.Projects[i].InstalledModules)
 			}
@@ -435,6 +448,41 @@ func (s *Store) SetCollapsed(id string, modules []string) error {
 			sort.Strings(s.d.Projects[i].Collapsed)
 			return s.saveLocked()
 		}
+	}
+	return fmt.Errorf("proyecto %q no encontrado", id)
+}
+
+// MarkUninstalled quita módulos desinstalados del proyecto y de lo instalado,
+// sin contar como cambio del proyecto.
+func (s *Store) MarkUninstalled(id string, mods []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.d.Projects {
+		pr := &s.d.Projects[i]
+		if pr.ID != id {
+			continue
+		}
+		var keep []ProjectModule
+		for _, m := range pr.Modules {
+			if !containsStr(mods, m.ID) {
+				keep = append(keep, m)
+			}
+		}
+		if keep == nil {
+			keep = []ProjectModule{}
+		}
+		pr.Modules = keep
+		var inst []string
+		for _, m := range pr.InstalledModules {
+			if !containsStr(mods, m) {
+				inst = append(inst, m)
+			}
+		}
+		pr.InstalledModules = inst
+		for _, m := range mods {
+			delete(pr.InstalledValues, m)
+		}
+		return s.saveLocked()
 	}
 	return fmt.Errorf("proyecto %q no encontrado", id)
 }

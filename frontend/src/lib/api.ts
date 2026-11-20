@@ -124,6 +124,10 @@ export interface Module {
   after?: string[] | null
   checks?: { containerFree?: string }[] | null
   secrets?: { file: string; label: string }[] | null
+  uninstallable?: boolean
+  uninstallWarning?: string
+  uninstallData?: string
+  noUninstall?: string
   source: 'builtin' | 'user'
   files: string[] | null
 }
@@ -150,6 +154,18 @@ export interface RunSummary {
   error?: string
   logFile?: string
   durationMs: number
+  uninstall?: boolean
+}
+
+export type UninstallChoice = { action: 'remove' } | { action: 'uninstall'; purge: boolean } | null
+
+export interface UninstallCheck {
+  ok: boolean
+  error?: string
+  modules: { id: string; name: string; warning?: string; data?: string }[]
+  hasData: boolean
+  server: string
+  selected: string[]
 }
 
 export interface Project {
@@ -283,6 +299,8 @@ interface Backend {
   DeleteProject(id: string): Promise<void>
   SetProjectCollapsed(id: string, modules: string[]): Promise<void>
   SetProjectSecret(projectId: string, variable: string, value: string): Promise<void>
+  CheckUninstall(projectId: string, modules: string[]): Promise<UninstallCheck>
+  UninstallModules(projectId: string, modules: string[], purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   ProjectSecretsInfo(projectId: string): Promise<ProjectSecretsSummary>
   ProjectSecrets(projectId: string, master: string): Promise<ProjectSecret[]>
   ExportProject(id: string): Promise<string>
@@ -534,6 +552,29 @@ function mockBackend(): Backend {
       projects = projects.filter((p) => p.id !== id)
       save('projects', projects)
     },
+    async CheckUninstall(id, mods) {
+      const p = projects.find((x) => x.id === id)
+      const ms = mods.map((m) => MOCK_MODULES.find((x) => x.id === m)!).filter(Boolean)
+      const bad = ms.find((m) => m.noUninstall || !m.uninstallable)
+      const notInst = mods.find((m) => !(p?.installedModules ?? []).includes(m))
+      return { ok: !bad && !notInst, error: bad ? `${bad.name} no se puede desinstalar: ${bad.noUninstall ?? 'no tiene desinstalación'}` : notInst ? 'no está instalado por este proyecto' : undefined,
+        modules: ms.map((m) => ({ id: m.id, name: m.name, warning: m.uninstallWarning, data: m.uninstallData })), hasData: ms.some((m) => !!m.uninstallData),
+        server: servers.find((s) => s.id === p?.serverId)?.name ?? '', selected: mods.filter((m) => p?.modules.some((x) => x.id === m)) }
+    },
+    async UninstallModules(id, mods) {
+      await wait(500)
+      const p = projects.find((x) => x.id === id)
+      if (!p) return { status: 'error', message: 'proyecto no encontrado' }
+      const runId = Math.random().toString(16).slice(2, 8)
+      setTimeout(() => {
+        mockEmit('run', { runId, projectId: id, kind: 'ev', ev: { ev: 'stage', name: 'Ejecutando Ansible' } })
+        projects = projects.map((x) => (x.id === id ? { ...x, modules: x.modules.filter((m) => !mods.includes(m.id)), installedModules: (x.installedModules ?? []).filter((m) => !mods.includes(m)) } : x))
+        save('projects', projects)
+        mockEmit('run', { runId, projectId: id, kind: 'ev', ev: { ev: 'notice', msg: 'Desinstalado del servidor (demo).' } })
+        mockEmit('run', { runId, projectId: id, kind: 'done', summary: { at: new Date().toISOString(), check: false, ok: true, changed: mods.length, failed: 0, tasks: mods.length, durationMs: 1500, uninstall: true } })
+      }, 1200)
+      return { status: 'started', runId }
+    },
     async SetProjectSecret(id, variable, value) {
       if (!vault.exists) throw 'VAULT_MISSING: no hay bóveda'
       if (!vault.unlocked) throw 'VAULT_LOCKED: la bóveda está bloqueada'
@@ -725,7 +766,7 @@ function mockBackend(): Backend {
 }
 
 const MOCK_MODULES: Module[] = [
-  { id: 'base', name: 'Sistema base', version: '1.0.0', category: '1 · Sistema', source: 'builtin', depends: [], requires: { os: ['ubuntu', 'debian'] },
+  { id: 'base', name: 'Sistema base', version: '1.0.0', category: '1 · Sistema', noUninstall: "son los paquetes y ajustes básicos del sistema (zona horaria, swap, actualizaciones de seguridad); otros programas los usan y quitarlos podría romperlos.", source: 'builtin', depends: [], requires: { os: ['ubuntu', 'debian'] },
     description: 'Paquetes básicos, zona horaria, memoria de intercambio (swap) y actualizaciones de seguridad automáticas.',
     files: ['tasks/main.yml'],
     variables: [
@@ -734,18 +775,18 @@ const MOCK_MODULES: Module[] = [
       { name: 'base_swap_mb', label: 'Swap (MB)', help: 'Memoria de intercambio en /swapfile. 0 = no crear.', type: 'int', default: 2048, min: 0, max: 65536 },
       { name: 'base_auto_updates', label: 'Actualizaciones de seguridad automáticas', type: 'bool', default: true },
     ] },
-  { id: 'firewall', name: 'Cortafuegos (iptables)', version: '1.0.0', category: '1 · Sistema', source: 'builtin', depends: ['base'], requires: { os: ['ubuntu', 'debian'] },
+  { id: 'firewall', name: 'Cortafuegos (iptables)', version: '1.0.0', category: '1 · Sistema', uninstallable: true, uninstallWarning: "Quita las reglas que abrió Draupnode en iptables (salvo el SSH, para no perder la conexión). Las demás reglas del servidor no se tocan.", source: 'builtin', depends: ['base'], requires: { os: ['ubuntu', 'debian'] },
     description: 'Abre en el cortafuegos del servidor los puertos TCP indicados y guarda las reglas para que sobrevivan a un reinicio.',
     files: ['tasks/main.yml', 'handlers/main.yml'],
     variables: [{ name: 'firewall_tcp_ports', label: 'Puertos TCP abiertos', help: 'El 22 (SSH) se abre siempre.', type: 'list', default: ['22', '80', '443'], pattern: '^[0-9]{1,5}$', patternHelp: 'Número de puerto entre 1 y 65535' }] },
-  { id: 'docker', name: 'Docker', version: '1.0.0', category: '2 · Contenedores', source: 'builtin', depends: ['base'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900, minDiskGb: 10 },
+  { id: 'docker', name: 'Docker', version: '1.0.0', category: '2 · Contenedores', uninstallable: true, uninstallWarning: "Para y desinstala Docker. Se paran TODOS los contenedores del servidor, también los que no instaló Draupnode.", uninstallData: "Borrar también /var/lib/docker y /var/lib/containerd (imágenes, contenedores y volúmenes de TODAS las apps). Sin esto, si reinstalas Docker vuelve a estar todo.", source: 'builtin', depends: ['base'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900, minDiskGb: 10 },
     description: 'Instala Docker Engine con el script oficial, lo deja arrancado y da permisos a tu usuario.',
     files: ['tasks/main.yml', 'handlers/main.yml'],
     variables: [
       { name: 'docker_classic_storage', label: 'Almacenamiento clásico overlay2', help: 'Necesario para ver CPU/RAM por contenedor en la monitorización.', type: 'bool', default: true },
       { name: 'docker_users', label: 'Otros usuarios en el grupo docker', type: 'list', default: [] },
     ] },
-  { id: 'coolify', name: 'Coolify', version: '1.0.0', category: '3 · Plataformas', source: 'builtin', depends: ['docker', 'firewall'], requires: { os: ['ubuntu', 'debian'], minRamMb: 1800, minDiskGb: 30 },
+  { id: 'coolify', name: 'Coolify', version: '1.0.0', category: '3 · Plataformas', uninstallable: true, uninstallWarning: "Para y quita los contenedores de Coolify (panel, base de datos, proxy). Las apps que desplegaste con Coolify dejan de verse por su dominio, porque su proxy se quita; sus contenedores no se borran.", uninstallData: "Borrar también /data/coolify y sus volúmenes (la configuración del panel, usuarios, claves SSH y copias). Sin esto, si reinstalas Coolify vuelve todo como estaba.", source: 'builtin', depends: ['docker', 'firewall'], requires: { os: ['ubuntu', 'debian'], minRamMb: 1800, minDiskGb: 30 },
     description: "Panel para desplegar tus apps desde GitHub/GitLab con dominio y HTTPS automáticos (proxy Traefik + Let's Encrypt).",
     files: ['tasks/main.yml'],
     firewallPorts: [8000, 6001, 6002], secrets: [{ file: 'coolify_admin', label: 'Administrador de Coolify' }], variables: [
@@ -753,7 +794,7 @@ const MOCK_MODULES: Module[] = [
       { name: 'coolify_admin_user', label: 'Nombre del administrador', type: 'string', default: 'admin', pattern: '^[A-Za-z0-9._-]{3,40}$', patternHelp: '3 a 40 letras, números, . _ o -' },
       { name: 'coolify_autoupdate', label: 'Actualizaciones automáticas', help: 'Coolify se actualiza solo a cada versión nueva. Desactívalo si prefieres actualizar tú desde el panel.', type: 'bool', default: true },
     ] },
-  { id: 'ssh', name: 'SSH seguro + fail2ban', version: '1.0.0', category: '1 · Sistema', source: 'builtin', depends: ['base'], after: ['firewall'], firewallPortsFrom: ['ssh_port'], requires: { os: ['ubuntu', 'debian'] },
+  { id: 'ssh', name: 'SSH seguro + fail2ban', version: '1.0.0', category: '1 · Sistema', uninstallable: true, uninstallWarning: "Quita el endurecimiento y fail2ban. El SSH NO se desinstala (es por donde se conecta Draupnode) - vuelve a su configuración de antes; si el servidor la traía así, puede volver a aceptar contraseñas.", source: 'builtin', depends: ['base'], after: ['firewall'], firewallPortsFrom: ['ssh_port'], requires: { os: ['ubuntu', 'debian'] },
     description: 'Cierra el SSH a lo imprescindible (sin root, sin contraseñas, pocos intentos) y bloquea con fail2ban a quien pruebe contraseñas.',
     files: ['tasks/main.yml', 'handlers/main.yml', 'templates/01-draupnode.conf.j2', 'templates/jail-draupnode.local.j2'],
     variables: [
@@ -767,7 +808,7 @@ const MOCK_MODULES: Module[] = [
       { name: 'ssh_fail2ban_bantime', label: 'Tiempo de bloqueo', help: 'Quien reincide se bloquea una semana (cárcel «recidive»).', type: 'select', options: ['10m', '1h', '1d', '1w'], default: '1h' },
       { name: 'ssh_fail2ban_ignore', label: 'IPs que nunca se bloquean', help: 'Además de la tuya, que se añade sola. Una por línea (IP o red, p. ej. 203.0.113.0/24).', type: 'list', default: [] },
     ] },
-  { id: 'postgres', name: 'PostgreSQL compartido', version: '1.0.0', category: '4 · Bases de datos', source: 'builtin', depends: ['docker'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900 },
+  { id: 'postgres', name: 'PostgreSQL compartido', version: '1.0.0', category: '4 · Bases de datos', uninstallable: true, uninstallWarning: "Para y quita el contenedor de PostgreSQL. Las apps que lo usan dejan de tener base de datos.", uninstallData: "Borrar también los DATOS de todas las bases y sus contraseñas. No se puede deshacer.", source: 'builtin', depends: ['docker'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900 },
     description: 'Un PostgreSQL en Docker para todas tus apps, con una base y un usuario por app. Las contraseñas se generan en el servidor.',
     files: ['tasks/main.yml', 'templates/docker-compose.yml.j2'], checks: [{ containerFree: 'postgres_container' }],
     secrets: [{ file: 'postgres_superusuario', label: 'Superusuario «postgres»' }, { file: 'postgres_*', label: 'Usuario de la base' }],

@@ -9,6 +9,7 @@ details: |
   crea /swapfile si se pide y activa unattended-upgrades para los parches de seguridad.
 requires:
   os: [ubuntu, debian]
+no_uninstall: son los paquetes y ajustes básicos del sistema (zona horaria, swap, actualizaciones de seguridad); otros programas los usan y quitarlos podría romperlos.
 variables:
   - name: base_packages
     label: Paquetes a instalar

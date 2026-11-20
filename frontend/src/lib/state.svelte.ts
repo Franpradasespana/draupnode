@@ -22,6 +22,8 @@ export interface RunState {
   runId: string
   projectId: string
   check: boolean
+  /** Módulos que se desinstalan (si es una desinstalación). */
+  uninstall?: string[]
   startedAt: number
   stage: string
   tasks: TaskRow[]
@@ -159,8 +161,8 @@ export function confirmDialog(o: { title: string; message: string; detail?: stri
 // Eventos que llegan antes de que la interfaz registre la ejecución.
 const pending: Record<string, RunEvent[]> = {}
 
-export function startRun(projectId: string, runId: string, check: boolean) {
-  ui.runs[projectId] = { runId, projectId, check, startedAt: Date.now(), stage: 'Conectando…', tasks: [], lines: [], notes: [], done: false }
+export function startRun(projectId: string, runId: string, check: boolean, uninstall?: string[]) {
+  ui.runs[projectId] = { runId, projectId, check, uninstall, startedAt: Date.now(), stage: 'Conectando…', tasks: [], lines: [], notes: [], done: false }
   for (const e of pending[runId] ?? []) handleRunEvent(e)
   delete pending[runId]
 }

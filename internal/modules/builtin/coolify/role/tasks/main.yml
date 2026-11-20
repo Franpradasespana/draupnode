@@ -1,8 +1,15 @@
 ---
+# Instalado = existe su contenedor. (/data/coolify puede quedar tras una
+# desinstalación sin borrar datos: el instalador oficial lo reaprovecha.)
 - name: ¿Está Coolify instalado?
-  ansible.builtin.stat:
-    path: /data/coolify/source
-  register: coolify_instalado
+  ansible.builtin.shell: docker inspect --type container coolify >/dev/null 2>&1 && echo si || echo no
+  register: coolify_ctr
+  changed_when: false
+  check_mode: false
+
+- name: Estado de Coolify
+  ansible.builtin.set_fact:
+    coolify_instalado: "{{ {'stat': {'exists': coolify_ctr.stdout == 'si'}} }}"
 
 - name: Contraseña del administrador de Coolify (se genera en el servidor la primera vez)
   ansible.builtin.set_fact:
@@ -37,8 +44,6 @@
 
     - name: Ejecutar el instalador de Coolify (tarda varios minutos)
       ansible.builtin.command: bash /tmp/coolify-install.sh
-      args:
-        creates: /data/coolify/source/.env
       environment:
         DEBIAN_FRONTEND: noninteractive
         AUTOUPDATE: "{{ 'true' if coolify_autoupdate | bool else 'false' }}"

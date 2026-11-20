@@ -1,0 +1,57 @@
+---
+- name: ¿Está Docker instalado?
+  ansible.builtin.stat:
+    path: /usr/bin/docker
+  register: docker_bin
+
+- name: Contenedores que se van a parar
+  ansible.builtin.shell: docker ps -q | wc -l
+  register: docker_vivos
+  changed_when: false
+  check_mode: false
+  when: docker_bin.stat.exists
+
+- name: Parar Docker
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop: [docker.socket, docker, containerd]
+  failed_when: false
+  when: docker_bin.stat.exists
+
+- name: Desinstalar los paquetes de Docker
+  ansible.builtin.apt:
+    name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin, docker-ce-rootless-extras, docker-model-plugin]
+    state: absent
+    purge: true
+    lock_timeout: 600
+
+- name: Quitar el repositorio de Docker
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/docker.list
+    - /etc/apt/sources.list.d/docker.sources
+    - /etc/apt/keyrings/docker.asc
+    - /etc/apt/keyrings/docker.gpg
+
+# Se vacían (no se borra la carpeta): pueden ser puntos de montaje, p. ej. un
+# disco aparte para Docker.
+- name: Borrar imágenes, contenedores y volúmenes
+  ansible.builtin.shell: |
+    for d in /var/lib/docker /var/lib/containerd; do
+      [ -d "$d" ] || continue
+      awk -v d="$d/" 'index($2, d) == 1 { print $2 }' /proc/mounts | sort -r | xargs -r umount -l
+      find "$d" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+    done
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Docker {{ 'se desinstalará' if ansible_check_mode else 'desinstalado' }}{% if docker_vivos.stdout is defined %}
+      ({{ docker_vivos.stdout | trim }} contenedor(es) en marcha {{ 'se pararán' if ansible_check_mode else 'parados' }}){% endif %}.
+      {{ 'Borrados también /var/lib/docker y /var/lib/containerd.' if draupnode_uninstall_purge | bool
+         else 'Imágenes, contenedores y volúmenes siguen en /var/lib/docker: si reinstalas Docker, vuelven.' }}

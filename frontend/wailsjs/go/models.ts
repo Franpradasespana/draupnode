@@ -446,6 +446,64 @@ export namespace main {
 	        this.durationMs = source["durationMs"];
 	    }
 	}
+	export class UninstallInfo {
+	    id: string;
+	    name: string;
+	    warning?: string;
+	    data?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UninstallInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.warning = source["warning"];
+	        this.data = source["data"];
+	    }
+	}
+	export class UninstallCheck {
+	    ok: boolean;
+	    error?: string;
+	    modules: UninstallInfo[];
+	    hasData: boolean;
+	    server: string;
+	    selected: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new UninstallCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.error = source["error"];
+	        this.modules = this.convertValues(source["modules"], UninstallInfo);
+	        this.hasData = source["hasData"];
+	        this.server = source["server"];
+	        this.selected = source["selected"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 
@@ -543,6 +601,10 @@ export namespace modules {
 	    after?: string[];
 	    checks?: Check[];
 	    secrets?: SecretFile[];
+	    uninstallable: boolean;
+	    uninstallWarning?: string;
+	    uninstallData?: string;
+	    noUninstall?: string;
 	    source: string;
 	    files: string[];
 	
@@ -567,6 +629,10 @@ export namespace modules {
 	        this.after = source["after"];
 	        this.checks = this.convertValues(source["checks"], Check);
 	        this.secrets = this.convertValues(source["secrets"], SecretFile);
+	        this.uninstallable = source["uninstallable"];
+	        this.uninstallWarning = source["uninstallWarning"];
+	        this.uninstallData = source["uninstallData"];
+	        this.noUninstall = source["noUninstall"];
 	        this.source = source["source"];
 	        this.files = source["files"];
 	    }
@@ -735,6 +801,7 @@ export namespace store {
 	    error?: string;
 	    logFile?: string;
 	    durationMs: number;
+	    uninstall?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new RunSummary(source);
@@ -752,6 +819,7 @@ export namespace store {
 	        this.error = source["error"];
 	        this.logFile = source["logFile"];
 	        this.durationMs = source["durationMs"];
+	        this.uninstall = source["uninstall"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -801,6 +869,7 @@ export namespace store {
 	    collapsed?: string[];
 	    slug?: string;
 	    installedModules?: string[];
+	    installedValues?: Record<string, any>;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -819,6 +888,7 @@ export namespace store {
 	        this.collapsed = source["collapsed"];
 	        this.slug = source["slug"];
 	        this.installedModules = source["installedModules"];
+	        this.installedValues = source["installedValues"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

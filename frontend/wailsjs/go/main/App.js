@@ -14,6 +14,10 @@ export function CheckProject(arg1) {
   return window['go']['main']['App']['CheckProject'](arg1);
 }
 
+export function CheckUninstall(arg1, arg2) {
+  return window['go']['main']['App']['CheckUninstall'](arg1, arg2);
+}
+
 export function DeleteProject(arg1) {
   return window['go']['main']['App']['DeleteProject'](arg1);
 }
@@ -140,6 +144,10 @@ export function SetSecretBackend(arg1) {
 
 export function TestConnection(arg1, arg2, arg3) {
   return window['go']['main']['App']['TestConnection'](arg1, arg2, arg3);
+}
+
+export function UninstallModules(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['UninstallModules'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function VaultCreate(arg1) {

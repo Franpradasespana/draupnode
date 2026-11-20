@@ -41,7 +41,7 @@
 # Comprobaciones «container_free» de los módulos: un contenedor con ese nombre
 # que no sea de este proyecto (etiqueta draupnode.proyecto) chocaría con él.
 - name: Buscar contenedores con el mismo nombre
-  ansible.builtin.shell: command -v docker >/dev/null && docker inspect {{ item.name | quote }} 2>/dev/null || true
+  ansible.builtin.shell: command -v docker >/dev/null && docker inspect --type container {{ item.name | quote }} 2>/dev/null || true
   register: preflight_ctr
   changed_when: false
   check_mode: false

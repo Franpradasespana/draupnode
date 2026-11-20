@@ -206,3 +206,26 @@ func TestScriptSinSSHClient(t *testing.T) {
 		}
 	}
 }
+
+func TestPlaybookDesinstalar(t *testing.T) {
+	sel := selection(t, []string{"postgres"}, nil) // base, docker, postgres
+	o := opts()
+	o.Uninstall, o.Purge = true, true
+	if _, err := SiteYAML(o, sel); err == nil || !strings.Contains(err.Error(), "Sistema base") {
+		t.Fatalf("base no se puede desinstalar: %v", err)
+	}
+	sel = sel[1:] // docker, postgres
+	site, err := SiteYAML(o, sel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	y := string(site)
+	ip, id := strings.Index(y, "name: postgres"), strings.Index(y, "name: docker")
+	if ip < 0 || id < 0 || ip > id || !strings.Contains(y, "tasks_from: uninstall") || !strings.Contains(y, "draupnode_uninstall_purge: true") || strings.Contains(y, "draupnode_preflight") {
+		t.Fatalf("orden inverso / purge:\n%s", y)
+	}
+	sc, _ := Script(o, sel)
+	if !strings.Contains(string(sc), "DESINSTALAR postgres → docker") {
+		t.Fatal("cabecera")
+	}
+}

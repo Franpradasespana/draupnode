@@ -180,3 +180,18 @@ Petición del usuario tras la primera prueba:
 - Lista de módulos del editor: **verde** = instalado en el servidor por este proyecto; **azul** = marcado, se instalará al aplicar; **ámbar** = lo necesita otro módulo marcado; borde verde discontinuo sin marcar = sigue instalado pero el proyecto ya no lo gestiona. Leyenda arriba de la lista. Colores fijos nuevos `--info` y `--warning` (con versión para temas oscuros).
 - Nuevo `Project.installedModules`: lo rellena una aplicación correcta (o una simulación sin nada pendiente) y solo crece. Los proyectos aplicados antes y sin cambios desde entonces se rellenan al abrir.
 - **Quitar un módulo del proyecto NO lo desinstala del servidor** (Ansible solo ejecuta lo marcado). Al desmarcar uno instalado, la app lo explica y pide confirmar. Desinstalar queda como posible mejora (cada módulo necesitaría su rol de desinstalación).
+
+## 2026-11-20 · 0.9.0 · Desinstalar módulos del servidor
+
+- Un módulo se puede desinstalar si su rol trae `tasks/uninstall.yml`. En `module.yaml`: `uninstall_warning` (qué pasa), `uninstall_data` (qué datos se borran si se marca «Borrar también los datos») y `no_uninstall` (por qué no se puede).
+- **Al desmarcar un módulo instalado**: «Solo quitar del proyecto» (sigue instalado; borde discontinuo con botón «Desinstalar del servidor…») o «Desinstalar del servidor». Para desinstalar hay que escribir DESINSTALAR; casilla «Borrar también los datos» si el módulo tiene datos.
+- Reglas (backend, `app_uninstall.go`): solo lo instalado por el proyecto; no si otro módulo instalado o marcado depende de él (Docker con PostgreSQL/Coolify encima); Sistema base nunca; «SSH seguro» solo con el puerto 22 (también lo comprueba el rol). El SSH en sí nunca se toca: desinstalar «SSH seguro» solo quita el endurecimiento y fail2ban.
+- Se desinstala con los valores con los que se instaló (`Project.installedValues`), aunque ya esté desmarcado. Playbook propio (orden inverso, `include_role … tasks_from: uninstall`, sin preflight). Al terminar bien: fuera del proyecto y de lo instalado, sin contar como cambio; la desinstalación no cuenta como «aplicado». Las contraseñas de la bóveda se sincronizan con lo que queda en el servidor.
+- Qué hace cada uno:
+  - **Cortafuegos**: quita las reglas con etiqueta draupnode/draupnode-coolify salvo el 22 y el puerto actual del SSH; iptables sigue instalado.
+  - **Docker**: para y purga los paquetes y su repositorio. Datos: vacía `/var/lib/docker` y `/var/lib/containerd` (no borra la carpeta: puede ser un punto de montaje).
+  - **Coolify**: quita sus contenedores. Datos: volúmenes, red, `/data/coolify` y su contraseña de administrador. Sin datos, reinstalar lo deja como estaba (ahora «instalado» = existe el contenedor `coolify`, no la carpeta).
+  - **PostgreSQL**: `docker compose down`. Datos: `-v`, su carpeta y sus contraseñas. Sin datos, reinstalar recupera las bases y las mismas contraseñas.
+  - **SSH seguro**: quita `01-draupnode.conf` (con `sshd -t`), recarga, comprueba el 22 y desinstala fail2ban.
+- `docker inspect --type container` en todas las comprobaciones (sin él, la red «coolify» contaba como contenedor).
+- **Probado** en un Ubuntu 24.04 limpio y desechable con la app por dentro: instalar todo (Cortafuegos, SSH, Docker, PostgreSQL, Coolify con administrador) → Docker bloqueado → PostgreSQL sin datos y reinstalado (la tabla de prueba y la contraseña siguen) → Coolify sin datos y reinstalado (responde) → PostgreSQL + Coolify borrando datos (no queda nada, ni en la bóveda) → SSH seguro (el SSH sigue respondiendo) → Cortafuegos (queda el 22) → Docker borrando datos (carpetas vacías) → simulación final 0 cambios. Diálogo probado en la demo (dos pasos, sin errores de JavaScript).

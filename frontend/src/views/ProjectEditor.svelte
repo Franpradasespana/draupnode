@@ -5,8 +5,9 @@
   import SecretField from '../components/SecretField.svelte'
   import RunPanel from '../components/RunPanel.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
+  import UninstallDialog from '../components/UninstallDialog.svelte'
   import { orderModules, clashesWith, modulePorts } from '../lib/modules'
-  import { api, errorText, type Module, type Project, type ProjectCheck } from '../lib/api'
+  import { api, errorText, type Module, type Project, type ProjectCheck, type RunStart, type UninstallCheck, type UninstallChoice } from '../lib/api'
   import {
     ui, toast, refreshProjects, moduleName, timeAgo, startRun, ask, confirmDialog, requestVault,
   } from '../lib/state.svelte'
@@ -124,12 +125,9 @@
       }
       if (installed.has(mid)) {
         box.checked = true
-        const ok = await confirmDialog({
-          title: `Quitar ${moduleName(mid)} del proyecto`,
-          message: `Quitarlo NO lo desinstala: ${moduleName(mid)} seguirá instalado y funcionando en el servidor. Draupnode solo dejará de gestionarlo (no lo comprobará ni lo actualizará al aplicar). Si quieres desinstalarlo, hay que hacerlo en el servidor.`,
-          confirmLabel: 'Quitar del proyecto',
-        })
-        if (!ok) return
+        const c = await askUninstall([mid], true)
+        if (!c) return
+        if (c.action === 'uninstall') return uninstall([mid], c.purge)
       }
       draft.modules = draft.modules.filter((x) => x.id !== mid)
       return
@@ -246,12 +244,46 @@
       })
       if (!ok) return
     }
+    await launch((s, a, u) => api.RunProject(draft.id, dry, s, a, u), (runId) => startRun(draft.id, runId, dry))
+  }
+
+  // ---- desinstalar ----
+  let uninstallPrompt = $state<{ check: UninstallCheck; allowRemove: boolean; resolve: (c: UninstallChoice) => void } | null>(null)
+  async function askUninstall(mods: string[], allowRemove: boolean): Promise<UninstallChoice> {
+    const check = await api.CheckUninstall(draft.id, mods)
+    return new Promise((resolve) => {
+      uninstallPrompt = { check, allowRemove, resolve: (c) => { uninstallPrompt = null; resolve(c) } }
+    })
+  }
+  async function uninstall(mods: string[], purge: boolean) {
+    if (!(await ensureSaved())) return
+    await launch((s, a, u) => api.UninstallModules(draft.id, mods, purge, s, a, u), (runId) => startRun(draft.id, runId, false, mods))
+  }
+  async function uninstallLeft(mid: string) {
+    const c = await askUninstall([mid], false)
+    if (c?.action === 'uninstall') await uninstall([mid], c.purge)
+  }
+  // Al terminar bien una desinstalación, esos módulos salen del borrador
+  // (el backend ya los quitó del proyecto; así no se vuelven a guardar).
+  let handledRun = ''
+  $effect(() => {
+    const r = run
+    if (!r?.done || !r.summary?.ok || !r.uninstall?.length || handledRun === r.runId) return
+    handledRun = r.runId
+    untrack(() => {
+      draft.modules = draft.modules.filter((m) => !r.uninstall!.includes(m.id))
+      savedKey = contentKey(draft)
+    })
+  })
+
+  // Lanza una ejecución pidiendo lo que haga falta (contraseña, huella, sudo, bóveda).
+  async function launch(call: (secret: string, accept: string, sudo: string) => Promise<RunStart>, started: (runId: string) => void) {
     let secret = '', accept = '', sudo = ''
     for (let i = 0; i < 6; i++) {
-      const r = await api.RunProject(draft.id, dry, secret, accept, sudo)
+      const r = await call(secret, accept, sudo)
       switch (r.status) {
         case 'started':
-          startRun(draft.id, r.runId!, dry)
+          started(r.runId!)
           return
         case 'needs_secret':
         case 'bad_secret': {
@@ -358,6 +390,10 @@
   <RunPanel {run} onclose={closeRun} />
 {/if}
 
+{#if uninstallPrompt}
+  <UninstallDialog check={uninstallPrompt.check} allowRemove={uninstallPrompt.allowRemove} done={uninstallPrompt.resolve} />
+{/if}
+
 {#if draft.id}
   <ProjectSecrets projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} />
 {/if}
@@ -397,7 +433,11 @@
             <span>{m.description}</span>
             {#if sel && inst}<em class="ok"><CircleCheck size={11} /> instalado en el servidor</em>
             {:else if sel}<em class="new">se instalará al aplicar</em>
-            {:else if inst}<em class="left">sigue instalado en el servidor (ya no lo gestiona este proyecto)</em>{/if}
+            {:else if inst}<em class="left">sigue instalado en el servidor (ya no lo gestiona este proyecto)</em>
+              {#if m.uninstallable && !m.noUninstall}
+                <button class="btn sm ghost uninst" onclick={(e) => { e.preventDefault(); uninstallLeft(m.id) }} disabled={running}><Trash2 size={12} /> Desinstalar del servidor…</button>
+              {/if}
+            {/if}
             {#if isDep && sel}<em class="req"><Lock size={11} /> lo necesita {users.join(', ')}</em>{/if}
             {#if clash.length}<em><Lock size={11} /> choca con {clash.map(moduleName).join(', ')}</em>{/if}
             {#if m.firewallPorts?.length}<em class="ports">abre los puertos {m.firewallPorts.join(', ')} en el Cortafuegos</em>{/if}
@@ -493,6 +533,7 @@
   .pick em.ok, .pick em.left { color: var(--success); }
   .pick em.new { color: var(--info); }
   .pick em.req { color: var(--warning); }
+  .uninst { align-self: flex-start; margin-top: 4px; color: var(--danger); }
   .pick em.ports { color: var(--muted); }
   .forms { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px; text-align: center; color: var(--muted); }

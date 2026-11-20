@@ -19,6 +19,8 @@ secrets:
     label: Superusuario «postgres»
   - file: postgres_*
     label: Usuario de la base
+uninstall_warning: Para y quita el contenedor de PostgreSQL. Las apps que lo usan dejan de tener base de datos.
+uninstall_data: Borrar también los DATOS de todas las bases y sus contraseñas. No se puede deshacer.
 variables:
   - name: postgres_version
     label: Versión de PostgreSQL

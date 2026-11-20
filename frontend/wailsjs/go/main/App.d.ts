@@ -10,6 +10,8 @@ export function CancelRun(arg1:string):Promise<boolean>;
 
 export function CheckProject(arg1:store.Project):Promise<main.ProjectCheck>;
 
+export function CheckUninstall(arg1:string,arg2:Array<string>):Promise<main.UninstallCheck>;
+
 export function DeleteProject(arg1:string):Promise<void>;
 
 export function DeleteServer(arg1:string):Promise<void>;
@@ -73,6 +75,8 @@ export function SetProjectSecret(arg1:string,arg2:string,arg3:string):Promise<vo
 export function SetSecretBackend(arg1:string):Promise<void>;
 
 export function TestConnection(arg1:string,arg2:string,arg3:string):Promise<main.TestResult>;
+
+export function UninstallModules(arg1:string,arg2:Array<string>,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<main.RunStart>;
 
 export function VaultCreate(arg1:string):Promise<void>;
 

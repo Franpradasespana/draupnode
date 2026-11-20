@@ -413,6 +413,29 @@ func (a *App) RunProject(id string, check bool, secret, accept, sudoPassword str
 		}
 		return RunStart{Status: "error", Message: err.Error()}
 	}
+	return a.launch(p, srv, script, runMode{check: check}, secret, accept, sudoPassword)
+}
+
+// runMode: qué hace una ejecución.
+type runMode struct {
+	check     bool
+	uninstall []string // módulos que se desinstalan (vacío = instalar/aplicar)
+}
+
+func (m runMode) label() string {
+	switch {
+	case len(m.uninstall) > 0:
+		return "desinstalar"
+	case m.check:
+		return "previsualizar"
+	}
+	return "aplicar"
+}
+
+// launch conecta (pidiendo lo que haga falta), comprueba sudo y lanza el
+// script en segundo plano.
+func (a *App) launch(p store.Project, srv store.Server, script []byte, mode runMode, secret, accept, sudoPassword string) RunStart {
+	id := p.ID
 	kind := "passphrase"
 	if srv.AuthMethod == store.AuthPassword {
 		kind = "password"
@@ -448,7 +471,7 @@ func (a *App) RunProject(id string, check bool, secret, accept, sudoPassword str
 	a.runs[runID] = cancel
 	a.runs["p:"+id] = cancel
 	a.runMu.Unlock()
-	go a.runInBackground(ctx, runID, p, c, script, check, su)
+	go a.runInBackground(ctx, runID, p, c, script, mode, su)
 	return RunStart{Status: "started", RunID: runID}
 }
 
@@ -463,7 +486,8 @@ func (a *App) CancelRun(runID string) bool {
 	return ok
 }
 
-func (a *App) runInBackground(ctx context.Context, runID string, p store.Project, c *ssh.Client, script []byte, check bool, su runner.Sudo) {
+func (a *App) runInBackground(ctx context.Context, runID string, p store.Project, c *ssh.Client, script []byte, rm runMode, su runner.Sudo) {
+	check := rm.check
 	start := time.Now()
 	defer func() {
 		_ = c.Close()
@@ -472,10 +496,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		delete(a.runs, "p:"+p.ID)
 		a.runMu.Unlock()
 	}()
-	mode := "aplicar"
-	if check {
-		mode = "previsualizar"
-	}
+	mode := rm.label()
 	logDir := filepath.Join(a.store.Dir(), "runs", p.ID)
 	_ = os.MkdirAll(logDir, 0o700)
 	logPath := filepath.Join(logDir, start.Format("2006-01-02_15-04-05")+"-"+mode+".log")
@@ -485,20 +506,20 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		lw = bufio.NewWriter(lf)
 		fmt.Fprintf(lw, "# Draupnode %s · %s · %s · %s\n", Version, p.Name, mode, start.Format(time.RFC3339))
 	}
-	sum := store.RunSummary{At: start, Check: check, LogFile: logPath}
+	sum := store.RunSummary{At: start, Check: check, LogFile: logPath, Uninstall: len(rm.uninstall) > 0}
 	send := func(e RunEvent) {
 		e.RunID, e.ProjectID = runID, p.ID
 		a.emit("run", e)
 	}
 	var secretsMsg string
-	code, err := runner.RunOpts(ctx, c, script, runner.Opts{Check: check, SecretsBack: true}, su, func(e runner.Event) {
+	code, err := runner.RunOpts(ctx, c, script, runner.Opts{Check: check, SecretsBack: len(rm.uninstall) == 0 || a.vault.Status().Unlocked}, su, func(e runner.Event) {
 		if e.Kind == "secrets" {
 			// Nunca al registro ni a la interfaz: directo a la bóveda.
 			n, err := a.storeGenerated(p.ID, e.Text)
 			switch {
 			case err != nil:
 				secretsMsg = "No se pudieron guardar en la bóveda las contraseñas generadas: " + vaultErr(err).Error() + ". Vuelve a Aplicar con la bóveda desbloqueada."
-			case n > 0:
+			case n > 0 && len(rm.uninstall) == 0:
 				secretsMsg = fmt.Sprintf("%d contraseña(s) del servidor guardadas en tu bóveda: míralas en «Contraseñas del proyecto».", n)
 			}
 			return
@@ -538,7 +559,21 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 	if secretsMsg != "" {
 		notice(secretsMsg)
 	}
-	if sum.OK && !check {
+	switch {
+	case sum.OK && len(rm.uninstall) > 0:
+		if err := a.store.MarkUninstalled(p.ID, rm.uninstall); err != nil {
+			notice("Desinstalado, pero no se pudo actualizar el proyecto: " + err.Error())
+		} else {
+			names := make([]string, len(rm.uninstall))
+			for i, m := range rm.uninstall {
+				names[i] = m
+				if mod, ok := a.cat().Get(m); ok {
+					names[i] = mod.Name
+				}
+			}
+			notice("Desinstalado del servidor: " + strings.Join(names, ", ") + ". Ya no forma parte del proyecto.")
+		}
+	case sum.OK && !check:
 		if msg := a.afterApply(p); msg != "" {
 			notice(msg)
 		}
