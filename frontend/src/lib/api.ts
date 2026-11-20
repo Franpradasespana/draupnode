@@ -153,6 +153,7 @@ export interface Project {
   updatedAt?: string
   lastRun?: RunSummary | null
   appliedAt?: string | null
+  collapsed?: string[] | null
 }
 
 export interface ProjectCheck {
@@ -254,6 +255,7 @@ interface Backend {
   CheckProject(p: Project): Promise<ProjectCheck>
   SaveProject(p: Project): Promise<Project>
   DeleteProject(id: string): Promise<void>
+  SetProjectCollapsed(id: string, modules: string[]): Promise<void>
   ExportProject(id: string): Promise<string>
   RunProject(id: string, check: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   CancelRun(runId: string): Promise<boolean>
@@ -493,13 +495,17 @@ function mockBackend(): Backend {
       const prev = projects.find((x) => x.id === p.id)
       const same = prev && JSON.stringify([prev.name, prev.serverId, prev.modules]) === JSON.stringify([p.name.trim(), p.serverId, mods])
       const np: Project = { ...p, name: p.name.trim(), modules: mods, id: p.id || Math.random().toString(16).slice(2, 10),
-        updatedAt: same ? prev!.updatedAt : new Date().toISOString(), lastRun: prev?.lastRun, appliedAt: prev?.appliedAt }
+        updatedAt: same ? prev!.updatedAt : new Date().toISOString(), lastRun: prev?.lastRun, appliedAt: prev?.appliedAt, collapsed: prev?.collapsed }
       projects = prev ? projects.map((x) => (x.id === np.id ? np : x)) : [...projects, np]
       save('projects', projects)
       return np
     },
     async DeleteProject(id) {
       projects = projects.filter((p) => p.id !== id)
+      save('projects', projects)
+    },
+    async SetProjectCollapsed(id, modules) {
+      projects = projects.map((p) => (p.id === id ? { ...p, collapsed: [...modules].sort() } : p))
       save('projects', projects)
     },
     async ExportProject() {
@@ -672,8 +678,12 @@ const MOCK_MODULES: Module[] = [
     ] },
   { id: 'coolify', name: 'Coolify', version: '1.0.0', category: '3 · Plataformas', source: 'builtin', depends: ['docker', 'firewall'], requires: { os: ['ubuntu', 'debian'], minRamMb: 1800, minDiskGb: 30 },
     description: "Panel para desplegar tus apps desde GitHub/GitLab con dominio y HTTPS automáticos (proxy Traefik + Let's Encrypt).",
-    files: ['tasks/main.yml', 'handlers/main.yml'],
-    firewallPorts: [8000, 6001, 6002], variables: [] },
+    files: ['tasks/main.yml'],
+    firewallPorts: [8000, 6001, 6002], variables: [
+      { name: 'coolify_admin_email', label: 'Correo del administrador', help: 'Vacío = el primero que entre al panel crea el administrador.', type: 'string', default: '', placeholder: 'tu@ejemplo.com', pattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$', patternHelp: 'Un correo válido (nombre@dominio.ext)' },
+      { name: 'coolify_admin_user', label: 'Nombre del administrador', type: 'string', default: 'admin', pattern: '^[A-Za-z0-9._-]{3,40}$', patternHelp: '3 a 40 letras, números, . _ o -' },
+      { name: 'coolify_autoupdate', label: 'Actualizaciones automáticas', help: 'Coolify se actualiza solo a cada versión nueva. Desactívalo si prefieres actualizar tú desde el panel.', type: 'bool', default: true },
+    ] },
   { id: 'postgres', name: 'PostgreSQL compartido', version: '1.0.0', category: '4 · Bases de datos', source: 'builtin', depends: ['docker'], requires: { os: ['ubuntu', 'debian'], minRamMb: 900 },
     description: 'Un PostgreSQL en Docker para todas tus apps, con una base y un usuario por app. Las contraseñas se generan en el servidor.',
     files: ['tasks/main.yml', 'templates/docker-compose.yml.j2'],

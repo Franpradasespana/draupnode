@@ -82,3 +82,28 @@ func TestProyectos(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPlegadoNoEsCambio(t *testing.T) {
+	s, _ := Open(t.TempDir())
+	srv, _ := s.SaveServer(Server{Name: "o", Host: "203.0.113.10", User: "u", AuthMethod: AuthPassword})
+	p, _ := s.SaveProject(Project{Name: "P", ServerID: srv.ID, Modules: []ProjectModule{{ID: "docker"}, {ID: "base"}}})
+	before := p.UpdatedAt
+	if err := s.SetCollapsed(p.ID, []string{"docker", "base"}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.Project(p.ID)
+	if !got.UpdatedAt.Equal(before) || len(got.Collapsed) != 2 || got.Collapsed[0] != "base" {
+		t.Fatalf("plegado: %+v", got)
+	}
+	// Un guardado desde el editor con el plegado viejo no lo pisa.
+	p.Collapsed = nil
+	p, _ = s.SaveProject(p)
+	if len(p.Collapsed) != 2 || !p.UpdatedAt.Equal(before) {
+		t.Fatalf("guardar perdió el plegado o contó como cambio: %+v", p)
+	}
+	// Se conserva al reabrir.
+	s2, _ := Open(s.Dir())
+	if got, _ := s2.Project(p.ID); len(got.Collapsed) != 2 {
+		t.Fatal("no persiste")
+	}
+}

@@ -38,9 +38,7 @@
 - Módulos de monitorización (Grafana + Prometheus + Loki) y copias de seguridad (restic + systemd), como en los scripts actuales.
 - Importar contraseñas de una instalación existente (`/srv/apps/secretos.env`).
 
-### Pendiente (anotado 2026-11-20, para la siguiente sesión)
+### Hecho el 2026-11-20 (0.7.0)
 
-- **Editor de proyectos · orden de las ventanas**: al marcar un módulo, su ventana aparece al final y luego salta a su sitio cuando llega el orden del backend. Calcular el orden (dependencias) en la propia interfaz antes de mostrarla, para que aparezca ya en su posición.
-- **Editor de proyectos · recordar plegado**: recordar qué ventanas de módulo están plegadas o desplegadas (por proyecto y módulo) para que al volver a entrar se muestren igual.
-- Coolify: opciones del instalador oficial (crear el administrador al instalar con contraseña generada en el servidor; actualizaciones automáticas sí/no), pendiente de que el usuario lo confirme.
-- Probar en el servidor de pruebas que los puertos de Coolify (8000, 6001, 6002) los abre ahora el Cortafuegos.
+- Orden de las ventanas calculado en la interfaz, plegado recordado por proyecto y módulo, opciones de Coolify (administrador al instalar + actualizaciones automáticas) y puertos de Coolify abiertos por el Cortafuegos (probado). Detalle en HISTORIAL.md.
+- Estudio de módulos nuevos: `docs/ESTUDIO_MODULOS.md` (orden propuesto y decisiones pendientes del usuario).

@@ -118,6 +118,10 @@ export function ServerLive(arg1) {
   return window['go']['main']['App']['ServerLive'](arg1);
 }
 
+export function SetProjectCollapsed(arg1, arg2) {
+  return window['go']['main']['App']['SetProjectCollapsed'](arg1, arg2);
+}
+
 export function SetSecretBackend(arg1) {
   return window['go']['main']['App']['SetSecretBackend'](arg1);
 }

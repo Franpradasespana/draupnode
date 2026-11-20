@@ -41,3 +41,18 @@
   loop: "{{ (['22'] + firewall_tcp_ports) | unique }}"
   when: not ansible_check_mode or firewall_iptables_bin.rc == 0
   notify: Guardar reglas de iptables
+
+# Hasta la 0.6.0 el módulo Coolify abría él mismo sus puertos con otra etiqueta;
+# ahora lo hace esta lista. Se quitan esas reglas viejas para no duplicarlas.
+- name: Quitar reglas antiguas de Coolify (etiqueta draupnode-coolify)
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ item }}"
+    ctstate: NEW
+    jump: ACCEPT
+    comment: draupnode-coolify
+    state: absent
+  loop: ["8000", "6001", "6002"]
+  when: not ansible_check_mode or firewall_iptables_bin.rc == 0
+  notify: Guardar reglas de iptables

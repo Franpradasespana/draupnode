@@ -4,6 +4,28 @@
     path: /data/coolify/source
   register: coolify_instalado
 
+- name: Contraseña del administrador de Coolify (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    # Coolify pide mayúsculas, minúsculas, números y un símbolo: se añade «-Aa9».
+    coolify_admin_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.coolify_admin_base', chars=['ascii_letters', 'digits'], length=24) ~ '-Aa9' }}"
+  no_log: true
+  when:
+    - coolify_admin_email | length > 0
+    - not coolify_instalado.stat.exists
+    - not ansible_check_mode
+
+- name: Guardar los datos del administrador en el servidor
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/coolify_admin"
+    mode: "0600"
+    force: false
+    content: |
+      Usuario: {{ coolify_admin_user }}
+      Correo: {{ coolify_admin_email }}
+      Contraseña: {{ coolify_admin_pass }}
+  no_log: true
+  when: coolify_admin_pass is defined
+
 - name: Instalar Coolify
   when: not coolify_instalado.stat.exists
   block:
@@ -19,10 +41,23 @@
         creates: /data/coolify/source/.env
       environment:
         DEBIAN_FRONTEND: noninteractive
+        AUTOUPDATE: "{{ 'true' if coolify_autoupdate | bool else 'false' }}"
+        ROOT_USERNAME: "{{ coolify_admin_user if coolify_admin_pass is defined else '' }}"
+        ROOT_USER_EMAIL: "{{ coolify_admin_email if coolify_admin_pass is defined else '' }}"
+        ROOT_USER_PASSWORD: "{{ coolify_admin_pass | default('') }}"
+      no_log: "{{ coolify_admin_pass is defined }}"
 
 - name: Nota
   ansible.builtin.debug:
     msg: >-
-      {{ ('Cuando se aplique, el panel de Coolify estará en ' ~ draupnode_coolify_url ~ '.')
-         if ansible_check_mode and not coolify_instalado.stat.exists else
-         ('Panel de Coolify: ' ~ draupnode_coolify_url ~ ' — entra ya y crea tu usuario (el primero que entra queda de administrador).') }}
+      {% if ansible_check_mode and not coolify_instalado.stat.exists -%}
+      Cuando se aplique, el panel de Coolify estará en {{ draupnode_coolify_url }}.
+      {%- if coolify_admin_email | length > 0 %} Se creará el administrador {{ coolify_admin_email }} con una contraseña generada en el servidor.{% endif %}
+      {%- if not coolify_autoupdate | bool %} Sin actualizaciones automáticas.{% endif %}
+      {%- elif coolify_instalado.stat.exists -%}
+      Coolify ya estaba instalado: el administrador y las actualizaciones automáticas se cambian desde su panel ({{ draupnode_coolify_url }}).
+      {%- elif coolify_admin_pass is defined -%}
+      Panel de Coolify: {{ draupnode_coolify_url }} — entra con {{ coolify_admin_email }}. La contraseña está en el servidor: sudo cat {{ draupnode_secrets_dir }}/coolify_admin
+      {%- else -%}
+      Panel de Coolify: {{ draupnode_coolify_url }} — entra ya y crea tu usuario (el primero que entra queda de administrador; hay 10 minutos).
+      {%- endif %}

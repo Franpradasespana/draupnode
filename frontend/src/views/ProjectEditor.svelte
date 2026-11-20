@@ -22,7 +22,16 @@
   let saveError = $state('')
   let check = $state<ProjectCheck | null>(null)
   let saving = $state(false)
-  let collapsed = $state<Record<string, boolean>>({})
+  // Ventanas plegadas: se recuerdan por proyecto y módulo.
+  let collapsed = $state<Record<string, boolean>>(Object.fromEntries((initial?.collapsed ?? []).map((m) => [m, true])))
+  function toggleCollapsed(mid: string) {
+    collapsed[mid] = !collapsed[mid]
+    if (!draft.id) return
+    const list = Object.keys(collapsed).filter((k) => collapsed[k])
+    api.SetProjectCollapsed(draft.id, list).catch(() => { /* no es grave: solo es la vista */ })
+    const p = ui.projects.find((x) => x.id === draft.id)
+    if (p) p.collapsed = list
+  }
 
   const mods = $derived(ui.modules?.modules ?? [])
   const byId = (mid: string) => mods.find((m) => m.id === mid)
@@ -35,11 +44,23 @@
   const run = $derived(draft.id ? ui.runs[draft.id] : undefined)
   const running = $derived(!!run && !run.done)
   const server = $derived(ui.servers.find((s) => s.id === draft.serverId))
-  const ordered = $derived(
-    // Orden del backend (por dependencias) y, mientras llega, los recién marcados al final:
-    // así la ventana aparece o desaparece al instante.
-    [...new Set([...(check?.order ?? []), ...draft.modules.map((m) => m.id)])].filter((mid) => selected.has(mid)),
-  )
+  // Orden de ejecución calculado aquí mismo (igual que Catalog.Resolve en Go:
+  // ids ordenados y, antes de cada uno, sus dependencias), para que una ventana
+  // nueva aparezca ya en su sitio sin esperar al backend.
+  const ordered = $derived.by(() => {
+    const out: string[] = []
+    const seen = new Set<string>()
+    const visit = (mid: string, path: Set<string>) => {
+      if (seen.has(mid) || path.has(mid)) return
+      path.add(mid)
+      for (const d of [...(byId(mid)?.depends ?? [])].sort()) visit(d, path)
+      path.delete(mid)
+      seen.add(mid)
+      out.push(mid)
+    }
+    for (const mid of [...selected].sort()) visit(mid, new Set())
+    return out.filter((mid) => selected.has(mid))
+  })
   const errorCount = $derived(Object.values(check?.errors ?? {}).reduce((n, e) => n + Object.keys(e).length, 0))
 
   const groups = $derived.by(() => {
@@ -361,7 +382,7 @@
       {@const errs = check?.errors[mid] ?? {}}
       {#if m && pm}
         <section class="card mod">
-          <button class="mod-head" onclick={() => (collapsed[mid] = !collapsed[mid])}>
+          <button class="mod-head" onclick={() => toggleCollapsed(mid)}>
             {#if collapsed[mid]}<ChevronRight size={16} />{:else}<ChevronDown size={16} />{/if}
             <span class="num">{i + 1}</span>
             <strong>{m.name}</strong>

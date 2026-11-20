@@ -723,6 +723,7 @@ export namespace store {
 	    lastRun?: RunSummary;
 	    // Go type: time
 	    appliedAt?: any;
+	    collapsed?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -738,6 +739,7 @@ export namespace store {
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	        this.lastRun = this.convertValues(source["lastRun"], RunSummary);
 	        this.appliedAt = this.convertValues(source["appliedAt"], null);
+	        this.collapsed = source["collapsed"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

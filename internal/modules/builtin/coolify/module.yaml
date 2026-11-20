@@ -4,9 +4,14 @@ version: 1.0.0
 category: 3 · Plataformas
 description: Panel para desplegar tus apps desde GitHub/GitLab con dominio y HTTPS automáticos (proxy Traefik + Let's Encrypt).
 details: |
-  Instala Coolify con su instalador oficial. Al terminar, entra ENSEGUIDA en
-  http://IP:8000 y crea tu usuario: el primero que entre se queda de administrador.
-  Coolify se actualiza solo desde su panel.
+  Instala Coolify con su instalador oficial.
+  Si pones un correo de administrador, Draupnode crea ese usuario al instalar con
+  una contraseña generada en el propio servidor (se guarda en
+  /etc/draupnode/secretos/<proyecto>/coolify_admin, solo root). Si lo dejas vacío,
+  entra ENSEGUIDA en http://IP:8000 y crea tu usuario: el primero que entre se
+  queda de administrador (hay 10 minutos).
+  Estas dos opciones solo cuentan en la primera instalación; después se cambian
+  desde el panel de Coolify.
   Al marcarlo se añaden a la lista del Cortafuegos los puertos de su panel
   (8000, 6001 y 6002); quítalos de ahí cuando el panel tenga dominio propio.
   En Oracle Cloud ábrelos también en la Security List.
@@ -16,4 +21,23 @@ requires:
   min_ram_mb: 1800
   min_disk_gb: 30
 firewall_ports: [8000, 6001, 6002]
-variables: []
+variables:
+  - name: coolify_admin_email
+    label: Correo del administrador
+    help: Vacío = el primero que entre al panel crea el administrador.
+    type: string
+    default: ""
+    placeholder: tu@ejemplo.com
+    pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+    pattern_help: Un correo válido (nombre@dominio.ext)
+  - name: coolify_admin_user
+    label: Nombre del administrador
+    type: string
+    default: admin
+    pattern: '^[A-Za-z0-9._-]{3,40}$'
+    pattern_help: 3 a 40 letras, números, . _ o -
+  - name: coolify_autoupdate
+    label: Actualizaciones automáticas
+    help: Coolify se actualiza solo a cada versión nueva. Desactívalo si prefieres actualizar tú desde el panel.
+    type: bool
+    default: true

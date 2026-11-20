@@ -230,6 +230,11 @@ func (a *App) DeleteProject(id string) error {
 	return a.store.DeleteProject(id)
 }
 
+// SetProjectCollapsed recuerda qué ventanas de módulo están plegadas en el editor.
+func (a *App) SetProjectCollapsed(id string, modules []string) error {
+	return a.store.SetCollapsed(id, modules)
+}
+
 // buildScript genera el instalar.sh del proyecto.
 func (a *App) buildScript(p store.Project) ([]byte, store.Server, error) {
 	srv, err := a.store.Server(p.ServerID)

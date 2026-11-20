@@ -62,6 +62,8 @@ export function SecretsInfo():Promise<main.SecretsInfo>;
 
 export function ServerLive(arg1:string):Promise<main.ServerLive>;
 
+export function SetProjectCollapsed(arg1:string,arg2:Array<string>):Promise<void>;
+
 export function SetSecretBackend(arg1:string):Promise<void>;
 
 export function TestConnection(arg1:string,arg2:string,arg3:string):Promise<main.TestResult>;

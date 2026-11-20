@@ -130,3 +130,15 @@ Petición del usuario tras la primera prueba:
 - Un módulo que necesita otro marcado queda bloqueado (candado + «lo necesita X»); antes la casilla se desmarcaba sin efecto y quedaba descuadrada.
 - **Puertos de Coolify**: nuevo campo de módulo `firewall_ports`. Al marcar Coolify se añaden 8000, 6001 y 6002 a la lista del Cortafuegos (y se quitan al desmarcarlo si ningún otro los pide), así que lo que se ve es lo que se abre. Quitada la casilla «Abrir los puertos del panel» y la tarea de iptables propia de Coolify.
 - Las listas de los formularios se actualizan si cambian desde fuera.
+
+## 2026-11-20 · 0.7.0 · Editor más estable, opciones de Coolify y estudio de módulos
+
+- **Orden de las ventanas**: el editor calcula él mismo el orden de ejecución (igual que `Catalog.Resolve` en Go: ids ordenados y, delante de cada uno, sus dependencias). Una ventana nueva aparece ya en su sitio; antes salía al final y saltaba cuando respondía el backend.
+- **Plegado recordado**: qué ventanas de módulo están plegadas se guarda por proyecto (`Project.collapsed`, método `SetProjectCollapsed`). No cuenta como cambio del proyecto (no mueve `updatedAt` ni pide Aplicar) y el guardado automático del editor no lo pisa. Test `TestPlegadoNoEsCambio`.
+- **Coolify** (variables nuevas; solo cuentan en la primera instalación, después se cambian en su panel):
+  - *Correo y nombre del administrador*: si hay correo, se crea el administrador al instalar (`ROOT_USER_EMAIL`/`ROOT_USERNAME`/`ROOT_USER_PASSWORD` del instalador oficial) con una contraseña generada EN el servidor (24 letras y números + `-Aa9`, porque Coolify exige mayúsculas, minúsculas, números y símbolo). Queda en `/etc/draupnode/secretos/<proyecto>/coolify_admin` (0600, solo root); la nota final dice cómo leerla. Vacío = como antes, el primero que entra crea el usuario.
+  - *Actualizaciones automáticas* sí/no (`AUTOUPDATE=false`).
+  - Si Coolify ya estaba instalado, la nota lo dice en vez de prometer nada.
+- **Cortafuegos**: probado en el servidor de pruebas que abre 8000/6001/6002 y los guarda en `/etc/iptables/rules.v4`. Quita las reglas antiguas con la etiqueta `draupnode-coolify` (las abría el módulo Coolify hasta la 0.6.0), que quedaban duplicadas. Segunda simulación: 0 cambios.
+- **Estudio de módulos nuevos** en `docs/ESTUDIO_MODULOS.md`: cambios de formato previos (tipo `secret`, `conflicts`, avisos de choques, puertos desde variable, listas de varias columnas), orden propuesto (SSH endurecido + fail2ban, restic, monitorización, importar secretos, apps por API de Coolify, nginx/Caddy…) y decisiones pendientes.
+- Probado en un servidor de pruebas desechable (Ubuntu limpio): instalación de Coolify con correo de administrador y sin actualizaciones automáticas → 0 fallos; el usuario existe en la base de Coolify, la contraseña guardada en el servidor es la que acepta y no aparece en el registro de la ejecución; `.env` con `AUTOUPDATE=false`.

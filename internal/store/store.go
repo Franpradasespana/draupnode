@@ -102,6 +102,9 @@ type Project struct {
 	// AppliedAt es la última vez que se aplicó entero y sin errores (o que
 	// una simulación confirmó que no había nada pendiente).
 	AppliedAt *time.Time `json:"appliedAt,omitempty"`
+	// Collapsed: módulos cuya ventana está plegada en el editor. Es solo de la
+	// interfaz: no cuenta como cambio del proyecto (ver SetCollapsed).
+	Collapsed []string `json:"collapsed,omitempty"`
 }
 
 type data struct {
@@ -362,6 +365,7 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 				p.LastRun = old.LastRun
 			}
 			p.AppliedAt = old.AppliedAt
+			p.Collapsed = old.Collapsed // solo lo cambia SetCollapsed
 			// Guardar sin cambios no cuenta como modificación (no pide aplicar otra vez).
 			if sameContent(old, p) {
 				p.UpdatedAt = old.UpdatedAt
@@ -386,6 +390,21 @@ func (s *Store) SetLastRun(id string, r RunSummary) error {
 				at := r.At
 				s.d.Projects[i].AppliedAt = &at
 			}
+			return s.saveLocked()
+		}
+	}
+	return fmt.Errorf("proyecto %q no encontrado", id)
+}
+
+// SetCollapsed guarda qué ventanas de módulo están plegadas en el editor,
+// sin tocar la fecha de modificación del proyecto.
+func (s *Store) SetCollapsed(id string, modules []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.d.Projects {
+		if s.d.Projects[i].ID == id {
+			s.d.Projects[i].Collapsed = append([]string(nil), modules...)
+			sort.Strings(s.d.Projects[i].Collapsed)
 			return s.saveLocked()
 		}
 	}
