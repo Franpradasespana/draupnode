@@ -404,7 +404,14 @@ function mockBackend(): Backend {
   const stored: Record<string, string> = load('secrets', {})
   let vault = { exists: false, unlocked: false, master: '' }
   const mockTyped: Record<string, string> = {} // datos secretos escritos (demo, solo en memoria)
-  let projects: Project[] = load('projects', [])
+  // Los datos de ejemplo traen las opciones vacías: se rellenan con sus valores por defecto.
+  let projects: Project[] = load<Project[]>('projects', []).map((p) => ({
+    ...p,
+    modules: p.modules.map((m) => ({ ...m, values: { ...defaults(m.id), ...m.values } })),
+    installedValues: p.installedValues ? Object.fromEntries(Object.entries(p.installedValues).map(([id, v]) => [id, { ...defaults(id), ...v }])) : Object.fromEntries(
+      (p.installedModules ?? []).map((id) => [id, { ...defaults(id), ...(p.modules.find((m) => m.id === id)?.values ?? {}) }])),
+    // (la demo también rellena con valores por defecto lo que traigan los datos de ejemplo)
+  }))
   const cancelled = new Set<string>()
   // ?sindocker en la URL simula un equipo sin Docker.
   const lab: LabStatus = {

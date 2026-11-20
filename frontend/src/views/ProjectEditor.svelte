@@ -1,17 +1,17 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, ChevronDown, ChevronRight, Package, Lock, LoaderCircle, CircleCheck } from '@lucide/svelte'
-  import VarField from '../components/VarField.svelte'
-  import SecretField from '../components/SecretField.svelte'
+  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, ChevronRight, Server as ServerIcon } from '@lucide/svelte'
   import RunPanel from '../components/RunPanel.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
   import UninstallDialog from '../components/UninstallDialog.svelte'
-  import BackupsPanel from '../components/BackupsPanel.svelte'
-  import { orderModules, clashesWith, modulePorts } from '../lib/modules'
+  import ModuleCard from '../components/ModuleCard.svelte'
+  import ModuleDetail from '../components/ModuleDetail.svelte'
+  import ApplyWizard from '../components/ApplyWizard.svelte'
+  import { orderModules, clashesWith, modulePorts, sameValues, type CardState } from '../lib/modules'
   import { withConnection } from '../lib/connect'
   import { api, errorText, type Module, type Project, type ProjectCheck, type RunStart, type UninstallCheck, type UninstallChoice } from '../lib/api'
   import {
-    ui, toast, refreshProjects, moduleName, timeAgo, startRun, ask, confirmDialog, requestVault,
+    ui, toast, refreshProjects, moduleName, timeAgo, startRun, confirmDialog,
   } from '../lib/state.svelte'
 
   let { id }: { id: string } = $props()
@@ -28,17 +28,6 @@
   let saveError = $state('')
   let check = $state<ProjectCheck | null>(null)
   let saving = $state(false)
-  // Ventanas plegadas: se recuerdan por proyecto y módulo.
-  let collapsed = $state<Record<string, boolean>>(Object.fromEntries((initial?.collapsed ?? []).map((m) => [m, true])))
-  function toggleCollapsed(mid: string) {
-    collapsed[mid] = !collapsed[mid]
-    if (!draft.id) return
-    const list = Object.keys(collapsed).filter((k) => collapsed[k])
-    api.SetProjectCollapsed(draft.id, list).catch(() => { /* no es grave: solo es la vista */ })
-    const p = ui.projects.find((x) => x.id === draft.id)
-    if (p) p.collapsed = list
-  }
-
   const mods = $derived(ui.modules?.modules ?? [])
   const byId = (mid: string) => mods.find((m) => m.id === mid)
   const selected = $derived(new Set(draft.modules.map((m) => m.id)))
@@ -56,11 +45,7 @@
   const ordered = $derived(orderModules(selected, byId).filter((mid) => selected.has(mid)))
   const errorCount = $derived(Object.values(check?.errors ?? {}).reduce((n, e) => n + Object.keys(e).length, 0))
 
-  const groups = $derived.by(() => {
-    const by: Record<string, Module[]> = {}
-    for (const m of mods) (by[m.category || 'Otros'] ||= []).push(m)
-    return Object.entries(by).sort(([a], [b]) => a.localeCompare(b))
-  })
+
 
   function defaults(m: Module) {
     return Object.fromEntries((m.variables ?? []).map((v) => [v.name, $state.snapshot(v.default)]))
@@ -117,30 +102,81 @@
   // Módulos que no se pueden desmarcar porque los necesita otro marcado.
   const requiredBy = (mid: string) => draft.modules.filter((x) => byId(x.id)?.depends?.includes(mid)).map((x) => moduleName(x.id))
 
-  async function toggle(e: Event, mid: string) {
-    const box = e.currentTarget as HTMLInputElement
+  // Pulsar una tarjeta del catálogo: marca o desmarca un módulo que aún no
+  // está instalado (los instalados se gestionan en su propia página).
+  function toggleCard(mid: string) {
     if (selected.has(mid)) {
       const users = requiredBy(mid)
-      if (users.length) {
-        box.checked = true // la casilla no debe quedarse desmarcada
-        return toast(`No se puede quitar: lo necesita ${users.join(', ')}`, 'error')
-      }
-      if (installed.has(mid)) {
-        box.checked = true
-        const c = await askUninstall([mid], true)
-        if (!c) return
-        if (c.action === 'uninstall') return uninstall([mid], c.purge)
-      }
+      if (users.length) return toast(`No se puede quitar: lo necesita ${users.join(', ')}`, 'error')
       draft.modules = draft.modules.filter((x) => x.id !== mid)
       return
     }
     const clash = clashesWith(mid, selected, byId)
-    if (clash.length) {
-      ;(e.currentTarget as HTMLInputElement).checked = false
-      return toast(`${moduleName(mid)} no puede ir con ${clash.map(moduleName).join(', ')}: quita antes ${clash.length > 1 ? 'esos' : 'ese'}`, 'error')
-    }
+    if (clash.length) return toast(`${moduleName(mid)} no puede ir con ${clash.map(moduleName).join(', ')}`, 'error')
     const added = add(mid).filter((x) => x !== mid)
     if (added.length) toast(`También se añade ${added.map(moduleName).join(', ')} (lo necesita ${moduleName(mid)})`)
+  }
+
+  // ---- estados de las tarjetas ----
+  const pending = $derived(ordered.filter((mid) => !installed.has(mid)))
+  // Instalados (marcados o ya fuera del proyecto), en el orden del catálogo.
+  const installedList = $derived(mods.filter((m) => installed.has(m.id)))
+  const available = $derived(mods.filter((m) => !installed.has(m.id)))
+  function cardState(m: Module): CardState {
+    if (installed.has(m.id)) return selected.has(m.id) ? 'installed' : 'left'
+    if (selected.has(m.id)) return requiredBy(m.id).length ? 'required' : 'pending'
+    return clashesWith(m.id, selected, byId).length ? 'clash' : 'none'
+  }
+  function cardNote(m: Module): string {
+    const st = cardState(m)
+    if (st === 'required') return `La necesita ${requiredBy(m.id).join(', ')}`
+    if (st === 'clash') return `No puede ir con ${clashesWith(m.id, selected, byId).map(moduleName).join(', ')}`
+    if (st === 'left') return 'Instalado, pero ya no lo gestiona este proyecto'
+    return ''
+  }
+  const availGroups = $derived.by(() => {
+    const by: Record<string, Module[]> = {}
+    for (const m of available) (by[m.category || 'Otros'] ||= []).push(m)
+    return Object.entries(by).sort(([x], [y]) => x.localeCompare(y))
+  })
+
+  // Instalados cuya configuración ha cambiado desde la última aplicación.
+  const changedInstalled = $derived(
+    draft.modules.filter((pm) => installed.has(pm.id) && stored?.installedValues?.[pm.id] && !sameValues(pm.values, stored.installedValues[pm.id])).map((pm) => pm.id),
+  )
+
+  // ---- página de un módulo ----
+  let openMod = $state<string | null>(null)
+  const openModule = $derived(openMod ? byId(openMod) : undefined)
+
+  // ---- asistente ----
+  let wizard = $state(false)
+  async function openWizard() {
+    if (!(await ensureSaved())) return
+    wizard = true
+  }
+  async function wizardRun(dry: boolean) {
+    wizard = false
+    await start(dry, true)
+  }
+
+  async function removeFromProject(mid: string) {
+    const ok = await confirmDialog({
+      title: `Quitar ${moduleName(mid)} del proyecto`,
+      message: `${moduleName(mid)} seguirá instalado y funcionando en el servidor; Draupnode solo dejará de gestionarlo. Podrás volver a añadirlo o desinstalarlo desde su página.`,
+      confirmLabel: 'Quitar del proyecto',
+    })
+    if (ok) draft.modules = draft.modules.filter((x) => x.id !== mid)
+  }
+  function readd(mid: string) {
+    const m = byId(mid)
+    if (!m || selected.has(mid)) return
+    for (const d of m.depends ?? []) add(d)
+    draft.modules.push({ id: mid, values: structuredClone($state.snapshot(stored?.installedValues?.[mid] ?? defaults(m))) as Record<string, unknown> })
+  }
+  async function uninstallOne(mid: string) {
+    const c = await askUninstall([mid], false)
+    if (c?.action === 'uninstall') await uninstall([mid], c.purge)
   }
 
   // Validación en vivo (con un pequeño retardo mientras se escribe).
@@ -236,9 +272,9 @@
     }
   }
 
-  async function start(dry: boolean) {
+  async function start(dry: boolean, confirmed = false) {
     if (!(await ensureSaved())) return
-    if (!dry) {
+    if (!dry && !confirmed) {
       const ok = await confirmDialog({
         title: `Aplicar en ${server?.name ?? 'el servidor'}`,
         message: `Se instalará y configurará en ${server?.user}@${server?.host}: ${ordered.map(moduleName).join(' → ')}. Lo que ya esté bien no se toca. ¿Seguimos?`,
@@ -261,10 +297,6 @@
     if (!(await ensureSaved())) return
     await launch((s, a, u) => api.UninstallModules(draft.id, mods, purge, s, a, u), (runId) => startRun(draft.id, runId, false, mods))
   }
-  async function uninstallLeft(mid: string) {
-    const c = await askUninstall([mid], false)
-    if (c?.action === 'uninstall') await uninstall([mid], c.purge)
-  }
   // Al terminar bien una desinstalación, esos módulos salen del borrador
   // (el backend ya los quitó del proyecto; así no se vuelven a guardar).
   let handledRun = ''
@@ -275,6 +307,7 @@
     untrack(() => {
       draft.modules = draft.modules.filter((m) => !r.uninstall!.includes(m.id))
       savedKey = contentKey(draft)
+      if (openMod && r.uninstall!.includes(openMod)) openMod = null
     })
   })
 
@@ -292,223 +325,183 @@
 </script>
 
 <div class="bar">
-  <button class="btn ghost sm" onclick={() => (ui.projectId = null)}><ArrowLeft size={15} /> Proyectos</button>
+  {#if openModule}
+    <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> {draft.name || 'Proyecto'}</button>
+  {:else}
+    <button class="btn ghost sm" onclick={() => (ui.projectId = null)}><ArrowLeft size={15} /> Proyectos</button>
+  {/if}
   <div class="spacer"></div>
   {#if !isNew}
     <span class="save-st">
       {#if saving}<LoaderCircle size={13} class="spin" /> Guardando…
-      {:else if dirty && errorCount}<span class="warn"><TriangleAlert size={13} /> No se guarda hasta corregir los campos en rojo</span>
+      {:else if dirty && errorCount}<span class="warn"><TriangleAlert size={13} /> No se guarda hasta corregir las opciones en rojo</span>
       {:else if saveError}<span class="bad">{saveError}</span>
       {:else if !dirty}<CircleCheck size={13} /> Cambios guardados{/if}
     </span>
   {/if}
 </div>
 
-<div class="title-row">
-  <input class="name" bind:value={draft.name} placeholder="Nombre del proyecto (p. ej. Servidor web)" disabled={running} />
-  <label class="field srv">
-    <span>Servidor</span>
-    <select class="input" bind:value={draft.serverId} disabled={running}>
-      {#each ui.servers as s}<option value={s.id}>{s.name} — {s.user}@{s.host}</option>{/each}
-    </select>
-  </label>
-  {#if isNew}
-    <button class="btn primary" onclick={() => save()} disabled={saving || !draft.name.trim() || !draft.serverId}>
-      <Save size={15} /> {saving ? 'Guardando…' : 'Guardar'}
-    </button>
+<!-- Siempre a la vista: en qué servidor y proyecto estás. -->
+<nav class="crumbs" aria-label="Dónde estás">
+  <ServerIcon size={14} />
+  <button class="crumb" onclick={() => { ui.projectServer = draft.serverId; ui.projectId = null }} title="Ver los proyectos de este servidor">{server?.name ?? 'Sin servidor'}</button>
+  {#if server}<span class="muted mono small">{server.user}@{server.host}</span>{/if}
+  <ChevronRight size={14} class="sep" />
+  {#if openModule}
+    <button class="crumb" onclick={() => (openMod = null)}>{draft.name || 'Proyecto nuevo'}</button>
+    <ChevronRight size={14} class="sep" />
+    <strong>{openModule.name}</strong>
   {:else}
-    <button class="btn danger" onclick={remove} disabled={running}><Trash2 size={15} /> Eliminar</button>
+    <strong>{draft.name || 'Proyecto nuevo'}</strong>
   {/if}
-</div>
-
-{#if isNew}
-  <p class="new-hint muted">Escribe el nombre, elige el servidor y pulsa <strong>Guardar</strong>. Después podrás elegir los módulos.</p>
-{/if}
-
-<div class="body" class:locked={isNew} inert={isNew}>
-<div class="actions card">
-  <div class="act-text">
-    {#if !ordered.length}
-      <span class="muted">Marca a la izquierda los módulos que quieres instalar.</span>
-    {:else if errorCount}
-      <span class="warn"><TriangleAlert size={15} /> Hay {errorCount} campo(s) con errores.</span>
-    {:else}
-      <span class="muted">Orden: {ordered.map(moduleName).join(' → ')}</span>
-    {/if}
-  </div>
-  <div class="act-btns">
-    <button class="btn" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount}><Download size={15} /> Exportar instalar.sh</button>
-    <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount}><Eye size={15} /> Previsualizar</button>
-    {#if needsApply}
-      <button class="btn primary" onclick={() => start(false)} disabled={saving || running || !ordered.length || !!errorCount}><Hammer size={15} /> Aplicar</button>
-    {:else if stored?.appliedAt}
-      <span class="applied"><CircleCheck size={15} /> Aplicado {timeAgo(stored.appliedAt)}, sin cambios desde entonces</span>
-    {/if}
-  </div>
-</div>
+</nav>
 
 {#if run}
   <RunPanel {run} onclose={closeRun} />
+{/if}
+
+{#if openModule && stored}
+  <ModuleDetail m={openModule} bind:modules={draft.modules} project={stored} errors={check?.errors[openModule.id] ?? {}}
+    requiredBy={requiredBy(openModule.id)} {running} onsecret={() => recheck++}
+    onapply={() => (pending.length ? openWizard() : start(false))}
+    onremove={() => removeFromProject(openModule.id)} onreadd={() => readd(openModule.id)} onuninstall={() => uninstallOne(openModule.id)} />
+{:else}
+  <div class="title-row">
+    <input class="name" bind:value={draft.name} placeholder="Nombre del proyecto (p. ej. Servidor web)" disabled={running} />
+    <label class="field srv">
+      <span>Servidor</span>
+      <select class="input" bind:value={draft.serverId} disabled={running}>
+        {#each ui.servers as s}<option value={s.id}>{s.name} — {s.user}@{s.host}</option>{/each}
+      </select>
+    </label>
+    {#if isNew}
+      <button class="btn primary" onclick={() => save()} disabled={saving || !draft.name.trim() || !draft.serverId}>
+        <Save size={15} /> {saving ? 'Guardando…' : 'Guardar'}
+      </button>
+    {:else}
+      <button class="btn danger" onclick={remove} disabled={running}><Trash2 size={15} /> Eliminar</button>
+    {/if}
+  </div>
+
+  {#if isNew}
+    <p class="new-hint muted">Escribe el nombre, elige el servidor y pulsa <strong>Guardar</strong>. Después podrás elegir los módulos.</p>
+  {/if}
+
+  <div class="body" class:locked={isNew} inert={isNew}>
+    <div class="actions card">
+      <div class="act-text">
+        {#if pending.length}
+          <strong>{pending.length} módulo{pending.length > 1 ? 's' : ''} para instalar:</strong> <span class="muted">{pending.map(moduleName).join(' → ')}</span>
+        {:else if changedInstalled.length}
+          <strong>Configuración cambiada sin aplicar:</strong> <span class="muted">{changedInstalled.map(moduleName).join(', ')}</span>
+        {:else if stored?.appliedAt && !needsApply}
+          <span class="applied"><CircleCheck size={15} /> Todo aplicado {timeAgo(stored.appliedAt)}</span>
+        {:else if !ordered.length}
+          <span class="muted">Elige abajo lo que quieres instalar en {server?.name ?? 'el servidor'}.</span>
+        {:else}
+          <span class="muted">Cambios sin aplicar.</span>
+        {/if}
+      </div>
+      <div class="act-btns">
+        <button class="btn" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount}><Download size={15} /> Exportar instalar.sh</button>
+        <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length}><Eye size={15} /> Previsualizar</button>
+        {#if needsApply && ordered.length}
+          {#if pending.length}
+            <button class="btn primary" onclick={openWizard} disabled={saving || running}><Hammer size={15} /> Configurar y aplicar…</button>
+          {:else}
+            <button class="btn primary" onclick={() => start(false)} disabled={saving || running || !!errorCount}><Hammer size={15} /> Aplicar cambios</button>
+          {/if}
+        {/if}
+      </div>
+    </div>
+
+    {#if check?.warnings?.length && !wizard}
+      <div class="card warns">
+        {#each check.warnings as w}<p><TriangleAlert size={15} /> {w}</p>{/each}
+      </div>
+    {/if}
+    {#if check?.general?.length && draft.modules.length}
+      <div class="card warns">{#each check.general as g}<p><TriangleAlert size={15} /> {g}</p>{/each}</div>
+    {/if}
+
+    {#if draft.id}
+      <ProjectSecrets projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} />
+    {/if}
+
+    <section class="sec">
+      <h3>Instalado en {server?.name ?? 'el servidor'} <span class="muted small">· pulsa uno para verlo y configurarlo</span></h3>
+      {#if installedList.length}
+        <div class="grid">
+          {#each installedList as m (m.id)}
+            <ModuleCard {m} state={cardState(m)} note={cardNote(m)} errors={Object.keys(check?.errors[m.id] ?? {}).length} onclick={() => (openMod = m.id)} />
+          {/each}
+        </div>
+      {:else}
+        <p class="muted empty">Todavía no hay nada instalado por este proyecto.</p>
+      {/if}
+    </section>
+
+    <section class="sec">
+      <h3>Añadir módulos <span class="muted small">· pulsa para marcar; se configuran al aplicar</span></h3>
+      {#if !available.length}<p class="muted empty">Ya están todos instalados.</p>{/if}
+      {#each availGroups as [cat, list]}
+        <div class="cat">{cat.replace(/^\d+\s*·\s*/, '')}</div>
+        <div class="grid">
+          {#each list as m (m.id)}
+            <ModuleCard {m} state={cardState(m)} note={cardNote(m)} errors={selected.has(m.id) ? Object.keys(check?.errors[m.id] ?? {}).length : 0}
+              onclick={() => toggleCard(m.id)} disabled={running} />
+          {/each}
+        </div>
+      {/each}
+    </section>
+  </div>
+{/if}
+
+{#if wizard && draft.id}
+  <ApplyWizard bind:modules={draft.modules}
+    steps={pending.map(byId).filter((m): m is Module => !!m?.variables?.length)}
+    install={pending.map(byId).filter((m): m is Module => !!m)}
+    changed={changedInstalled.map(byId).filter((m): m is Module => !!m)}
+    errors={check?.errors ?? {}} warnings={[...(check?.general ?? []), ...(check?.warnings ?? [])]}
+    projectId={draft.id} where={`${server?.name ?? ''} › ${draft.name}`} busy={saving || running}
+    onsecret={() => recheck++} onpreview={() => wizardRun(true)} onapply={() => wizardRun(false)} onclose={() => (wizard = false)} />
 {/if}
 
 {#if uninstallPrompt}
   <UninstallDialog check={uninstallPrompt.check} allowRemove={uninstallPrompt.allowRemove} done={uninstallPrompt.resolve} />
 {/if}
 
-{#if draft.id}
-  <ProjectSecrets projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} />
-{/if}
-
-{#if stored?.installedModules?.includes('backups')}
-  <BackupsPanel project={stored} disabled={running} />
-{/if}
-
-{#if check?.warnings?.length}
-  <div class="card warns">
-    {#each check.warnings as w}<p><TriangleAlert size={15} /> {w}</p>{/each}
-    <p class="muted small">Según la última comprobación del servidor. La ejecución vuelve a comprobarlo y se detiene si no se cumple.</p>
-  </div>
-{/if}
-{#if check?.general?.length && draft.modules.length}
-  <div class="card warns">{#each check.general as g}<p><TriangleAlert size={15} /> {g}</p>{/each}</div>
-{/if}
-
-<div class="cols">
-  <aside class="card picker">
-    <h3>Módulos</h3>
-    <div class="legend">
-      <span><i class="dot ok"></i> instalado</span>
-      <span><i class="dot new"></i> se instalará al aplicar</span>
-      <span><i class="dot req"></i> lo necesita otro</span>
-    </div>
-    {#each groups as [cat, list]}
-      <div class="cat">{cat.replace(/^\d+\s*·\s*/, '')}</div>
-      {#each list as m (m.id)}
-        {@const users = requiredBy(m.id)}
-        {@const isDep = users.length > 0}
-        {@const clash = selected.has(m.id) ? [] : clashesWith(m.id, selected, byId)}
-        {@const sel = selected.has(m.id)}
-        {@const inst = installed.has(m.id)}
-        <label class="pick" class:clash={clash.length > 0}
-          class:st-ok={sel && inst} class:st-req={sel && !inst && isDep} class:st-new={sel && !inst && !isDep} class:st-left={!sel && inst}>
-          <input type="checkbox" checked={selected.has(m.id)} onchange={(e) => toggle(e, m.id)} disabled={running || (isDep && selected.has(m.id)) || clash.length > 0}
-            title={isDep && selected.has(m.id) ? `Lo necesita ${users.join(', ')}: desmárcalo antes` : clash.length ? `Choca con ${clash.map(moduleName).join(', ')}` : ''} />
-          <div>
-            <strong>{m.name}</strong>
-            <span>{m.description}</span>
-            {#if sel && inst}<em class="ok"><CircleCheck size={11} /> instalado en el servidor</em>
-            {:else if sel}<em class="new">se instalará al aplicar</em>
-            {:else if inst}<em class="left">sigue instalado en el servidor (ya no lo gestiona este proyecto)</em>
-              {#if m.uninstallable && !m.noUninstall}
-                <button class="btn sm ghost uninst" onclick={(e) => { e.preventDefault(); uninstallLeft(m.id) }} disabled={running}><Trash2 size={12} /> Desinstalar del servidor…</button>
-              {/if}
-            {/if}
-            {#if isDep && sel}<em class="req"><Lock size={11} /> lo necesita {users.join(', ')}</em>{/if}
-            {#if clash.length}<em><Lock size={11} /> choca con {clash.map(moduleName).join(', ')}</em>{/if}
-            {#if m.firewallPorts?.length}<em class="ports">abre los puertos {m.firewallPorts.join(', ')} en el Cortafuegos</em>{/if}
-            {#if m.firewallPortsFrom?.length}<em class="ports">abre su puerto en el Cortafuegos</em>{/if}
-          </div>
-        </label>
-      {/each}
-    {/each}
-  </aside>
-
-  <div class="forms">
-    {#if !ordered.length}
-      <div class="card empty">
-        <Package size={30} strokeWidth={1.4} />
-        <p class="muted">Marca a la izquierda lo que quieres instalar. Las dependencias se añaden solas.</p>
-      </div>
-    {/if}
-    {#each ordered as mid, i (mid)}
-      {@const m = byId(mid)}
-      {@const pm = draft.modules.find((x) => x.id === mid)}
-      {@const errs = check?.errors[mid] ?? {}}
-      {#if m && pm}
-        <section class="card mod">
-          <button class="mod-head" onclick={() => toggleCollapsed(mid)}>
-            {#if collapsed[mid]}<ChevronRight size={16} />{:else}<ChevronDown size={16} />{/if}
-            <span class="num">{i + 1}</span>
-            <strong>{m.name}</strong>
-            {#if Object.keys(errs).length}<span class="badge err">{Object.keys(errs).length} error(es)</span>{/if}
-            {#if !m.variables?.length}<span class="muted small">sin opciones</span>{/if}
-          </button>
-          {#if !collapsed[mid] && m.variables?.length}
-            <div class="vars">
-              {#each m.variables as v (v.name)}
-                {#if v.type === 'secret'}
-                  <SecretField {v} projectId={draft.id} error={errs[v.name]} onchange={() => recheck++} />
-                {:else}
-                  <VarField {v} bind:value={pm.values[v.name]} error={errs[v.name]} />
-                {/if}
-              {/each}
-            </div>
-          {/if}
-        </section>
-      {/if}
-    {/each}
-  </div>
-</div>
-</div>
-
 <style>
-  .bar { display: flex; align-items: center; gap: 8px; margin: -8px 0 12px; }
+  .bar { display: flex; align-items: center; gap: 8px; margin: -8px 0 8px; }
   .spacer { flex: 1; }
-  .title-row { display: grid; grid-template-columns: 1fr 340px auto; gap: 16px; align-items: end; margin-bottom: 14px; }
   .save-st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
   .save-st .bad { color: var(--danger); }
-  .new-hint { margin: -4px 0 14px; font-size: 13.5px; }
-  .body.locked { opacity: .45; filter: grayscale(.4); pointer-events: none; user-select: none; }
-  .applied { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--success); padding: 0 6px; }
+  .warn { display: inline-flex; gap: 7px; align-items: center; color: var(--warning); }
+  .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-bottom: 14px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--panel-2); border: 1px solid var(--border-soft); }
+  .crumbs strong { color: var(--text); }
+  .crumb { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
+  .crumb:hover { text-decoration: underline; }
+  .crumbs :global(.sep) { opacity: .6; }
+  .mono { font-family: var(--mono); }
+  .small { font-size: 12px; }
+  .title-row { display: grid; grid-template-columns: 1fr 340px auto; gap: 16px; align-items: end; margin-bottom: 14px; }
   .name { font-size: 22px; font-weight: 600; background: none; border: 0; border-bottom: 1px solid transparent; padding: 4px 0; outline: none; color: var(--text); }
   .name:focus, .name:hover { border-bottom-color: var(--border); }
-  .actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-bottom: 14px; flex-wrap: wrap; }
-  .act-text { font-size: 13px; min-width: 0; }
-  .warn { display: inline-flex; gap: 7px; align-items: center; color: var(--accent); }
-  .act-btns { display: flex; gap: 8px; }
-  .warns { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); padding: 12px 16px; }
-  .warns p { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
-  .warns :global(svg) { color: var(--accent); flex: none; margin-top: 2px; }
-  .small { font-size: 12px; }
-  .cols { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; margin-top: 14px; }
-  .picker { padding: 14px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; max-height: calc(100vh - 140px); overflow-y: auto; }
-  .picker h3 { margin-bottom: 6px; }
-  .cat { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; margin: 10px 0 4px; }
-  .pick { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; }
-  .pick:hover { background: var(--sidebar-hover); }
-  .pick.st-ok { border-color: color-mix(in srgb, var(--success) 55%, transparent); background: var(--success-soft); }
-  .pick.st-new { border-color: color-mix(in srgb, var(--info) 55%, transparent); background: var(--info-soft); }
-  .pick.st-req { border-color: color-mix(in srgb, var(--warning) 55%, transparent); background: var(--warning-soft); }
-  .pick.st-left { border: 1px dashed color-mix(in srgb, var(--success) 50%, transparent); }
-  .pick input { accent-color: var(--info); }
-  .pick.st-ok input { accent-color: var(--success); }
-  .pick.st-req input { accent-color: var(--warning); }
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
-  .legend span { display: inline-flex; align-items: center; gap: 5px; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-  .dot.ok { background: var(--success); }
-  .dot.new { background: var(--info); }
-  .dot.req { background: var(--warning); }
-  .pick.clash { opacity: .6; cursor: not-allowed; }
-  .pick input { margin-top: 3px; }
-  .pick div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .pick strong { font-size: 13.5px; }
-  .pick span { font-size: 12px; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .pick em { font-style: normal; font-size: 11.5px; color: var(--accent); display: flex; gap: 4px; align-items: center; }
-  .pick em.ok, .pick em.left { color: var(--success); }
-  .pick em.new { color: var(--info); }
-  .pick em.req { color: var(--warning); }
-  .uninst { align-self: flex-start; margin-top: 4px; color: var(--danger); }
-  .pick em.ports { color: var(--muted); }
-  .forms { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  .empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px; text-align: center; color: var(--muted); }
-  .mod { padding: 0; }
-  .mod-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 16px; background: none; border: 0; cursor: pointer; color: var(--text); font: inherit; text-align: left; }
-  .num { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); }
-  .vars { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; padding: 4px 18px 18px; }
+  .new-hint { margin: -4px 0 14px; font-size: 13.5px; }
+  .body.locked { opacity: .45; filter: grayscale(.4); pointer-events: none; user-select: none; }
+  .actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-bottom: 14px; flex-wrap: wrap; position: sticky; top: 0; z-index: 2; }
+  .act-text { font-size: 13.5px; min-width: 0; flex: 1; }
+  .act-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .applied { display: inline-flex; align-items: center; gap: 7px; color: var(--success); }
+  .warns { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); padding: 12px 16px; }
+  .warns p { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 0; }
+  .warns :global(svg) { color: var(--warning); flex: none; margin-top: 2px; }
+  .sec { margin-top: 22px; }
+  .sec h3 { margin: 0 0 10px; font-size: 15px; }
+  .cat { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; margin: 14px 0 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  .empty { font-size: 13.5px; }
   @media (max-width: 1100px) {
-    .cols { grid-template-columns: 1fr; }
-    .picker { position: static; max-height: none; }
     .title-row { grid-template-columns: 1fr auto; grid-template-areas: "name btn" "srv srv"; align-items: center; }
     .title-row .name { grid-area: name; min-width: 0; }
     .title-row .srv { grid-area: srv; }

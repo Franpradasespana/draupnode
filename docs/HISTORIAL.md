@@ -215,3 +215,19 @@ Todo de código abierto (petición del usuario): restic (BSD-2) desde los reposi
   - rest-server y S3: copias en el destino; la contraseña no aparece en ningún registro; con una clave S3 errónea falla (la autenticación es real).
   - Dos proyectos en el mismo servidor con su temporizador cada uno; desinstalar las copias de uno (borrando datos) no toca las del otro.
   - Interfaz comprobada en la demo (copia ahora, lista, traer con progreso; sin errores de JavaScript).
+
+## 2026-11-20 · 0.11.0 · Página de proyecto con tarjetas, asistente al aplicar y página de cada módulo
+
+Petición del usuario: configurar bajando por una página larga era tedioso y los campos no se veían claros.
+
+- **Página del proyecto**: arriba, siempre, la ruta «Servidor (usuario@host) › Proyecto [› Módulo]» (cada parte lleva atrás). Debajo:
+  - «Instalado en <servidor>»: tarjetas de los módulos instalados por el proyecto (verde; borde discontinuo si ya no lo gestiona). Pulsar una abre su página.
+  - «Añadir módulos»: catálogo en tarjetas por categoría. Pulsar marca/desmarca (azul = se instalará; ámbar = la necesita otro; candado = no compatible). Sin formularios.
+  - Barra de acciones fija: «N módulos para instalar: …» · Exportar · Previsualizar · «Configurar y aplicar…» (o «Aplicar cambios» si solo cambió configuración).
+- **Asistente al aplicar** (`ApplyWizard`): una ventana por módulo nuevo con opciones, con pasos numerados (en rojo si tienen errores), Anterior/Siguiente (no deja pasar con errores) y un resumen final («Se instalará, en este orden», configuraciones cambiadas, avisos) con «Previsualizar» y «Finalizar y aplicar». Arriba, servidor › proyecto.
+- **Página de un módulo** (`ModuleDetail`): estado («Instalado · aplicado hace…» / fuera del proyecto / se instalará), descripción y «Cómo funciona»; lo propio de cada uno (copias: el recuadro de copias; Coolify: abrir su panel; sus contraseñas, filtradas por módulo); su configuración con «Cambios sin aplicar» + «Aplicar cambios»; abajo «Quitar del proyecto» / «Volver al proyecto» (con los valores con los que se instaló) y «Desinstalar…».
+- **Formularios más claros** (`ModuleForm`): una fila por opción, etiqueta en negrita y explicación a la izquierda, control a la derecha, con borde más marcado; sí/no como interruptor; en ventanas estrechas, en una columna.
+- «¿Cambió la configuración de un instalado?» compara sin depender del orden de las claves (`sameValues`).
+- La demo rellena con valores por defecto las opciones vacías de los datos de ejemplo. Capturas de la ayuda rehechas; textos de la ayuda de Proyectos actualizados.
+- Ya no hay ventanas plegables en el editor (`SetProjectCollapsed` queda sin uso en la interfaz).
+- Comprobado en la demo con Chrome sin ventana: marcar dos módulos, asistente de 3 pasos, aplicar, abrir la página de un módulo instalado; sin errores de JavaScript.

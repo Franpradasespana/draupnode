@@ -8,7 +8,8 @@
   import { api, errorText, type ProjectSecret, type ProjectSecretsSummary } from '../lib/api'
   import { ask, toast, timeAgo, ui } from '../lib/state.svelte'
 
-  let { projectId, refreshKey = '' }: { projectId: string; refreshKey?: string } = $props()
+  // module: solo las de ese módulo (nombre visible), en su página.
+  let { projectId, refreshKey = '', module = '' }: { projectId: string; refreshKey?: string; module?: string } = $props()
 
   const HIDE_AFTER_MS = 2 * 60 * 1000
 
@@ -45,7 +46,8 @@
     if (master === null) return
     busy = true
     try {
-      list = await api.ProjectSecrets(projectId, master)
+      const all = await api.ProjectSecrets(projectId, master)
+      list = module ? all.filter((x) => x.module === module) : all
       clearTimeout(timer)
       timer = setTimeout(hide, HIDE_AFTER_MS)
     } catch (e) {
@@ -83,10 +85,10 @@
     <div class="head">
       <KeyRound size={17} />
       <div class="txt">
-        <strong>Contraseñas del proyecto</strong>
+        <strong>{module ? `Contraseñas de ${module}` : 'Contraseñas del proyecto'}</strong>
         {#if count > 0}
           <span class="muted">
-            {count} guardada{count === 1 ? '' : 's'} en la bóveda cifrada{#if info?.at} · traídas del servidor {timeAgo(info.at)}{/if}
+            {#if module}Están en la bóveda cifrada{:else}{count} guardada{count === 1 ? '' : 's'} en la bóveda cifrada{/if}{#if info?.at} · traídas del servidor {timeAgo(info.at)}{/if}
           </span>
         {:else}
           <span class="muted">Todavía no hay ninguna: los módulos las generan en el servidor la primera vez que pulsas <strong>Aplicar</strong> (al previsualizar no se crean). Draupnode las trae y las guarda cifradas en la bóveda.</span>
@@ -101,7 +103,7 @@
 
     {#if list}
       {#if !list.length}
-        <p class="muted small">No hay contraseñas guardadas para este proyecto.</p>
+        <p class="muted small">No hay contraseñas guardadas{module ? ' de este módulo' : ' para este proyecto'}.</p>
       {/if}
       <div class="list">
         {#each list as s (s.kind + s.name)}

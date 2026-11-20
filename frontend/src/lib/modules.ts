@@ -52,3 +52,15 @@ export function modulePorts(m: Module | undefined, values: Record<string, unknow
   }
   return out
 }
+
+/** Estado de un módulo en la página del proyecto. */
+export type CardState = 'installed' | 'left' | 'pending' | 'required' | 'clash' | 'none'
+
+/** Compara opciones sin depender del orden de las claves. */
+export function sameValues(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown): unknown =>
+    Array.isArray(v) ? v.map(norm)
+      : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, norm((v as Record<string, unknown>)[k])]))
+        : v
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b))
+}

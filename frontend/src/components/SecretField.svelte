@@ -5,7 +5,7 @@
   import { api, errorText, type ModVariable } from '../lib/api'
   import { toast, withVault } from '../lib/state.svelte'
 
-  let { v, projectId, error, onchange }: { v: ModVariable; projectId: string; error?: string; onchange?: () => void } = $props()
+  let { v, projectId, error, onchange, bare = false }: { v: ModVariable; projectId: string; error?: string; onchange?: () => void; bare?: boolean } = $props()
 
   let saved = $state(false)
   let editing = $state(false)
@@ -42,7 +42,7 @@
 
 <div class="vf" class:bad={!!error}>
   <label class="field">
-    <span>{v.label}{#if v.required} *{/if}</span>
+    {#if !bare}<span>{v.label}{#if v.required} *{/if}</span>{/if}
     {#if saved && !editing}
       <div class="row">
         <span class="ok"><KeyRound size={14} /> Guardado en la bóveda</span>
@@ -58,7 +58,7 @@
       </div>
     {/if}
   </label>
-  {#if error && !saved}<small class="err">{error}</small>{:else if v.help}<small class="muted">{v.help}</small>{/if}
+  {#if !bare}{#if error && !saved}<small class="err">{error}</small>{:else if v.help}<small class="muted">{v.help}</small>{/if}{/if}
 </div>
 
 <style>
