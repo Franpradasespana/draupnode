@@ -130,6 +130,16 @@ export const HELP: HelpSection[] = [
     ],
   },
   {
+    id: 'alerts',
+    title: 'Avisos',
+    intro: 'Todo lo que conviene mirar, en un sitio. El número sale en el menú y en la campana de arriba; el Panel también los enseña. Las demás pantallas no se llenan de franjas.',
+    steps: [
+      { title: 'Copias sin traer', img: 'avisos', text: 'Un proyecto con Copias cuyas copias hace tiempo (o nunca) que no traes a este equipo. «Traer ahora» las descarga. En el proyecto → Copias eliges cada cuántos días avisa, que se traigan solas al abrir la app o que no avise.' },
+      { title: 'Aplicaciones que fallaron', text: 'La última vez que pulsaste «Aplicar» en ese proyecto hubo un error. «Abrir» lleva al proyecto para ver qué pasó; desaparece cuando vuelve a aplicarse bien.' },
+      { title: 'Ocultar', text: 'La ✕ lo quita hasta la próxima vez que abras la app.' },
+    ],
+  },
+  {
     id: 'settings',
     title: 'Ajustes',
     intro: 'Dónde se guardan las contraseñas, el tema de colores y los datos de la aplicación.',

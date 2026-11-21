@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { LayoutDashboard, Server, Boxes, FolderGit2, Container, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X } from '@lucide/svelte'
+  import { LayoutDashboard, Server, Boxes, FolderGit2, Container, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X, Bell, ChevronRight } from '@lucide/svelte'
   import Logo from './components/Logo.svelte'
   import Dashboard from './views/Dashboard.svelte'
   import Servers from './views/Servers.svelte'
@@ -16,11 +16,31 @@
   import Dockerize from './views/Dockerize.svelte'
   import StatusBar from './components/StatusBar.svelte'
   import HelpDialog from './components/HelpDialog.svelte'
-  import BackupsDueBanner from './components/BackupsDueBanner.svelte'
-  import { ui, boot, toast, type View } from './lib/state.svelte'
+  import Alerts from './views/Alerts.svelte'
+  import { alertItems, loadAlerts } from './lib/alerts.svelte'
+  import { ui, boot, toast, openServer, openRecipe, type View } from './lib/state.svelte'
   import { errorText, isDesktop } from './lib/api'
 
   type NavItem = { id: View; label: string; icon: typeof Server; soon?: boolean }
+  // Servidores y Proyectos se despliegan en el menú para entrar directo a cada uno.
+  // Lo desplegado se recuerda en este equipo.
+  let expanded = $state<Record<string, boolean>>(loadExpanded())
+  function loadExpanded(): Record<string, boolean> {
+    try {
+      return JSON.parse(localStorage.getItem('dn-menu') ?? '') ?? {}
+    } catch {
+      return { servers: true, projects: true }
+    }
+  }
+  function toggle(id: string) {
+    expanded[id] = !isOpen(id)
+    try { localStorage.setItem('dn-menu', JSON.stringify(expanded)) } catch { /* sin almacenamiento */ }
+  }
+  const isOpen = (id: string) => expanded[id] ?? true
+  const children = (id: View) =>
+    id === 'servers' ? ui.servers.map((s) => ({ id: s.id, label: s.name, active: ui.view === 'servers' && ui.serverId === s.id, open: () => { openServer(s.id); menuOpen = false } }))
+    : id === 'projects' ? ui.recipes.map((r) => ({ id: r.id, label: r.name, active: ui.view === 'projects' && ui.recipeId === r.id, open: () => { openRecipe(r.id); menuOpen = false } }))
+    : []
   // Lo principal arriba; las herramientas en «Utilidades»; el Catálogo
   // (lo que se puede instalar) abajo, junto a la Ayuda.
   const nav: NavItem[] = [
@@ -36,7 +56,7 @@
 
   const titles: Record<View, string> = {
     dashboard: 'Panel', servers: 'Servidores', catalog: 'Catálogo', projects: 'Proyectos',
-    docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Servidor de pruebas',
+    docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Servidor de pruebas', alerts: 'Avisos',
   }
 
   let ready = $state(false)
@@ -59,7 +79,9 @@
       toast('No se pudo cargar la configuración: ' + errorText(e), 'error')
     }
     ready = true
+    loadAlerts()
   })
+  const alertCount = $derived(alertItems().length)
 </script>
 
 <div class="shell">
@@ -74,6 +96,11 @@
     <div class="crumb">{titles[ui.view]}</div>
     <div class="top-right">
       {#if !isDesktop}<span class="badge accent" title="Abierto en el navegador: datos simulados">Demo navegador</span>{/if}
+      {#if alertCount && ui.view !== 'alerts'}
+        <button class="btn ghost sm bell" onclick={() => go('alerts')} title="{alertCount} aviso{alertCount > 1 ? 's' : ''}">
+          <Bell size={15} /> <span class="count">{alertCount}</span>
+        </button>
+      {/if}
       <button class="btn ghost sm" class:active={ui.view === 'settings'} onclick={() => go('settings')} title="Ajustes">
         <Settings size={15} /> <span class="lbl">Ajustes</span>
       </button>
@@ -84,10 +111,22 @@
   <aside class="sidebar" class:open={menuOpen}>
     <nav>
       {#each nav as item}
-        <button class="nav-item" class:active={ui.view === item.id} onclick={() => go(item.id)}>
-          <item.icon size={17} strokeWidth={1.8} />
-          <span>{item.label}</span>
-        </button>
+        {@const kids = children(item.id)}
+        <div class="nav-row">
+          <button class="nav-item" class:active={ui.view === item.id && !kids.some((k) => k.active)} onclick={() => go(item.id)}>
+            <item.icon size={17} strokeWidth={1.8} />
+            <span>{item.label}</span>
+          </button>
+          {#if kids.length}
+            <button class="nav-fold" class:open={isOpen(item.id)} onclick={() => toggle(item.id)}
+              aria-expanded={isOpen(item.id)} title={isOpen(item.id) ? 'Plegar' : 'Desplegar'}><ChevronRight size={15} /></button>
+          {/if}
+        </div>
+        {#if kids.length && isOpen(item.id)}
+          {#each kids as k (k.id)}
+            <button class="nav-item sub" class:active={k.active} onclick={k.open} title={k.label}><span>{k.label}</span></button>
+          {/each}
+        {/if}
       {/each}
       <div class="nav-group">Utilidades</div>
       {#each tools as item}
@@ -99,6 +138,11 @@
       {/each}
     </nav>
     <div class="side-foot">
+      <button class="nav-item help-btn" class:active={ui.view === 'alerts'} onclick={() => go('alerts')} title="Copias pendientes, fallos…">
+        <Bell size={17} strokeWidth={1.8} />
+        <span>Avisos</span>
+        {#if alertCount}<span class="count">{alertCount}</span>{/if}
+      </button>
       <button class="nav-item help-btn" class:active={ui.view === 'catalog'} onclick={() => go('catalog')} title="Los módulos que se pueden instalar">
         <Boxes size={17} strokeWidth={1.8} />
         <span>Catálogo</span>
@@ -113,7 +157,6 @@
 
   <main class="content">
     {#if ready}
-      <BackupsDueBanner />
       {#if ui.view === 'dashboard'}<Dashboard />
       {:else if ui.view === 'servers'}<Servers />
       {:else if ui.view === 'catalog'}<Catalog />
@@ -121,6 +164,7 @@
       {:else if ui.view === 'lab'}<Lab />
       {:else if ui.view === 'docker'}<Dockerize />
       {:else if ui.view === 'settings'}<SettingsView />
+      {:else if ui.view === 'alerts'}<Alerts />
       {:else}<Upcoming view={ui.view} />
       {/if}
     {/if}
@@ -184,7 +228,9 @@
     padding: 12px 0;
     overflow-y: auto;
   }
-  nav { display: flex; flex-direction: column; gap: 2px; }
+  .count { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--warning); color: #1a1a1a; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .bell .count { margin-left: 2px; }
+  nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; flex: 1; }
   .nav-item {
     display: flex; align-items: center; gap: 11px;
     height: 38px; padding: 0 18px; margin: 0;
@@ -196,6 +242,14 @@
   .nav-item.active { border-left-color: var(--accent); background: var(--sidebar-hover); color: var(--sidebar-text); font-weight: 500; }
   .nav-item em { margin-left: auto; font-style: normal; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; opacity: .6; }
 
+  .nav-row { display: flex; align-items: stretch; }
+  .nav-row .nav-item { flex: 1; }
+  .nav-fold { background: none; border: 0; color: var(--sidebar-muted); cursor: pointer; padding: 0 14px; display: flex; align-items: center; }
+  .nav-fold:hover { color: var(--sidebar-text); background: var(--sidebar-hover); }
+  .nav-fold :global(svg) { transition: transform .12s; }
+  .nav-fold.open :global(svg) { transform: rotate(90deg); }
+  .nav-item.sub { height: 30px; padding-left: 46px; font-size: 13px; }
+  .nav-item.sub span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .help-btn { margin: 0 -18px; }
   .nav-group { margin: 16px 18px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--sidebar-muted); opacity: .75; font-weight: 600; }
   .side-foot { padding: 14px 18px 4px; display: flex; flex-direction: column; gap: 2px; }

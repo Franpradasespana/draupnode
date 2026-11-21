@@ -472,3 +472,15 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
 - Ficha del servidor: los puertos que publica Docker (docker-proxy) no pasan por la cadena INPUT, así que se llega
   a ellos aunque el cortafuegos no los liste. Ya no se avisa de que «el cortafuegos no los deja pasar»: se avisa
   de que Docker se lo salta.
+
+## 2026-11-21 · 0.37.0 · Avisos en su sitio y menú con servidores y proyectos
+
+- **Avisos**: nueva entrada en el menú, encima de Catálogo, con el número de avisos. Junta las copias que hace
+  tiempo (o nunca) que no se traen a este equipo y los proyectos cuya última aplicación falló, con «Traer ahora»,
+  «Abrir» y ocultar hasta la próxima vez que se abra la app.
+  - La franja «Copias de … nunca las has traído» ya no sale en todas las pantallas: solo en el Panel. En las demás,
+    una campana arriba con el número lleva a «Avisos».
+  - El estado de los avisos es compartido (`lib/alerts.svelte.ts`); se quita `BackupsDueBanner`.
+- **Menú desplegable**: «Servidores» y «Proyectos» tienen una flecha que despliega la lista de servidores y de
+  recetas para entrar directo en cada uno. Lo desplegado se recuerda en este equipo; el menú hace scroll si hay muchos.
+- Capturas de la demo: `avisos` y `avisos-campana`.

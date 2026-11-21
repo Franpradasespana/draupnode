@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Plus, ArrowRight, CircleCheck, Circle, ChevronRight } from '@lucide/svelte'
+  import AlertsList from '../components/AlertsList.svelte'
   import { ui, timeAgo, kbToGB, openServerProjects } from '../lib/state.svelte'
 
   const total = $derived(ui.servers.length)
@@ -27,6 +28,8 @@
   </div>
   <button class="btn primary" onclick={() => (ui.view = 'servers')}><Plus size={16} /> Añadir servidor</button>
 </div>
+
+<AlertsList compact />
 
 <div class="tiles">
   <div class="card tile"><strong>{String(total).padStart(2, '0')}</strong><span>Servidores</span></div>

@@ -88,6 +88,8 @@ const ALL_SHOTS = [
       d.projects.push({ id: 'p8', name: 'Blog', serverId: 'demo1', slug: 'blog', modules: [{ id: 'base', values: {} }, { id: 'backups', values: {} }],
         installedModules: ['base', 'backups'], appliedAt: ago(3000), backupsAuto: { mode: 'fetch', days: 3 }, backupsFetched: { at: ago(5 * 1440), dir: '/home/demo/Draupnode-copias/blog', bytes: 9000000, files: 0 } })
     }, act: [['wait', 1500]] },
+  { name: 'avisos', view: 'alerts', seed: 'copias-aviso', act: [['wait', 900]] },
+  { name: 'avisos-campana', view: 'catalog', seed: 'copias-aviso', act: [['wait', 900]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]
