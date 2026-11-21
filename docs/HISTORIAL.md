@@ -508,3 +508,12 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
   - «Contraseñas del proyecto» → «Contraseñas»; los mensajes que hablaban de «este proyecto» hablan de «este servidor».
 - «Proyecto» se queda solo en Docker Creator, donde es la carpeta de código de tu app.
 - Por dentro (código, datos guardados) sigue llamándose Project/Recipe: no cambia nada de lo guardado.
+
+## 2026-11-21 · 0.38.1 · Editor de plantillas: franja de guardar fija y módulos nuevos por revisar
+
+- «Guardar» y «Eliminar» pasan a una franja fija abajo, siempre visible al bajar por la página. La franja se
+  colorea con el color de acento si hay cambios sin guardar (o en rojo si hay opciones con errores) y dice qué falta.
+- Al añadir un módulo con opciones, su sección se abre, se desplaza hasta ella y queda marcada «Nuevo: revisa sus
+  opciones» (borde de color) hasta pulsar «Valores revisados» o guardar. La franja de abajo lista los que faltan,
+  con enlace a cada uno. Recuerda que son valores predeterminados que se pueden retocar al aplicar en un servidor.
+- Ayuda: paso «Guardar y revisar» con captura `plantilla-cambios`.

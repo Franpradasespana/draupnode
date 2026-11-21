@@ -4,7 +4,7 @@
   // servidor, no aquí. Al guardar, los servidores que la usan reciben los
   // cambios (sin aplicarlos) y conservan lo suyo.
   import { untrack } from 'svelte'
-  import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck } from '@lucide/svelte'
+  import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck, Sparkles, Check } from '@lucide/svelte'
   import ModuleCard from '../components/ModuleCard.svelte'
   import VarField from '../components/VarField.svelte'
   import { api, errorText, type Module, type ProjectCheck, type Recipe } from '../lib/api'
@@ -22,6 +22,18 @@
   let saving = $state(false)
   let open = $state<Record<string, boolean>>({})
   let deployTo = $state('')
+  // Módulos añadidos (aún sin guardar) con opciones: se marcan «por revisar»
+  // hasta que el usuario dice que los valores le valen (o guarda).
+  let toReview = $state<string[]>([])
+  const reviewable = (mid: string) => (byId(mid)?.variables ?? []).some((v) => v.type !== 'secret' && !v.managed)
+  function reviewed(mid: string) {
+    toReview = toReview.filter((x) => x !== mid)
+    open[mid] = false
+  }
+  function goTo(mid: string) {
+    open[mid] = true
+    requestAnimationFrame(() => document.getElementById('cfg-' + mid)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   const mods = $derived(ui.modules?.modules ?? [])
   const byId = (mid: string) => mods.find((m) => m.id === mid)
@@ -45,6 +57,7 @@
       const needs = draft.modules.filter((x) => byId(x.id)?.depends?.includes(m.id)).map((x) => moduleName(x.id))
       if (needs.length) return toast(`Lo necesita ${needs.join(', ')}: quita antes ese`, 'error')
       draft.modules = draft.modules.filter((x) => x.id !== m.id)
+      toReview = toReview.filter((x) => x !== m.id)
       return
     }
     const clash = clashesWith(m.id, selected, byId)
@@ -54,9 +67,10 @@
       if (!mm || draft.modules.some((x) => x.id === mid)) return
       for (const d of mm.depends ?? []) add(d)
       draft.modules.push({ id: mid, values: defaults(mm) })
+      if (reviewable(mid) && !toReview.includes(mid)) toReview.push(mid)
     }
     add(m.id)
-    open[m.id] = true
+    if (reviewable(m.id)) goTo(m.id)
   }
   function cardState(m: Module): CardState {
     if (selected.has(m.id)) return draft.modules.some((x) => byId(x.id)?.depends?.includes(m.id)) ? 'required' : 'pending'
@@ -81,6 +95,7 @@
       draft.id = r.id
       draft.modules = r.modules
       savedKey = key(draft)
+      toReview = []
       await refreshProjects()
       if (!id) ui.recipeId = r.id
       toast(stored?.deployments.length ? 'Guardado. Los servidores que lo usan tienen «cambios sin aplicar».' : 'Plantilla guardada')
@@ -124,9 +139,6 @@
 
 <div class="bar">
   <button class="btn ghost sm" onclick={() => (ui.recipeId = null)}><ArrowLeft size={15} /> Plantillas</button>
-  <div class="spacer"></div>
-  {#if draft.id}<button class="btn sm danger" onclick={remove}><Trash2 size={14} /> Eliminar</button>{/if}
-  <button class="btn primary" onclick={save} disabled={saving || !dirty || !draft.name.trim()}><Save size={15} /> {saving ? 'Guardando…' : dirty || !draft.id ? 'Guardar' : 'Guardado'}</button>
 </div>
 
 <div class="top card">
@@ -163,11 +175,12 @@
     {@const pm = draft.modules.find((x) => x.id === mid)}
     {@const errs = check?.errors?.[mid] ?? {}}
     {#if m && pm}
-      <section class="card cfg" class:bad={Object.keys(errs).length}>
+      <section class="card cfg" id={'cfg-' + mid} class:bad={Object.keys(errs).length} class:new={toReview.includes(mid)}>
         <button class="cfg-h" onclick={() => (open[mid] = !open[mid])}>
           {#if open[mid]}<ChevronDown size={15} />{:else}<ChevronRight size={15} />{/if}
           <strong>{m.name}</strong>
           {#if Object.keys(errs).length}<span class="bad-t">{Object.keys(errs).length} por revisar</span>{:else}<CircleCheck size={14} class="okc" />{/if}
+          {#if toReview.includes(mid)}<span class="new-t"><Sparkles size={13} /> Nuevo: revisa sus opciones</span>{/if}
           {#if secretCount(m)}<span class="muted small">· {secretCount(m)} dato(s) secreto(s): se escriben en cada servidor</span>{/if}
         </button>
         {#if open[mid]}
@@ -178,6 +191,12 @@
                 <div class="ctl"><VarField {v} bind:value={pm.values[v.name]} error={errs[v.name]} bare /></div>
               </div>
             {:else}<p class="muted small">Sin opciones: se instala tal cual.</p>{/each}
+            {#if toReview.includes(mid)}
+              <div class="rev">
+                <span class="muted small">Son los valores predeterminados. Al aplicar la plantilla en un servidor podrás retocarlos otra vez en «Configurar y aplicar…».</span>
+                <button class="btn sm" onclick={() => reviewed(mid)}><Check size={14} /> Valores revisados</button>
+              </div>
+            {/if}
           </div>
         {/if}
       </section>
@@ -194,11 +213,39 @@
     {/each}
   </div>
 {/each}
-{#if errorCount}<p class="muted small">Hay {errorCount} opción(es) por revisar: no se puede guardar hasta corregirlas.</p>{/if}
+
+<!-- Siempre a la vista: estado y botones. Se colorea si hay algo que hacer. -->
+<div class="foot" class:dirty={dirty || !draft.id} class:bad={errorCount > 0}>
+  <div class="foot-msg">
+    {#if errorCount}
+      <TriangleAlert size={16} /> <span>Hay {errorCount} opción(es) con errores: corrígelas para poder guardar.</span>
+    {:else if toReview.length}
+      <Sparkles size={16} />
+      <span>Revisa las opciones de: {#each toReview as mid, i}{#if i}, {/if}<button class="lnk" onclick={() => goTo(mid)}>{moduleName(mid)}</button>{/each}{#if dirty}{' '}· y guarda{/if}</span>
+    {:else if dirty || !draft.id}
+      <Save size={16} /> <span>{draft.id ? 'Tienes cambios sin guardar.' : 'Plantilla nueva: ponle nombre y guárdala.'}</span>
+    {:else}
+      <CircleCheck size={16} /> <span>Todo guardado.</span>
+    {/if}
+  </div>
+  {#if draft.id}<button class="btn sm danger" onclick={remove}><Trash2 size={14} /> Eliminar</button>{/if}
+  <button class="btn primary" onclick={save} disabled={saving || !dirty || !draft.name.trim() || errorCount > 0}><Save size={15} /> {saving ? 'Guardando…' : dirty || !draft.id ? 'Guardar' : 'Guardado'}</button>
+</div>
 
 <style>
+  .foot { position: sticky; bottom: -40px; margin: 24px -32px -40px; padding: 12px 32px; display: flex; gap: 10px; align-items: center; background: var(--panel); border-top: 1px solid var(--border); z-index: 5; transition: background .15s; }
+  .foot.dirty { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); border-top-color: var(--accent); }
+  .foot.bad { background: color-mix(in srgb, var(--danger) 12%, var(--panel)); border-top-color: var(--danger); }
+  .foot-msg { flex: 1; display: flex; gap: 8px; align-items: center; font-size: 13.5px; min-width: 0; }
+  .foot-msg :global(svg) { flex: none; }
+  .foot.dirty .foot-msg :global(svg) { color: var(--accent); }
+  .foot.bad .foot-msg :global(svg) { color: var(--danger); }
+  .lnk { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .cfg.new { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .new-t { display: inline-flex; gap: 4px; align-items: center; color: var(--accent); font-size: 12.5px; font-weight: 600; }
+  .rev { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--border-soft); flex-wrap: wrap; }
+  @media (max-width: 900px) { .foot { margin: 24px -16px -32px; padding: 10px 16px; bottom: -32px; flex-wrap: wrap; } }
   .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .spacer { flex: 1; }
   .top { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
   .name { font-size: 20px; font-weight: 600; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text); padding: 4px 0; outline: none; }
   .name:focus { border-color: var(--accent); }

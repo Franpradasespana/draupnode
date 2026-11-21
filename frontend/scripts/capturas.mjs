@@ -49,6 +49,7 @@ const ALL_SHOTS = [
     ['fill', 'Servidor web', 'Servidor de la tienda'], ['fill', '203.0.113.10', '203.0.113.20'], ['fill', 'ubuntu', 'root']] },
   { name: 'proyectos', view: 'projects' },
   { name: 'proyecto', view: 'projects', act: [['click', 'button.main', 'Coolify producción'], ['wait', 900]] },
+  { name: 'plantilla-cambios', view: 'projects', act: [['click', 'button.main', 'Coolify producción'], ['wait', 900], ['click', 'button.mc', 'Vaultwarden'], ['wait', 1200]] },
   { name: 'servidor', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1800]] },
   { name: 'despliegue', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Coolify producción'], ['wait', 1200]] },
   { name: 'catalogo', view: 'catalog', act: [['wait', 1200], ['click', 'button.mod', 'Coolify'], ['wait', 700]] },
