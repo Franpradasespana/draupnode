@@ -4,3 +4,6 @@ frontend/dist/*
 !frontend/dist/.gitkeep
 *.log
 .DS_Store
+
+# binario de «go build» en la raíz
+/draupnode
