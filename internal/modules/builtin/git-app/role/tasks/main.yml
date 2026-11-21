@@ -1,0 +1,121 @@
+---
+- name: Rutas
+  ansible.builtin.set_fact:
+    git_app_dir: "/srv/draupnode/apps/{{ git_app_name }}"
+    git_app_key: "{{ draupnode_secrets_dir }}/.git_app_{{ git_app_name }}_key"
+    git_app_ssh: "{{ git_app_repo is match('^[A-Za-z0-9._-]+@') }}"
+    git_app_project: "dn-{{ git_app_name }}"
+
+- name: Instalar git
+  ansible.builtin.apt:
+    name: git
+    state: present
+    lock_timeout: 600
+
+- name: Deploy key (repositorio privado por SSH)
+  ansible.builtin.shell: |
+    [ -f {{ git_app_key | quote }} ] && exit 0
+    ssh-keygen -q -t ed25519 -N '' -C "draupnode-{{ draupnode_project }}-{{ git_app_name }}" -f {{ git_app_key | quote }}
+    cp {{ (git_app_key ~ '.pub') | quote }} {{ (draupnode_secrets_dir ~ '/git_app_' ~ git_app_name ~ '_deploy_key.pub') | quote }}
+    echo creada
+  register: git_app_keygen
+  changed_when: "'creada' in git_app_keygen.stdout"
+  when: git_app_ssh | bool and not ansible_check_mode
+
+- name: Traer el código (clonar o actualizar)
+  ansible.builtin.shell: |
+    set -e
+    export GIT_SSH_COMMAND="ssh -i {{ git_app_key }} -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile={{ draupnode_secrets_dir }}/.git_known_hosts"
+    d={{ git_app_dir | quote }}
+    if [ ! -d "$d/.git" ]; then
+      mkdir -p "$(dirname "$d")"; rm -rf "$d.tmp"
+      # Sin terminal: si pide contraseña (repo privado sin la deploy key), falla en vez de esperar.
+      export GIT_TERMINAL_PROMPT=0
+      timeout 600 git clone -q --branch {{ git_app_branch | quote }} {{ git_app_repo | quote }} "$d.tmp" || { rm -rf "$d.tmp"; exit 1; }
+      mv "$d.tmp" "$d"
+      echo clonado
+    elif [ {{ git_app_update | bool | string | lower | quote }} = true ]; then
+      cd "$d"
+      git remote set-url origin {{ git_app_repo | quote }}
+      antes=$(git rev-parse HEAD)
+      GIT_TERMINAL_PROMPT=0 timeout 600 git fetch -q origin {{ git_app_branch | quote }}
+      git reset -q --hard FETCH_HEAD
+      [ "$antes" != "$(git rev-parse HEAD)" ] && echo actualizado || true
+    fi
+    git -C "$d" log -1 --format='%h %s'
+  register: git_app_git
+  changed_when: "'clonado' in git_app_git.stdout or 'actualizado' in git_app_git.stdout"
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: No se pudo traer el código
+  ansible.builtin.fail:
+    msg: >-
+      No se pudo descargar {{ git_app_repo }} ({{ git_app_git.stderr | default('') | trim | truncate(300) }}).
+      {% if git_app_ssh | bool %}Si es privado, añade esta deploy key (solo lectura) al repositorio y vuelve a aplicar:
+      {{ lookup('ansible.builtin.file', git_app_key ~ '.pub', errors='ignore') }}{% endif %}
+  when: not ansible_check_mode and git_app_git.rc != 0
+
+- name: El compose existe
+  ansible.builtin.stat:
+    path: "{{ git_app_dir }}/{{ git_app_compose }}"
+  register: git_app_cf
+  when: not ansible_check_mode
+
+- name: Falta el compose
+  ansible.builtin.fail:
+    msg: "El repositorio no tiene {{ git_app_compose }} (en la rama {{ git_app_branch }}). Créalo con Docker Creator y súbelo."
+  when: not ansible_check_mode and not git_app_cf.stat.exists
+
+- name: Valores generados (una vez)
+  ansible.builtin.set_fact:
+    git_app_gen: "{{ git_app_gen | default({}) | combine({item: lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/git_app_env_' ~ item, chars=['ascii_letters', 'digits'], length=40)}) }}"
+  loop: "{{ git_app_env_generate }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: .env
+  ansible.builtin.copy:
+    dest: "{{ git_app_dir }}/.env"
+    mode: "0600"
+    content: |
+      # Generado por Draupnode (módulo git-app). Se reescribe al aplicar.
+      {% for l in git_app_env %}
+      {{ l }}
+      {% endfor %}
+      {% for k, v in (git_app_gen | default({})).items() %}
+      {{ k }}={{ v }}
+      {% endfor %}
+      {% for l in (git_app_env_secret | default('')).split(';') if '=' in l %}
+      {{ l | trim }}
+      {% endfor %}
+  register: git_app_envf
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Construir y arrancar
+  ansible.builtin.command: docker compose -p {{ git_app_project }} -f {{ git_app_compose }} up -d --build --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ git_app_dir }}"
+  register: git_app_up
+  changed_when: "'Started' in git_app_up.stderr or 'Recreated' in git_app_up.stderr or 'Created' in git_app_up.stderr or 'Built' in git_app_up.stderr"
+  when: not ansible_check_mode
+
+- name: Comprobar que responde
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ git_app_port }}/"
+    status_code: [200, 201, 204, 301, 302, 303, 307, 308, 401, 403, 404]
+    follow_redirects: none
+  register: git_app_http
+  until: git_app_http.status in [200, 201, 204, 301, 302, 303, 307, 308, 401, 403, 404]
+  retries: 30
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode and git_app_port | int > 0
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {{ git_app_name }}: {{ git_app_git.stdout_lines[-1] | default('') if git_app_git.stdout_lines is defined else '' }}.
+      {%- if git_app_port | int > 0 and git_app_http.status is defined %} {{ 'Responde' if git_app_http.status in [200, 201, 204, 301, 302, 303, 307, 308, 401, 403, 404] else 'NO responde todavía' }} en 127.0.0.1:{{ git_app_port }}{% if git_app_http.status not in [200, 201, 204, 301, 302, 303, 307, 308, 401, 403, 404] %} (míralo con «docker compose -p {{ git_app_project }} logs» en {{ git_app_dir }}){% endif %}.{% endif %}
+      {%- if git_app_domain %} Dominio: https://{{ git_app_domain }}.{% endif %}

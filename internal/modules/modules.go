@@ -88,6 +88,9 @@ type Module struct {
 	// (el Cortafuegos solo maneja TCP). Sirven para avisar del cortafuegos del
 	// proveedor de nube.
 	UDPPortsFrom []string `yaml:"udp_ports_from" json:"udpPortsFrom,omitempty"`
+	// ProxySite: si la variable Domain tiene un dominio, Draupnode añade
+	// «dominio 127.0.0.1:<Port>» a los sitios de Caddy o nginx del proyecto.
+	ProxySite *ProxySite `yaml:"proxy_site" json:"proxySite,omitempty"`
 	// Conflicts: módulos que no pueden ir en el mismo proyecto (en los dos sentidos).
 	Conflicts []string `yaml:"conflicts" json:"conflicts,omitempty"`
 	// After: si estos módulos están en el proyecto, este va detrás (sin obligar a marcarlos).
@@ -109,6 +112,12 @@ type Module struct {
 	Source string   `yaml:"-" json:"source"` // builtin | user
 	Files  []string `yaml:"-" json:"files"`  // ficheros del rol (para verlos)
 	role   fs.FS
+}
+
+// ProxySite: variables con el dominio y el puerto local de una app.
+type ProxySite struct {
+	Domain string `yaml:"domain" json:"domain"`
+	Port   string `yaml:"port" json:"port"`
 }
 
 // Check es una comprobación previa. Hoy: ContainerFree = variable con el
@@ -204,6 +213,14 @@ func (m *Module) validate() error {
 	for _, name := range m.FirewallPortsFrom {
 		if v := vars[name]; v == nil || v.Type != TypeInt {
 			return fmt.Errorf("firewall_ports_from: %q no es una variable numérica del módulo", name)
+		}
+	}
+	if ps := m.ProxySite; ps != nil {
+		if v := vars[ps.Domain]; v == nil || v.Type != TypeString {
+			return fmt.Errorf("proxy_site.domain: %q no es una variable de texto del módulo", ps.Domain)
+		}
+		if v := vars[ps.Port]; v == nil || v.Type != TypeInt {
+			return fmt.Errorf("proxy_site.port: %q no es una variable numérica del módulo", ps.Port)
 		}
 	}
 	for _, name := range m.UDPPortsFrom {

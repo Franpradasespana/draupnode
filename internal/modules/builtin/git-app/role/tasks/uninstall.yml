@@ -1,0 +1,21 @@
+---
+- name: ¿Está la app?
+  ansible.builtin.stat:
+    path: "/srv/draupnode/apps/{{ git_app_name }}/{{ git_app_compose }}"
+  register: git_app_cf
+
+- name: Parar y quitar la app
+  ansible.builtin.command: docker compose -p dn-{{ git_app_name }} -f {{ git_app_compose }} down {{ '-v --rmi local' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: "/srv/draupnode/apps/{{ git_app_name }}"
+  when: git_app_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar su carpeta y sus valores
+  ansible.builtin.shell: |
+    rm -rf /srv/draupnode/apps/{{ git_app_name | quote }}
+    rm -f {{ draupnode_secrets_dir | quote }}/git_app_env_* {{ draupnode_secrets_dir | quote }}/git_app_{{ git_app_name }}_deploy_key.pub {{ draupnode_secrets_dir | quote }}/.git_app_{{ git_app_name }}_key*
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "{{ git_app_name }} {{ 'se quitará' if ansible_check_mode else 'quitada' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos (volúmenes) y su carpeta se conservan.' }}"

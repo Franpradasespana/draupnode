@@ -1,0 +1,103 @@
+id: git-app
+name: App desde Git (Docker Compose)
+version: 1.0.0
+category: 3 · Plataformas
+description: Despliega tu app desde su repositorio de Git con su docker-compose.yml (por ejemplo, el que genera Docker Creator). Al aplicar, la actualiza.
+details: |
+  Clona el repositorio en /srv/draupnode/apps/<nombre> y la arranca con
+  «docker compose up -d --build». Cada vez que aplicas, trae lo último de la
+  rama y la vuelve a construir (solo se reinicia lo que cambia).
+  Repositorio privado: Draupnode crea una «deploy key» en el servidor; la ves
+  en «Contraseñas del proyecto» y la añades en tu GitHub/GitLab/Forgejo
+  (Settings → Deploy keys, solo lectura). Usa la dirección SSH
+  (git@github.com:usuario/repo.git).
+  Variables (.env): las normales, una por línea «CLAVE=valor»; las que deben
+  ser secretas y al azar (SECRET_KEY, DB_PASSWORD…), en «Generar en el
+  servidor»: se crean una vez y no cambian.
+  Dominio: con Caddy o nginx en el proyecto, se añade solo a sus sitios.
+  Una app por proyecto: para otra, crea otro proyecto en el mismo servidor.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [git_app_public_port]
+proxy_site:
+  domain: git_app_domain
+  port: git_app_port
+secrets:
+  - file: git_app_*.pub
+    label: Deploy key (añádela al repositorio, solo lectura)
+  - file: git_app_env_*
+    label: Valor generado para el .env
+uninstall_warning: Para y quita los contenedores de la app.
+uninstall_data: Borrar también su carpeta, sus volúmenes de Docker (datos de la app y su base de datos) y sus valores generados.
+variables:
+  - name: git_app_repo
+    label: Repositorio
+    help: "https://github.com/usuario/repo.git (público) o git@github.com:usuario/repo.git (privado, con deploy key)."
+    type: string
+    required: true
+    pattern: '^(https://[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+|[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/~-]+)$'
+    pattern_help: Dirección https:// o git@servidor:usuario/repo.git
+  - name: git_app_branch
+    label: Rama
+    type: string
+    default: main
+    pattern: '^[A-Za-z0-9._/-]+$'
+    pattern_help: Nombre de rama
+  - name: git_app_name
+    label: Nombre de la app
+    help: Para su carpeta y sus contenedores.
+    type: string
+    default: app
+    pattern: '^[a-z][a-z0-9-]{1,30}$'
+    pattern_help: Minúsculas, números y guiones
+  - name: git_app_compose
+    label: Fichero compose
+    help: Dentro del repositorio.
+    type: string
+    default: docker-compose.yml
+    pattern: '^[A-Za-z0-9._/-]+\.ya?ml$'
+    pattern_help: Ruta a un .yml
+  - name: git_app_env
+    label: Variables (.env)
+    help: Una por línea, «CLAVE=valor». No pongas aquí contraseñas (van en el campo de abajo).
+    type: list
+    default: []
+    pattern: '^[A-Za-z_][A-Za-z0-9_]*=.*$'
+    pattern_help: CLAVE=valor
+  - name: git_app_env_generate
+    label: Generar en el servidor (secretos al azar)
+    help: Nombres de variables, uno por línea (SECRET_KEY, DB_PASSWORD…). Se crean una vez y se guardan.
+    type: list
+    default: []
+    pattern: '^[A-Za-z_][A-Za-z0-9_]*$'
+    pattern_help: Nombre de variable
+  - name: git_app_env_secret
+    label: Variables secretas con valor tuyo
+    help: "Tokens o claves que ya tienes: «CLAVE=valor; OTRA=valor». Se guardan cifradas en tu bóveda."
+    type: secret
+  - name: git_app_port
+    label: Puerto de la app en el servidor
+    help: El que publica tu compose (para el dominio y la comprobación). 0 = no comprobar.
+    type: int
+    default: 8000
+    min: 0
+    max: 65535
+  - name: git_app_domain
+    label: Dominio
+    help: Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio.
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (tienda.ejemplo.com) o vacío
+  - name: git_app_public_port
+    label: Abrir un puerto a internet
+    help: 0 = no (lo normal con dominio). Si no, se abre en el Cortafuegos.
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: git_app_update
+    label: Traer lo último de Git al aplicar
+    type: bool
+    default: true

@@ -67,3 +67,50 @@ func cloudPortWarning(sel []bundle.Selection, cloud string) string {
 	return "El servidor está en " + cf[0] + ", que tiene su propio cortafuegos fuera del servidor: si no lo has hecho ya, abre también " +
 		strings.Join(ports, ", ") + " en " + cf[1] + ". Draupnode no puede hacerlo por ti."
 }
+
+// syncProxySites: las apps con dominio (proxy_site) se añaden a los sitios
+// de Caddy o nginx del proyecto (cambia sus valores, que se guardan con el
+// proyecto). Sin Caddy ni nginx, avisa. Las líneas que ya están no se tocan.
+func syncProxySites(sel []bundle.Selection) []string {
+	var proxyVals map[string]any
+	proxyVar, proxyName := "", ""
+	for _, s := range sel {
+		switch s.Module.ID {
+		case "caddy":
+			proxyVals, proxyVar, proxyName = s.Values, "caddy_sites", "Caddy"
+		case "nginx":
+			proxyVals, proxyVar, proxyName = s.Values, "nginx_sites", "nginx"
+		}
+	}
+	var w []string
+	for _, s := range sel {
+		ps := s.Module.ProxySite
+		if ps == nil {
+			continue
+		}
+		domain, _ := s.Values[ps.Domain].(string)
+		port := toInt(s.Values[ps.Port])
+		if domain == "" || port <= 0 {
+			continue
+		}
+		line := domain + " 127.0.0.1:" + strconv.Itoa(port)
+		if proxyVals == nil {
+			w = append(w, s.Module.Name+" tiene el dominio "+domain+": añade Caddy o nginx al proyecto para que se vea en https://"+domain+" (Draupnode pondrá el sitio solo).")
+			continue
+		}
+		sites := toStrings(proxyVals[proxyVar])
+		found := false
+		for _, l := range sites {
+			if f := strings.Fields(l); len(f) > 0 && f[0] == domain {
+				found = true
+				if l != line {
+					w = append(w, "El dominio "+domain+" ya está en los sitios de "+proxyName+" con otro destino («"+l+"»); "+s.Module.Name+" escucha en 127.0.0.1:"+strconv.Itoa(port)+".")
+				}
+			}
+		}
+		if !found {
+			proxyVals[proxyVar] = append(sites, line)
+		}
+	}
+	return w
+}
