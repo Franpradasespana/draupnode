@@ -168,6 +168,7 @@ func (a *App) resolveProject(p store.Project) (ProjectCheck, []bundle.Selection)
 	}
 	res.Warnings = append(res.Warnings, missingPorts(sel)...)
 	res.Warnings = append(res.Warnings, syncProxySites(sel)...)
+	syncVPNDNS(sel)
 	srv, srvErr := a.store.Server(p.ServerID)
 	if srvErr == nil {
 		sshRules(srv, sel, &res)

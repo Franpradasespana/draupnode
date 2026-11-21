@@ -1,0 +1,44 @@
+id: adguard
+name: AdGuard Home (sin anuncios en la VPN)
+version: 1.0.0
+category: 7 · Apps
+description: "Bloquea anuncios, rastreadores y webs peligrosas en todos tus dispositivos conectados a la VPN, sin instalar nada en ellos."
+details: |
+  AdGuard Home (GPL-3) en Docker. Su DNS solo escucha en la VPN (la .1 de
+  WireGuard), nunca en internet: un DNS abierto se usa para atacar a otros.
+  Draupnode pone su dirección como DNS de los dispositivos de la VPN (hay
+  que volver a escanear el QR o importar su .conf).
+  Su panel solo se ve desde el servidor: «Abrir» en la página del módulo
+  (túnel SSH), por la VPN o con dominio. Usuario y contraseña generados en
+  el servidor (en «Contraseñas del proyecto»).
+  Las consultas salen cifradas (DNS sobre HTTPS) a Quad9 y Cloudflare;
+  puedes cambiarlo en su panel.
+depends: [docker, wireguard]
+requires:
+  os: [ubuntu, debian]
+proxy_site:
+  domain: adguard_domain
+  port: adguard_port
+secrets:
+  - file: adguard_usuario
+    label: Usuario del panel de AdGuard Home
+uninstall_warning: Para AdGuard Home. Los dispositivos de la VPN se quedan sin DNS hasta que quites el DNS de WireGuard y vuelvas a aplicar.
+uninstall_data: Borrar también su configuración y estadísticas.
+variables:
+  - name: adguard_port
+    label: Puerto del panel (solo local)
+    type: int
+    default: 3080
+    min: 1024
+    max: 65535
+  - name: adguard_domain
+    label: Dominio del panel
+    help: Opcional. Con Caddy o nginx en el proyecto, el panel se publica en https://dominio.
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio o vacío
+  - name: adguard_update
+    label: Actualizar AdGuard Home al aplicar
+    type: bool
+    default: true

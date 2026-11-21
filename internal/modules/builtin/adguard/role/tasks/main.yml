@@ -1,0 +1,107 @@
+---
+- name: IP del servidor en la VPN
+  ansible.builtin.shell: ip -4 -o addr show wg0 | awk '{print $4}' | cut -d/ -f1
+  register: adguard_wg
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Hace falta la VPN en marcha
+  ansible.builtin.assert:
+    that: adguard_wg.stdout | length > 0 or ansible_check_mode
+    fail_msg: "No hay interfaz wg0: aplica antes WireGuard (está en el proyecto: vuelve a aplicar)."
+    quiet: true
+
+- name: Datos
+  ansible.builtin.set_fact:
+    adguard_dir: /srv/draupnode/apps/adguard
+    adguard_ip: "{{ adguard_wg.stdout }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop: ["{{ adguard_dir }}", "{{ adguard_dir }}/conf", "{{ adguard_dir }}/work"]
+
+- name: Contraseña del panel (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    adguard_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.adguard_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ adguard_dir }}/docker-compose.yml"
+    mode: "0600"
+  register: adguard_compose
+
+- name: Arrancar AdGuard Home
+  ansible.builtin.command: docker compose -p dn-adguard up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ adguard_dir }}"
+  register: adguard_up
+  changed_when: "'Started' in adguard_up.stderr or 'Created' in adguard_up.stderr or 'Recreated' in adguard_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar al panel
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ adguard_port }}/"
+    status_code: [200, 302]
+    follow_redirects: none
+  register: adguard_http
+  until: adguard_http.status in [200, 302]
+  retries: 30
+  delay: 2
+  when: not ansible_check_mode
+
+- name: ¿Primera vez? (asistente sin hacer)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ adguard_port }}/control/install/get_addresses"
+    status_code: [200, 401, 403, 404]
+  register: adguard_wizard
+  when: not ansible_check_mode
+
+- name: Configurarlo (panel en 127.0.0.1, DNS solo en la VPN)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ adguard_port }}/control/install/configure"
+    method: POST
+    body_format: json
+    # (como texto JSON: así el puerto va como número; AdGuard rechaza "3080")
+    body: "{{ {'web': {'ip': '127.0.0.1', 'port': adguard_port | int}, 'dns': {'ip': adguard_ip, 'port': 53}, 'username': 'admin', 'password': adguard_pass} | to_json }}"
+    status_code: [200]
+  no_log: true
+  register: adguard_conf
+  changed_when: true
+  when: not ansible_check_mode and adguard_wizard.status == 200
+
+- name: DNS cifrado hacia fuera y lista de bloqueo (solo la primera vez)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ adguard_port }}/control/dns_config"
+    method: POST
+    body_format: json
+    url_username: admin
+    url_password: "{{ adguard_pass }}"
+    force_basic_auth: true
+    body:
+      upstream_dns: ["https://dns.quad9.net/dns-query", "https://cloudflare-dns.com/dns-query"]
+      bootstrap_dns: ["9.9.9.9", "1.1.1.1"]
+    status_code: [200]
+  no_log: true
+  when: not ansible_check_mode and adguard_conf is changed
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/adguard_usuario"
+    mode: "0600"
+    content: "Usuario: admin\nContraseña: {{ adguard_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      AdGuard Home responde al DNS en {{ adguard_ip }} (solo la VPN). Los dispositivos de la VPN lo usan como DNS:
+      vuelve a escanear su QR o a importar su .conf (página de WireGuard). Panel: «Abrir» en la página del módulo
+      (usuario admin, contraseña en «Contraseñas del proyecto»).

@@ -1,0 +1,17 @@
+# Generado por Draupnode (módulo adguard). No lo edites a mano: se reescribe al aplicar.
+name: dn-adguard
+
+services:
+  adguard:
+    image: adguard/adguardhome:latest
+    {% if adguard_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-adguard
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    # Red del servidor: así su DNS escucha solo en la IP de la VPN y el panel solo en 127.0.0.1.
+    network_mode: host
+    command: ["--no-check-update", "-c", "/opt/adguardhome/conf/AdGuardHome.yaml", "-w", "/opt/adguardhome/work", "--web-addr", "127.0.0.1:{{ adguard_port }}"]
+    volumes:
+      - ./conf:/opt/adguardhome/conf
+      - ./work:/opt/adguardhome/work

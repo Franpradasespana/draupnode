@@ -1,0 +1,19 @@
+---
+- name: ¿Está AdGuard Home?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/adguard/docker-compose.yml
+  register: adguard_cf
+
+- name: Parar y quitar AdGuard Home
+  ansible.builtin.command: docker compose -p dn-adguard down
+  args:
+    chdir: /srv/draupnode/apps/adguard
+  when: adguard_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar su configuración
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/adguard {{ draupnode_secrets_dir | quote }}/adguard_usuario {{ draupnode_secrets_dir | quote }}/.adguard_pass
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "AdGuard Home {{ 'se quitará' if ansible_check_mode else 'quitado' }}. Quita el DNS de los dispositivos en WireGuard y vuelve a aplicar."

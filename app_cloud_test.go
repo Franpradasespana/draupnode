@@ -49,3 +49,15 @@ func TestSitioAutomatico(t *testing.T) {
 		t.Fatalf("duplicado: %d", n)
 	}
 }
+
+func TestDNSdeLaVPN(t *testing.T) {
+	a := newTestApp(t, nil)
+	s, _ := a.store.SaveServer(store.Server{Name: "web", Host: "203.0.113.10", User: "root", AuthMethod: store.AuthPassword})
+	p, err := a.SaveProject(store.Project{Name: "x", ServerID: s.ID, Modules: []store.ProjectModule{{ID: "wireguard", Values: map[string]any{}}, {ID: "adguard", Values: map[string]any{}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := projectModule(p, "wireguard").Values["wireguard_dns"]; d != "10.8.0.1" {
+		t.Fatalf("DNS de la VPN: %v", d)
+	}
+}

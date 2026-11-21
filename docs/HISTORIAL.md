@@ -407,3 +407,10 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 
 - **Samba** (GPL-3) del sistema: carpetas «nombre /ruta», un usuario (sin SSH) con contraseña generada (→ bóveda), SMB2 o más, cifrado si el cliente puede, sin NetBIOS ni impresoras. Escucha **solo en el servidor, la VPN y las interfaces de red local indicadas**; no abre nada en el Cortafuegos. La VPN se le da por su IP (por el nombre `wg0` Samba no escucha: es punto a punto; salió al probar). `testparm` antes de poner la configuración.
 - **Probado**: el usuario sube y lista ficheros; otro usuario → LOGON_FAILURE; escucha en 10.8.0.1 y 127.0.0.1.
+
+## 2026-11-21 · 0.33.0 · AdGuard Home (sin anuncios en la VPN)
+
+- **AdGuard Home** (GPL-3) en Docker con red del servidor: DNS **solo en la IP de la VPN** (nunca un DNS abierto a internet), panel solo en 127.0.0.1 («Abrir», VPN o dominio). Se configura solo por su API de instalación (usuario admin con contraseña generada → bóveda) con DNS cifrado hacia fuera (Quad9 y Cloudflare por DoH).
+- Con AdGuard en el proyecto, **la VPN lo usa como DNS** (`wireguard_dns` se pone solo a la .1 si estaba vacío). El DNS de WireGuard ahora se aplica también sin «Todo el tráfico».
+- Salió al probar: la API de AdGuard rechaza el puerto como texto (se manda el JSON ya formado).
+- **Probado**: DNS en 10.8.0.1:53 y en ningún otro sitio; doubleclick.net → 0.0.0.0, example.com se resuelve; el panel deja entrar con el usuario generado; la configuración del dispositivo lleva `DNS = 10.8.0.1`.

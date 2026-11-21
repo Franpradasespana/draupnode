@@ -114,3 +114,28 @@ func syncProxySites(sel []bundle.Selection) []string {
 	}
 	return w
 }
+
+// syncVPNDNS: con AdGuard Home y WireGuard en el proyecto, los dispositivos
+// de la VPN usan AdGuard como DNS (la .1 de la red de la VPN), salvo que el
+// usuario haya puesto otro.
+func syncVPNDNS(sel []bundle.Selection) {
+	var wg map[string]any
+	ad := false
+	for _, s := range sel {
+		switch s.Module.ID {
+		case "wireguard":
+			wg = s.Values
+		case "adguard":
+			ad = true
+		}
+	}
+	if wg == nil || !ad {
+		return
+	}
+	if d, _ := wg["wireguard_dns"].(string); d != "" {
+		return
+	}
+	if n, _ := wg["wireguard_network"].(string); strings.HasSuffix(n, ".0/24") {
+		wg["wireguard_dns"] = strings.TrimSuffix(n, ".0/24") + ".1"
+	}
+}
