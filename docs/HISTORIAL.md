@@ -548,3 +548,17 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
   (`<registro>.log.json`); se guardan los 60 últimos por plantilla y servidor. En la ficha del servidor (todas sus
   plantillas) y en cada plantilla dentro del servidor: fecha, tipo, resultado y duración; pulsando se ve el registro.
 - Captura de la demo `terminal` (con una acción nueva `js` en `capturas.mjs`).
+
+## 2026-11-21 · 0.41.0 · Editor de módulos
+
+- **Utilidades → Editor de módulos** (también «Mis módulos» en el Catálogo): crea módulos propios partiendo de un
+  ejemplo comentado (instala paquetes y pone un mensaje del día, con su desinstalación) o de una **copia de
+  cualquier módulo incluido** (se renombran su id y el prefijo de sus variables; nombre «… (mi versión)»).
+  - Editor CodeMirror 6 (`codemirror` 6.0.2, `@codemirror/lang-yaml`, `@codemirror/legacy-modes` para Jinja2 y
+    shell; MIT) con los colores del tema, Ctrl+S para guardar, una pestaña por fichero, ficheros nuevos y borrar.
+  - Al guardar se comprueba: sintaxis YAML de cada fichero y la validación del Catálogo (prefijo de variables,
+    tipos, puertos…); en rojo lo que impide usarlo, en ámbar avisos (id distinto de la carpeta, sustituye a uno
+    incluido). No se puede borrar un módulo que usa alguna plantilla.
+  - Rutas confinadas a la carpeta del módulo (`module.yaml` y `role/…`), con test de rutas maliciosas.
+  - Probado de verdad: el ejemplo se aplica y se desinstala en un Ubuntu desechable.
+- Captura `modulos` y ayuda de la pantalla.

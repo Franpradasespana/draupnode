@@ -481,3 +481,31 @@ func contains(l []string, s string) bool {
 	}
 	return false
 }
+
+// BuiltinFiles devuelve los ficheros de un módulo incluido (rutas relativas a
+// su carpeta), para usarlo como punto de partida de uno propio.
+func BuiltinFiles(id string) (map[string][]byte, error) {
+	root := path.Join("builtin", id)
+	if _, err := fs.Stat(builtinFS, path.Join(root, "module.yaml")); err != nil {
+		return nil, fmt.Errorf("no hay módulo incluido %q", id)
+	}
+	out := map[string][]byte{}
+	err := fs.WalkDir(builtinFS, root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := fs.ReadFile(builtinFS, p)
+		if err != nil {
+			return err
+		}
+		out[strings.TrimPrefix(p, root+"/")] = b
+		return nil
+	})
+	return out, err
+}
+
+// IsBuiltin dice si hay un módulo incluido con ese id.
+func IsBuiltin(id string) bool {
+	_, err := fs.Stat(builtinFS, path.Join("builtin", id, "module.yaml"))
+	return err == nil
+}

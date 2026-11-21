@@ -98,6 +98,10 @@ export function CreateBackupTarget(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateBackupTarget'](arg1, arg2, arg3);
 }
 
+export function CreateUserModule(arg1, arg2) {
+  return window['go']['main']['App']['CreateUserModule'](arg1, arg2);
+}
+
 export function DefaultBackupFolder(arg1) {
   return window['go']['main']['App']['DefaultBackupFolder'](arg1);
 }
@@ -116,6 +120,14 @@ export function DeleteRecipe(arg1) {
 
 export function DeleteServer(arg1) {
   return window['go']['main']['App']['DeleteServer'](arg1);
+}
+
+export function DeleteUserModule(arg1) {
+  return window['go']['main']['App']['DeleteUserModule'](arg1);
+}
+
+export function DeleteUserModuleFile(arg1, arg2) {
+  return window['go']['main']['App']['DeleteUserModuleFile'](arg1, arg2);
 }
 
 export function DeployRecipe(arg1, arg2) {
@@ -202,6 +214,10 @@ export function ListServers() {
   return window['go']['main']['App']['ListServers']();
 }
 
+export function ListUserModules() {
+  return window['go']['main']['App']['ListUserModules']();
+}
+
 export function ModuleFile(arg1, arg2) {
   return window['go']['main']['App']['ModuleFile'](arg1, arg2);
 }
@@ -230,6 +246,10 @@ export function OpenURL(arg1) {
   return window['go']['main']['App']['OpenURL'](arg1);
 }
 
+export function OpenUserModuleDir(arg1) {
+  return window['go']['main']['App']['OpenUserModuleDir'](arg1);
+}
+
 export function PickKeyFile() {
   return window['go']['main']['App']['PickKeyFile']();
 }
@@ -252,6 +272,10 @@ export function PushToRecipe(arg1) {
 
 export function ReadRunLog(arg1, arg2) {
   return window['go']['main']['App']['ReadRunLog'](arg1, arg2);
+}
+
+export function ReadUserModuleFile(arg1, arg2) {
+  return window['go']['main']['App']['ReadUserModuleFile'](arg1, arg2);
 }
 
 export function ReloadModules() {
@@ -296,6 +320,10 @@ export function SaveSettings(arg1) {
 
 export function SaveTextFile(arg1, arg2) {
   return window['go']['main']['App']['SaveTextFile'](arg1, arg2);
+}
+
+export function SaveUserModuleFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveUserModuleFile'](arg1, arg2, arg3);
 }
 
 export function SecretsInfo() {

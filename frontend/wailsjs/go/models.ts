@@ -1410,6 +1410,29 @@ export namespace main {
 		    return a;
 		}
 	}
+	
+	export class UserModule {
+	    id: string;
+	    name: string;
+	    files: string[];
+	    problems: string[];
+	    notes: string[];
+	    usedBy?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new UserModule(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.files = source["files"];
+	        this.problems = source["problems"];
+	        this.notes = source["notes"];
+	        this.usedBy = source["usedBy"];
+	    }
+	}
 
 }
 

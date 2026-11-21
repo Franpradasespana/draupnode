@@ -142,6 +142,17 @@ export const HELP: HelpSection[] = [
     ],
   },
   {
+    id: 'modules',
+    title: 'Editor de módulos',
+    intro: 'Crea y edita tus propios módulos sin salir de Draupnode. Un módulo es un formulario (module.yaml: nombre, opciones, puertos…) y un rol de Ansible (role/tasks/main.yml y, para poder desinstalarlo, role/tasks/uninstall.yml).',
+    steps: [
+      { title: 'Nuevo módulo', text: 'Elige un nombre corto (minúsculas y guiones) y de qué partir: un ejemplo sencillo comentado o una copia de cualquier módulo incluido (se renombran su id y sus variables). Aparece en el Catálogo al momento.', img: 'modulos' },
+      { title: 'Editar', text: 'Cada fichero es una pestaña. El editor resalta YAML, plantillas Jinja2 (.j2) y shell. Ctrl+S guarda. «Nuevo» añade un fichero (por ejemplo role/templates/config.j2).' },
+      { title: 'Comprobar', text: 'Al guardar se comprueba: la sintaxis YAML de cada fichero y lo mismo que mira el Catálogo (variables con su prefijo, tipos, puertos…). Abajo verás en rojo lo que impide usarlo y en ámbar los avisos. Para probarlo de verdad, ponlo en una plantilla y aplícala en el servidor de pruebas.' },
+      { title: 'Borrar', text: 'Solo si ninguna plantilla lo usa. Lo que ya instaló en tus servidores no se toca.' },
+    ],
+  },
+  {
     id: 'alerts',
     title: 'Avisos',
     intro: 'Todo lo que conviene mirar, en un sitio. El número sale en el menú y en la campana de arriba; el Panel también los enseña. Las demás pantallas no se llenan de franjas.',

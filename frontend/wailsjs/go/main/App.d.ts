@@ -54,6 +54,8 @@ export function CloseTunnels():Promise<void>;
 
 export function CreateBackupTarget(arg1:string,arg2:string,arg3:number):Promise<main.BackupTargetResult>;
 
+export function CreateUserModule(arg1:string,arg2:string):Promise<main.UserModule>;
+
 export function DefaultBackupFolder(arg1:string):Promise<string>;
 
 export function DefaultDockerSpec(arg1:string,arg2:string):Promise<dockerize.Spec>;
@@ -63,6 +65,10 @@ export function DeleteProject(arg1:string):Promise<void>;
 export function DeleteRecipe(arg1:string):Promise<void>;
 
 export function DeleteServer(arg1:string):Promise<void>;
+
+export function DeleteUserModule(arg1:string):Promise<void>;
+
+export function DeleteUserModuleFile(arg1:string,arg2:string):Promise<main.UserModule>;
 
 export function DeployRecipe(arg1:string,arg2:string):Promise<store.Project>;
 
@@ -106,6 +112,8 @@ export function ListRecipes():Promise<Array<main.RecipeView>>;
 
 export function ListServers():Promise<Array<main.ServerView>>;
 
+export function ListUserModules():Promise<Array<main.UserModule>>;
+
 export function ModuleFile(arg1:string,arg2:string):Promise<string>;
 
 export function MonitorSummary(arg1:string,arg2:string,arg3:string):Promise<main.MonitorResult>;
@@ -120,6 +128,8 @@ export function OpenProjectDir(arg1:string):Promise<void>;
 
 export function OpenURL(arg1:string):Promise<void>;
 
+export function OpenUserModuleDir(arg1:string):Promise<void>;
+
 export function PickKeyFile():Promise<string>;
 
 export function ProjectRecipeDiff(arg1:string):Promise<main.RecipeDiff>;
@@ -131,6 +141,8 @@ export function ProjectSecretsInfo(arg1:string):Promise<main.ProjectSecretsSumma
 export function PushToRecipe(arg1:string):Promise<store.Recipe>;
 
 export function ReadRunLog(arg1:string,arg2:string):Promise<string>;
+
+export function ReadUserModuleFile(arg1:string,arg2:string):Promise<string>;
 
 export function ReloadModules():Promise<main.ModulesInfo>;
 
@@ -153,6 +165,8 @@ export function SaveServer(arg1:store.Server,arg2:string,arg3:boolean,arg4:strin
 export function SaveSettings(arg1:store.Settings):Promise<void>;
 
 export function SaveTextFile(arg1:string,arg2:string):Promise<string>;
+
+export function SaveUserModuleFile(arg1:string,arg2:string,arg3:string):Promise<main.UserModule>;
 
 export function SecretsInfo():Promise<main.SecretsInfo>;
 

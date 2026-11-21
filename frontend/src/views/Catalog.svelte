@@ -20,13 +20,6 @@
     toast('Catálogo recargado')
   }
 
-  async function openDir() {
-    try {
-      await api.OpenModulesDir()
-    } catch (e) {
-      toast(errorText(e), 'error')
-    }
-  }
 
   async function showFile(m: Module, f: string) {
     try {
@@ -50,7 +43,7 @@
     <p class="muted">Lo que Draupnode sabe instalar. Cada módulo es un rol de Ansible con su formulario.</p>
   </div>
   <div class="row">
-    <button class="btn" onclick={openDir}><FolderOpen size={15} /> Mis módulos</button>
+    <button class="btn" onclick={() => (ui.view = 'modules')}><FolderOpen size={15} /> Mis módulos</button>
     <button class="btn" onclick={reload}><RefreshCw size={15} /> Recargar</button>
   </div>
 </div>
@@ -93,8 +86,8 @@
 {/each}
 
 <p class="muted foot">
-  Para añadir tus propios módulos, pulsa <strong>Mis módulos</strong> y crea una carpeta con un <code>module.yaml</code> y un rol de Ansible en <code>role/</code>
-  (puedes copiar uno de los incluidos como ejemplo). Luego pulsa <strong>Recargar</strong>.
+  Para crear tus propios módulos, pulsa <strong>Mis módulos</strong> (o Utilidades → Editor de módulos): puedes empezar con un ejemplo o
+  copiar uno de los incluidos. Si los editas fuera de Draupnode, pulsa <strong>Recargar</strong>.
   <br />Carpeta: <code class="selectable">{ui.modules?.userDir}</code>
 </p>
 

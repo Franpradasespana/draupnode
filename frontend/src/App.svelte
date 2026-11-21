@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { LayoutDashboard, Server, Boxes, FolderGit2, Container, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X, Bell, ChevronRight } from '@lucide/svelte'
+  import { LayoutDashboard, Server, Boxes, FolderGit2, Container, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X, Bell, ChevronRight, Puzzle } from '@lucide/svelte'
   import Logo from './components/Logo.svelte'
   import Dashboard from './views/Dashboard.svelte'
   import Servers from './views/Servers.svelte'
@@ -18,6 +18,7 @@
   import HelpDialog from './components/HelpDialog.svelte'
   import Alerts from './views/Alerts.svelte'
   import TerminalView from './views/Terminal.svelte'
+  import ModuleEditor from './views/ModuleEditor.svelte'
   import { alertItems, loadAlerts } from './lib/alerts.svelte'
   import { ui, boot, toast, openServer, openRecipe, type View } from './lib/state.svelte'
   import { errorText, isDesktop } from './lib/api'
@@ -53,11 +54,12 @@
     { id: 'docker', label: 'Docker Creator', icon: Container },
     { id: 'lab', label: 'Servidor de pruebas', icon: FlaskConical },
     { id: 'terminal', label: 'Terminal', icon: SquareTerminal },
+    { id: 'modules', label: 'Editor de módulos', icon: Puzzle },
   ]
 
   const titles: Record<View, string> = {
     dashboard: 'Panel', servers: 'Servidores', catalog: 'Catálogo', projects: 'Plantillas',
-    docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Servidor de pruebas', alerts: 'Avisos',
+    docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Servidor de pruebas', alerts: 'Avisos', modules: 'Editor de módulos',
   }
 
   let ready = $state(false)
@@ -169,6 +171,7 @@
       {:else if ui.view === 'docker'}<Dockerize />
       {:else if ui.view === 'settings'}<SettingsView />
       {:else if ui.view === 'alerts'}<Alerts />
+      {:else if ui.view === 'modules'}<ModuleEditor />
       {:else if ui.view === 'terminal'}<!-- abajo, siempre montada -->
       {:else}<Upcoming view={ui.view} />
       {/if}

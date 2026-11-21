@@ -253,6 +253,15 @@ export interface BackupFetchProgress {
   stage: string
 }
 
+export interface UserModule {
+  id: string
+  name: string
+  files: string[]
+  problems: string[]
+  notes: string[]
+  usedBy?: string[]
+}
+
 export interface RunEntry {
   projectId: string
   project: string
@@ -553,6 +562,13 @@ interface Backend {
   ReloadModules(): Promise<ModulesInfo>
   ModuleFile(id: string, file: string): Promise<string>
   OpenModulesDir(): Promise<void>
+  ListUserModules(): Promise<UserModule[]>
+  ReadUserModuleFile(id: string, rel: string): Promise<string>
+  SaveUserModuleFile(id: string, rel: string, content: string): Promise<UserModule>
+  DeleteUserModuleFile(id: string, rel: string): Promise<UserModule>
+  CreateUserModule(id: string, from: string): Promise<UserModule>
+  DeleteUserModule(id: string): Promise<void>
+  OpenUserModuleDir(id: string): Promise<void>
   ListProjects(): Promise<Project[]>
   CheckProject(p: Project): Promise<ProjectCheck>
   SaveProject(p: Project): Promise<Project>
@@ -639,6 +655,7 @@ export function onEvent(name: string, cb: (data: any) => void): () => void {
   ;(mockListeners[name] ||= []).push(cb)
   return () => (mockListeners[name] = mockListeners[name].filter((f) => f !== cb))
 }
+const mockUserMods: Record<string, { id: string; name: string; problems: string[]; notes: string[]; files: Record<string, string> }> = {}
 const mockTerms: Record<string, { line: string; out: (t: string) => void; prompt: string }> = {}
 function mockEmit(name: string, data: unknown) {
   for (const f of mockListeners[name] ?? []) f(data)
@@ -862,6 +879,38 @@ function mockBackend(): Backend {
     async ListModules() {
       return { modules: MOCK_MODULES, errors: [], userDir: '(simulado)/modules' }
     },
+    async ListUserModules() {
+      return Object.values(mockUserMods).map((m) => ({ ...m, files: Object.keys(m.files) }))
+    },
+    async ReadUserModuleFile(id, rel) {
+      return mockUserMods[id]?.files[rel] ?? ''
+    },
+    async SaveUserModuleFile(id, rel, content) {
+      const m = mockUserMods[id]
+      if (!m) throw 'no existe'
+      if (rel !== 'module.yaml' && !rel.startsWith('role/')) throw 'los ficheros van en module.yaml o dentro de role/'
+      m.files[rel] = content
+      m.problems = /\[[^\]]*$/m.test(content) ? [rel + ': yaml: línea 1: no se encontró el «]» de cierre'] : []
+      return { ...m, files: Object.keys(m.files) }
+    },
+    async DeleteUserModuleFile(id, rel) {
+      delete mockUserMods[id].files[rel]
+      return { ...mockUserMods[id], files: Object.keys(mockUserMods[id].files) }
+    },
+    async CreateUserModule(id, from) {
+      if (mockUserMods[id]) throw 'ya tienes un módulo «' + id + '»'
+      const v = id.replaceAll('-', '_') + '_'
+      mockUserMods[id] = { id, name: from ? 'Copia de ' + from : 'Mi módulo', problems: [], notes: [], files: {
+        'module.yaml': `# Módulo propio de Draupnode.\nid: ${id}\nname: "Mi módulo"\nversion: 1.0.0\ncategory: 8 · Mis módulos\ndescription: "Una línea que diga qué hace."\ndepends: [base]\nvariables:\n  - name: ${v}paquetes\n    label: Paquetes que instalar\n    type: list\n    default: [htop, ncdu]\n`,
+        'role/tasks/main.yml': `---\n- name: Instalar paquetes\n  ansible.builtin.apt:\n    name: "{{ ${v}paquetes }}"\n    state: present\n`,
+        'role/tasks/uninstall.yml': `---\n- name: Quitar paquetes\n  ansible.builtin.apt:\n    name: "{{ ${v}paquetes }}"\n    state: absent\n`,
+      } }
+      return { ...mockUserMods[id], files: Object.keys(mockUserMods[id].files) }
+    },
+    async DeleteUserModule(id) {
+      delete mockUserMods[id]
+    },
+    async OpenUserModuleDir() {},
     async ReloadModules() {
       return { modules: MOCK_MODULES, errors: [], userDir: '(simulado)/modules' }
     },
