@@ -94,6 +94,13 @@
   const sys = $derived(ov?.system)
   const memUsed = $derived(sys ? sys.memTotal - sys.memAvailable : 0)
   const publicPorts = $derived((ov?.ports ?? []).filter((p) => p.public))
+  const inRange = (spec: string, n: number) => {
+    const [a, b] = spec.split('-').map(Number)
+    return b ? n >= a && n <= b : n === a
+  }
+  const listening = (proto: string, spec: string) => publicPorts.some((p) => p.proto === proto && inRange(spec, p.port))
+  const idlePorts = $derived(ov?.firewall?.active ? [...ov.firewall.tcp.filter((p) => !listening('tcp', p)).map((p) => p + '/tcp'), ...ov.firewall.udp.filter((p) => !listening('udp', p)).map((p) => p + '/udp')] : [])
+  const blockedPorts = $derived(publicPorts.filter((p) => !(p.proto === 'tcp' ? ov?.firewall?.tcp : ov?.firewall?.udp)?.some((s) => inRange(s, p.port))).map((p) => `${p.port}/${p.proto}`))
   const badContainers = $derived((ov?.containers ?? []).filter((c) => c.state !== 'running' || c.health === 'unhealthy'))
   const others = $derived(ui.recipes.filter((r) => !deployments.some((d) => d.recipeId === r.id)))
 </script>
@@ -275,10 +282,22 @@
 
     <!-- Puertos y registros del sistema -->
     <section class="card block">
-      <h2><Network size={17} /> Puertos abiertos a la red</h2>
+      <h2><Network size={17} /> Puertos</h2>
+      <h3>El cortafuegos deja pasar</h3>
+      {#if !ov.firewall}<p class="muted">No se pudo leer.</p>
+      {:else if !ov.firewall.active}<p class="muted">No hay cortafuegos activo: se llega a cualquier puerto en el que algo escuche.</p>
+      {:else if ov.firewall.tcp.length || ov.firewall.udp.length}
+        <div class="ports">
+          {#each ov.firewall.tcp as p}<span class="pill mono" class:idle={!listening('tcp', p)}>{p}/tcp</span>{/each}
+          {#each ov.firewall.udp as p}<span class="pill mono" class:idle={!listening('udp', p)}>{p}/udp</span>{/each}
+        </div>
+        {#if idlePorts.length}<p class="muted small">{idlePorts.join(', ')}: abierto{idlePorts.length > 1 ? 's' : ''}, pero ahora no hay nada escuchando (se usará cuando instales algo que lo necesite, como Caddy o nginx en el 80/443).</p>{/if}
+      {:else}<p class="muted">Nada: todo cerrado.</p>{/if}
+      <h3>Programas escuchando hacia fuera</h3>
       {#if publicPorts.length}
         <div class="ports">{#each publicPorts as p}<span class="pill mono">{p.port}/{p.proto} · {p.process || '?'}</span>{/each}</div>
       {:else}<p class="muted">Ninguno aparte de los locales.</p>{/if}
+      {#if ov.firewall?.active && blockedPorts.length}<p class="muted small">{blockedPorts.join(', ')}: escucha{blockedPorts.length > 1 ? 'n' : ''}, pero el cortafuegos no {blockedPorts.length > 1 ? 'los' : 'lo'} deja pasar desde fuera.</p>{/if}
       <div class="row">
         <button class="btn sm" onclick={() => showLogs('system', '', 'Registro del sistema')}><ScrollText size={14} /> Registro del sistema</button>
         <button class="btn sm" onclick={() => showLogs('unit', 'ssh', 'SSH')}><ScrollText size={14} /> Registro de SSH</button>
@@ -355,6 +374,8 @@
   .db { display: flex; flex-direction: column; gap: 4px; }
   .db-h { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
   .ports { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill.idle { opacity: 0.55; border-style: dashed; }
+  h3 { font-size: 0.9rem; margin: 10px 0 6px; font-weight: 600; }
   .secrets { display: flex; gap: 6px; align-items: center; margin: 18px 0 -6px; font-size: 13px; color: var(--muted); }
   .log { margin: 0; max-height: 60vh; overflow: auto; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); font-family: var(--mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
 </style>

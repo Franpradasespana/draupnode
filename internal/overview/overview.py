@@ -1,7 +1,7 @@
 # Estado de un servidor para Draupnode (se ejecuta como root, sin escribir nada).
 # Saca un JSON con: sistema, CPU, memoria, discos, contenedores (con su uso),
 # bases de datos y su tamaño, apps de Coolify, sitios de nginx/Caddy,
-# servicios caídos y puertos abiertos. Cada parte es independiente: si una
+# servicios caídos, puertos escuchando y lo que deja pasar el cortafuegos. Cada parte es independiente: si una
 # falla, las demás siguen.
 import glob, json, os, re, shutil, socket, subprocess, time
 
@@ -203,6 +203,28 @@ def _():
             seen.add(k)
             uniq.append(p)
     return uniq
+
+@part("firewall")
+def _():
+    # Lo que deja pasar el cortafuegos (iptables; también las reglas de ufw).
+    if not shutil.which("iptables"):
+        return {"active": False, "tcp": [], "udp": []}
+    rules = run("iptables", "-S").splitlines()
+    chains = {"INPUT", "ufw-user-input"}
+    policy = next((l.split()[2] for l in rules if l.startswith("-P INPUT ")), "ACCEPT")
+    blocks = policy != "ACCEPT" or any(l.startswith("-A INPUT") and re.search(r"-j (DROP|REJECT)", l) for l in rules)
+    allow = {"tcp": set(), "udp": set()}
+    for l in rules:
+        f = l.split()
+        if len(f) < 2 or f[0] != "-A" or f[1] not in chains or "-j ACCEPT" not in l or " -s " in l or " -i " in l:
+            continue
+        m = re.search(r"-p (tcp|udp)", l)
+        d = re.search(r"--dports? (\S+)", l)
+        if m and d:
+            for x in d.group(1).split(","):
+                allow[m.group(1)].add(x.replace(":", "-"))
+    key = lambda x: int(x.split("-")[0]) if x.split("-")[0].isdigit() else 0
+    return {"active": blocks, "tcp": sorted(allow["tcp"], key=key), "udp": sorted(allow["udp"], key=key)}
 
 out["at"] = int(time.time())
 print(json.dumps(out))

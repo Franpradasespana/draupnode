@@ -469,6 +469,7 @@ export interface ServerOverview {
   sites?: { server: string; domain: string; target: string; https: boolean; file: string }[]
   failed?: string[]
   ports?: { proto: string; addr: string; port: number; process: string; public: boolean }[]
+  firewall?: { active: boolean; tcp: string[]; udp: string[] }
 }
 
 export interface ServerLogsResult extends RunStart {
@@ -1157,6 +1158,7 @@ function mockBackend(): Backend {
         sites: [{ server: 'nginx', domain: 'estado.ejemplo.com', target: 'http://127.0.0.1:3001', https: true, file: '/etc/nginx/sites-enabled/draupnode-estado.ejemplo.com.conf' }],
         failed: ['certbot.service'],
         ports: [{ proto: 'tcp', addr: '0.0.0.0', port: 22, process: 'sshd', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 80, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 443, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 8000, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '127.0.0.1', port: 3000, process: 'docker-proxy', public: false }],
+        firewall: { active: true, tcp: ['22', '80', '443', '8000'], udp: [] },
       } }
     },
     async ServerLogs(_id, kind, name) {

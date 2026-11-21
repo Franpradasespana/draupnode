@@ -450,3 +450,15 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
   - Registros (`ServerLogs`): contenedor, servicio de systemd o todo el sistema, últimas 400 líneas; los nombres se validan.
 - Navegación: Servidores → ficha → proyecto del servidor; la barra de estado, el panel y los avisos llevan a la ficha o al proyecto en su servidor.
 - **Probado**: tests de recetas (desplegar, valores propios, cambio de receta que llega a todos sin pisar lo propio, llevar a la receta, volver a la receta, no borrar una receta en uso) y de la conversión de datos viejos. En un Ubuntu desechable: receta con PostgreSQL (dos bases) y nginx → asociada → aplicada; la ficha encuentra el PostgreSQL con sus bases y tamaños, un Coolify (su base, con dos apps y su panel), el sitio de nginx y un contenedor que se reinicia sin parar; registros de contenedor y de servicio; un nombre malicioso se rechaza. El destino de copias sigue funcionando como receta. Demo: ficha, proyecto en el servidor, editor de recetas y el resto de pantallas sin errores de JavaScript.
+
+## 2026-11-21 · 0.36.1 · Ficha del servidor: lo que deja pasar el cortafuegos
+
+- «Puertos abiertos a la red» solo mostraba lo que tiene un programa escuchando (`ss`), y confundía: con el
+  cortafuegos abriendo 22/80/443 y nada en el 80/443, salía solo «22/tcp».
+- Ahora la sección «Puertos» tiene dos partes:
+  - **El cortafuegos deja pasar**: se lee con `iptables -S` (cadena INPUT y las de ufw; sin las reglas
+    limitadas a un origen o a una interfaz, como las de la VPN). Los puertos abiertos sin nada escuchando
+    salen atenuados y con una nota.
+  - **Programas escuchando hacia fuera**: lo de antes, con aviso si algo escucha pero el cortafuegos no lo deja pasar.
+  - Si no hay cortafuegos activo (política ACCEPT y sin DROP/REJECT), lo dice.
+- Probado con reglas falsas de iptables (las del módulo Cortafuegos, una de la VPN y un rango multiport de ufw).
