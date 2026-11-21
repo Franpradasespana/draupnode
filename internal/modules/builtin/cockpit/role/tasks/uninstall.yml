@@ -1,0 +1,34 @@
+---
+- name: Desinstalar Cockpit
+  ansible.builtin.apt:
+    name: [cockpit, cockpit-pcp, cockpit-ws, cockpit-bridge, cockpit-system]
+    state: absent
+    lock_timeout: 600
+
+- name: Quitar su configuración
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/systemd/system/cockpit.socket.d, /etc/cockpit/cockpit.conf]
+  when: not ansible_check_mode
+
+- name: Cerrar las sesiones del usuario del panel
+  ansible.builtin.shell: pkill -u {{ cockpit_user | quote }} || true; sleep 1; pkill -9 -u {{ cockpit_user | quote }} || true
+  changed_when: false
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Borrar el usuario del panel
+  ansible.builtin.user:
+    name: "{{ cockpit_user }}"
+    state: absent
+    remove: true
+    force: true
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Borrar su contraseña
+  ansible.builtin.shell: rm -f {{ draupnode_secrets_dir | quote }}/cockpit_usuario {{ draupnode_secrets_dir | quote }}/.cockpit_pass
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Cockpit {{ 'se desinstalará' if ansible_check_mode else 'desinstalado' }}.{{ ' También su usuario.' if draupnode_uninstall_purge | bool else ' El usuario «' ~ cockpit_user ~ '» se queda.' }}"

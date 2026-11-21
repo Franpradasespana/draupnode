@@ -1,0 +1,50 @@
+id: cockpit
+name: Cockpit (panel del servidor)
+version: 1.0.0
+category: 6 · Monitorización
+description: "Un panel web para ver y manejar el servidor: CPU, memoria, discos, servicios, registros, actualizaciones y una terminal en el navegador."
+details: |
+  Cockpit (LGPL-2.1) del sistema. No se publica en internet: solo escucha
+  en 127.0.0.1 (y en la VPN si está WireGuard). Se abre con «Abrir» en la
+  página de este módulo (túnel SSH), por la VPN o con dominio (Caddy o nginx
+  en el proyecto).
+  Para entrar, Draupnode crea un usuario propio con una contraseña generada
+  en el servidor (en «Contraseñas del proyecto»); si marcas «Puede
+  administrar», ese usuario tiene sudo.
+depends: [base]
+after: [wireguard]
+requires:
+  os: [ubuntu, debian]
+proxy_site:
+  domain: cockpit_domain
+  port: cockpit_port
+secrets:
+  - file: cockpit_usuario
+    label: Usuario para entrar en Cockpit
+uninstall_warning: Desinstala Cockpit. El usuario del panel se queda (puedes borrarlo con «borrar datos»).
+uninstall_data: Borrar también el usuario del panel y su carpeta.
+variables:
+  - name: cockpit_port
+    label: Puerto (solo local)
+    type: int
+    default: 9090
+    min: 1024
+    max: 65535
+  - name: cockpit_user
+    label: Usuario del panel
+    type: string
+    default: panel
+    pattern: '^[a-z][a-z0-9_-]{2,30}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: cockpit_admin
+    label: Puede administrar (sudo)
+    help: Sin esto, solo puede mirar.
+    type: bool
+    default: true
+  - name: cockpit_domain
+    label: Dominio
+    help: Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio.
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio o vacío

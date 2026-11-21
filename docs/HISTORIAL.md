@@ -396,3 +396,9 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 
 - **Paperless-ngx** (GPL-3.0) con su PostgreSQL 16 y Redis propios (en su carpeta, entran en las copias), OCR en el idioma elegido (español+inglés por defecto), usuario «admin» con contraseña generada (y clave secreta y contraseña de la base, ocultas), carpeta `consume` que se importa sola, `PAPERLESS_URL` con el dominio. Pide 2 GB de RAM; la primera vez tarda en arrancar.
 - **Probado** en un Ubuntu desechable: `/api/token/` da token con el admin generado, responde por el túnel; desinstalar con datos no deja nada.
+
+## 2026-11-21 · 0.31.0 · Cockpit (panel del servidor)
+
+- **Cockpit** (LGPL-2.1) del sistema, escuchando **solo en 127.0.0.1 y en la VPN** (socket de systemd); se abre con «Abrir» (túnel), la VPN o dominio (con `Origins` y `X-Forwarded-Proto` para Caddy/nginx). Usuario propio (por defecto «panel») con contraseña generada en el servidor (→ bóveda) y sudo opcional.
+- Salió al probar: crear la carpeta del ajuste del socket; la contraseña se pone con `chpasswd` (`password_hash` necesita passlib, que no está); si un `daemon-reload` deja el socket sin escuchar, se reinicia; al desinstalar se cierran las sesiones del usuario antes de borrarlo.
+- **Probado** en un Ubuntu desechable: escucha en 127.0.0.1 y 10.8.0.1 (nunca en 0.0.0.0), entra con el usuario generado, responde por el túnel; desinstalar con datos no deja nada.

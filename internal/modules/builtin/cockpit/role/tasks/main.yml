@@ -1,0 +1,106 @@
+---
+- name: Instalar Cockpit
+  ansible.builtin.apt:
+    name: [cockpit, cockpit-pcp]
+    state: present
+    install_recommends: false
+    lock_timeout: 600
+
+- name: ¿Hay VPN (wg0)?
+  ansible.builtin.shell: ip -4 -o addr show wg0 2>/dev/null | awk '{print $4}' | cut -d/ -f1
+  register: cockpit_wg
+  changed_when: false
+  check_mode: false
+
+- name: Carpeta de ajustes del socket
+  ansible.builtin.file:
+    path: /etc/systemd/system/cockpit.socket.d
+    state: directory
+    mode: "0755"
+
+- name: Escuchar solo en 127.0.0.1 (y en la VPN)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/cockpit.socket.d/listen.conf
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo cockpit)
+      [Socket]
+      ListenStream=
+      ListenStream=127.0.0.1:{{ cockpit_port }}
+      {% if cockpit_wg.stdout %}
+      ListenStream={{ cockpit_wg.stdout }}:{{ cockpit_port }}
+      FreeBind=yes
+      {% endif %}
+  register: cockpit_sock
+
+- name: cockpit.conf (dominio y proxy)
+  ansible.builtin.copy:
+    dest: /etc/cockpit/cockpit.conf
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo cockpit)
+      [WebService]
+      {% if cockpit_domain %}
+      Origins = https://{{ cockpit_domain }} wss://{{ cockpit_domain }}
+      ProtocolHeader = X-Forwarded-Proto
+      {% endif %}
+      AllowUnencrypted = true
+      LoginTitle = {{ draupnode_project }}
+  register: cockpit_conf
+
+- name: Contraseña del usuario del panel (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    cockpit_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.cockpit_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Usuario del panel
+  ansible.builtin.user:
+    name: "{{ cockpit_user }}"
+    shell: /bin/bash
+    groups: "{{ ['sudo'] if cockpit_admin | bool else [] }}"
+    append: false
+  when: not ansible_check_mode
+
+- name: Contraseña del usuario del panel
+  ansible.builtin.shell: printf '%s:%s\n' {{ cockpit_user | quote }} "$P" | chpasswd
+  environment:
+    P: "{{ cockpit_pass }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/cockpit_usuario"
+    mode: "0600"
+    content: "Usuario: {{ cockpit_user }}\nContraseña: {{ cockpit_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Cockpit en marcha
+  ansible.builtin.systemd:
+    name: cockpit.socket
+    enabled: true
+    state: "{{ 'restarted' if (cockpit_sock is changed or cockpit_conf is changed) else 'started' }}"
+    daemon_reload: "{{ cockpit_sock is changed }}"
+  when: not ansible_check_mode
+
+# Si la configuración del socket cambió en otra pasada (o un daemon-reload lo
+# dejó sin escuchar), se reinicia.
+- name: Cockpit escucha
+  ansible.builtin.shell: |
+    ss -Hltn "sport = :{{ cockpit_port }}" | grep -q . && exit 0
+    systemctl daemon-reload; systemctl restart cockpit.socket; sleep 1
+    ss -Hltn "sport = :{{ cockpit_port }}" | grep -q . && echo reiniciado
+  register: cockpit_listen
+  changed_when: "'reiniciado' in cockpit_listen.stdout"
+  failed_when: cockpit_listen.rc != 0
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Cockpit en 127.0.0.1:{{ cockpit_port }}{{ (' y en la VPN (' ~ cockpit_wg.stdout ~ ':' ~ cockpit_port ~ ')') if cockpit_wg.stdout else '' }}.
+      Ábrelo con «Abrir» en la página del módulo{{ (' o en https://' ~ cockpit_domain) if cockpit_domain else '' }}.
+      Usuario «{{ cockpit_user }}» (contraseña en «Contraseñas del proyecto»){{ ', con sudo' if cockpit_admin | bool else ', solo para mirar' }}.
