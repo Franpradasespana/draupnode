@@ -5,11 +5,11 @@ category: 7 · Apps
 description: "Tu gestor de contraseñas, compatible con las apps y extensiones de Bitwarden. Tus contraseñas, en tu servidor."
 details: |
   Vaultwarden (servidor libre compatible con Bitwarden) en Docker.
-  Necesita HTTPS: ponle dominio (con Caddy o nginx en el proyecto) o entra
+  Necesita HTTPS: ponle dominio (con Caddy o nginx en el servidor) o entra
   por la VPN/«Abrir» (127.0.0.1 también vale como seguro).
   Crea tu cuenta y, cuando estéis todos, desactiva «Permitir registrarse»
   y vuelve a aplicar. El panel /admin usa el «Token de administración»
-  (en «Contraseñas del proyecto»).
+  (en «Contraseñas»).
   Sus datos están en /srv/draupnode/apps/vaultwarden (entran en las copias del
   módulo Copias). Licencia: AGPL-3.0.
 depends: [docker]
@@ -34,7 +34,7 @@ variables:
     max: 65535
   - name: vaultwarden_domain
     label: Dominio
-    help: "Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio."
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
     type: string
     default: ""
     pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'

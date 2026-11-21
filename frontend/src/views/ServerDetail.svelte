@@ -57,7 +57,7 @@
       const p = await api.DeployRecipe(deployPick, id)
       await refreshProjects()
       deployPick = ''
-      toast('Proyecto asociado. Revísalo y pulsa Aplicar cuando quieras.')
+      toast('Plantilla asociada. Revísala y pulsa Aplicar cuando quieras.')
       openDeployment(p.id)
     } catch (e) {
       toast(errorText(e), 'error')
@@ -166,7 +166,7 @@
 
   <!-- Proyecto -->
   <section class="card block">
-    <h2><FolderGit2 size={17} /> {deployments.length > 1 ? 'Proyectos en este servidor' : 'Proyecto en este servidor'}</h2>
+    <h2><FolderGit2 size={17} /> Plantillas aplicadas</h2>
     {#each deployments as p (p.id)}
       {@const pending = !p.appliedAt || (p.updatedAt && p.appliedAt && p.updatedAt > p.appliedAt)}
       <div class="dep">
@@ -184,17 +184,17 @@
         </div>
       </div>
     {:else}
-      <p class="muted">Este servidor aún no tiene proyecto. Asócialo a uno de tus proyectos (recetas); después lo revisas y lo aplicas.</p>
+      <p class="muted">Este servidor aún no tiene ninguna plantilla. Asóciale una; después la revisas y la aplicas.</p>
     {/each}
     <div class="assoc">
       {#if others.length}
         <select class="input" bind:value={deployPick}>
-          <option value="">{deployments.length ? 'Añadir otro proyecto…' : 'Elige un proyecto…'}</option>
+          <option value="">{deployments.length ? 'Añadir otra plantilla…' : 'Elige una plantilla…'}</option>
           {#each others as r}<option value={r.id}>{r.name}</option>{/each}
         </select>
         <button class="btn sm" onclick={deploy} disabled={!deployPick}><Plus size={14} /> Asociar</button>
       {/if}
-      <button class="btn sm ghost" onclick={() => openRecipe('')}><Plus size={14} /> Crear un proyecto nuevo</button>
+      <button class="btn sm ghost" onclick={() => openRecipe('')}><Plus size={14} /> Crear una plantilla nueva</button>
     </div>
   </section>
 

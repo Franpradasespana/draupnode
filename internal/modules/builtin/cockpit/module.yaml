@@ -7,9 +7,9 @@ details: |
   Cockpit (LGPL-2.1) del sistema. No se publica en internet: solo escucha
   en 127.0.0.1 (y en la VPN si está WireGuard). Se abre con «Abrir» en la
   página de este módulo (túnel SSH), por la VPN o con dominio (Caddy o nginx
-  en el proyecto).
+  en el servidor).
   Para entrar, Draupnode crea un usuario propio con una contraseña generada
-  en el servidor (en «Contraseñas del proyecto»); si marcas «Puede
+  en el servidor (en «Contraseñas»); si marcas «Puede
   administrar», ese usuario tiene sudo.
 depends: [base]
 after: [wireguard]
@@ -43,7 +43,7 @@ variables:
     default: true
   - name: cockpit_domain
     label: Dominio
-    help: Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio.
+    help: Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio.
     type: string
     default: ""
     pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'

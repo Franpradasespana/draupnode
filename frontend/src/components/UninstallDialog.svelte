@@ -18,7 +18,7 @@
 <Modal title={step === 1 ? `¿Qué hacemos con ${names}?` : `Desinstalar ${names}`} onclose={() => done(null)} width={600}>
   {#if step === 1}
     {#if allowRemove}
-      <p><strong>Solo quitar del proyecto</strong>: sigue instalado y funcionando en el servidor; Draupnode deja de gestionarlo.</p>
+      <p><strong>Solo dejar de gestionarlo</strong>: sigue instalado y funcionando en el servidor; Draupnode deja de gestionarlo.</p>
       <p><strong>Desinstalar del servidor</strong>: lo quita de {check.server || 'el servidor'}.</p>
     {/if}
     {#each check.modules as m}
@@ -51,7 +51,7 @@
   {#snippet footer()}
     <button class="btn" onclick={() => done(null)}>Cancelar</button>
     {#if step === 1}
-      {#if allowRemove}<button class="btn" onclick={() => done({ action: 'remove' })}>Solo quitar del proyecto</button>{/if}
+      {#if allowRemove}<button class="btn" onclick={() => done({ action: 'remove' })}>Solo dejar de gestionarlo</button>{/if}
       <button class="btn solid-danger" onclick={() => (step = 2)} disabled={!check.ok}><Trash2 size={14} /> Desinstalar del servidor…</button>
     {:else}
       <button class="btn solid-danger" onclick={() => done({ action: 'uninstall', purge })} disabled={typed.trim().toUpperCase() !== WORD}>

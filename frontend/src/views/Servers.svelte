@@ -153,7 +153,7 @@
           {:else if s.authMethod === 'password' || s.keyEncrypted}
             <span class="badge">contraseña: se pide al conectar</span>
           {/if}
-          <span class="badge"><FolderGit2 size={12} /> {n} {n === 1 ? 'proyecto' : 'proyectos'}</span>
+          <span class="badge"><FolderGit2 size={12} /> {n} {n === 1 ? 'plantilla' : 'plantillas'}</span>
           {#if lc?.ok}
             <span class="badge ok">Conectado {timeAgo(lc.at)}</span>
           {:else if lc}

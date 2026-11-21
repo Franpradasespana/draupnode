@@ -84,7 +84,7 @@
         const ok = await waitRun(st.projectId, r.runId!)
         st.state = ok ? 'ok' : 'fail'
         if (!ok) {
-          st.detail = 'Ha fallado: abre el proyecto para ver qué pasó.'
+          st.detail = 'Ha fallado: ábrelo para ver qué pasó.'
           break
         }
       } catch (e) {
@@ -96,7 +96,7 @@
     chaining = false
     await refreshProjects()
     onchanged()
-    if (chainDone) toast('Los dos proyectos aplicados: las copias ya van también al otro servidor')
+    if (chainDone) toast('Aplicado en los dos servidores: las copias ya van también al otro servidor')
   }
   const stepNow = (st: Step) => (st.state === 'run' ? ui.runs[st.projectId]?.stage ?? 'Conectando…' : '')
 
@@ -120,7 +120,7 @@
           </select>
         </label>
         {#if target}
-          <p class="muted small">Ya tiene el proyecto «{target.name}»: se añade este proyecto a él, con su mismo puerto ({target.modules.find((m) => m.id === 'backup-target')?.values.backup_target_port ?? '—'}).</p>
+          <p class="muted small">Ya tiene la plantilla «{target.name}»: se añade este servidor a ella, con su mismo puerto ({target.modules.find((m) => m.id === 'backup-target')?.values.backup_target_port ?? '—'}).</p>
         {:else}
           <label class="field"><span>Puerto (elegido al azar)</span>
             <div class="port">
@@ -135,9 +135,9 @@
         <div class="note">
           <strong>Qué se hará</strong>
           <ul>
-            <li><ServerCog size={14} /> {target ? 'Se actualiza' : 'Se crea'} el proyecto «Destino de copias» en ese servidor, con Docker, el Cortafuegos y rest-server.</li>
-            <li><ShieldCheck size={14} /> Se generan aquí un usuario y una contraseña para este proyecto y un certificado HTTPS propio. Al destino solo llega la huella de la contraseña.</li>
-            <li><ArrowRight size={14} /> El módulo Copias de este proyecto queda apuntando al destino. Tus copias siguen también en este servidor.</li>
+            <li><ServerCog size={14} /> {target ? 'Se actualiza' : 'Se crea'} la plantilla «Destino de copias» en ese servidor, con Docker, el Cortafuegos y rest-server.</li>
+            <li><ShieldCheck size={14} /> Se generan aquí un usuario y una contraseña para este servidor y un certificado HTTPS propio. Al destino solo llega la huella de la contraseña.</li>
+            <li><ArrowRight size={14} /> El módulo Copias de este servidor queda apuntando al destino. Tus copias siguen también en este servidor.</li>
             <li><ShieldCheck size={14} /> Rotación: el destino borra cada día sus copias viejas (30 días y una al mes durante un año; se cambia en su módulo). Para eso recibe la contraseña de las copias; si no quieres, desactiva allí «Borrar las copias viejas».</li>
           </ul>
           <span class="muted small">No se aplica nada todavía: lo haces tú después, en el orden que te diremos.</span>
@@ -151,7 +151,7 @@
         <ol>
           {#each result.notes as n}<li>{n}</li>{/each}
         </ol>
-        <p class="muted small">Puedes aplicarlos ahora los dos seguidos (primero el destino, luego este proyecto y otra vez el destino para activar la rotación) o hacerlo tú más tarde.</p>
+        <p class="muted small">Puedes aplicarlos ahora los dos seguidos (primero el destino, luego este servidor y otra vez el destino para activar la rotación) o hacerlo tú más tarde.</p>
       {:else}
         <ul class="chain">
           {#each steps as st}

@@ -32,7 +32,7 @@ func TestSitioAutomatico(t *testing.T) {
 		{ID: "git-app", Values: map[string]any{"git_app_repo": "https://ejemplo.com/a.git", "git_app_domain": "tienda.ejemplo.com", "git_app_port": 8000}},
 	}
 	chk := a.CheckProject(store.Project{Name: "x", ServerID: s.ID, Modules: mods})
-	if !strings.Contains(strings.Join(chk.Warnings, "|"), "añade Caddy o nginx") {
+	if !strings.Contains(strings.Join(chk.Warnings, "|"), "Caddy o nginx") {
 		t.Fatalf("sin proxy debería avisar: %v", chk.Warnings)
 	}
 	p, err := a.SaveProject(store.Project{Name: "x", ServerID: s.ID, Modules: append(mods, store.ProjectModule{ID: "caddy", Values: map[string]any{"caddy_sites": []string{"blog.ejemplo.com /srv/www"}}})})

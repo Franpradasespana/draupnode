@@ -72,7 +72,7 @@
 
   async function save(): Promise<boolean> {
     if (!draft.name.trim()) {
-      toast('Ponle un nombre al proyecto', 'error')
+      toast('Ponle un nombre a la plantilla', 'error')
       return false
     }
     saving = true
@@ -83,7 +83,7 @@
       savedKey = key(draft)
       await refreshProjects()
       if (!id) ui.recipeId = r.id
-      toast(stored?.deployments.length ? 'Guardado. Los servidores que lo usan tienen «cambios sin aplicar».' : 'Proyecto guardado')
+      toast(stored?.deployments.length ? 'Guardado. Los servidores que lo usan tienen «cambios sin aplicar».' : 'Plantilla guardada')
       return true
     } catch (e) {
       toast(errorText(e), 'error')
@@ -94,13 +94,13 @@
   }
 
   async function remove() {
-    const ok = await confirmDialog({ title: 'Eliminar proyecto', message: `¿Eliminar «${draft.name}»? Solo se puede si no está en ningún servidor.`, confirmLabel: 'Eliminar', danger: true })
+    const ok = await confirmDialog({ title: 'Eliminar plantilla', message: `¿Eliminar «${draft.name}»? Solo se puede si no está en ningún servidor.`, confirmLabel: 'Eliminar', danger: true })
     if (!ok) return
     try {
       await api.DeleteRecipe(draft.id)
       await refreshProjects()
       ui.recipeId = null
-      toast('Proyecto eliminado')
+      toast('Plantilla eliminada')
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -123,14 +123,14 @@
 </script>
 
 <div class="bar">
-  <button class="btn ghost sm" onclick={() => (ui.recipeId = null)}><ArrowLeft size={15} /> Proyectos</button>
+  <button class="btn ghost sm" onclick={() => (ui.recipeId = null)}><ArrowLeft size={15} /> Plantillas</button>
   <div class="spacer"></div>
   {#if draft.id}<button class="btn sm danger" onclick={remove}><Trash2 size={14} /> Eliminar</button>{/if}
   <button class="btn primary" onclick={save} disabled={saving || !dirty || !draft.name.trim()}><Save size={15} /> {saving ? 'Guardando…' : dirty || !draft.id ? 'Guardar' : 'Guardado'}</button>
 </div>
 
 <div class="top card">
-  <input class="name" bind:value={draft.name} placeholder="Nombre del proyecto (p. ej. Servidor de copias, Mis apps…)" />
+  <input class="name" bind:value={draft.name} placeholder="Nombre de la plantilla (p. ej. Servidor de copias, Mis apps…)" />
   <textarea class="input notes" rows="2" bind:value={draft.notes} placeholder="Para qué es (opcional)"></textarea>
   {#if draft.id}
     <div class="deps">

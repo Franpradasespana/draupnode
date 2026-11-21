@@ -840,7 +840,7 @@ function mockBackend(): Backend {
       const chk = mockCheck(p)
       if (chk.general.length && p.modules.length) throw chk.general.join('; ')
       if (Object.keys(chk.errors).length) throw 'revisa los campos marcados en rojo'
-      if (!p.name.trim()) throw 'el nombre del proyecto es obligatorio'
+      if (!p.name.trim()) throw 'el nombre es obligatorio'
       if (!servers.some((x) => x.id === p.serverId)) throw 'elige un servidor'
       const mods = chk.order.map((id) => ({ id, values: { ...defaults(id), ...(p.modules.find((m) => m.id === id)?.values ?? {}) } }))
       const prev = projects.find((x) => x.id === p.id)
@@ -936,7 +936,7 @@ function mockBackend(): Backend {
       const ms = mods.map((m) => MOCK_MODULES.find((x) => x.id === m)!).filter(Boolean)
       const bad = ms.find((m) => m.noUninstall || !m.uninstallable)
       const notInst = mods.find((m) => !(p?.installedModules ?? []).includes(m))
-      return { ok: !bad && !notInst, error: bad ? `${bad.name} no se puede desinstalar: ${bad.noUninstall ?? 'no tiene desinstalación'}` : notInst ? 'no está instalado por este proyecto' : undefined,
+      return { ok: !bad && !notInst, error: bad ? `${bad.name} no se puede desinstalar: ${bad.noUninstall ?? 'no tiene desinstalación'}` : notInst ? 'no está instalado con esta plantilla en este servidor' : undefined,
         modules: ms.map((m) => ({ id: m.id, name: m.name, warning: m.uninstallWarning, data: m.uninstallData })), hasData: ms.some((m) => !!m.uninstallData),
         server: servers.find((s) => s.id === p?.serverId)?.name ?? '', selected: mods.filter((m) => p?.modules.some((x) => x.id === m)) }
     },
@@ -1063,7 +1063,7 @@ function mockBackend(): Backend {
       const b = src.modules.find((m) => m.id === 'backups')
       if (b) Object.assign(b.values, { backups_remote_type: 'rest-server', backups_remote: url, backups_remote_user: slug, backups_remote_append_only: true })
       save('projects', projects)
-      return { targetProjectId: tgt.id, targetProjectName: tgt.name, targetIsNew: isNew, url, notes: [`Aplica primero «${tgt.name}» (en ${srv.name}) y después este proyecto.`] }
+      return { targetProjectId: tgt.id, targetProjectName: tgt.name, targetIsNew: isNew, url, notes: [`Aplica primero «${tgt.name}» (en ${srv.name}) y después este servidor.`] }
     },
     async SetBackupsAuto(id, mode, days) {
       projects = projects.map((x) => (x.id === id ? { ...x, backupsAuto: { mode: mode as 'off' | 'warn' | 'fetch', days } } : x))
@@ -1118,7 +1118,7 @@ function mockBackend(): Backend {
     async DeployRecipe(rid, sid) {
       await wait()
       const r = recipes.find((x) => x.id === rid)!
-      if (projects.some((p) => p.recipeId === rid && p.serverId === sid)) throw new Error('este servidor ya tiene ese proyecto')
+      if (projects.some((p) => p.recipeId === rid && p.serverId === sid)) throw new Error('este servidor ya tiene esa plantilla')
       const p: Project = { id: 'p' + Date.now(), name: r.name, serverId: sid, recipeId: rid, modules: JSON.parse(JSON.stringify(r.modules)) }
       projects.push(p)
       save('projects', projects)

@@ -10,7 +10,7 @@ details: |
   que volver a escanear el QR o importar su .conf).
   Su panel solo se ve desde el servidor: «Abrir» en la página del módulo
   (túnel SSH), por la VPN o con dominio. Usuario y contraseña generados en
-  el servidor (en «Contraseñas del proyecto»).
+  el servidor (en «Contraseñas»).
   Las consultas salen cifradas (DNS sobre HTTPS) a Quad9 y Cloudflare;
   puedes cambiarlo en su panel.
 depends: [docker, wireguard]
@@ -33,7 +33,7 @@ variables:
     max: 65535
   - name: adguard_domain
     label: Dominio del panel
-    help: Opcional. Con Caddy o nginx en el proyecto, el panel se publica en https://dominio.
+    help: Opcional. Con Caddy o nginx en el servidor, el panel se publica en https://dominio.
     type: string
     default: ""
     pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'

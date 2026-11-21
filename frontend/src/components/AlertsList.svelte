@@ -19,7 +19,7 @@
             <span><LoaderCircle size={13} class="spin" /> Trayendo las copias de <strong>{a.name}</strong>…{#if alerts.progress?.total} {size(alerts.progress.done)} de {size(alerts.progress.total)}{/if}</span>
           {:else}
             <span>Copias de <strong>{a.name}</strong>{#if a.server}{' '}({a.server}){/if}: {a.due.age < 0 ? 'nunca las has traído a este equipo' : `las de este equipo son de hace ${a.due.age} días`}.</span>
-            {#if !compact}<span class="muted small">Puedes hacer que se traigan solas, o cambiar cada cuántos días avisa, en el proyecto → Copias.</span>{/if}
+            {#if !compact}<span class="muted small">Puedes hacer que se traigan solas, o cambiar cada cuántos días avisa, en la plantilla del servidor → Copias.</span>{/if}
           {/if}
         {:else}
           <span>La última aplicación de <strong>{a.name}</strong>{#if a.server}{' '}en {a.server}{/if} falló ({timeAgo(a.at)}).</span>

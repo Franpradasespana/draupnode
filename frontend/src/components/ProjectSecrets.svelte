@@ -42,7 +42,7 @@
   onDestroy(hide)
 
   async function open() {
-    const master = await ask('Contraseñas del proyecto', 'Escribe la contraseña de la bóveda de Draupnode para verlas.', 'Contraseña de la bóveda')
+    const master = await ask('Contraseñas', 'Escribe la contraseña de la bóveda de Draupnode para verlas.', 'Contraseña de la bóveda')
     if (master === null) return
     busy = true
     try {
@@ -85,7 +85,7 @@
     <div class="head">
       <KeyRound size={17} />
       <div class="txt">
-        <strong>{module ? `Contraseñas de ${module}` : 'Contraseñas del proyecto'}</strong>
+        <strong>{module ? `Contraseñas de ${module}` : 'Contraseñas'}</strong>
         {#if count > 0}
           <span class="muted">
             {#if module}Están en la bóveda cifrada{:else}{count} guardada{count === 1 ? '' : 's'} en la bóveda cifrada{/if}{#if info?.at} · traídas del servidor {timeAgo(info.at)}{/if}
@@ -103,7 +103,7 @@
 
     {#if list}
       {#if !list.length}
-        <p class="muted small">No hay contraseñas guardadas{module ? ' de este módulo' : ' para este proyecto'}.</p>
+        <p class="muted small">No hay contraseñas guardadas{module ? ' de este módulo' : ' en este servidor'}.</p>
       {/if}
       <div class="list">
         {#each list as s (s.kind + s.name)}

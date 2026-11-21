@@ -11,7 +11,7 @@
   const ICONS: Record<string, typeof Package> = { base: ServerCog, firewall: Shield, ssh: KeyRound, docker: Container, coolify: Rocket, postgres: Database, backups: DatabaseBackup }
   const Icon = $derived(ICONS[m.id] ?? Package)
   const label: Record<CardState, string> = {
-    installed: 'Instalado', left: 'Fuera del proyecto', pending: 'Se instalará', required: 'La necesita otro', clash: 'No compatible', none: '',
+    installed: 'Instalado', left: 'Sin gestionar', pending: 'Se instalará', required: 'La necesita otro', clash: 'No compatible', none: '',
   }
 </script>
 

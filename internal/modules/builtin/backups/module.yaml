@@ -8,10 +8,10 @@ details: |
   {carpeta}/<proyecto>/restic-repo. Su contraseña se genera en el servidor y
   Draupnode la trae a tu bóveda: SIN ELLA LAS COPIAS NO SE PUEDEN ABRIR.
   Cada día a la hora indicada (systemd): vuelca PostgreSQL y la base de
-  Coolify si están, copia la carpeta de secretos del proyecto y tus carpetas,
+  Coolify si están, copia la carpeta de secretos de Draupnode y tus carpetas,
   borra las copias viejas según lo que conservas y comprueba el repositorio.
   Una copia que solo está en el servidor no te salva si pierdes el servidor:
-  usa «Traer copias al equipo» en el proyecto, o un destino remoto propio
+  usa «Traer copias al equipo», o un destino remoto propio
   (otro servidor por SFTP, un rest-server de restic o un S3 compatible como
   MinIO o Garage; todos de código abierto).
 depends: [base]
@@ -36,7 +36,7 @@ variables:
     pattern_help: Formato HH:MM (p. ej. 03:30)
   - name: backups_paths
     label: Carpetas que copiar
-    help: Una por línea. La carpeta de secretos del proyecto se copia siempre.
+    help: Una por línea. La carpeta de secretos de Draupnode se copia siempre.
     type: list
     default: []
     pattern: '^/[A-Za-z0-9._/-]+$'
@@ -101,7 +101,7 @@ variables:
     default: true
   - name: backups_dir
     label: Carpeta de las copias en el servidor
-    help: Dentro se crea una carpeta por proyecto.
+    help: Dentro se crea una carpeta por servidor.
     type: string
     default: /srv/draupnode/copias
     pattern: '^/[A-Za-z0-9._/-]+$'

@@ -99,10 +99,10 @@
     <div class="verdict" class:good={run.summary?.ok} class:badv={!run.summary?.ok}>
       {#if run.uninstall?.length && run.summary?.ok}
         <p class="big">Desinstalado del servidor.</p>
-        <p>Ya no forma parte del proyecto.</p>
+        <p>Draupnode ya no lo gestiona.</p>
       {:else if run.uninstall?.length}
         <p class="big">No se pudo desinstalar del todo: se paró con errores.</p>
-        <p>Lo que se quitó antes del fallo queda quitado. El módulo sigue en el proyecto: corrige el problema y vuelve a intentarlo.</p>
+        <p>Lo que se quitó antes del fallo queda quitado. El módulo sigue en la plantilla: corrige el problema y vuelve a intentarlo.</p>
         <ul>{#each failedTasks as t}<li>{t.name} <span class="muted">· {roleName(t.role)}</span></li>{/each}</ul>
       {:else if run.check && run.summary?.ok}
         {#if changedTasks.length}

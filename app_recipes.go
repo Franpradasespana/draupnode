@@ -96,7 +96,7 @@ func (a *App) SaveRecipe(r store.Recipe) (store.Recipe, error) {
 		}
 	}
 	if len(errs) > 0 {
-		return saved, errors.New("la receta se guardó, pero algún servidor necesita que lo revises: " + strings.Join(errs, "; "))
+		return saved, errors.New("la plantilla se guardó, pero algún servidor necesita que lo revises: " + strings.Join(errs, "; "))
 	}
 	return saved, nil
 }
@@ -115,7 +115,7 @@ func (a *App) DeployRecipe(recipeID, serverID string) (store.Project, error) {
 	}
 	for _, p := range a.store.Projects() {
 		if p.RecipeID == recipeID && p.ServerID == serverID {
-			return store.Project{}, errors.New("este servidor ya tiene ese proyecto")
+			return store.Project{}, errors.New("este servidor ya tiene esa plantilla")
 		}
 	}
 	p, err := a.SaveProject(store.Project{Name: r.Name, ServerID: serverID, RecipeID: r.ID})

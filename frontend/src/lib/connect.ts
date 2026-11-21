@@ -26,7 +26,7 @@ export async function withConnection<T extends Reply>(server: Server | undefined
         if (!(await requestVault('unlock', r.message || 'La contraseña de este servidor está en la bóveda.'))) return null
         break
       case 'vault_missing':
-        if (!(await requestVault('create', r.message || 'Las contraseñas de este proyecto se guardan en la bóveda cifrada.'))) return null
+        if (!(await requestVault('create', r.message || 'Las contraseñas de este servidor se guardan en la bóveda cifrada.'))) return null
         break
       case 'unknown_host': {
         const ok = await confirmDialog({

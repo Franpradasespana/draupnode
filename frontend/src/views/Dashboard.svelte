@@ -15,7 +15,7 @@
   const steps = $derived([
     { done: total > 0, text: 'Añade un servidor con su clave SSH', go: 'servers' as const },
     { done: ok > 0, text: 'Prueba la conexión y confía en su huella', go: 'servers' as const },
-    { done: ui.recipes.length > 0, text: 'Crea un proyecto (la receta: módulos y opciones)', go: 'projects' as const },
+    { done: ui.recipes.length > 0, text: 'Crea una plantilla (módulos y opciones)', go: 'projects' as const },
     { done: ui.projects.length > 0, text: 'Asócialo a un servidor desde su ficha', go: 'servers' as const },
     { done: ui.projects.some((p) => p.lastRun?.ok && !p.lastRun.check), text: 'Previsualiza y aplica con Ansible, o exporta un único instalar.sh', go: 'projects' as const },
   ])
@@ -34,7 +34,7 @@
 <div class="tiles">
   <div class="card tile"><strong>{String(total).padStart(2, '0')}</strong><span>Servidores</span></div>
   <div class="card tile"><strong class="a2">{String(ok).padStart(2, '0')}</strong><span>Conectan bien</span></div>
-  <div class="card tile"><strong>{String(ui.projects.length).padStart(2, '0')}</strong><span>Proyectos{#if failing > 0} · <span class="bad-t">{failing} servidor(es) con fallos</span>{/if}</span></div>
+  <div class="card tile"><strong>{String(ui.projects.length).padStart(2, '0')}</strong><span>Plantillas aplicadas{#if failing > 0} · <span class="bad-t">{failing} servidor(es) con fallos</span>{/if}</span></div>
   <div class="card tile"><strong class="sm">{timeAgo(last)}</strong><span>Última comprobación</span></div>
 </div>
 
@@ -62,7 +62,7 @@
             {:else}
               <span class="st muted">Sin probar</span>
             {/if}
-            <span class="badge nproj">{n} {n === 1 ? 'proyecto' : 'proyectos'}</span>
+            <span class="badge nproj">{n} {n === 1 ? 'plantilla' : 'plantillas'}</span>
             <ChevronRight size={15} class="chev" />
           </button></li>
         {/each}

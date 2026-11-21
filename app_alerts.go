@@ -28,7 +28,7 @@ func (a *App) AlertsRun(projectID, what, secret, accept, sudoPassword string) Al
 		return AlertsResult{RunStart: RunStart{Status: "error", Message: "las alertas aún no están instaladas: pulsa Aplicar"}}
 	}
 	if a.projectRunning(projectID) {
-		return AlertsResult{RunStart: RunStart{Status: "busy", Message: "el proyecto está ocupado con otra tarea"}}
+		return AlertsResult{RunStart: RunStart{Status: "busy", Message: "este servidor está ocupado con otra tarea"}}
 	}
 	srv, err := a.store.Server(p.ServerID)
 	if err != nil {

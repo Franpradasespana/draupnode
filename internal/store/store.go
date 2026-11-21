@@ -371,7 +371,7 @@ func (s *Store) DeleteServer(id string) error {
 	defer s.mu.Unlock()
 	for _, p := range s.d.Projects {
 		if p.ServerID == id {
-			return fmt.Errorf("lo usa el proyecto «%s»: bórralo o cámbialo de servidor antes", p.Name)
+			return fmt.Errorf("tiene la plantilla «%s»: desasóciala antes", p.Name)
 		}
 	}
 	for i, srv := range s.d.Servers {
@@ -611,14 +611,14 @@ func (s *Store) Recipe(id string) (Recipe, error) {
 			return r, nil
 		}
 	}
-	return Recipe{}, fmt.Errorf("receta %q no encontrada", id)
+	return Recipe{}, fmt.Errorf("plantilla %q no encontrada", id)
 }
 
 // SaveRecipe crea o actualiza una receta.
 func (s *Store) SaveRecipe(r Recipe) (Recipe, error) {
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		return Recipe{}, errors.New("el nombre del proyecto es obligatorio")
+		return Recipe{}, errors.New("el nombre de la plantilla es obligatorio")
 	}
 	if r.Modules == nil {
 		r.Modules = []ProjectModule{}
@@ -639,7 +639,7 @@ func (s *Store) SaveRecipe(r Recipe) (Recipe, error) {
 			return r, s.saveLocked()
 		}
 	}
-	return Recipe{}, fmt.Errorf("receta %q no encontrada", r.ID)
+	return Recipe{}, fmt.Errorf("plantilla %q no encontrada", r.ID)
 }
 
 // DeleteRecipe elimina una receta que no está en ningún servidor.
@@ -657,7 +657,7 @@ func (s *Store) DeleteRecipe(id string) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("receta %q no encontrada", id)
+	return fmt.Errorf("plantilla %q no encontrada", id)
 }
 
 // DeleteProject elimina un proyecto.

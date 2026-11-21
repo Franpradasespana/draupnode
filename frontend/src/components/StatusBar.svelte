@@ -37,7 +37,7 @@
 
   // Ejecuciones en marcha (de cualquier proyecto).
   const running = $derived(Object.values(ui.runs).filter((r) => !r.done))
-  const projName = (pid: string) => ui.projects.find((p) => p.id === pid)?.name ?? 'proyecto'
+  const projName = (pid: string) => ui.projects.find((p) => p.id === pid)?.name ?? 'plantilla'
 
   function pick(e: Event) {
     const v = (e.currentTarget as HTMLSelectElement).value
@@ -88,7 +88,7 @@
 
     <span class="grow"></span>
     <button class="lnk hide-sm" onclick={() => openServerProjects(srv.id)} title="Ficha de este servidor">
-      <Activity size={12} /> {nProj} {nProj === 1 ? 'proyecto' : 'proyectos'}
+      <Activity size={12} /> {nProj} {nProj === 1 ? 'plantilla' : 'plantillas'}
     </button>
     <button class="icon-b" onclick={refresh} disabled={checking} title="Volver a comprobar" aria-label="Volver a comprobar">
       <RefreshCw size={12} class={checking ? 'spin' : ''} />

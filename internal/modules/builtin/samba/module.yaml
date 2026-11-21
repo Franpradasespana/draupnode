@@ -9,8 +9,7 @@ details: |
   (por ejemplo eth0 en una Raspberry de casa). No abre nada en el
   Cortafuegos: compartir archivos por internet sin VPN es peligroso.
   Cada línea de «Carpetas» es «nombre /ruta»; se entra con el usuario del
-  módulo y su contraseña generada en el servidor (en «Contraseñas del
-  proyecto»). Desde la VPN: \\10.8.0.1\nombre (Windows) o
+  módulo y su contraseña generada en el servidor (en «Contraseñas»). Desde la VPN: \\10.8.0.1\nombre (Windows) o
   smb://10.8.0.1/nombre (macOS/Linux).
 depends: [base]
 after: [wireguard]

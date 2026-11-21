@@ -97,7 +97,7 @@ func (a *App) uninstallSelection(p store.Project, mods []string) ([]bundle.Selec
 		sel = append(sel, bundle.Selection{Module: m, Values: v})
 		switch {
 		case !contains(p.InstalledModules, id):
-			problems = append(problems, fmt.Sprintf("%s no está instalado por este proyecto: no hay nada que desinstalar", m.Name))
+			problems = append(problems, fmt.Sprintf("%s no está instalado con esta plantilla en este servidor: no hay nada que desinstalar", m.Name))
 		case m.NoUninstall != "":
 			problems = append(problems, fmt.Sprintf("%s no se puede desinstalar: %s", m.Name, m.NoUninstall))
 		case !m.Uninstallable:
@@ -133,7 +133,7 @@ func (a *App) UninstallModules(projectID string, mods []string, purge bool, secr
 		return RunStart{Status: "error", Message: err.Error()}
 	}
 	if a.projectRunning(projectID) {
-		return RunStart{Status: "busy", Message: "este proyecto ya se está ejecutando"}
+		return RunStart{Status: "busy", Message: "ya hay una tarea en marcha con esta plantilla en este servidor"}
 	}
 	sel, err := a.uninstallSelection(p, mods)
 	if err != nil {

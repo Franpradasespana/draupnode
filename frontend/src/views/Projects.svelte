@@ -11,18 +11,18 @@
 {:else}
   <div class="head">
     <div>
-      <h1>Proyectos</h1>
-      <p class="muted">Un proyecto es una receta: qué quieres instalar y cómo. Lo preparas sin servidor y, cuando tengas uno, lo asocias desde aquí o desde la ficha del servidor, lo revisas y lo aplicas. La misma receta sirve para varios servidores.</p>
+      <h1>Plantillas</h1>
+      <p class="muted">Una plantilla es lo que quieres instalar y cómo: módulos y opciones. Se prepara sin servidor y no instala nada por sí sola. Cuando la asocias a un servidor (desde aquí o desde su ficha) y pulsas Aplicar, se instala allí. La misma plantilla sirve para varios servidores.</p>
     </div>
-    <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> Nuevo proyecto</button>
+    <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> Nueva plantilla</button>
   </div>
 
   {#if !ui.recipes.length}
     <div class="empty card">
       <FolderGit2 size={34} strokeWidth={1.4} />
-      <h2>Aún no hay proyectos</h2>
-      <p class="muted">Crea uno: elige los módulos (Docker, Caddy, copias, apps…) y sus opciones. No hace falta tener servidor todavía.</p>
-      <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> Nuevo proyecto</button>
+      <h2>Aún no hay plantillas</h2>
+      <p class="muted">Crea una: elige los módulos (Docker, Caddy, copias, apps…) y sus opciones. No hace falta tener servidor todavía.</p>
+      <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> Nueva plantilla</button>
     </div>
   {:else}
     <div class="list">
@@ -35,7 +35,7 @@
           </button>
           <div class="deps">
             {#each r.deployments as d}
-              <button class="dep" onclick={() => openDeployment(d.projectId)} title="Abrir este proyecto en su servidor">
+              <button class="dep" onclick={() => openDeployment(d.projectId)} title="Abrir esta plantilla en ese servidor">
                 <ServerIcon size={13} /> {d.serverName}
                 {#if !d.applied}<span class="st warn">sin aplicar</span>{:else if d.pending}<span class="st warn">cambios sin aplicar</span>{:else}<span class="st ok"><CircleCheck size={11} /> aplicado</span>{/if}
                 {#if !d.sameRecipe}<span class="st">con datos propios</span>{/if}

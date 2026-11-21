@@ -96,7 +96,7 @@
 <div class="head">
   <div>
     <h1>Pruebas</h1>
-    <p class="muted">Un servidor Ubuntu 24.04 dentro de Docker en este equipo, para probar proyectos sin tocar un servidor real.</p>
+    <p class="muted">Un servidor Ubuntu 24.04 dentro de Docker en este equipo, para probar plantillas sin tocar un servidor real.</p>
   </div>
   <button class="btn" onclick={refresh} disabled={busy}><RefreshCw size={15} /> Volver a comprobar</button>
 </div>
@@ -182,7 +182,7 @@
       {/if}
     </div>
     {#if st.server.running && !st.coolifyUp}
-      <p class="muted small">El servidor está recién creado: no tiene Docker ni Coolify. Para instalarlos, dalo de alta (paso 3), crea un proyecto en él con el módulo <strong>Coolify</strong> y pulsa <strong>Aplicar</strong>. Después aparecerá aquí el botón «Panel de Coolify».</p>
+      <p class="muted small">El servidor está recién creado: no tiene Docker ni Coolify. Para instalarlos, dalo de alta (paso 3), asóciale una plantilla con el módulo <strong>Coolify</strong> y pulsa <strong>Aplicar</strong>. Después aparecerá aquí el botón «Panel de Coolify».</p>
     {/if}
     <p class="muted small">Parar conserva lo instalado. Borrar lo deja como recién creado (las claves y la huella se mantienen).</p>
 
@@ -208,7 +208,7 @@
     <div class="buttons">
       {#if st.serverId}
         <button class="btn" onclick={() => (ui.view = 'servers')}><ServerCog size={15} /> Ver en Servidores</button>
-        <button class="btn primary" onclick={() => openRecipe('')}><ArrowRight size={15} /> Crear un proyecto</button>
+        <button class="btn primary" onclick={() => openRecipe('')}><ArrowRight size={15} /> Crear una plantilla</button>
       {:else}
         <button class="btn primary" onclick={register} disabled={!st.server.running}><ServerCog size={15} /> Dar de alta en Draupnode</button>
         <span class="muted small">Con la clave sin contraseña y la huella ya confiada.</span>

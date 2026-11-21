@@ -97,7 +97,7 @@ func syncProxySites(sel []bundle.Selection) []string {
 		}
 		line := domain + " 127.0.0.1:" + strconv.Itoa(port)
 		if proxyVals == nil {
-			w = append(w, s.Module.Name+" tiene el dominio "+domain+": añade Caddy o nginx al proyecto para que se vea en https://"+domain+" (Draupnode pondrá el sitio solo).")
+			w = append(w, s.Module.Name+" tiene el dominio "+domain+": añade también Caddy o nginx para que se vea en https://"+domain+" (Draupnode pondrá el sitio solo).")
 			continue
 		}
 		sites := toStrings(proxyVals[proxyVar])

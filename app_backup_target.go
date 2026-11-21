@@ -52,7 +52,7 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 		return res, err
 	}
 	if projectModule(src, "backups") == nil {
-		return res, errors.New("este proyecto no tiene el módulo «Copias de seguridad»")
+		return res, errors.New("este servidor no tiene el módulo «Copias de seguridad»")
 	}
 	srcSrv, err := a.store.Server(src.ServerID)
 	if err != nil {
@@ -75,7 +75,7 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 		return res, errors.New("ese servidor se conecta por " + tgtSrv.Host + ", que el servidor de origen no puede alcanzar: usa su IP o su nombre en la red")
 	}
 	if a.projectRunning(src.ID) {
-		return res, errors.New("el proyecto se está ejecutando: espera a que termine")
+		return res, errors.New("hay una tarea en marcha: espera a que termine")
 	}
 	// La bóveda tiene que estar abierta antes de tocar nada.
 	if st := a.vault.Status(); !st.Exists {
@@ -122,7 +122,7 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 		}
 		certB64 = cert
 		if !isNew {
-			res.Notes = append(res.Notes, "Se ha generado un certificado nuevo para el destino: los demás proyectos que guardan en él se han actualizado; aplícalos también.")
+			res.Notes = append(res.Notes, "Se ha generado un certificado nuevo para el destino: los demás servidores que guardan en él se han actualizado; aplícalos también.")
 		}
 	}
 	vals["backup_target_tls_cert"] = certB64
@@ -191,7 +191,7 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 
 	res.TargetProjectID, res.TargetProjectName, res.TargetIsNew = tgt.ID, tgt.Name, isNew
 	res.Notes = append([]string{
-		"Aplica primero «" + tgt.Name + "» (en " + tgtSrv.Name + ") y después este proyecto.",
+		"Aplica primero «" + tgt.Name + "» (en " + tgtSrv.Name + ") y después este servidor.",
 	}, res.Notes...)
 	return res, nil
 }
@@ -235,9 +235,9 @@ func (a *App) targetFirewall(tgtID string, srv store.Server, port int, mods *[]s
 			v["firewall_tcp_ports"] = append(ports, ps)
 			fw.Values = v
 			if _, err := a.SaveProject(p); err != nil {
-				return "Abre el puerto " + ps + " en el Cortafuegos del proyecto «" + p.Name + "»: no se pudo añadir solo (" + err.Error() + ")."
+				return "Abre el puerto " + ps + " en el Cortafuegos de «" + p.Name + "»: no se pudo añadir solo (" + err.Error() + ")."
 			}
-			return "Se ha añadido el puerto " + ps + " al Cortafuegos del proyecto «" + p.Name + "», que está en el mismo servidor: aplícalo también."
+			return "Se ha añadido el puerto " + ps + " al Cortafuegos de «" + p.Name + "», que está en el mismo servidor: aplícalo también."
 		}
 	}
 	for i, m := range *mods {

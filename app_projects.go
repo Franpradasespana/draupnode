@@ -295,7 +295,7 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 
 func (a *App) DeleteProject(id string) error {
 	if a.projectRunning(id) {
-		return errors.New("el proyecto se está ejecutando: cancélalo antes")
+		return errors.New("hay una tarea en marcha: cancélala antes")
 	}
 	_ = os.RemoveAll(filepath.Join(a.store.Dir(), "runs", id))
 	if err := a.store.DeleteProject(id); err != nil {
@@ -322,7 +322,7 @@ func (a *App) buildScript(p store.Project, withSecrets bool) ([]byte, store.Serv
 	if !chk.OK() {
 		msg := strings.Join(chk.General, "; ")
 		if msg == "" {
-			msg = "el proyecto tiene campos con errores: ábrelo y revísalo"
+			msg = "hay opciones con errores: ábrelo y revísalas"
 		}
 		return nil, srv, errors.New(msg)
 	}
@@ -409,17 +409,17 @@ func (a *App) RunProject(id string, check bool, secret, accept, sudoPassword str
 		return RunStart{Status: "error", Message: err.Error()}
 	}
 	if a.projectRunning(id) {
-		return RunStart{Status: "busy", Message: "este proyecto ya se está ejecutando"}
+		return RunStart{Status: "busy", Message: "ya hay una tarea en marcha con esta plantilla en este servidor"}
 	}
 	// Contraseñas del proyecto: la bóveda tiene que existir y estar abierta
 	// para guardar lo que se genere (al aplicar) o leer lo que escribiste.
 	if _, sel := a.resolveProject(p); projectNeedsVault(sel, check) {
 		st := a.vault.Status()
 		if !st.Exists {
-			return RunStart{Status: "vault_missing", Message: "Las contraseñas de este proyecto se guardan en la bóveda cifrada de Draupnode: créala primero."}
+			return RunStart{Status: "vault_missing", Message: "Las contraseñas de este servidor se guardan en la bóveda cifrada de Draupnode: créala primero."}
 		}
 		if !st.Unlocked {
-			return RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: ahí se guardan las contraseñas de este proyecto."}
+			return RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: ahí se guardan las contraseñas de este servidor."}
 		}
 	}
 	script, srv, err := a.buildScript(p, true)
@@ -547,7 +547,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			case err != nil:
 				secretsMsg = "No se pudieron guardar en la bóveda las contraseñas generadas: " + vaultErr(err).Error() + ". Vuelve a Aplicar con la bóveda desbloqueada."
 			case n > 0 && len(rm.uninstall) == 0:
-				secretsMsg = fmt.Sprintf("%d contraseña(s) del servidor guardadas en tu bóveda: míralas en «Contraseñas del proyecto».", n)
+				secretsMsg = fmt.Sprintf("%d contraseña(s) del servidor guardadas en tu bóveda: míralas en «Contraseñas».", n)
 			}
 			return
 		}
@@ -589,7 +589,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 	switch {
 	case sum.OK && len(rm.uninstall) > 0:
 		if err := a.store.MarkUninstalled(p.ID, rm.uninstall); err != nil {
-			notice("Desinstalado, pero no se pudo actualizar el proyecto: " + err.Error())
+			notice("Desinstalado, pero no se pudo actualizar la configuración: " + err.Error())
 		} else {
 			names := make([]string, len(rm.uninstall))
 			for i, m := range rm.uninstall {
@@ -598,7 +598,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 					names[i] = mod.Name
 				}
 			}
-			notice("Desinstalado del servidor: " + strings.Join(names, ", ") + ". Ya no forma parte del proyecto.")
+			notice("Desinstalado del servidor: " + strings.Join(names, ", ") + ". Draupnode ya no lo gestiona.")
 		}
 	case sum.OK && !check:
 		if msg := a.afterApply(p); msg != "" {

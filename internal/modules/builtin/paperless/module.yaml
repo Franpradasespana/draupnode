@@ -6,7 +6,7 @@ description: "Escanea o sube tus papeles (facturas, contratos, recibos…) y enc
 details: |
   Paperless-ngx en Docker, con su propio PostgreSQL y Redis. Draupnode
   crea el usuario «admin» con una contraseña generada en el servidor (en
-  «Contraseñas del proyecto»). Lo que dejes en la carpeta «consume» (por
+  «Contraseñas»). Lo que dejes en la carpeta «consume» (por
   ejemplo con Syncthing o desde el escáner) se importa solo.
   La primera vez tarda unos minutos en arrancar.
   Sus datos están en /srv/draupnode/apps/paperless (entran en las copias del
@@ -34,7 +34,7 @@ variables:
     max: 65535
   - name: paperless_domain
     label: Dominio
-    help: "Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio."
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
     type: string
     default: ""
     pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'

@@ -94,7 +94,7 @@ type Module struct {
 	// Links: web oficial, código fuente y documentación de lo que instala
 	// (se enseñan en el Catálogo: es lo justo para quien lo crea).
 	Links []Link `yaml:"links" json:"links,omitempty"`
-	// Conflicts: módulos que no pueden ir en el mismo proyecto (en los dos sentidos).
+	// Conflicts: módulos que no pueden ir juntos (en los dos sentidos).
 	Conflicts []string `yaml:"conflicts" json:"conflicts,omitempty"`
 	// After: si estos módulos están en el proyecto, este va detrás (sin obligar a marcarlos).
 	After []string `yaml:"after" json:"after,omitempty"`
@@ -466,7 +466,7 @@ func (c *Catalog) Clashes(ids []string) []string {
 				continue
 			}
 			seen[a+"|"+b] = true
-			out = append(out, fmt.Sprintf("%s y %s no pueden ir en el mismo proyecto", c.mods[a].Name, c.mods[b].Name))
+			out = append(out, fmt.Sprintf("%s y %s no pueden ir juntos", c.mods[a].Name, c.mods[b].Name))
 		}
 	}
 	sort.Strings(out)

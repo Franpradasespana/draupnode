@@ -46,7 +46,7 @@
   const nav: NavItem[] = [
     { id: 'dashboard', label: 'Panel', icon: LayoutDashboard },
     { id: 'servers', label: 'Servidores', icon: Server },
-    { id: 'projects', label: 'Proyectos', icon: FolderGit2 },
+    { id: 'projects', label: 'Plantillas', icon: FolderGit2 },
   ]
   const tools: NavItem[] = [
     { id: 'docker', label: 'Docker Creator', icon: Container },
@@ -55,7 +55,7 @@
   ]
 
   const titles: Record<View, string> = {
-    dashboard: 'Panel', servers: 'Servidores', catalog: 'Catálogo', projects: 'Proyectos',
+    dashboard: 'Panel', servers: 'Servidores', catalog: 'Catálogo', projects: 'Plantillas',
     docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Servidor de pruebas', alerts: 'Avisos',
   }
 

@@ -100,7 +100,7 @@ type TargetState struct {
 
 func (a *App) monitorPorts(p store.Project) (grafana, prom int, err error) {
 	if !contains(p.InstalledModules, monitoringModule) {
-		return 0, 0, errors.New("la monitorización no está instalada en este proyecto: márcala y pulsa Aplicar")
+		return 0, 0, errors.New("la monitorización no está instalada en este servidor: márcala y pulsa Aplicar")
 	}
 	m, ok := a.cat().Get(monitoringModule)
 	if !ok {

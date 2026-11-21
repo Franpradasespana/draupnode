@@ -26,7 +26,7 @@
   async function store(value: string) {
     busy = true
     try {
-      await withVault(() => api.SetProjectSecret(projectId, v.name, value), 'Los datos secretos del proyecto se guardan cifrados en la bóveda.')
+      await withVault(() => api.SetProjectSecret(projectId, v.name, value), 'Los datos secretos se guardan cifrados en la bóveda.')
       text = ''
       editing = false
       await refresh()

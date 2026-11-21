@@ -492,3 +492,19 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
 - Nombres: «Editar la receta» → **«Editar proyecto»**; «Quitar del servidor» → **«Desasociar el proyecto del
   servidor»** (con su diálogo: deja claro que NO desinstala nada); «Llevar/Volver a la receta» → «Llevar/Volver al
   proyecto»; «Distinto/Igual que la receta» → «… del/que el proyecto».
+
+## 2026-11-21 · 0.38.0 · «Proyectos» pasa a llamarse «Plantillas»
+
+- Los conceptos, tal como se entienden mejor: una **plantilla** es lo que se quiere instalar (módulos y opciones),
+  existe sin servidor y por sí sola no instala nada; se instala al **asociarla** a un servidor y pulsar **Aplicar**.
+  Lo que se cambie dentro de un servidor es solo de ese servidor.
+- Menú, títulos, botones, avisos, ayuda, textos de los módulos y mensajes del programa:
+  - «Proyectos» → «Plantillas»; «Nuevo proyecto» → «Nueva plantilla»; en la ficha del servidor, «Plantillas aplicadas».
+  - «Editar plantilla», «Llevar a la plantilla», «Volver a la plantilla», «Desasociar la plantilla del servidor»,
+    «Igual que / Distinto de la plantilla».
+  - Dentro de un módulo, «Quitar del proyecto» → «Dejar de gestionarlo» y «Volver al proyecto» → «Volver a
+    gestionarlo» (no tienen que ver con la plantilla: Draupnode deja de gestionar o vuelve a gestionar ese módulo
+    en ese servidor); su estado «Fuera del proyecto» → «Sin gestionar».
+  - «Contraseñas del proyecto» → «Contraseñas»; los mensajes que hablaban de «este proyecto» hablan de «este servidor».
+- «Proyecto» se queda solo en Docker Creator, donde es la carpeta de código de tu app.
+- Por dentro (código, datos guardados) sigue llamándose Project/Recipe: no cambia nada de lo guardado.

@@ -6,7 +6,7 @@ description: "Tu propio GitHub: repositorios Git, incidencias, revisiones de có
 details: |
   Forgejo 15 en Docker, con su base SQLite (sin servidor de base de
   datos aparte). Draupnode crea el usuario «administrador» con una contraseña
-  generada en el servidor (en «Contraseñas del proyecto»).
+  generada en el servidor (en «Contraseñas»).
   Git por SSH en el puerto indicado (se abre en el Cortafuegos):
   git clone ssh://git@servidor:PUERTO/usuario/repo.git
   El registro de usuarios nuevos está cerrado salvo que lo abras.
@@ -35,7 +35,7 @@ variables:
     max: 65535
   - name: forgejo_domain
     label: Dominio
-    help: "Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio."
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
     type: string
     default: ""
     pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'

@@ -141,7 +141,7 @@
     const st = cardState(m)
     if (st === 'required') return `La necesita ${requiredBy(m.id).join(', ')}`
     if (st === 'clash') return `No puede ir con ${clashesWith(m.id, selected, byId).map(moduleName).join(', ')}`
-    if (st === 'left') return 'Instalado, pero ya no lo gestiona este proyecto'
+    if (st === 'left') return 'Instalado, pero Draupnode ya no lo gestiona'
     return ''
   }
   // Orden de las tarjetas: por categoría (todo junto) o primero los
@@ -158,7 +158,7 @@
   const sections = $derived.by((): { title: string; list: Module[]; empty: string }[] => {
     if (sortMode === 'installed') {
       return [
-        { title: `Instalados en ${server?.name ?? 'el servidor'}`, list: [...installedList].sort(byName), empty: 'Todavía no hay nada instalado por este proyecto.' },
+        { title: `Instalados en ${server?.name ?? 'el servidor'}`, list: [...installedList].sort(byName), empty: 'Todavía no hay nada instalado con esta plantilla.' },
         { title: 'Sin instalar', list: [...available].sort(byName), empty: 'Ya están todos instalados.' },
       ]
     }
@@ -190,9 +190,9 @@
 
   async function removeFromProject(mid: string) {
     const ok = await confirmDialog({
-      title: `Quitar ${moduleName(mid)} del proyecto`,
+      title: `Dejar de gestionar ${moduleName(mid)}`,
       message: `${moduleName(mid)} seguirá instalado y funcionando en el servidor; Draupnode solo dejará de gestionarlo. Podrás volver a añadirlo o desinstalarlo desde su página.`,
-      confirmLabel: 'Quitar del proyecto',
+      confirmLabel: 'Dejar de gestionarlo',
     })
     if (ok) draft.modules = draft.modules.filter((x) => x.id !== mid)
   }
@@ -226,7 +226,7 @@
 
   async function save(quiet = false): Promise<boolean> {
     if (!draft.name.trim()) {
-      toast('Ponle un nombre al proyecto', 'error')
+      toast('Ponle un nombre', 'error')
       return false
     }
     saving = true
@@ -244,7 +244,7 @@
         savedKey = contentKey(saved)
         ui.projectId = saved.id
       }
-      if (!quiet) toast('Proyecto guardado')
+      if (!quiet) toast('Guardado')
       return true
     } catch (e) {
       saveError = errorText(e)
@@ -302,32 +302,32 @@
   })
   async function pushToRecipe() {
     const ok = await confirmDialog({
-      title: 'Llevar a la receta',
-      message: `Lo que este servidor tiene distinto (${diffText}) pasa a la receta «${recipe?.name}». Los demás servidores con esta receta lo recibirán (sin aplicarlo todavía) y conservarán lo suyo.`,
-      confirmLabel: 'Llevar a la receta',
+      title: 'Llevar a la plantilla',
+      message: `Lo que este servidor tiene distinto (${diffText}) pasa a la plantilla «${recipe?.name}». Los demás servidores con esta plantilla lo recibirán (sin aplicarlo todavía) y conservarán lo suyo.`,
+      confirmLabel: 'Llevar a la plantilla',
     })
     if (!ok) return
     try {
       await api.PushToRecipe(draft.id)
       await refreshProjects()
       reloadDraft()
-      toast('Receta actualizada')
+      toast('Plantilla actualizada')
     } catch (e) {
       toast(errorText(e), 'error')
     }
   }
   async function resetToRecipe() {
     const ok = await confirmDialog({
-      title: 'Volver a la receta',
-      message: `Se deshace lo propio de este servidor (${diffText}) y queda igual que la receta. Lo instalado no cambia hasta que apliques.`,
-      confirmLabel: 'Volver a la receta', danger: true,
+      title: 'Volver a la plantilla',
+      message: `Se deshace lo propio de este servidor (${diffText}) y queda igual que la plantilla. No desinstala nada: lo instalado no cambia hasta que apliques.`,
+      confirmLabel: 'Volver a la plantilla', danger: true,
     })
     if (!ok) return
     try {
       await api.ResetToRecipe(draft.id)
       await refreshProjects()
       reloadDraft()
-      toast('Igual que la receta')
+      toast('Igual que la plantilla')
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -335,9 +335,9 @@
 
   async function remove() {
     const ok = await confirmDialog({
-      title: draft.recipeId ? 'Desasociar el proyecto del servidor' : 'Eliminar proyecto',
+      title: draft.recipeId ? 'Desasociar la plantilla del servidor' : 'Eliminar',
       message: draft.recipeId
-        ? `¿Desasociar «${draft.name}» de ${server?.name}? NO desinstala nada: lo instalado sigue funcionando en el servidor (para quitarlo, desinstala antes sus módulos). Draupnode deja de gestionarlo y borra sus registros y sus contraseñas guardadas. El proyecto se conserva y puedes volver a asociarlo.`
+        ? `¿Desasociar «${draft.name}» de ${server?.name}? NO desinstala nada: lo instalado sigue funcionando en el servidor (para quitarlo, desinstala antes sus módulos). Draupnode deja de gestionarlo y borra sus registros y sus contraseñas guardadas. La plantilla se conserva y puedes volver a asociarla.`
         : `¿Eliminar «${draft.name}»? Solo se borra de Draupnode (y sus registros); el servidor no se toca.`,
       confirmLabel: draft.recipeId ? 'Desasociar' : 'Eliminar', danger: true,
     })
@@ -346,7 +346,7 @@
       await api.DeleteProject(draft.id)
       await refreshProjects()
       ui.projectId = null
-      toast(draft.recipeId ? 'Proyecto desasociado del servidor' : 'Proyecto eliminado')
+      toast(draft.recipeId ? 'Plantilla desasociada del servidor' : 'Eliminado')
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -416,7 +416,7 @@
 
 <div class="bar">
   {#if openModule}
-    <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> {draft.name || 'Proyecto'}</button>
+    <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> {draft.name || 'Plantilla'}</button>
   {:else}
     <button class="btn ghost sm" onclick={() => (ui.projectId = null)}><ArrowLeft size={15} /> {server?.name ?? 'Servidor'}</button>
   {/if}
@@ -440,22 +440,22 @@
   {#if server}<span class="muted mono small">{server.user}@{server.host}</span>{/if}
   <ChevronRight size={14} class="sep" />
   {#if openModule}
-    <button class="crumb" onclick={() => (openMod = null)}>{draft.name || 'Proyecto nuevo'}</button>
+    <button class="crumb" onclick={() => (openMod = null)}>{draft.name || 'Nueva'}</button>
     <ChevronRight size={14} class="sep" />
     <strong>{openModule.name}</strong>
   {:else}
-    <strong>{draft.name || 'Proyecto nuevo'}</strong>
+    <strong>{draft.name || 'Nueva'}</strong>
   {/if}
 </nav>
 {#if draft.recipeId && !openModule}
   {#if diffText}
-    <span class="pill warn">Distinto del proyecto: {diffText}</span>
-    <button class="btn sm" onclick={pushToRecipe} disabled={running || dirty} title="Lo de este servidor pasa al proyecto (y a los demás servidores que lo usan)">Llevar al proyecto</button>
-    <button class="btn sm" onclick={resetToRecipe} disabled={running || dirty} title="Deshace lo propio de este servidor (no desinstala nada)">Volver al proyecto</button>
-  {:else}<span class="pill ok">Igual que el proyecto</span>{/if}
+    <span class="pill warn">Distinto de la plantilla: {diffText}</span>
+    <button class="btn sm" onclick={pushToRecipe} disabled={running || dirty} title="Lo propio de este servidor pasa a la plantilla (y a los demás servidores que la usan). No instala nada.">Llevar a la plantilla</button>
+    <button class="btn sm" onclick={resetToRecipe} disabled={running || dirty} title="Quita lo propio de este servidor y lo deja igual que la plantilla (no desinstala nada)">Volver a la plantilla</button>
+  {:else}<span class="pill ok">Igual que la plantilla</span>{/if}
   <div class="spacer"></div>
-  <button class="btn sm ghost" onclick={() => openRecipe(draft.recipeId!)} title="El proyecto (la receta) para todos sus servidores"><Pencil size={14} /> Editar proyecto</button>
-  <button class="btn sm danger" onclick={remove} disabled={running} title="Lo quita de Draupnode; lo instalado en el servidor no se toca"><Unlink size={14} /> Desasociar el proyecto del servidor</button>
+  <button class="btn sm ghost" onclick={() => openRecipe(draft.recipeId!)} title="La plantilla, para todos los servidores que la usan"><Pencil size={14} /> Editar plantilla</button>
+  <button class="btn sm danger" onclick={remove} disabled={running} title="Lo quita de Draupnode; lo instalado en el servidor no se toca"><Unlink size={14} /> Desasociar la plantilla del servidor</button>
 {/if}
 </div>
 
@@ -471,7 +471,7 @@
 {:else}
   {#if !draft.recipeId}
   <div class="title-row">
-    <input class="name" bind:value={draft.name} placeholder="Nombre del proyecto (p. ej. Servidor web)" disabled={running} />
+    <input class="name" bind:value={draft.name} placeholder="Nombre (p. ej. Servidor web)" disabled={running} />
     <label class="field srv">
       <span>Servidor</span>
       <select class="input" bind:value={draft.serverId} disabled={running}>

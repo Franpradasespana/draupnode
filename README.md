@@ -22,7 +22,7 @@ Versión **0.3.0** · fases 1 y 2 de [docs/PLAN.md](docs/PLAN.md).
 | Contraseñas en el llavero del sistema o en una bóveda cifrada propia (Argon2id + XChaCha20-Poly1305) | Instaladores para los 3 sistemas (fase 4) |
 | Verificación de huella (known_hosts) y aviso de huella cambiada | |
 | Catálogo de módulos (base, cortafuegos, Docker, Coolify, PostgreSQL) y módulos propios | |
-| Proyectos: formularios generados, dependencias automáticas, validación | |
+| Plantillas (lo que se instala, sin servidor) que se asocian y aplican a uno o varios servidores; formularios generados, dependencias automáticas, validación | |
 | Previsualizar / Aplicar por SSH con progreso en directo, o exportar un único `instalar.sh` | |
 | «Probar conexión»: sistema, RAM, disco, sudo, herramientas | |
 | 15 temas (12 de las láminas + 3 nuevos) y editor de paletas | |

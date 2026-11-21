@@ -40,7 +40,7 @@ type backupPaths struct {
 
 func (a *App) backupPathsFor(p store.Project) (backupPaths, error) {
 	if !contains(p.InstalledModules, backupsModule) {
-		return backupPaths{}, errors.New("las copias de seguridad no están instaladas en este proyecto: marca «Copias de seguridad» y pulsa Aplicar")
+		return backupPaths{}, errors.New("las copias de seguridad no están instaladas en este servidor: marca «Copias de seguridad» y pulsa Aplicar")
 	}
 	m, ok := a.cat().Get(backupsModule)
 	if !ok {
@@ -90,7 +90,7 @@ func (a *App) withServer(projectID, secret, accept, sudoPassword string, fn func
 		return BackupResult{RunStart: RunStart{Status: "error", Message: err.Error()}}
 	}
 	if a.projectRunning(projectID) {
-		return BackupResult{RunStart: RunStart{Status: "busy", Message: "el proyecto está ocupado con otra tarea"}}
+		return BackupResult{RunStart: RunStart{Status: "busy", Message: "este servidor está ocupado con otra tarea"}}
 	}
 	srv, err := a.store.Server(p.ServerID)
 	if err != nil {
@@ -130,7 +130,7 @@ func (a *App) BackupSnapshots(projectID string, remote bool, secret, accept, sud
 		arg := "snapshots"
 		if remote {
 			if !bp.Remote {
-				return BackupResult{RunStart: RunStart{Status: "error", Message: "este proyecto no tiene destino remoto"}}
+				return BackupResult{RunStart: RunStart{Status: "error", Message: "las copias de este servidor no tienen destino remoto"}}
 			}
 			arg = "remoto"
 		}
@@ -442,7 +442,7 @@ func badRequest(msg string) BackupResult {
 func scriptErr(prefix, errOut string, err error) BackupResult {
 	msg := firstLine(errOut, err)
 	if strings.Contains(errOut, "Uso:") {
-		msg = "el script de copias del servidor es de una versión anterior: pulsa Aplicar en el proyecto para actualizarlo"
+		msg = "el script de copias del servidor es de una versión anterior: pulsa Aplicar en este servidor para actualizarlo"
 	}
 	return badRequest(prefix + msg)
 }

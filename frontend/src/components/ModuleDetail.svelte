@@ -65,7 +65,7 @@
   <div class="title">
     <h2>{m.name}</h2>
     {#if installed && pm}<span class="pill ok"><CircleCheck size={13} /> Instalado{#if project.appliedAt}{' · '}aplicado {timeAgo(project.appliedAt)}{/if}</span>
-    {:else if installed}<span class="pill left">Instalado, fuera del proyecto</span>
+    {:else if installed}<span class="pill left">Instalado, sin gestionar</span>
     {:else}<span class="pill new">Se instalará al aplicar</span>{/if}
   </div>
   <p class="muted">{m.description}</p>
@@ -75,7 +75,7 @@
     {#if more}<ModuleText text={m.details} />{/if}
   {/if}
   {#if !pm && installed}
-    <p class="info"><Info size={15} /> Sigue instalado y funcionando en el servidor, pero este proyecto ya no lo gestiona (no lo comprueba ni lo actualiza al aplicar).</p>
+    <p class="info"><Info size={15} /> Sigue instalado y funcionando en el servidor, pero Draupnode ya no lo gestiona (no lo comprueba ni lo actualiza al aplicar).</p>
   {/if}
   {#if m.proxySite && installed}
     <div class="app-open">
@@ -131,14 +131,14 @@
 <section class="card zone">
   {#if pm}
     <div class="z">
-      <div><strong>Quitar del proyecto</strong><span class="muted small">Sigue instalado en el servidor; Draupnode deja de gestionarlo.</span></div>
-      <button class="btn" onclick={onremove} disabled={running || requiredBy.length > 0} title={requiredBy.length ? `Lo necesita ${requiredBy.join(', ')}` : ''}>Quitar del proyecto</button>
+      <div><strong>Dejar de gestionarlo</strong><span class="muted small">Sigue instalado en el servidor; Draupnode deja de gestionarlo.</span></div>
+      <button class="btn" onclick={onremove} disabled={running || requiredBy.length > 0} title={requiredBy.length ? `Lo necesita ${requiredBy.join(', ')}` : ''}>Dejar de gestionarlo</button>
     </div>
     {#if requiredBy.length}<p class="muted small">No se puede quitar mientras lo necesite {requiredBy.join(', ')}.</p>{/if}
   {:else}
     <div class="z">
-      <div><strong>Volver a gestionarlo</strong><span class="muted small">Lo añade otra vez al proyecto con la configuración con la que se instaló.</span></div>
-      <button class="btn" onclick={onreadd} disabled={running}><Undo2 size={15} /> Volver al proyecto</button>
+      <div><strong>Volver a gestionarlo</strong><span class="muted small">Lo añade otra vez a la plantilla de este servidor con la configuración con la que se instaló.</span></div>
+      <button class="btn" onclick={onreadd} disabled={running}><Undo2 size={15} /> Volver a gestionarlo</button>
     </div>
   {/if}
   {#if installed}

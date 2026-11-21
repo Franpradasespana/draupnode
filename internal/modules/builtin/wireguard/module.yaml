@@ -59,7 +59,7 @@ variables:
     default: false
   - name: wireguard_dns
     label: DNS para los dispositivos
-    help: Vacío = el suyo de siempre. Con AdGuard Home en el proyecto se pone solo (la .1 de la VPN). Ejemplo 9.9.9.9.
+    help: Vacío = el suyo de siempre. Con AdGuard Home en el servidor se pone solo (la .1 de la VPN). Ejemplo 9.9.9.9.
     type: string
     default: ""
     pattern: '^([0-9.]+(, *[0-9.]+)*)?$'

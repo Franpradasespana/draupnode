@@ -35,7 +35,7 @@ variables:
     max: 65535
   - name: immich_domain
     label: Dominio
-    help: "Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio."
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
     type: string
     default: ""
     pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'

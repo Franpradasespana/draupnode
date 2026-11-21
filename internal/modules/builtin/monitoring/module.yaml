@@ -5,8 +5,8 @@ category: 6 · Monitorización
 description: Prometheus y Grafana con paneles listos para la CPU, la RAM y el disco del servidor, cada contenedor y PostgreSQL. Grafana se abre desde Draupnode por un túnel SSH.
 details: |
   Todo en Docker y de código abierto: Prometheus, node-exporter (el servidor),
-  cAdvisor (cada contenedor), postgres-exporter (si hay PostgreSQL de este
-  proyecto) y Grafana OSS con los paneles «Recursos» y «PostgreSQL».
+  cAdvisor (cada contenedor), postgres-exporter (si hay PostgreSQL en esta
+  misma plantilla) y Grafana OSS con los paneles «Recursos» y «PostgreSQL».
   Grafana y Prometheus solo escuchan en el propio servidor (127.0.0.1): no se
   abren a internet ni en el Cortafuegos. Draupnode los abre por la misma
   conexión SSH («Abrir Grafana» en la página del módulo). El usuario es admin;
@@ -37,7 +37,7 @@ variables:
     default: true
   - name: monitoring_postgres
     label: Métricas de PostgreSQL
-    help: Solo si PostgreSQL es de este mismo proyecto (usa su contraseña de superusuario).
+    help: Solo si PostgreSQL está en esta misma plantilla (usa su contraseña de superusuario).
     type: bool
     default: true
   - name: monitoring_postgres_container
