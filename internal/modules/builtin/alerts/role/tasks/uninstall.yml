@@ -1,0 +1,22 @@
+---
+- name: Parar los temporizadores
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop:
+    - "draupnode-alertas-{{ draupnode_project }}.timer"
+    - "draupnode-alertas-{{ draupnode_project }}-diario.timer"
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Quitar el script, las unidades y el estado
+  ansible.builtin.shell: |
+    rm -f /usr/local/sbin/draupnode-alertas-{{ draupnode_project }} /etc/systemd/system/draupnode-alertas-{{ draupnode_project }}*
+    rm -rf /var/lib/draupnode/alertas-{{ draupnode_project }} {{ (draupnode_secrets_dir ~ '/.alertas.env') | quote }}
+    systemctl daemon-reload
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: Alertas {{ 'se quitarán' if ansible_check_mode else 'quitadas' }}. Ya no recibirás avisos de este servidor.

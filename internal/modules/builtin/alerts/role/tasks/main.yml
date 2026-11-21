@@ -1,0 +1,128 @@
+---
+- name: Rutas y opciones
+  ansible.builtin.set_fact:
+    alerts_script: "/usr/local/sbin/draupnode-alertas-{{ draupnode_project }}"
+    alerts_unit: "draupnode-alertas-{{ draupnode_project }}"
+    alerts_conf_file: "{{ draupnode_secrets_dir }}/.alertas.env"
+    alerts_state_dir: "/var/lib/draupnode/alertas-{{ draupnode_project }}"
+    alerts_opts:
+      channel: "{{ alerts_channel }}"
+      ntfy_server: "{{ alerts_ntfy_server }}"
+      telegram_chat: "{{ alerts_telegram_chat }}"
+      disk: "{{ alerts_disk_percent | int }}"
+      ram: "{{ alerts_ram_percent | int }}"
+      backups: "{{ alerts_backups | bool }}"
+      containers: "{{ alerts_containers | bool }}"
+      services: "{{ alerts_services | bool }}"
+      watch: "{{ alerts_watch }}"
+      repeat_h: "{{ alerts_repeat_hours | int }}"
+
+- name: Telegram necesita token y chat
+  ansible.builtin.assert:
+    that: alerts_channel != 'telegram' or ((alerts_telegram_token | default('')) | length > 0 and alerts_telegram_chat | length > 0)
+    fail_msg: "Para avisar por Telegram hacen falta el «Token del bot» y el «Chat de Telegram»."
+    quiet: true
+
+- name: Tema de ntfy (si está vacío, se genera uno secreto la primera vez)
+  ansible.builtin.set_fact:
+    alerts_topic: >-
+      {{ alerts_ntfy_topic if alerts_ntfy_topic | length > 0 else
+         lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/alerts_ntfy_topic', chars=['ascii_lowercase', 'digits'], length=28) }}
+  no_log: true
+  when: alerts_channel == 'ntfy' and not ansible_check_mode
+
+- name: El tema elegido a mano también se guarda (para verlo en la app)
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/alerts_ntfy_topic"
+    content: "{{ alerts_ntfy_topic }}"
+    mode: "0600"
+  when: alerts_channel == 'ntfy' and alerts_ntfy_topic | length > 0 and not ansible_check_mode
+
+- name: Datos de envío (solo root)
+  ansible.builtin.copy:
+    dest: "{{ alerts_conf_file }}"
+    mode: "0600"
+    content: |
+      NTFY_TOPIC={{ alerts_topic | default('') }}
+      NTFY_TOKEN={{ alerts_ntfy_token | default('') }}
+      TELEGRAM_TOKEN={{ alerts_telegram_token | default('') }}
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Script de alertas
+  ansible.builtin.template:
+    src: alertas.py.j2
+    dest: "{{ alerts_script }}"
+    mode: "0700"
+
+- name: Servicio y temporizadores
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    mode: "0644"
+    content: "{{ item.content }}"
+  loop:
+    - name: "{{ alerts_unit }}.service"
+      content: |
+        [Unit]
+        Description=Alertas de Draupnode ({{ draupnode_project }})
+        After=network-online.target
+        [Service]
+        Type=oneshot
+        ExecStart={{ alerts_script }}
+    - name: "{{ alerts_unit }}.timer"
+      content: |
+        [Unit]
+        Description=Alertas de Draupnode ({{ draupnode_project }}) cada {{ alerts_interval_min }} min
+        [Timer]
+        OnBootSec=2min
+        OnUnitActiveSec={{ alerts_interval_min }}min
+        [Install]
+        WantedBy=timers.target
+    - name: "{{ alerts_unit }}-diario.service"
+      content: |
+        [Unit]
+        Description=Resumen diario de Draupnode ({{ draupnode_project }})
+        [Service]
+        Type=oneshot
+        ExecStart={{ alerts_script }} diario
+    - name: "{{ alerts_unit }}-diario.timer"
+      content: |
+        [Unit]
+        Description=Resumen diario de Draupnode ({{ draupnode_project }})
+        [Timer]
+        OnCalendar=*-*-* 09:00
+        Persistent=false
+        [Install]
+        WantedBy=timers.target
+  loop_control:
+    label: "{{ item.name }}"
+  register: alerts_units
+
+- name: Temporizador de comprobaciones
+  ansible.builtin.systemd:
+    name: "{{ alerts_unit }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: "{{ alerts_units is changed }}"
+  when: not ansible_check_mode
+
+- name: Temporizador del aviso diario
+  ansible.builtin.systemd:
+    name: "{{ alerts_unit }}-diario.timer"
+    enabled: "{{ alerts_daily | bool }}"
+    state: "{{ 'started' if alerts_daily | bool else 'stopped' }}"
+  when: not ansible_check_mode
+
+- name: Lo que ve ahora
+  ansible.builtin.command: "{{ alerts_script }} estado"
+  register: alerts_estado
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Alertas cada {{ alerts_interval_min }} min por {{ alerts_channel }}.
+      {%- if alerts_channel == 'ntfy' %} Suscríbete en la app ntfy (QR en la página de este módulo; servidor {{ alerts_ntfy_server }}).{% endif %}
+      {%- if alerts_estado.stdout is defined %} Ahora: {{ alerts_estado.stdout | replace('\n', ' ') }}{% endif %}
+      Pulsa «Enviar aviso de prueba» en la página del módulo para comprobar que te llegan.

@@ -1,0 +1,115 @@
+id: alerts
+name: Alertas al móvil
+version: 1.0.0
+category: 6 · Monitorización
+description: Te avisa al móvil cuando algo va mal (disco casi lleno, una copia que ha fallado, un contenedor caído, otro servidor que no responde) y cuando se arregla.
+details: |
+  Un pequeño script del servidor (systemd, cada pocos minutos) comprueba lo
+  que marques y manda el aviso por ntfy (código abierto: la app ntfy del
+  móvil, con ntfy.sh o tu propio servidor ntfy) o por Telegram.
+  Avisa una vez cuando empieza un problema, lo recuerda cada pocas horas si
+  sigue, y avisa cuando se arregla.
+  Con ntfy, si dejas el tema vacío se genera uno largo y secreto (quien sepa
+  el nombre puede leer los avisos). En la página de este módulo tienes el QR
+  para suscribirte desde la app y un botón para mandar un aviso de prueba.
+  Un servidor no puede avisar de que él mismo se ha caído: para eso, pon su
+  dirección en «Vigilar otros servidores» de las alertas de OTRO servidor, o
+  marca el «Aviso diario»: si un día no llega, algo pasa.
+depends: [base]
+after: [backups, docker, monitoring]
+requires:
+  os: [ubuntu, debian]
+secrets:
+  - file: alerts_ntfy_topic
+    label: Tema de ntfy (para suscribirte)
+uninstall_warning: Quita el script y el temporizador de las alertas. Dejarás de recibir avisos de este servidor.
+variables:
+  - name: alerts_channel
+    label: Por dónde avisar
+    help: «ntfy» = app ntfy del móvil (código abierto). «telegram» = un bot de Telegram.
+    type: select
+    options: [ntfy, telegram]
+    default: ntfy
+  - name: alerts_ntfy_server
+    label: Servidor ntfy
+    help: El público (https://ntfy.sh) o el tuyo.
+    type: string
+    default: https://ntfy.sh
+    pattern: '^https?://[A-Za-z0-9.:-]+(/[A-Za-z0-9._/-]*)?$'
+    pattern_help: Una dirección http(s)://
+  - name: alerts_ntfy_topic
+    label: Tema de ntfy
+    help: Vacío = se genera uno secreto en el servidor (recomendado).
+    type: string
+    default: ""
+    pattern: '^[A-Za-z0-9_-]{0,64}$'
+    pattern_help: Letras, números, - y _
+  - name: alerts_ntfy_token
+    label: Token de ntfy
+    help: Solo si tu servidor ntfy pide usuario (token de acceso «tk_…»).
+    type: secret
+  - name: alerts_telegram_token
+    label: Token del bot de Telegram
+    help: El que te da @BotFather al crear el bot.
+    type: secret
+  - name: alerts_telegram_chat
+    label: Chat de Telegram
+    help: Tu número de chat (escríbele al bot y míralo con @userinfobot).
+    type: string
+    default: ""
+    pattern: '^-?[0-9]{0,20}$'
+    pattern_help: Un número
+  - name: alerts_disk_percent
+    label: Avisar si un disco pasa del (%)
+    help: 0 = no avisar.
+    type: int
+    default: 90
+    min: 0
+    max: 99
+  - name: alerts_ram_percent
+    label: Avisar si la memoria pasa del (%)
+    help: Durante dos comprobaciones seguidas. 0 = no avisar.
+    type: int
+    default: 95
+    min: 0
+    max: 99
+  - name: alerts_backups
+    label: Avisar si falla una copia de seguridad
+    help: O si la última buena tiene más de 36 horas.
+    type: bool
+    default: true
+  - name: alerts_containers
+    label: Avisar si un contenedor se cae
+    help: Parado con error, reiniciándose sin parar o «unhealthy».
+    type: bool
+    default: true
+  - name: alerts_services
+    label: Avisar si falla un servicio del sistema
+    help: Cualquier servicio de systemd en estado «failed».
+    type: bool
+    default: true
+  - name: alerts_watch
+    label: Vigilar otros servidores
+    help: "Uno por línea: dirección:puerto (p. ej. 203.0.113.40:22). Avisa si deja de responder."
+    type: list
+    default: []
+    pattern: '^[A-Za-z0-9.-]+:[0-9]{1,5}$'
+    pattern_help: "dirección:puerto"
+  - name: alerts_daily
+    label: Aviso diario de que todo va bien
+    help: A las 9:00. Si un día no llega, el servidor puede estar caído.
+    type: bool
+    default: false
+  - name: alerts_interval_min
+    label: Comprobar cada (minutos)
+    type: int
+    default: 5
+    min: 1
+    max: 60
+  - name: alerts_repeat_hours
+    label: Recordar un problema que sigue cada (horas)
+    help: 0 = no recordar.
+    type: int
+    default: 6
+    min: 0
+    max: 168

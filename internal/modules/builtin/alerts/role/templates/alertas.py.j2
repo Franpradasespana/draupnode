@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+# Generado por Draupnode (módulo alerts, proyecto {{ draupnode_project }}). Se reescribe al aplicar.
+#   alertas            comprueba y avisa (lo lanza el temporizador)
+#   alertas prueba     manda un aviso de prueba
+#   alertas diario     manda el resumen diario («todo va bien»)
+#   alertas estado     enseña lo que ve ahora, sin avisar
+import json, os, shutil, socket, subprocess, sys, time, urllib.parse, urllib.request
+
+# Opciones del módulo (JSON dentro de una cadena: así no hay que traducir true/false).
+CONF = json.loads({{ alerts_conf_file | to_json | to_json }})
+STATE = json.loads({{ alerts_state_dir | to_json | to_json }})
+OPT = json.loads({{ alerts_opts | to_json | to_json }})
+for k in ("disk", "ram", "repeat_h"):
+    OPT[k] = int(OPT[k])
+for k in ("backups", "containers", "services"):
+    OPT[k] = OPT[k] in (True, "True", "true", "1", 1)
+
+def env():
+    out = {}
+    try:
+        with open(CONF) as f:
+            for line in f:
+                if "=" in line:
+                    k, v = line.rstrip("\n").split("=", 1)
+                    out[k] = v
+    except OSError:
+        pass
+    return out
+
+def run(*cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=30).stdout
+    except Exception:
+        return ""
+
+HOST = socket.gethostname()
+
+def send(title, msg, problem=True):
+    e = env()
+    try:
+        if OPT["channel"] == "telegram":
+            data = urllib.parse.urlencode({"chat_id": OPT["telegram_chat"], "text": f"{title}\n{msg}"}).encode()
+            req = urllib.request.Request(f"https://api.telegram.org/bot{e.get('TELEGRAM_TOKEN', '')}/sendMessage", data=data)
+        else:
+            req = urllib.request.Request(OPT["ntfy_server"].rstrip("/") + "/" + e.get("NTFY_TOPIC", ""), data=msg.encode())
+            # Las cabeceras HTTP no admiten tildes: ntfy acepta el título codificado (RFC 2047).
+            import base64
+            req.add_header("Title", "=?UTF-8?B?" + base64.b64encode(title.encode()).decode() + "?=")
+            req.add_header("Priority", "high" if problem else "default")
+            req.add_header("Tags", "warning" if problem else "white_check_mark")
+            if e.get("NTFY_TOKEN"):
+                req.add_header("Authorization", "Bearer " + e["NTFY_TOKEN"])
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return 200 <= r.status < 300
+    except Exception as ex:
+        print("No se pudo avisar:", ex, file=sys.stderr)
+        return False
+
+def problems():
+    p = {}
+    # Discos
+    if OPT["disk"] > 0:
+        for line in run("df", "-P", "-x", "tmpfs", "-x", "devtmpfs", "-x", "overlay", "-x", "squashfs", "-x", "efivarfs").splitlines()[1:]:
+            f = line.split()
+            # (en contenedores aparecen ficheros sueltos montados, como /etc/hosts: no son discos)
+            if len(f) >= 6 and f[4].endswith("%") and os.path.isdir(f[5]) and int(f[4][:-1]) >= OPT["disk"]:
+                p["disco:" + f[5]] = f"Disco {f[5]} al {f[4]} (libres {int(f[3]) // 1024} MB)."
+    # Memoria (dos comprobaciones seguidas)
+    if OPT["ram"] > 0:
+        m = {}
+        for line in open("/proc/meminfo"):
+            k, v = line.split(":", 1)
+            m[k] = int(v.split()[0])
+        used = 100 - m.get("MemAvailable", 0) * 100 // max(m.get("MemTotal", 1), 1)
+        if used >= OPT["ram"]:
+            p["ram"] = f"Memoria al {used} %."
+    # Copias de seguridad
+    if OPT["backups"]:
+        for unit in run("systemctl", "list-units", "--all", "--plain", "--no-legend", "draupnode-copia-*.service").split():
+            if not unit.endswith(".service"):
+                continue
+            info = dict(l.split("=", 1) for l in run("systemctl", "show", unit, "-p", "Result,ExecMainExitTimestampMonotonic,ActiveState").splitlines() if "=" in l)
+            name = unit[len("draupnode-copia-"):-len(".service")]
+            if info.get("Result") not in (None, "", "success"):
+                p["copia:" + name] = f"La copia de seguridad de «{name}» ha fallado. Míralo con: journalctl -u {unit}"
+            else:
+                last = int(info.get("ExecMainExitTimestampMonotonic", "0") or 0)
+                if last and time.monotonic() - last / 1e6 > 36 * 3600:
+                    p["copia:" + name] = f"La copia de «{name}» no se ha hecho en más de 36 horas."
+    # Contenedores
+    if OPT["containers"] and shutil.which("docker"):
+        ids = run("docker", "ps", "-aq").split()
+        if ids:
+            fmt = "{{ '{{' }}.Name{{ '}}' }}|{{ '{{' }}.HostConfig.RestartPolicy.Name{{ '}}' }}|{{ '{{' }}.State.Status{{ '}}' }}|{{ '{{' }}.State.ExitCode{{ '}}' }}|{{ '{{' }}if .State.Health{{ '}}' }}{{ '{{' }}.State.Health.Status{{ '}}' }}{{ '{{' }}end{{ '}}' }}"
+            for line in run("docker", "inspect", "--type", "container", "--format", fmt, *ids).splitlines():
+                n, pol, st, code, health = (line.split("|") + [""] * 5)[:5]
+                n = n.lstrip("/")
+                if st == "restarting":
+                    p["ctr:" + n] = f"El contenedor {n} se está reiniciando sin parar."
+                elif health == "unhealthy":
+                    p["ctr:" + n] = f"El contenedor {n} está en marcha pero no responde bien (unhealthy)."
+                elif st in ("exited", "dead") and pol in ("always", "unless-stopped", "on-failure") and code not in ("0", "137", "143"):
+                    p["ctr:" + n] = f"El contenedor {n} se ha parado con error (código {code})."
+    # Servicios del sistema
+    if OPT["services"]:
+        for line in run("systemctl", "--failed", "--plain", "--no-legend").splitlines():
+            unit = line.split()[0] if line.split() else ""
+            if unit and not unit.startswith("draupnode-copia-"):
+                p["svc:" + unit] = f"El servicio {unit} ha fallado. Míralo con: journalctl -u {unit}"
+    # Otros servidores
+    for hp in OPT["watch"]:
+        host, port = hp.rsplit(":", 1)
+        try:
+            socket.create_connection((host, int(port)), timeout=6).close()
+        except OSError:
+            p["vigilar:" + hp] = f"{hp} no responde."
+    return p
+
+def load():
+    try:
+        with open(os.path.join(STATE, "estado.json")) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+def save(s):
+    os.makedirs(STATE, mode=0o700, exist_ok=True)
+    tmp = os.path.join(STATE, ".estado.json")
+    with open(tmp, "w") as f:
+        json.dump(s, f)
+    os.replace(tmp, os.path.join(STATE, "estado.json"))
+
+TITLE = f"{HOST} · {{ draupnode_project }}"
+# Lo que necesita dos comprobaciones seguidas para avisar (evita falsas alarmas).
+TWICE = ("ram", "vigilar:")
+
+def check():
+    now = time.time()
+    st = load()
+    cur = problems()
+    for k, msg in cur.items():
+        s = st.get(k)
+        if s is None:
+            st[k] = s = {"since": now, "seen": 0, "sent": 0, "msg": msg}
+        s["seen"] += 1
+        s["msg"] = msg
+        if any(k == t or k.startswith(t) for t in TWICE) and s["seen"] < 2:
+            continue
+        if not s["sent"]:
+            if send(TITLE, "⚠ " + msg):
+                s["sent"] = now
+        elif OPT["repeat_h"] and now - s["sent"] > OPT["repeat_h"] * 3600:
+            mins = int((now - s["since"]) // 60)
+            if send(TITLE, f"Sigue (desde hace {mins // 60} h {mins % 60} min): {msg}"):
+                s["sent"] = now
+    for k in [k for k in st if k not in cur]:
+        s = st[k]
+        if not s.get("sent") or send(TITLE, "✓ Resuelto: " + s["msg"], problem=False):
+            del st[k]
+    save(st)
+
+def daily():
+    cur = problems()
+    disk = run("df", "-P", "/").splitlines()[-1].split()[4] if run("df", "-P", "/") else "?"
+    up = run("uptime", "-p").strip()
+    body = f"Todo bien. Disco / al {disk}, {up}." if not cur else f"{len(cur)} problema(s) abierto(s):\n- " + "\n- ".join(cur.values())
+    send(TITLE, body, problem=bool(cur))
+
+if __name__ == "__main__":
+    what = sys.argv[1] if len(sys.argv) > 1 else "comprobar"
+    if what == "prueba":
+        ok = send(TITLE, "Aviso de prueba de Draupnode: las alertas de este servidor llegan bien.", problem=False)
+        print("Aviso de prueba enviado." if ok else "No se pudo enviar el aviso de prueba.")
+        sys.exit(0 if ok else 1)
+    elif what == "diario":
+        daily()
+    elif what == "estado":
+        cur = problems()
+        print("\n".join(cur.values()) if cur else "Sin problemas.")
+    else:
+        check()

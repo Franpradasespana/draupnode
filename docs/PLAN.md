@@ -56,14 +56,27 @@
 
 ### Ideas aprobadas por el usuario (2026-11-21)
 
-- **Módulo «Destino de copias»**: prepara OTRO servidor (VPS, Raspberry, NAS) para recibir las copias restic de los demás. rest-server (BSD-2) en modo `--append-only` + usuario/contraseña por proyecto: el servidor de origen puede añadir copias pero no borrarlas (protege frente a ransomware o intrusión). En el módulo backups, elegir ese destino de una lista en vez de teclear la URL.
+- ~~**Módulo «Destino de copias»**~~ hecho en la 0.15.0. Prepara OTRO servidor (VPS, Raspberry, NAS) para recibir las copias restic de los demás. rest-server (BSD-2) en modo `--append-only` + usuario/contraseña por proyecto: el servidor de origen puede añadir copias pero no borrarlas (protege frente a ransomware o intrusión). En el módulo backups, elegir ese destino de una lista en vez de teclear la URL.
 - **Aviso / descarga automática de copias al abrir la app**: al arrancar, comprobar la fecha de la última copia traída al equipo por proyecto. Opción por proyecto: «avisar si tiene más de N días» (aviso con botón «Traer ahora») o «traer automáticamente» (incremental, progreso en la barra de estado).
+
+### Hecho el 2026-11-21 (0.14.0 – 0.18.0)
+
+- 0.14.0 pantalla Docker (creador de Dockerfile) · 0.15.0 Destino de copias · 0.16.0 Caddy y nginx · 0.17.0 WireGuard · 0.18.0 Alertas al móvil. Detalle en HISTORIAL.md.
+
+### Pendiente (anotado 2026-11-21)
+
+- Aviso / descarga automática de copias al abrir la app (idea aprobada, sin hacer).
+- Probar en un servidor con dominio real: certificados de Let's Encrypt con Caddy y con nginx/certbot.
+- Destino de copias: las copias viejas del destino no se borran nunca (solo añadir). Falta una forma segura de podarlas (p. ej. «Podar el destino» desde la app, que conoce la contraseña de restic, con un usuario de rest-server sin --append-only solo para eso).
+- WireGuard: el puerto UDP lo abre el propio módulo; el Cortafuegos solo sabe TCP. En Oracle Cloud hay que abrir también el UDP en la Security List.
+- Alertas: el servidor no puede avisar de que él mismo se ha caído (se cubre con «Vigilar otros servidores» desde otro servidor o con el aviso diario).
+- Módulo genérico «App con Docker Compose» (desplegar lo que genera la pantalla Docker o apps de la lista de abajo).
 
 ### Módulos futuros (lista del usuario, 2026-11-20) — todos de código abierto
 
 | Programa | Licencia | Notas para el módulo |
 |---|---|---|
-| WireGuard | GPL-2 | VPN; puerto UDP desde variable (`firewall_ports_from` necesitaría UDP). |
+| WireGuard | GPL-2 | Hecho (0.17.0): abre él mismo su puerto UDP. |
 | Cockpit | LGPL-2.1 | Panel web del sistema en 9090: choca con nada nuestro (Prometheus va en 19090), pero debe quedarse en 127.0.0.1 + túnel como Grafana. |
 | ufw | GPL-3 | `conflicts: [firewall]` (dos cortafuegos sobre iptables). |
 | Samba | GPL-3 | Carpetas compartidas; puertos 139/445 solo en red local/VPN. |
@@ -75,7 +88,7 @@
 | Vaultwarden | AGPL-3 | Contraseñas; necesita HTTPS (proxy/Coolify). |
 | Forgejo | GPL-3 (MIT antes de v9) | Git; SSH propio en otro puerto. |
 | Paperless-ngx | GPL-3 | Documentos (OCR); con su Redis y PostgreSQL. |
-| nginx | BSD-2 | `conflicts: [coolify]` (80/443). Mejor Caddy como se decidió, o los dos. |
+| nginx | BSD-2 | Hecho (0.16.0), y Caddy también; no pueden ir juntos ni con Coolify. |
 | Pi-hole | EUPL-1.2 | DNS (53): `conflicts: [adguard]`; cuidado con systemd-resolved. |
 | AdGuard Home | GPL-3 | Igual que Pi-hole. |
 | MariaDB | GPL-2 | Como el PostgreSQL compartido (una base y usuario por app). |

@@ -67,6 +67,13 @@ const ALL_SHOTS = [
     },
     act: [['click', 'button.proj', 'VPN'], ['wait', 700], ['click', 'button', 'WireGuard'], ['wait', 700], ['click', 'button', 'Ver configuraciones'], ['wait', 400],
       ['type', '.modal input', 'demo-demo-demo'], ['click', 'button', 'Continuar'], ['wait', 900]] },
+  { name: 'alertas', view: 'projects', seed: (d) => {
+      d.vault = { exists: true, master: 'demo-demo-demo' }
+      d.projects.push({ id: 'p6', name: 'Alertas', serverId: 'demo1', slug: 'alertas', modules: [{ id: 'base', values: {} }, { id: 'alerts', values: {} }],
+        installedModules: ['base', 'alerts'], appliedAt: ago(30) })
+    },
+    act: [['click', 'button.proj', 'Alertas'], ['wait', 700], ['click', 'button', 'Alertas al móvil'], ['wait', 700], ['click', 'button', 'Qué ve ahora'], ['wait', 1000],
+      ['click', 'button', 'Suscribirse en el móvil'], ['wait', 400], ['type', '.modal input', 'demo-demo-demo'], ['click', 'button', 'Continuar'], ['wait', 900]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]

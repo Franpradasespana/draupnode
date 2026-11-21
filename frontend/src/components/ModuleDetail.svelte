@@ -5,6 +5,7 @@
   import ModuleForm from './ModuleForm.svelte'
   import BackupsPanel from './BackupsPanel.svelte'
   import WireguardPanel from './WireguardPanel.svelte'
+  import AlertsPanel from './AlertsPanel.svelte'
   import MonitoringPanel from './MonitoringPanel.svelte'
   import ProjectSecrets from './ProjectSecrets.svelte'
   import { api, type Module, type Project, type ProjectModule } from '../lib/api'
@@ -65,6 +66,10 @@
 {/if}
 {#if m.id === 'logs' && installed}
   <MonitoringPanel {project} dashboard="logs-apps" />
+{/if}
+
+{#if m.id === 'alerts' && installed}
+  <AlertsPanel {project} disabled={running} />
 {/if}
 
 {#if m.id === 'wireguard' && installed}

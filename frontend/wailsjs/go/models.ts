@@ -194,6 +194,32 @@ export namespace lab {
 
 export namespace main {
 	
+	export class AlertsResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    ok: boolean;
+	    output?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AlertsResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.ok = source["ok"];
+	        this.output = source["output"];
+	    }
+	}
 	export class AppInfo {
 	    version: string;
 	    configDir: string;
