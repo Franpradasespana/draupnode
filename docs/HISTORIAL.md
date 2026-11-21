@@ -391,3 +391,8 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 
 - **Forgejo 15** (GPL-3.0) con SQLite, instalación cerrada (`INSTALL_LOCK`), registro cerrado salvo que se abra, `ROOT_URL` con el dominio, Git por SSH en su propio puerto (2222 por defecto, al Cortafuegos). Draupnode crea el usuario **«administrador»** («admin» es un nombre reservado en Forgejo: salió al probar) con contraseña generada en el servidor (→ bóveda, con el usuario).
 - **Probado** en un Ubuntu desechable: la API responde 200 con el administrador generado; desinstalar con datos no deja nada.
+
+## 2026-11-21 · 0.30.0 · Paperless-ngx (documentos)
+
+- **Paperless-ngx** (GPL-3.0) con su PostgreSQL 16 y Redis propios (en su carpeta, entran en las copias), OCR en el idioma elegido (español+inglés por defecto), usuario «admin» con contraseña generada (y clave secreta y contraseña de la base, ocultas), carpeta `consume` que se importa sola, `PAPERLESS_URL` con el dominio. Pide 2 GB de RAM; la primera vez tarda en arrancar.
+- **Probado** en un Ubuntu desechable: `/api/token/` da token con el admin generado, responde por el túnel; desinstalar con datos no deja nada.

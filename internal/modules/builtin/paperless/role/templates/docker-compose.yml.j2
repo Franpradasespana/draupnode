@@ -1,0 +1,46 @@
+# Generado por Draupnode (módulo paperless). No lo edites a mano: se reescribe al aplicar.
+name: dn-paperless
+
+services:
+  broker:
+    image: redis:7-alpine
+    container_name: dn-paperless-redis
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    container_name: dn-paperless-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: "{{ paperless_db_pass }}"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    {% if paperless_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-paperless
+    restart: unless-stopped
+    depends_on: [db, broker]
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: db
+      PAPERLESS_DBPASS: "{{ paperless_db_pass }}"
+      PAPERLESS_SECRET_KEY: "{{ paperless_secret_key }}"
+      PAPERLESS_ADMIN_USER: admin
+      PAPERLESS_ADMIN_PASSWORD: "{{ paperless_admin_pass }}"
+      PAPERLESS_URL: "{{ ('https://' ~ paperless_domain) if paperless_domain else '' }}"
+      PAPERLESS_OCR_LANGUAGE: "{{ paperless_ocr_language }}"
+      PAPERLESS_OCR_LANGUAGES: "{{ paperless_ocr_language | replace('+', ' ') | replace('spa', '') | replace('eng', '') | trim }}"
+      PAPERLESS_TIME_ZONE: Europe/Madrid
+    volumes:
+      - ./data:/usr/src/paperless/data
+      - ./media:/usr/src/paperless/media
+      - ./export:/usr/src/paperless/export
+      - ./consume:/usr/src/paperless/consume
+    ports:
+      - "127.0.0.1:{{ paperless_port }}:8000"
+{% if (paperless_public_port | default(0) | int) > 0 %}      - "{{ paperless_public_port }}:8000"
+{% endif %}

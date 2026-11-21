@@ -1,0 +1,19 @@
+---
+- name: ¿Está Paperless-ngx?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/paperless/docker-compose.yml
+  register: paperless_cf
+
+- name: Parar y quitar Paperless-ngx
+  ansible.builtin.command: docker compose -p dn-paperless down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/paperless
+  when: paperless_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/paperless {{ draupnode_secrets_dir | quote }}/paperless_admin
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Paperless-ngx {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/paperless: si lo reinstalas, vuelve todo.' }}"
