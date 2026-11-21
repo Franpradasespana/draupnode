@@ -534,3 +534,17 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
 - **«Traer del servidor»** en Contraseñas: lee `/etc/draupnode/secretos/<slug>` y lo guarda en la bóveda sin tener
   que Aplicar (tras importar una copia, volver a asociar la plantilla…). Si en el servidor no hay carpeta, no borra
   nada. Probado contra un Ubuntu desechable.
+
+## 2026-11-21 · 0.40.0 · Terminal SSH e historial de ejecuciones
+
+- **Terminal** (Utilidades → Terminal, o «Terminal» en la ficha del servidor): consola SSH con xterm.js
+  (`@xterm/xterm` 6.0.0 + `addon-fit`, MIT). Una pestaña por sesión (varias, también del mismo servidor); la
+  pantalla se queda montada, así las sesiones siguen vivas al cambiar de pantalla; «Reconectar» si se corta.
+  - Backend `app_terminal.go`: sesión con PTY `xterm-256color`, salida por el evento «term» en base64 (sin partir
+    UTF-8), `TerminalInput/Resize/Close`, keepalive cada 30 s, se cierran todas al salir de la app. Usa la misma
+    conexión que el resto (clave, contraseña guardada, huella). Probado contra un Ubuntu desechable (eco, tamaño de
+    ventana con `stty size`, cierre con `exit`).
+- **Historial de ejecuciones**: cada Previsualizar/Aplicar/Desinstalar deja junto a su registro un resumen
+  (`<registro>.log.json`); se guardan los 60 últimos por plantilla y servidor. En la ficha del servidor (todas sus
+  plantillas) y en cada plantilla dentro del servidor: fecha, tipo, resultado y duración; pulsando se ve el registro.
+- Captura de la demo `terminal` (con una acción nueva `js` en `capturas.mjs`).

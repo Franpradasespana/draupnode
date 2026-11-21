@@ -56,6 +56,7 @@ export const HELP: HelpSection[] = [
       { title: 'La plantilla en un servidor', text: 'Desde la ficha, «Abrir» lleva a la pantalla de siempre: módulos, previsualizar, aplicar, copias… Lo que cambies aquí (añadir un módulo, poner un dominio) es solo de este servidor y se instala al pulsar «Configurar y aplicar». Arriba, en una fila: el servidor, la plantilla y si este servidor tiene algo distinto. «Llevar a la plantilla» pasa lo propio de este servidor a la plantilla (y a los demás servidores que la usan, como «cambios sin aplicar»); «Volver a la plantilla» quita lo propio de este servidor. Ninguno de los dos instala ni desinstala nada. «Editar plantilla» la abre para todos sus servidores. «Desasociar la plantilla del servidor» la quita de Draupnode sin desinstalar nada.', img: 'despliegue' },
       { title: 'Añadir servidor', text: 'Nombre, IP o dominio, puerto (22 normalmente) y usuario. Elige la clave de la lista (salen las de ~/.ssh) o escribe una contraseña. Si la clave tiene contraseña, marca «tiene contraseña» y decide si guardarla.', img: 'servidor-nuevo' },
       { title: 'Probar conexión', text: 'Conecta, comprueba sudo y recoge datos (sistema, memoria, disco). La primera vez pide confirmar la huella del servidor; compárala con la que te da tu proveedor.' },
+      { title: 'Historial de ejecuciones', text: 'En la ficha del servidor (y en cada plantilla dentro de él) están las últimas veces que previsualizaste, aplicaste o desinstalaste: cuándo, el resultado y cuánto tardó. Pulsa una para ver su registro completo. Se guardan las 60 últimas de cada plantilla en cada servidor.' },
       { title: 'Editar y eliminar', text: 'El lápiz cambia los datos; la papelera lo quita de Draupnode (el servidor en sí no se toca). No se puede eliminar un servidor que tenga alguna plantilla.' },
     ],
   },
@@ -128,6 +129,16 @@ export const HELP: HelpSection[] = [
       { title: '5 · Vista previa y guardar', text: 'Ves cada fichero antes de guardarlo. Si el proyecto ya tenía Dockerfile, los nuevos se guardan al lado con «.draupnode» en el nombre y no se toca nada tuyo.', img: 'docker-vista' },
       { title: 'Probar a construir', text: 'Si hay Docker en este equipo, construye la imagen y te enseña la salida. Si falla, las últimas líneas suelen decir qué falta.' },
       { title: 'Probar en el servidor de pruebas', text: 'Arranca el proyecto de verdad (con su compose: base de datos, nginx…) en el servidor de pruebas de este equipo; si no existe, lo crea, y le instala Docker si le falta. Sube la carpeta sin .git ni node_modules (si no hay .env, crea uno de prueba desde .env.example), comprueba que responde y te da «Abrir en el navegador». «Parar la prueba» lo borra todo del servidor de pruebas. Necesita Docker en este equipo (pantalla «Servidor de pruebas»).', img: 'docker-vista' },
+    ],
+  },
+  {
+    id: 'terminal',
+    title: 'Terminal',
+    intro: 'Una consola SSH de tus servidores dentro de Draupnode, con la misma conexión (clave, contraseña guardada, huella) que usa para aplicar.',
+    steps: [
+      { title: 'Abrir', text: 'Elige el servidor y pulsa «Abrir terminal», o pulsa «Terminal» en la ficha del servidor. Cada pestaña es una sesión; puedes tener varias, también del mismo servidor.', img: 'terminal' },
+      { title: 'Siguen abiertas', text: 'Si cambias de pantalla, las sesiones siguen vivas: al volver están como las dejaste. Si se corta la conexión o escribes «exit», la pestaña lo dice y puedes «Reconectar».' },
+      { title: 'Copiar y pegar', text: 'Selecciona con el ratón para copiar; pega con Ctrl+Mayús+V (o el botón derecho, según el sistema).' },
     ],
   },
   {

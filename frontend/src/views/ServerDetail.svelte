@@ -5,14 +5,15 @@
   // contraseñas y registros. Lee el servidor por SSH al abrirla (solo lee).
   import { onMount } from 'svelte'
   import {
-    ArrowLeft, RefreshCw, Pencil, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
+    ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
+  import RunHistory from '../components/RunHistory.svelte'
   import ServerForm from './ServerForm.svelte'
   import { api, errorText, type MonitorResult, type ServerLogsResult, type ServerOverview, type ServerOverviewResult } from '../lib/api'
-  import { ui, toast, timeAgo, refreshProjects, openDeployment, openRecipe, moduleName } from '../lib/state.svelte'
+  import { ui, toast, timeAgo, refreshProjects, openDeployment, openRecipe, moduleName, openTerminal } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
 
   let { id }: { id: string } = $props()
@@ -112,6 +113,7 @@
     <button class="btn ghost sm" onclick={() => (ui.serverId = null)}><ArrowLeft size={15} /> Servidores</button>
     <div class="spacer"></div>
     {#if ov}<span class="muted small">Leído {timeAgo(new Date(ov.at * 1000).toISOString())}</span>{/if}
+    <button class="btn sm" onclick={() => server && openTerminal(server.id)}><SquareTerminal size={14} /> Terminal</button>
     <button class="btn sm" onclick={load} disabled={loading}>{#if loading}<LoaderCircle size={14} class="spin" />{:else}<RefreshCw size={14} />{/if} Actualizar</button>
     <button class="btn sm" onclick={() => (editing = true)}><Pencil size={14} /> Editar conexión</button>
   </div>
@@ -308,6 +310,8 @@
     </section>
     {#if ov.errors?.length}<p class="muted small">No se pudo leer todo: {ov.errors.join(' · ')}</p>{/if}
   {/if}
+
+  <RunHistory serverId={id} refreshKey={deployments.map((p) => p.lastRun?.at ?? '').join()} />
 
   <!-- Contraseñas -->
   {#each deployments as p (p.id)}

@@ -253,6 +253,21 @@ export interface BackupFetchProgress {
   stage: string
 }
 
+export interface RunEntry {
+  projectId: string
+  project: string
+  name: string
+  at: string
+  mode: string
+  known: boolean
+  ok: boolean
+  canceled: boolean
+  changed: number
+  failed: number
+  error?: string
+  durationMs: number
+}
+
 export interface BackupManifest {
   version: number
   created: string
@@ -561,6 +576,10 @@ interface Backend {
   ProjectSecretsInfo(projectId: string): Promise<ProjectSecretsSummary>
   ProjectSecrets(projectId: string, master: string): Promise<ProjectSecret[]>
   BackupStatus(): Promise<{ lastExport?: string | null }>
+  TerminalOpen(serverId: string, secret: string, accept: string, cols: number, rows: number): Promise<RunStart & { id?: string }>
+  TerminalInput(id: string, data: string): Promise<void>
+  TerminalResize(id: string, cols: number, rows: number): Promise<void>
+  TerminalClose(id: string): Promise<void>
   ExportBackup(password: string, withKeys: boolean): Promise<string>
   ChooseBackupFile(): Promise<string>
   InspectBackup(path: string, password: string): Promise<BackupManifest>
@@ -570,6 +589,7 @@ interface Backend {
   RunProject(id: string, check: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   CancelRun(runId: string): Promise<boolean>
   RunLogs(projectId: string): Promise<string[]>
+  RunHistory(serverId: string, projectId: string, limit: number): Promise<RunEntry[]>
   ReadRunLog(projectId: string, name: string): Promise<string>
   LabStatus(): Promise<LabStatus>
   LabAction(action: string): Promise<void>
@@ -619,6 +639,7 @@ export function onEvent(name: string, cb: (data: any) => void): () => void {
   ;(mockListeners[name] ||= []).push(cb)
   return () => (mockListeners[name] = mockListeners[name].filter((f) => f !== cb))
 }
+const mockTerms: Record<string, { line: string; out: (t: string) => void; prompt: string }> = {}
 function mockEmit(name: string, data: unknown) {
   for (const f of mockListeners[name] ?? []) f(data)
 }
@@ -980,6 +1001,38 @@ function mockBackend(): Backend {
       if (value) mockTyped[k] = value
       else delete mockTyped[k]
     },
+    async TerminalOpen(sid) {
+      await wait(500)
+      const srv = servers.find((x) => x.id === sid)
+      const id = 't' + Date.now()
+      const out = (t: string) => mockEmit('term', { id, data: btoa(unescape(encodeURIComponent(t))) })
+      mockTerms[id] = { line: '', out, prompt: `${srv?.user ?? 'ubuntu'}@srv:~$ ` }
+      setTimeout(() => out(`Welcome to Ubuntu 24.04.1 LTS (demo del navegador: no es un servidor de verdad)\r\n\r\n${mockTerms[id].prompt}`), 200)
+      return { status: 'ok', id }
+    },
+    async TerminalInput(id, data) {
+      const t = mockTerms[id]
+      if (!t) return
+      for (const ch of data) {
+        if (ch === '\r') {
+          const cmd = t.line.trim()
+          t.line = ''
+          const reply = cmd === '' ? '' : cmd === 'uptime' ? ' 10:21:07 up 3 days,  2:14,  1 user,  load average: 0.08, 0.05, 0.01\r\n' : cmd === 'exit' ? '' : `${cmd.split(' ')[0]}: (demo) aquí verías la salida real\r\n`
+          t.out('\r\n' + reply)
+          if (cmd === 'exit') { delete mockTerms[id]; mockEmit('term', { id, closed: true, reason: 'Sesión terminada.' }); return }
+          t.out(t.prompt)
+        } else if (ch === '\u007f') {
+          if (t.line) { t.line = t.line.slice(0, -1); t.out('\b \b') }
+        } else {
+          t.line += ch
+          t.out(ch)
+        }
+      }
+    },
+    async TerminalResize() {},
+    async TerminalClose(id) {
+      if (mockTerms[id]) { delete mockTerms[id]; mockEmit('term', { id, closed: true, reason: 'Sesión terminada.' }) }
+    },
     async BackupStatus() {
       return { lastExport: load<string | null>('lastExport', null) }
     },
@@ -1044,6 +1097,12 @@ function mockBackend(): Backend {
     async CancelRun(runId) {
       cancelled.add(runId)
       return true
+    },
+    async RunHistory(sid, pid) {
+      return projects.filter((p) => p.serverId === sid && (!pid || p.id === pid) && p.lastRun).map((p) => {
+        const r = p.lastRun!
+        return { projectId: p.id, project: p.name, name: 'demo.log', at: r.at, mode: r.uninstall ? 'desinstalar' : r.check ? 'previsualizar' : 'aplicar', known: true, ok: r.ok, canceled: !!r.canceled, changed: r.changed, failed: r.failed, error: r.error, durationMs: r.durationMs ?? 42000 }
+      })
     },
     async RunLogs() {
       return []

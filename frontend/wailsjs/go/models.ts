@@ -1067,6 +1067,59 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class RunEntry {
+	    projectId: string;
+	    project: string;
+	    name: string;
+	    // Go type: time
+	    at: any;
+	    mode: string;
+	    known: boolean;
+	    ok: boolean;
+	    canceled: boolean;
+	    changed: number;
+	    failed: number;
+	    error?: string;
+	    durationMs: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RunEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectId = source["projectId"];
+	        this.project = source["project"];
+	        this.name = source["name"];
+	        this.at = this.convertValues(source["at"], null);
+	        this.mode = source["mode"];
+	        this.known = source["known"];
+	        this.ok = source["ok"];
+	        this.canceled = source["canceled"];
+	        this.changed = source["changed"];
+	        this.failed = source["failed"];
+	        this.error = source["error"];
+	        this.durationMs = source["durationMs"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class RunStart {
 	    status: string;
 	    runId?: string;
@@ -1251,6 +1304,30 @@ export namespace main {
 	
 	
 	
+	export class TermStart {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    id?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TermStart(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.id = source["id"];
+	    }
+	}
 	export class TestResult {
 	    status: string;
 	    secretKind?: string;

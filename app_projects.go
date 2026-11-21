@@ -611,6 +611,8 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		_ = lf.Close()
 	}
 	_ = a.store.SetLastRun(p.ID, sum)
+	saveRunSummary(logPath, sum)
+	pruneRunLogs(logDir, maxRunLogs)
 	send(RunEvent{Kind: "done", Summary: &sum})
 }
 

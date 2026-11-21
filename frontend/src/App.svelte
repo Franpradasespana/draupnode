@@ -17,6 +17,7 @@
   import StatusBar from './components/StatusBar.svelte'
   import HelpDialog from './components/HelpDialog.svelte'
   import Alerts from './views/Alerts.svelte'
+  import TerminalView from './views/Terminal.svelte'
   import { alertItems, loadAlerts } from './lib/alerts.svelte'
   import { ui, boot, toast, openServer, openRecipe, type View } from './lib/state.svelte'
   import { errorText, isDesktop } from './lib/api'
@@ -51,7 +52,7 @@
   const tools: NavItem[] = [
     { id: 'docker', label: 'Docker Creator', icon: Container },
     { id: 'lab', label: 'Servidor de pruebas', icon: FlaskConical },
-    { id: 'terminal', label: 'Terminal', icon: SquareTerminal, soon: true },
+    { id: 'terminal', label: 'Terminal', icon: SquareTerminal },
   ]
 
   const titles: Record<View, string> = {
@@ -82,6 +83,9 @@
     loadAlerts()
   })
   const alertCount = $derived(alertItems().length)
+  // La terminal se monta la primera vez que se abre y ya no se desmonta.
+  let termSeen = $state(false)
+  $effect(() => { if (ui.view === 'terminal') termSeen = true })
 </script>
 
 <div class="shell">
@@ -165,8 +169,10 @@
       {:else if ui.view === 'docker'}<Dockerize />
       {:else if ui.view === 'settings'}<SettingsView />
       {:else if ui.view === 'alerts'}<Alerts />
+      {:else if ui.view === 'terminal'}<!-- abajo, siempre montada -->
       {:else}<Upcoming view={ui.view} />
       {/if}
+      {#if termSeen}<TerminalView visible={ui.view === 'terminal'} />{/if}
     {/if}
   </main>
 

@@ -48,6 +48,8 @@ export function ChooseBackupFolder(arg1:string):Promise<string>;
 
 export function ChooseProjectDir():Promise<string>;
 
+export function CloseTerminals():Promise<void>;
+
 export function CloseTunnels():Promise<void>;
 
 export function CreateBackupTarget(arg1:string,arg2:string,arg3:number):Promise<main.BackupTargetResult>;
@@ -134,6 +136,8 @@ export function ReloadModules():Promise<main.ModulesInfo>;
 
 export function ResetToRecipe(arg1:string):Promise<store.Project>;
 
+export function RunHistory(arg1:string,arg2:string,arg3:number):Promise<Array<main.RunEntry>>;
+
 export function RunLogs(arg1:string):Promise<Array<string>>;
 
 export function RunProject(arg1:string,arg2:boolean,arg3:string,arg4:string,arg5:string):Promise<main.RunStart>;
@@ -165,6 +169,14 @@ export function SetProjectCollapsed(arg1:string,arg2:Array<string>):Promise<void
 export function SetProjectSecret(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SetSecretBackend(arg1:string):Promise<void>;
+
+export function TerminalClose(arg1:string):Promise<void>;
+
+export function TerminalInput(arg1:string,arg2:string):Promise<void>;
+
+export function TerminalOpen(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<main.TermStart>;
+
+export function TerminalResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function TestConnection(arg1:string,arg2:string,arg3:string):Promise<main.TestResult>;
 

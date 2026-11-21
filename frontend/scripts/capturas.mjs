@@ -91,6 +91,8 @@ const ALL_SHOTS = [
     }, act: [['wait', 1500]] },
   { name: 'avisos', view: 'alerts', seed: 'copias-aviso', act: [['wait', 900]] },
   { name: 'avisos-campana', view: 'catalog', seed: 'copias-aviso', act: [['wait', 900]] },
+  { name: 'terminal', view: 'terminal', act: [['click', 'button', 'Abrir terminal'], ['wait', 1200],
+    ['js', `(() => { const t = document.querySelector('.xterm-helper-textarea'); t.dispatchEvent(new InputEvent('input', { data: 'uptime', inputType: 'insertText', bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true })) })()`], ['wait', 800]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]
@@ -179,6 +181,10 @@ async function act([kind, a, b]) {
     const js = `(() => { const el = [...document.querySelectorAll(${JSON.stringify(a)})].find((e) => e.innerText.includes(${JSON.stringify(b)})); if (el) el.click(); return !!el })()`
     await waitFor(() => evaluate(js), `«${b}» (${a})`, 40)
     return sleep(300)
+  }
+  if (kind === 'js') { // [js, código] (p. ej. teclear en la terminal)
+    await evaluate(a)
+    return sleep(200)
   }
   if (kind === 'type') { // [type, selector CSS, valor]
     const js = `(() => { const el = document.querySelector(${JSON.stringify(a)}); if (!el) return false; el.value = ${JSON.stringify(b)}; el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`

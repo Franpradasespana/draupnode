@@ -3,6 +3,7 @@
   import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, ArrowDownUp, Unlink, Pencil } from '@lucide/svelte'
   import RunPanel from '../components/RunPanel.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
+  import RunHistory from '../components/RunHistory.svelte'
   import UninstallDialog from '../components/UninstallDialog.svelte'
   import ModuleCard from '../components/ModuleCard.svelte'
   import ModuleDetail from '../components/ModuleDetail.svelte'
@@ -563,6 +564,10 @@
         {/if}
       {/each}
     </section>
+
+    {#if draft.id && draft.serverId}
+      <RunHistory serverId={draft.serverId} projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} />
+    {/if}
   </div>
 {/if}
 

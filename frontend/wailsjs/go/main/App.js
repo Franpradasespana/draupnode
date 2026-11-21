@@ -86,6 +86,10 @@ export function ChooseProjectDir() {
   return window['go']['main']['App']['ChooseProjectDir']();
 }
 
+export function CloseTerminals() {
+  return window['go']['main']['App']['CloseTerminals']();
+}
+
 export function CloseTunnels() {
   return window['go']['main']['App']['CloseTunnels']();
 }
@@ -258,6 +262,10 @@ export function ResetToRecipe(arg1) {
   return window['go']['main']['App']['ResetToRecipe'](arg1);
 }
 
+export function RunHistory(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RunHistory'](arg1, arg2, arg3);
+}
+
 export function RunLogs(arg1) {
   return window['go']['main']['App']['RunLogs'](arg1);
 }
@@ -320,6 +328,22 @@ export function SetProjectSecret(arg1, arg2, arg3) {
 
 export function SetSecretBackend(arg1) {
   return window['go']['main']['App']['SetSecretBackend'](arg1);
+}
+
+export function TerminalClose(arg1) {
+  return window['go']['main']['App']['TerminalClose'](arg1);
+}
+
+export function TerminalInput(arg1, arg2) {
+  return window['go']['main']['App']['TerminalInput'](arg1, arg2);
+}
+
+export function TerminalOpen(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['TerminalOpen'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function TerminalResize(arg1, arg2, arg3) {
+  return window['go']['main']['App']['TerminalResize'](arg1, arg2, arg3);
 }
 
 export function TestConnection(arg1, arg2, arg3) {

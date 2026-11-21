@@ -48,6 +48,8 @@ export const ui = $state({
   // Recetas («Proyectos»): la abierta ('' = nueva, null = lista) y la lista.
   recipeId: null as string | null,
   recipes: [] as RecipeView[],
+  // Pedir a la pantalla Terminal que abra una pestaña con este servidor.
+  termRequest: null as string | null,
   // Servidor por el que se filtra la lista de proyectos (null = todos).
   projectServer: null as string | null,
   // Servidor que se muestra en la barra de estado (el último elegido).
@@ -95,6 +97,12 @@ export function openDeployment(projectId: string) {
   ui.serverId = p?.serverId ?? ui.serverId
   ui.projectId = projectId
   ui.view = 'servers'
+}
+
+/** Abre una terminal SSH con ese servidor (pestaña nueva). */
+export function openTerminal(serverId: string) {
+  ui.termRequest = serverId
+  ui.view = 'terminal'
 }
 
 /** Abre una receta (proyecto) para editarla; '' = nueva. */
