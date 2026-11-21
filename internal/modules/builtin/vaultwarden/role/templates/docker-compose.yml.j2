@@ -1,0 +1,22 @@
+# Generado por Draupnode (módulo vaultwarden). No lo edites a mano: se reescribe al aplicar.
+name: dn-vaultwarden
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    {% if vaultwarden_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-vaultwarden
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      DOMAIN: "{{ ('https://' ~ vaultwarden_domain) if vaultwarden_domain else '' }}"
+      SIGNUPS_ALLOWED: "{{ 'true' if vaultwarden_signups | bool else 'false' }}"
+      ADMIN_TOKEN: "{{ vaultwarden_admin_token }}"
+      WEBSOCKET_ENABLED: "true"
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:{{ vaultwarden_port }}:80"
+{% if (vaultwarden_public_port | default(0) | int) > 0 %}      - "{{ vaultwarden_public_port }}:80"
+{% endif %}

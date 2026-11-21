@@ -296,3 +296,29 @@ func queryStats(base string) (*MonitorStats, error) {
 	}
 	return st, nil
 }
+
+// OpenAppTunnel abre (o reutiliza) un túnel SSH al puerto local de una app
+// (módulos con proxy_site) y devuelve su dirección en este equipo.
+func (a *App) OpenAppTunnel(projectID, moduleID, secret, accept string) MonitorResult {
+	p, err := a.store.Project(projectID)
+	if err != nil {
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: err.Error()}}
+	}
+	m, ok := a.cat().Get(moduleID)
+	if !ok || m.ProxySite == nil {
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: "este módulo no tiene una app que abrir"}}
+	}
+	if !contains(p.InstalledModules, moduleID) {
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: "aún no está instalado: pulsa Aplicar"}}
+	}
+	v, _ := m.Values(p.InstalledValues[moduleID])
+	port := toInt(v[m.ProxySite.Port])
+	if port <= 0 {
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: "la app no tiene puerto"}}
+	}
+	t, st := a.openTunnel(p, "app-"+moduleID, port, secret, accept)
+	if st != nil {
+		return MonitorResult{RunStart: *st}
+	}
+	return MonitorResult{RunStart: RunStart{Status: "ok"}, URL: t.url()}
+}

@@ -87,6 +87,8 @@ export function ModuleFile(arg1:string,arg2:string):Promise<string>;
 
 export function MonitorSummary(arg1:string,arg2:string,arg3:string):Promise<main.MonitorResult>;
 
+export function OpenAppTunnel(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.MonitorResult>;
+
 export function OpenGrafana(arg1:string,arg2:string,arg3:string):Promise<main.MonitorResult>;
 
 export function OpenModulesDir():Promise<void>;

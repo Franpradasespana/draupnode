@@ -1089,6 +1089,20 @@ export namespace modules {
 	        this.label = source["label"];
 	    }
 	}
+	export class ProxySite {
+	    domain: string;
+	    port: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxySite(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.domain = source["domain"];
+	        this.port = source["port"];
+	    }
+	}
 	export class Variable {
 	    name: string;
 	    label: string;
@@ -1154,6 +1168,7 @@ export namespace modules {
 	    firewallPorts?: number[];
 	    firewallPortsFrom?: string[];
 	    udpPortsFrom?: string[];
+	    proxySite?: ProxySite;
 	    conflicts?: string[];
 	    after?: string[];
 	    checks?: Check[];
@@ -1183,6 +1198,7 @@ export namespace modules {
 	        this.firewallPorts = source["firewallPorts"];
 	        this.firewallPortsFrom = source["firewallPortsFrom"];
 	        this.udpPortsFrom = source["udpPortsFrom"];
+	        this.proxySite = this.convertValues(source["proxySite"], ProxySite);
 	        this.conflicts = source["conflicts"];
 	        this.after = source["after"];
 	        this.checks = this.convertValues(source["checks"], Check);
@@ -1213,6 +1229,7 @@ export namespace modules {
 		    return a;
 		}
 	}
+	
 	
 	
 

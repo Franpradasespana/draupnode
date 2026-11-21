@@ -166,6 +166,10 @@ export function MonitorSummary(arg1, arg2, arg3) {
   return window['go']['main']['App']['MonitorSummary'](arg1, arg2, arg3);
 }
 
+export function OpenAppTunnel(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['OpenAppTunnel'](arg1, arg2, arg3, arg4);
+}
+
 export function OpenGrafana(arg1, arg2, arg3) {
   return window['go']['main']['App']['OpenGrafana'](arg1, arg2, arg3);
 }

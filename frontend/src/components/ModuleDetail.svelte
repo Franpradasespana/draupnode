@@ -8,8 +8,9 @@
   import AlertsPanel from './AlertsPanel.svelte'
   import MonitoringPanel from './MonitoringPanel.svelte'
   import ProjectSecrets from './ProjectSecrets.svelte'
-  import { api, type Module, type Project, type ProjectModule } from '../lib/api'
-  import { timeAgo } from '../lib/state.svelte'
+  import { api, type Module, type MonitorResult, type Project, type ProjectModule } from '../lib/api'
+  import { timeAgo, ui, toast } from '../lib/state.svelte'
+  import { withConnection } from '../lib/connect'
   import { sameValues } from '../lib/modules'
 
   let { m, modules = $bindable(), project, errors = {}, requiredBy = [], running = false, onsecret, onapply, onremove, onreadd, onuninstall, onreload = () => {} }: {
@@ -34,6 +35,23 @@
   const errorCount = $derived(Object.keys(errors).length)
   let more = $state(false)
 
+  // Apps (proxy_site): «Abrir» por túnel SSH, o su dominio.
+  const appDomain = $derived(m.proxySite && installed ? String(project.installedValues?.[m.id]?.[m.proxySite.domain] ?? '') : '')
+  let opening = $state(false)
+  async function openApp() {
+    opening = true
+    try {
+      const server = ui.servers.find((s) => s.id === project.serverId)
+      const r = await withConnection<MonitorResult>(server, (s, a) => api.OpenAppTunnel(project.id, m.id, s, a))
+      if (r?.status === 'ok' && r.url) api.OpenURL(r.url)
+      else if (r) toast(r.message || 'No se pudo abrir', 'error')
+    } catch (e) {
+      toast(String(e), 'error')
+    } finally {
+      opening = false
+    }
+  }
+
   let webUrl = $state('')
   $effect(() => {
     if (m.id !== 'coolify' || !installed) return
@@ -55,6 +73,13 @@
   {/if}
   {#if !pm && installed}
     <p class="info"><Info size={15} /> Sigue instalado y funcionando en el servidor, pero este proyecto ya no lo gestiona (no lo comprueba ni lo actualiza al aplicar).</p>
+  {/if}
+  {#if m.proxySite && installed}
+    <div class="app-open">
+      <button class="btn sm primary" onclick={openApp} disabled={opening}><ExternalLink size={14} /> {opening ? 'Abriendo…' : 'Abrir (túnel SSH)'}</button>
+      {#if appDomain}<button class="btn sm" onclick={() => api.OpenURL('https://' + appDomain)}><ExternalLink size={14} /> https://{appDomain}</button>{/if}
+      <span class="muted small">«Abrir» la ve desde este equipo sin publicarla en internet.</span>
+    </div>
   {/if}
   {#if m.id === 'coolify' && installed && webUrl}
     <div><button class="btn sm" onclick={() => api.OpenURL(webUrl)}><ExternalLink size={14} /> Abrir el panel de Coolify</button> <span class="muted small">{webUrl}</span></div>
@@ -143,4 +168,5 @@
   .z { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .z > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
   .z strong { font-size: 13.5px; }
+  .app-open { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 </style>

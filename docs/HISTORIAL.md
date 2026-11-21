@@ -367,3 +367,10 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 - **Módulo «MariaDB compartido»** (`mariadb`, GPL-2; versiones LTS 11.4 y 10.11): como el PostgreSQL compartido. Contenedor `mariadb-compartido` en la red Docker `apps` (sin puertos publicados), una base y un usuario por app con contraseñas generadas en el servidor (→ bóveda). La contraseña nunca va en la línea de órdenes (`MYSQL_PWD` por entorno). Puede ir junto al PostgreSQL.
 - **Módulo Copias**: «Volcar MariaDB» (una base por fichero `.sql`, con `mariadb-dump --single-transaction --routines --triggers`, en `mariadb-<contenedor>/`) y «Copiar las apps de Draupnode» (`/srv/draupnode/apps`: código, `.env` y datos de las apps instaladas con Draupnode).
 - **Probado** en un Ubuntu desechable: base `tienda` creada; su usuario entra con la contraseña de la bóveda y crea/lee una tabla; la copia diaria incluye el volcado de MariaDB; desinstalar con datos no deja nada.
+
+## 2026-11-21 · 0.25.0 · Apps: «Abrir» por túnel SSH y Vaultwarden
+
+- Base común de los módulos de apps (categoría 7 · Apps, generados con el mismo patrón): Docker con datos en `/srv/draupnode/apps/<app>` (entran en las copias), puerto solo en `127.0.0.1` (opcional: abrir uno a internet, al Cortafuegos), dominio automático en Caddy/nginx (`proxy_site`), «Actualizar al aplicar» (`pull_policy: always`), comprobación de que responde y desinstalar con o sin datos.
+- **«Abrir (túnel SSH)»** en la página de cualquier app instalada (`OpenAppTunnel`): la abre en el navegador de este equipo sin publicarla; y «https://dominio» si tiene.
+- **Vaultwarden** (AGPL-3.0, compatible con Bitwarden): registro abierto/cerrado, token de /admin generado en el servidor (→ bóveda), `DOMAIN` con el dominio.
+- **Probado** (junto con Navidrome, Jellyfin y Syncthing) en un Ubuntu desechable: las cuatro responden por el túnel; Vaultwarden también por https con Caddy (sitio añadido solo); desinstalar con datos no deja contenedores ni carpetas.

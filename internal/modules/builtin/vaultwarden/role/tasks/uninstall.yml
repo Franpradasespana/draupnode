@@ -1,0 +1,19 @@
+---
+- name: ¿Está Vaultwarden?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/vaultwarden/docker-compose.yml
+  register: vaultwarden_cf
+
+- name: Parar y quitar Vaultwarden
+  ansible.builtin.command: docker compose -p dn-vaultwarden down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/vaultwarden
+  when: vaultwarden_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/vaultwarden {{ draupnode_secrets_dir | quote }}/vaultwarden_admin_token
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Vaultwarden {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/vaultwarden: si lo reinstalas, vuelve todo.' }}"
