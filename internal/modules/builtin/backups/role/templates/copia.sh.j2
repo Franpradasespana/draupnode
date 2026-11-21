@@ -21,7 +21,7 @@ remoto() {
   AWS_ACCESS_KEY_ID={{ backups_remote_user | quote }} AWS_SECRET_ACCESS_KEY={{ backups_remote_password | default('') | quote }} \
     restic -r {{ ('s3:' ~ backups_remote) | quote }} "$@"
 {% elif backups_remote_type == 'rest-server' %}
-  restic -r {{ backups_rest_url | quote }} "$@"
+  restic -r {{ backups_rest_url | quote }}{{ (' --cacert ' ~ (backups_cacert | quote)) if backups_remote_cacert | length > 0 else '' }} "$@"
 {% else %}
   restic -r {{ ('sftp:' ~ backups_remote) | quote }} \
     -o sftp.command={{ ('ssh -i ' ~ backups_sftp_key ~ ' -p ' ~ backups_remote_port ~ ' -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=' ~ backups_known_hosts ~ ' ' ~ backups_remote.split(':')[0] ~ ' -s sftp') | quote }} "$@"
@@ -138,8 +138,12 @@ if ! remoto cat config >/dev/null 2>&1; then
   remoto init --copy-chunker-params --from-repo "$RESTIC_REPOSITORY" --from-password-file "$RESTIC_PASSWORD_FILE" >/dev/null || true
 fi
 if remoto copy --quiet --from-repo "$RESTIC_REPOSITORY" --from-password-file "$RESTIC_PASSWORD_FILE"; then
+{% if backups_remote_append_only | bool %}
+  : # el destino solo deja añadir: las copias viejas se quedan allí
+{% else %}
   remoto forget --quiet --prune --keep-daily {{ backups_keep_daily }} --keep-weekly {{ backups_keep_weekly }} --keep-monthly {{ backups_keep_monthly }} \
     || { log "FALLO al borrar copias viejas en el destino remoto"; fallos=1; }
+{% endif %}
 else
   log "FALLO al copiar al destino remoto"; fallos=1
 fi

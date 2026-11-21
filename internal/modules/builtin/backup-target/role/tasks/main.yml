@@ -1,0 +1,78 @@
+---
+- name: Falta el certificado
+  ansible.builtin.assert:
+    that: backup_target_tls_cert | length > 0
+    fail_msg: "Falta el certificado HTTPS: crea el destino desde la página del módulo «Copias» de otro proyecto («Guardar también en otro servidor…»)."
+    quiet: true
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ backup_target_dir }}", mode: "0700" }
+    - { path: "{{ backup_target_dir }}/datos", mode: "0700" }
+    - { path: "{{ backup_target_dir }}/tls", mode: "0700" }
+
+- name: Certificado HTTPS
+  ansible.builtin.copy:
+    dest: "{{ backup_target_dir }}/tls/cert.pem"
+    content: "{{ backup_target_tls_cert | b64decode }}"
+    mode: "0644"
+  register: backup_target_cert
+
+- name: Clave privada HTTPS
+  ansible.builtin.copy:
+    dest: "{{ backup_target_dir }}/tls/key.pem"
+    content: "{{ backup_target_tls_key | b64decode }}"
+    mode: "0644"
+  register: backup_target_key
+  no_log: true
+
+# El contenedor no corre como root: la clave tiene que poder leerla, pero
+# la carpeta tls es 0700 de root en el servidor, así que nadie más la ve.
+
+- name: Usuarios (.htpasswd)
+  ansible.builtin.copy:
+    dest: "{{ backup_target_dir }}/datos/.htpasswd"
+    content: "{{ (backup_target_clients | join('\n') ~ '\n') if backup_target_clients else '' }}"
+    mode: "0644"
+  no_log: true
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ backup_target_dir }}/docker-compose.yml"
+    mode: "0600"
+  register: backup_target_compose
+
+- name: Arrancar rest-server
+  ansible.builtin.command: docker compose up -d --quiet-pull {{ '--force-recreate' if (backup_target_cert is changed or backup_target_key is changed) else '' }}
+  args:
+    chdir: "{{ backup_target_dir }}"
+  register: backup_target_up
+  changed_when: "'Started' in backup_target_up.stderr or 'Created' in backup_target_up.stderr or 'Recreated' in backup_target_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ backup_target_port }}/"
+    validate_certs: false
+    status_code: [200, 401, 403, 404, 405]
+  register: backup_target_http
+  until: backup_target_http.status in [200, 401, 403, 404, 405]
+  retries: 20
+  delay: 2
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Destino de copias en https://{{ draupnode_host }}:{{ backup_target_port }}/ (solo añadir)
+      para {{ backup_target_clients | length }} proyecto(s): {{ backup_target_clients | map('regex_replace', ':.*$', '') | join(', ') or 'ninguno todavía' }}.
+      Copias en {{ backup_target_dir }}/datos.
+      {%- if backup_target_http.status is defined and backup_target_http.status not in [200, 401, 403, 404, 405] %} OJO: rest-server no responde ({{ backup_target_http.msg | default('') }}).{% endif %}

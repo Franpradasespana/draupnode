@@ -7,6 +7,7 @@
     backups_unit: "draupnode-copia-{{ draupnode_project }}"
     backups_sftp_key: "{{ draupnode_secrets_dir }}/.backups_sftp_key"
     backups_known_hosts: "{{ backups_dir }}/{{ draupnode_project }}/known_hosts"
+    backups_cacert: "{{ backups_dir }}/{{ draupnode_project }}/destino-ca.pem"
 
 - name: El destino remoto necesita una dirección
   ansible.builtin.assert:
@@ -42,6 +43,13 @@
     backups_password: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/restic', chars=['ascii_letters', 'digits'], length=40) }}"
   no_log: true
   when: not ansible_check_mode
+
+- name: Certificado del destino remoto
+  ansible.builtin.copy:
+    dest: "{{ backups_cacert }}"
+    content: "{{ backups_remote_cacert | b64decode }}"
+    mode: "0600"
+  when: backups_remote_type == 'rest-server' and backups_remote_cacert | length > 0
 
 - name: Clave SSH para el servidor de copias (sftp)
   ansible.builtin.shell: |

@@ -2,13 +2,15 @@
   // Copias de seguridad del proyecto (módulo «backups»): hacer una ahora,
   // verlas y traerlas a este equipo.
   import { onDestroy } from 'svelte'
-  import { DatabaseBackup, Play, List, Download, FolderOpen, LoaderCircle, CircleCheck, CircleX, Cloud, RotateCcw } from '@lucide/svelte'
+  import { DatabaseBackup, Play, List, Download, FolderOpen, LoaderCircle, CircleCheck, CircleX, Cloud, RotateCcw, ServerCog } from '@lucide/svelte'
   import { api, onEvent, type BackupFetchProgress, type BackupResult, type Project, type Snapshot } from '../lib/api'
   import { toast, timeAgo, ui, refreshProjects } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
   import RestoreDialog from './RestoreDialog.svelte'
+  import BackupTargetDialog from './BackupTargetDialog.svelte'
 
-  let { project, disabled = false }: { project: Project; disabled?: boolean } = $props()
+  let { project, disabled = false, onchanged = () => {} }: { project: Project; disabled?: boolean; onchanged?: () => void } = $props()
+  let targetOpen = $state(false)
 
   const server = $derived(ui.servers.find((s) => s.id === project.serverId))
   const vals = $derived(project.installedValues?.backups ?? {})
@@ -110,6 +112,9 @@
         {#if busy === 'remote'}<LoaderCircle size={14} class="spin" />{:else}<Cloud size={14} />{/if} Ver copias remotas
       </button>
     {/if}
+    <button class="btn sm" onclick={() => (targetOpen = true)} disabled={disabled || !!busy} title="Otro servidor tuyo que guarda una segunda copia y no deja borrarla">
+      <ServerCog size={14} /> {remoteType === 'rest-server' && vals.backups_remote_append_only ? 'Cambiar el otro servidor…' : 'Guardar también en otro servidor…'}
+    </button>
   </div>
 
   {#if output}
@@ -160,6 +165,10 @@
     {/if}
   </div>
 </section>
+
+{#if targetOpen}
+  <BackupTargetDialog {project} onclose={() => (targetOpen = false)} {onchanged} />
+{/if}
 
 {#if restoring}
   <RestoreDialog {project} snap={restoring} onclose={() => (restoring = null)} />

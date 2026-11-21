@@ -1,0 +1,65 @@
+id: backup-target
+name: Destino de copias (rest-server)
+version: 1.0.0
+category: 5 · Copias
+description: Convierte este servidor en el sitio donde OTROS servidores guardan sus copias. Solo deja añadir copias, nunca borrarlas, así que un intruso en el otro servidor no puede destruirlas.
+details: |
+  Usa rest-server (de los autores de restic, BSD-2) en Docker, con HTTPS y
+  en modo «solo añadir» (--append-only): los servidores de origen pueden
+  subir copias nuevas pero no borrar ni cambiar las que ya hay. Cada proyecto
+  de origen tiene su usuario y su carpeta y no ve las de los demás
+  (--private-repos). Las copias llegan cifradas: este servidor no puede
+  leerlas.
+  Lo normal es no tocar esto a mano: en la página del módulo «Copias» de
+  otro proyecto, «Guardar también en otro servidor…» crea este proyecto y
+  deja las dos partes configuradas (usuario, contraseña y certificado).
+  Como nadie puede borrar, las copias viejas se acumulan: vigila el disco.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_disk_gb: 10
+firewall_ports_from: [backup_target_port]
+checks:
+  - container_free: backup_target_container
+uninstall_warning: Para el rest-server. Los otros servidores dejan de poder guardar aquí sus copias (fallará su copia remota hasta que elijas otro destino).
+uninstall_data: Borrar también TODAS las copias guardadas aquí. Si el servidor de origen se pierde, ya no habrá de dónde restaurar.
+variables:
+  - name: backup_target_port
+    label: Puerto HTTPS
+    help: Por él se conectan los servidores de origen. Se abre en el Cortafuegos.
+    type: int
+    default: 8000
+    min: 1024
+    max: 65535
+  - name: backup_target_dir
+    label: Carpeta de las copias
+    help: Dentro, una carpeta por proyecto de origen.
+    type: string
+    default: /srv/draupnode/destino-copias
+    pattern: '^/[A-Za-z0-9._/-]+$'
+    pattern_help: Ruta absoluta
+  - name: backup_target_container
+    label: Nombre del contenedor
+    type: string
+    default: dn-destino-copias
+    pattern: '^[a-z][a-z0-9_-]{1,40}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: backup_target_clients
+    label: Proyectos que guardan aquí
+    help: Los rellena Draupnode («proyecto:huella de su contraseña»). Quitar una línea le quita el acceso; sus copias se quedan.
+    type: list
+    default: []
+    pattern: '^[a-z0-9][a-z0-9-]{0,62}:\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
+    pattern_help: Lo rellena Draupnode
+  - name: backup_target_tls_cert
+    label: Certificado HTTPS
+    help: Lo genera Draupnode (en base64). Los servidores de origen lo usan para comprobar que hablan con este y no con otro.
+    type: string
+    default: ""
+    pattern: '^[A-Za-z0-9+/=]*$'
+    pattern_help: Lo rellena Draupnode
+  - name: backup_target_tls_key
+    label: Clave privada HTTPS
+    help: La genera Draupnode y se guarda cifrada en tu bóveda.
+    type: secret
+    required: true

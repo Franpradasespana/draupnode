@@ -1,0 +1,18 @@
+# Generado por Draupnode (módulo backup-target). No lo edites a mano: se reescribe.
+name: draupnode-destino-copias
+
+services:
+  rest-server:
+    image: restic/rest-server:0.13.0
+    container_name: {{ backup_target_container }}
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      # Solo añadir, cada usuario en su carpeta, HTTPS.
+      OPTIONS: "--append-only --private-repos --tls --tls-cert /tls/cert.pem --tls-key /tls/key.pem"
+    ports:
+      - "{{ backup_target_port }}:8000"
+    volumes:
+      - {{ backup_target_dir }}/datos:/data
+      - {{ backup_target_dir }}/tls:/tls:ro

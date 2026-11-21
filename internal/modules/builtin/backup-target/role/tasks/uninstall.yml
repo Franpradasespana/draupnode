@@ -1,0 +1,33 @@
+---
+- name: ¿Está su docker-compose.yml?
+  ansible.builtin.stat:
+    path: "{{ backup_target_dir }}/docker-compose.yml"
+  register: backup_target_compose
+
+- name: Parar y quitar rest-server
+  ansible.builtin.command: docker compose down
+  args:
+    chdir: "{{ backup_target_dir }}"
+  register: backup_target_down
+  changed_when: "'Removed' in backup_target_down.stderr or 'Stopped' in backup_target_down.stderr"
+  when: backup_target_compose.stat.exists and not ansible_check_mode
+
+- name: Borrar las copias guardadas
+  ansible.builtin.file:
+    path: "{{ backup_target_dir }}"
+    state: absent
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Quitar solo la configuración
+  ansible.builtin.file:
+    path: "{{ backup_target_dir }}/{{ item }}"
+    state: absent
+  loop: [docker-compose.yml, tls]
+  when: not (draupnode_uninstall_purge | bool) and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Destino de copias {{ 'se quitará' if ansible_check_mode else 'quitado' }}.
+      {{ 'También las copias guardadas.' if draupnode_uninstall_purge | bool
+         else 'Las copias siguen en ' ~ backup_target_dir ~ '/datos.' }}

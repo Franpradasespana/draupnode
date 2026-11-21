@@ -66,6 +66,10 @@ export function CloseTunnels() {
   return window['go']['main']['App']['CloseTunnels']();
 }
 
+export function CreateBackupTarget(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateBackupTarget'](arg1, arg2, arg3);
+}
+
 export function DefaultBackupFolder(arg1) {
   return window['go']['main']['App']['DefaultBackupFolder'](arg1);
 }

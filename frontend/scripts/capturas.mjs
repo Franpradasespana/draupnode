@@ -54,6 +54,12 @@ const ALL_SHOTS = [
   { name: 'docker', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900]] },
   { name: 'docker-vista', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900], ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'],
     ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'], ['wait', 500], ['click', 'button', 'Guardar en la carpeta'], ['wait', 600], ['click', 'button', 'Probar a construir'], ['wait', 2600]] },
+  { name: 'destino-copias', view: 'projects', seed: (d) => {
+      d.servers.push({ id: 'demo2', name: 'Servidor de copias', host: '203.0.113.40', port: 22, user: 'ubuntu', authMethod: 'key', keyPath: '/home/demo/.ssh/id_ed25519', keyEncrypted: true, secretStore: 'keyring', hasSecret: true, notes: '', createdAt: ago(100) })
+      d.projects.push({ id: 'p4', name: 'Tienda', serverId: 'demo1', slug: 'tienda', modules: [{ id: 'base', values: {} }, { id: 'backups', values: { backups_time: '03:30', backups_remote_type: 'no' } }],
+        installedModules: ['base', 'backups'], installedValues: { base: {}, backups: { backups_time: '03:30', backups_remote_type: 'no' } }, appliedAt: ago(60) })
+    },
+    act: [['click', 'button.proj', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]
@@ -113,14 +119,17 @@ await send('Page.enable')
 await send('Runtime.enable')
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false })
 
-const seedJS = `localStorage.clear();` + Object.entries(seed).map(([k, v]) => `localStorage.setItem(${JSON.stringify('draupnode-mock2-' + k)}, ${JSON.stringify(JSON.stringify(v))});`).join('') +
+const seedFor = (d) => `localStorage.clear();` + Object.entries(d).map(([k, v]) => `localStorage.setItem(${JSON.stringify('draupnode-mock2-' + k)}, ${JSON.stringify(JSON.stringify(v))});`).join('') +
   `localStorage.setItem('draupnode.activeServer', 'demo1');`
 
 let loads = 0
-async function open(view) {
+async function open(view, extra) {
   await send('Page.navigate', { url: base + '?semilla' })
   await waitFor(() => evaluate(`location.search === '?semilla' && document.readyState === 'complete'`), 'la demo')
-  await evaluate(seedJS)
+  const d = structuredClone(seed)
+  const fn = typeof extra === 'string' ? ALL_SHOTS.find((x) => x.name === extra)?.seed : extra
+  if (fn) fn(d)
+  await evaluate(seedFor(d))
   const q = '?c' + ++loads
   await send('Page.navigate', { url: base + q + '#' + view })
   await waitFor(() => evaluate(`location.search === '${q}' && document.readyState === 'complete' && !!document.querySelector('footer.status') && !document.body.innerText.includes('Comprobando…')`), 'la página ' + view, 40)
@@ -129,10 +138,16 @@ async function open(view) {
 
 async function act([kind, a, b]) {
   if (kind === 'wait') return sleep(a)
+  if (kind === 'log') return console.log(await evaluate(a))
   if (kind === 'click') {
     const js = `(() => { const el = [...document.querySelectorAll(${JSON.stringify(a)})].find((e) => e.innerText.includes(${JSON.stringify(b)})); if (el) el.click(); return !!el })()`
     await waitFor(() => evaluate(js), `«${b}» (${a})`, 40)
     return sleep(300)
+  }
+  if (kind === 'type') { // [type, selector CSS, valor]
+    const js = `(() => { const el = document.querySelector(${JSON.stringify(a)}); if (!el) return false; el.value = ${JSON.stringify(b)}; el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
+    await waitFor(() => evaluate(js), `el campo ${a}`, 40)
+    return sleep(200)
   }
   if (kind === 'fill') {
     const js = `(() => { const el = [...document.querySelectorAll('input')].find((e) => e.placeholder === ${JSON.stringify(a)}); if (!el) return false; el.value = ${JSON.stringify(b)}; el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
@@ -142,7 +157,7 @@ async function act([kind, a, b]) {
 
 try {
   for (const s of SHOTS) {
-    await open(s.view)
+    await open(s.view, s.seed)
     for (const a of s.act ?? []) await act(a)
     let clip
     if (s.clip) {

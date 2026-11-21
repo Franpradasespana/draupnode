@@ -10,7 +10,7 @@
   import { timeAgo } from '../lib/state.svelte'
   import { sameValues } from '../lib/modules'
 
-  let { m, modules = $bindable(), project, errors = {}, requiredBy = [], running = false, onsecret, onapply, onremove, onreadd, onuninstall }: {
+  let { m, modules = $bindable(), project, errors = {}, requiredBy = [], running = false, onsecret, onapply, onremove, onreadd, onuninstall, onreload = () => {} }: {
     m: Module
     modules: ProjectModule[]
     project: Project
@@ -22,6 +22,7 @@
     onremove: () => void
     onreadd: () => void
     onuninstall: () => void
+    onreload?: () => void
   } = $props()
 
   const pm = $derived(modules.find((x) => x.id === m.id))
@@ -66,7 +67,7 @@
 {/if}
 
 {#if m.id === 'backups' && installed}
-  <BackupsPanel {project} disabled={running} />
+  <BackupsPanel {project} disabled={running} onchanged={onreload} />
 {/if}
 
 {#if m.secrets?.length || m.variables?.some((v) => v.type === 'secret')}

@@ -37,6 +37,8 @@ export function ChooseProjectDir():Promise<string>;
 
 export function CloseTunnels():Promise<void>;
 
+export function CreateBackupTarget(arg1:string,arg2:string,arg3:number):Promise<main.BackupTargetResult>;
+
 export function DefaultBackupFolder(arg1:string):Promise<string>;
 
 export function DefaultDockerSpec(arg1:string,arg2:string):Promise<dockerize.Spec>;

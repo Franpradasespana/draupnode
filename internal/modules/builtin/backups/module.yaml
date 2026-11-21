@@ -117,3 +117,15 @@ variables:
     label: Contraseña del destino (rest-server) o Secret Key (s3)
     help: Se guarda cifrada en tu bóveda y solo viaja al servidor al aplicar.
     type: secret
+  - name: backups_remote_cacert
+    label: Certificado del destino (rest-server)
+    help: Lo rellena Draupnode cuando el destino es otro servidor tuyo con el módulo «Destino de copias» (certificado propio, en base64). Vacío = certificado normal (Let's Encrypt…).
+    type: string
+    default: ""
+    pattern: '^[A-Za-z0-9+/=]*$'
+    pattern_help: Lo rellena Draupnode
+  - name: backups_remote_append_only
+    label: El destino solo deja añadir
+    help: Las copias viejas del destino no se borran desde aquí (el destino no lo permite). Las de este servidor sí.
+    type: bool
+    default: false

@@ -245,6 +245,16 @@
     }
   }
 
+  // El backend ha cambiado el proyecto (p. ej. «Guardar también en otro
+  // servidor»): el borrador se sustituye por lo guardado.
+  function reloadDraft() {
+    const s = ui.projects.find((p) => p.id === draft.id)
+    if (!s) return
+    draft = structuredClone($state.snapshot(s)) as Project
+    savedKey = contentKey(s)
+    recheck++
+  }
+
   // Una vez creado, cada cambio se guarda solo (con un pequeño retardo).
   $effect(() => {
     if (isNew || !dirty || running || !draft.name.trim()) return
@@ -382,7 +392,7 @@
   <ModuleDetail m={openModule} bind:modules={draft.modules} project={stored} errors={check?.errors[openModule.id] ?? {}}
     requiredBy={requiredBy(openModule.id)} {running} onsecret={() => recheck++}
     onapply={() => (pending.length ? openWizard() : start(false))}
-    onremove={() => removeFromProject(openModule.id)} onreadd={() => readd(openModule.id)} onuninstall={() => uninstallOne(openModule.id)} />
+    onremove={() => removeFromProject(openModule.id)} onreadd={() => readd(openModule.id)} onuninstall={() => uninstallOne(openModule.id)} onreload={reloadDraft} />
 {:else}
   <div class="title-row">
     <input class="name" bind:value={draft.name} placeholder="Nombre del proyecto (p. ej. Servidor web)" disabled={running} />

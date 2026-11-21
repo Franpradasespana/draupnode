@@ -388,6 +388,26 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class BackupTargetResult {
+	    targetProjectId: string;
+	    targetProjectName: string;
+	    targetIsNew: boolean;
+	    url: string;
+	    notes: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupTargetResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.targetProjectId = source["targetProjectId"];
+	        this.targetProjectName = source["targetProjectName"];
+	        this.targetIsNew = source["targetIsNew"];
+	        this.url = source["url"];
+	        this.notes = source["notes"];
+	    }
+	}
 	export class DockerFile {
 	    name: string;
 	    content: string;

@@ -272,3 +272,16 @@ Todo de código abierto: Prometheus, node-exporter, cAdvisor, postgres-exporter 
 - `Analyze` ahora marca «guardar al lado» (`.draupnode`) si el proyecto ya tiene Dockerfile o compose.
 - Ayuda de la pantalla con dos capturas; `capturas.mjs` admite `CAPTURAS=docker,…` para rehacer solo algunas y falla si hay errores de JavaScript.
 - **Probado**: test de la app (analizar, vista previa, guardar, negarse a sustituir, guardar al lado, lenguaje forzado, rechazo de órdenes con `;`); construcción real con Docker desde la app (`DZ_DOCKER=1`); recorrido completo en la demo con Chrome sin ventana, sin errores de JavaScript.
+
+## 2026-11-21 · 0.15.0 · Destino de copias (guardar también en otro servidor)
+
+- **Módulo «Destino de copias (rest-server)»** (`backup-target`, categoría 5 · Copias): rest-server 0.13 (de los autores de restic, BSD-2) en Docker con HTTPS, `--append-only` (desde el origen se pueden añadir copias pero no borrarlas ni cambiarlas) y `--private-repos` (cada proyecto de origen solo ve su carpeta). Usuarios en `.htpasswd` con huellas bcrypt; certificado y clave propios en `{carpeta}/tls`. Abre su puerto en el Cortafuegos (`firewall_ports_from`). Desinstalar quita el contenedor; «borrar datos» borra también las copias guardadas.
+- **«Guardar también en otro servidor…»** en la página del módulo Copias (`CreateBackupTarget`, ventana `BackupTargetDialog`): eliges otro de tus servidores y Draupnode, sin tocar aún ningún servidor:
+  - crea (o reutiliza, uno por servidor) el proyecto «Destino de copias · <servidor>» con Docker + Cortafuegos + rest-server; si otro proyecto de ese servidor ya tiene el Cortafuegos, le añade el puerto a ese (dos Cortafuegos se pisarían) y lo avisa;
+  - genera AQUÍ un certificado propio (ECDSA, 20 años, para la IP o el nombre del servidor; la clave a la bóveda del destino) y una contraseña para el proyecto de origen (a su bóveda; al destino solo llega la huella bcrypt);
+  - deja el módulo Copias del origen en `rest-server` con la URL, el usuario, el certificado y «el destino solo deja añadir».
+  - Te dice el orden: aplicar primero el destino y después el origen. Con la bóveda cerrada lo pide antes de tocar nada. Rechaza el mismo servidor y los que se conectan por 127.0.0.1.
+- **Módulo Copias**: variables nuevas `backups_remote_cacert` (certificado del destino, `--cacert`) y `backups_remote_append_only` (no intenta borrar copias viejas en el destino: allí se acumulan, hay que vigilar el disco).
+- Al volver de la ventana, el editor recarga el proyecto (si no, el borrador viejo pisaba lo nuevo al guardarse solo).
+- Demo: puede traer una bóveda ya creada; `capturas.mjs` admite datos por captura (`seed`) y la acción `type`. Captura y ayuda nuevas.
+- **Probado** con dos Ubuntu 24.04 desechables (origen y destino) y la app por dentro: destino aplicado (0 fallos), origen aplicado, copia hecha y copiada al destino; desde el origen `restic forget --prune` en el destino NO borra nada; sin contraseña y con otro usuario → 401; sin el certificado propio restic se niega («certificate signed by unknown authority»). Test unitario de la configuración automática (huella = contraseña, certificado válido para la IP, reutilizar destino y certificado, no duplicar usuarios, bóveda cerrada).
