@@ -108,6 +108,7 @@ export interface ModVariable {
 
 export interface Module {
   proxySite?: { domain: string; port: string }
+  udpPortsFrom?: string[]
   id: string
   name: string
   version: string
