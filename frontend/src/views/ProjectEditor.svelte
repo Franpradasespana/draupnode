@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, ArrowDownUp } from '@lucide/svelte'
+  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, ArrowDownUp, Unlink, Pencil } from '@lucide/svelte'
   import RunPanel from '../components/RunPanel.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
   import UninstallDialog from '../components/UninstallDialog.svelte'
@@ -335,18 +335,18 @@
 
   async function remove() {
     const ok = await confirmDialog({
-      title: draft.recipeId ? 'Quitar del servidor' : 'Eliminar proyecto',
+      title: draft.recipeId ? 'Desasociar el proyecto del servidor' : 'Eliminar proyecto',
       message: draft.recipeId
-        ? `¿Quitar «${draft.name}» de ${server?.name}? Se borra de Draupnode (con sus registros y sus contraseñas guardadas); lo instalado en el servidor NO se toca (para eso, desinstala antes sus módulos). La receta se conserva.`
+        ? `¿Desasociar «${draft.name}» de ${server?.name}? NO desinstala nada: lo instalado sigue funcionando en el servidor (para quitarlo, desinstala antes sus módulos). Draupnode deja de gestionarlo y borra sus registros y sus contraseñas guardadas. El proyecto se conserva y puedes volver a asociarlo.`
         : `¿Eliminar «${draft.name}»? Solo se borra de Draupnode (y sus registros); el servidor no se toca.`,
-      confirmLabel: draft.recipeId ? 'Quitar' : 'Eliminar', danger: true,
+      confirmLabel: draft.recipeId ? 'Desasociar' : 'Eliminar', danger: true,
     })
     if (!ok) return
     try {
       await api.DeleteProject(draft.id)
       await refreshProjects()
       ui.projectId = null
-      toast(draft.recipeId ? 'Quitado del servidor' : 'Proyecto eliminado')
+      toast(draft.recipeId ? 'Proyecto desasociado del servidor' : 'Proyecto eliminado')
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -431,7 +431,9 @@
   {/if}
 </div>
 
-<!-- Siempre a la vista: en qué servidor y proyecto estás. -->
+<!-- Siempre a la vista: en qué servidor y proyecto estás; en la misma fila,
+     si sale de un proyecto (receta), cómo está respecto a él y sus botones. -->
+<div class="head-row">
 <nav class="crumbs" aria-label="Dónde estás">
   <ServerIcon size={14} />
   <button class="crumb" onclick={() => (ui.projectId = null)} title="Ficha del servidor">{server?.name ?? 'Sin servidor'}</button>
@@ -445,6 +447,17 @@
     <strong>{draft.name || 'Proyecto nuevo'}</strong>
   {/if}
 </nav>
+{#if draft.recipeId && !openModule}
+  {#if diffText}
+    <span class="pill warn">Distinto del proyecto: {diffText}</span>
+    <button class="btn sm" onclick={pushToRecipe} disabled={running || dirty} title="Lo de este servidor pasa al proyecto (y a los demás servidores que lo usan)">Llevar al proyecto</button>
+    <button class="btn sm" onclick={resetToRecipe} disabled={running || dirty} title="Deshace lo propio de este servidor (no desinstala nada)">Volver al proyecto</button>
+  {:else}<span class="pill ok">Igual que el proyecto</span>{/if}
+  <div class="spacer"></div>
+  <button class="btn sm ghost" onclick={() => openRecipe(draft.recipeId!)} title="El proyecto (la receta) para todos sus servidores"><Pencil size={14} /> Editar proyecto</button>
+  <button class="btn sm danger" onclick={remove} disabled={running} title="Lo quita de Draupnode; lo instalado en el servidor no se toca"><Unlink size={14} /> Desasociar el proyecto del servidor</button>
+{/if}
+</div>
 
 {#if run}
   <RunPanel {run} onclose={closeRun} />
@@ -456,24 +469,7 @@
     onapply={() => (pending.length ? openWizard() : start(false))}
     onremove={() => removeFromProject(openModule.id)} onreadd={() => readd(openModule.id)} onuninstall={() => uninstallOne(openModule.id)} onreload={reloadDraft} />
 {:else}
-  {#if draft.recipeId}
-    <div class="recipe-row card">
-      <div class="rr-text">
-        <span class="muted small">Proyecto</span>
-        <strong>{recipe?.name ?? draft.name}</strong>
-        <span class="muted small">en {server?.name}</span>
-      </div>
-      <div class="rr-diff">
-        {#if diffText}
-          <span class="pill warn">Distinto de la receta: {diffText}</span>
-          <button class="btn sm" onclick={pushToRecipe} disabled={running || dirty} title="Lo de este servidor pasa a la receta (y a los demás servidores que la usan)">Llevar a la receta</button>
-          <button class="btn sm" onclick={resetToRecipe} disabled={running || dirty} title="Deshace lo propio de este servidor">Volver a la receta</button>
-        {:else}<span class="pill ok">Igual que la receta</span>{/if}
-        <button class="btn sm ghost" onclick={() => openRecipe(draft.recipeId!)}>Editar la receta</button>
-        <button class="btn sm danger" onclick={remove} disabled={running} title="Lo quita de Draupnode; lo instalado en el servidor no se toca"><Trash2 size={14} /> Quitar del servidor</button>
-      </div>
-    </div>
-  {:else}
+  {#if !draft.recipeId}
   <div class="title-row">
     <input class="name" bind:value={draft.name} placeholder="Nombre del proyecto (p. ej. Servidor web)" disabled={running} />
     <label class="field srv">
@@ -590,20 +586,18 @@
   .save-st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
   .save-st .bad { color: var(--danger); }
   .warn { display: inline-flex; gap: 7px; align-items: center; color: var(--warning); }
-  .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-bottom: 14px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--panel-2); border: 1px solid var(--border-soft); }
+  .head-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .head-row .spacer { flex: 1; }
+  .head-row .pill { display: inline-flex; padding: 3px 9px; border-radius: 999px; font-size: 12px; }
+  .head-row .pill.ok { background: var(--success-soft); color: var(--success); }
+  .head-row .pill.warn { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
+  .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--muted); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--panel-2); border: 1px solid var(--border-soft); }
   .crumbs strong { color: var(--text); }
   .crumb { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
   .crumb:hover { text-decoration: underline; }
   .crumbs :global(.sep) { opacity: .6; }
   .mono { font-family: var(--mono); }
   .small { font-size: 12px; }
-  .recipe-row { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 14px; }
-  .rr-text { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-  .rr-text strong { font-size: 17px; }
-  .rr-diff { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .rr-diff .pill { display: inline-flex; padding: 3px 9px; border-radius: 999px; font-size: 12px; }
-  .rr-diff .pill.ok { background: var(--success-soft); color: var(--success); }
-  .rr-diff .pill.warn { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
   .small { font-size: 12px; }
   .title-row { display: grid; grid-template-columns: 1fr 340px auto; gap: 16px; align-items: end; margin-bottom: 14px; }
   .name { font-size: 22px; font-weight: 600; background: none; border: 0; border-bottom: 1px solid transparent; padding: 4px 0; outline: none; color: var(--text); }

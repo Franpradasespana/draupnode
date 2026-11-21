@@ -484,3 +484,11 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
 - **Menú desplegable**: «Servidores» y «Proyectos» tienen una flecha que despliega la lista de servidores y de
   recetas para entrar directo en cada uno. Lo desplegado se recuerda en este equipo; el menú hace scroll si hay muchos.
 - Capturas de la demo: `avisos` y `avisos-campana`.
+
+## 2026-11-21 · 0.37.1 · Proyecto en un servidor: una sola fila y nombres más claros
+
+- La cabecera del proyecto dentro de un servidor va en una sola fila: dónde estás (servidor › proyecto), si es
+  igual o distinto del proyecto y los botones. Se quita la tarjeta aparte «Proyecto … en …», que repetía lo mismo.
+- Nombres: «Editar la receta» → **«Editar proyecto»**; «Quitar del servidor» → **«Desasociar el proyecto del
+  servidor»** (con su diálogo: deja claro que NO desinstala nada); «Llevar/Volver a la receta» → «Llevar/Volver al
+  proyecto»; «Distinto/Igual que la receta» → «… del/que el proyecto».
