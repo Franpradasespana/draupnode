@@ -72,6 +72,44 @@
 - Alertas: el servidor no puede avisar de que él mismo se ha caído (se cubre con «Vigilar otros servidores» desde otro servidor o con el aviso diario).
 - ~~Módulo genérico «App con Docker Compose»~~ hecho como «App desde Git» (0.23.0); las apps de la lista, como módulos propios (0.25.0–0.34.0).
 
+### Rediseño pedido por el usuario (anotado 2026-11-21, SIN EMPEZAR)
+
+**Idea del usuario.** El servidor es la pieza principal. Un **proyecto es una «carta a los Reyes»**: una plantilla de lo que quiero instalar y cómo, que puede existir **sin servidor**. Cuando tengo un servidor, entro en él, le **asocio un proyecto**, lo simulo, lo compruebo y lo aplico. Un mismo proyecto se puede desplegar en varios servidores. En cada servidor habría, en principio, un solo proyecto.
+
+**Ficha del servidor** (al pulsar un servidor; hoy lleva a la lista de proyectos):
+- Al abrirla, comprobación por SSH: disco libre, RAM, CPU y módulos instalados.
+- Editar la conexión.
+- Estado del proyecto asociado: simular, aplicar, cambios pendientes.
+- Enlaces a las aplicaciones instaladas (sus URL y «Abrir»).
+- Contraseñas y secretos generados.
+- Registros (logs) de cada cosa.
+- Tiene que hacer de «Grafana» del servidor: controlar todo su estado. Ejemplo del usuario, en su servidor privado (Coolify + nginx + PostgreSQL + dos apps Django en Docker):
+  - las URL de las apps publicadas en Coolify (API de Coolify: necesita su token);
+  - los PostgreSQL con sus bases y lo que pesa cada una;
+  - las URL de las apps instaladas;
+  - los registros de cada contenedor o servicio.
+- Detectar también lo que ya hay en el servidor aunque no lo haya instalado Draupnode: `docker ps`, sitios de nginx/Caddy, bases de datos.
+
+**Menú:**
+- Arriba: Panel, Servidores, Proyectos.
+- Un grupo «Utilidades»: Docker Creator y Servidor de pruebas.
+- El **Catálogo abajo**, encima de Ayuda (es solo lo que se puede instalar).
+
+**Ventana de un módulo en el Catálogo:**
+- La descripción con espacio entre párrafos y a todo el ancho.
+- **Enlaces a la web oficial y al código fuente** de cada programa (justo para sus creadores). Por ejemplo, Docker → docker.com y su repositorio. Campos nuevos en module.yaml (`homepage`, `source`, quizá `docs`).
+
+**Qué cambia por dentro (análisis, 2026-11-21).** No se tira nada (módulos, Ansible, ejecución, bóveda y pantallas de módulos se reutilizan), pero hay que **partir el proyecto en dos**:
+- **Proyecto (plantilla):** nombre, módulos y sus valores. Sin servidor.
+- **Despliegue (proyecto en un servidor):** servidor + proyecto + todo lo que hoy es «del proyecto» pero en realidad es del servidor: slug y carpeta de secretos, contraseñas generadas en la bóveda, módulos instalados con sus valores, última ejecución, aplicado, copias traídas, aviso de copias.
+- Migración: cada proyecto actual → una plantilla + un despliegue en su servidor.
+- Si una plantilla está en varios servidores y se cambia → «cambios sin aplicar» en cada uno.
+- Puntos que chocan con «un proyecto por servidor» y hay que resolver:
+  - el «Destino de copias» crea un proyecto aparte en el otro servidor (pasaría a ser un módulo más del proyecto de ese servidor);
+  - «App desde Git» admite una sola app por proyecto (habría que permitir varias: una lista);
+  - Monitorización y Registros ya están por proyecto (pasarían a la ficha del servidor).
+- Datos que se pueden variar por servidor sin tocar la plantilla (dominio, IP pública…): decidir si un despliegue puede sobrescribir valores de la plantilla.
+
 ### Módulos futuros (lista del usuario, 2026-11-20) — todos de código abierto
 
 | Programa | Licencia | Notas para el módulo |
