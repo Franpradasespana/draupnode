@@ -8,6 +8,13 @@
   import { ui, allPalettes, currentPalette, setTheme, persistSettings, sanitizePalettes, toast, requestVault, refreshSecrets } from '../lib/state.svelte'
   import { api, errorText } from '../lib/api'
 
+  let updEnabled = $state(true)
+  api.GetSettings().then((s) => (updEnabled = !s.noUpdateCheck)).catch(() => {})
+  async function setUpd(v: boolean) {
+    updEnabled = v
+    try { await api.SetUpdateCheck(v) } catch (e) { toast(errorText(e), 'error') }
+  }
+
   async function setBackend(b: string) {
     try {
       await api.SetSecretBackend(b)
@@ -228,6 +235,8 @@
 
 <section class="card about">
   <h2>Datos de la aplicación</h2>
+  <label class="upd"><input type="checkbox" checked={updEnabled} onchange={(e) => setUpd((e.currentTarget as HTMLInputElement).checked)} />
+    Avisar de versiones nuevas <span class="muted small">(al abrir, consulta la última versión publicada en GitHub; no envía ningún dato tuyo)</span></label>
   <div class="kv"><FolderCog size={16} /><span class="muted">Configuración</span><code class="selectable">{ui.info?.configDir}</code></div>
 </section>
 
@@ -337,6 +346,7 @@
   .pname strong { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pname span { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pact { display: flex; }
+  .upd { display: flex; gap: 8px; align-items: center; font-size: 13.5px; flex-wrap: wrap; }
   .about { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
   .secrets { margin-bottom: 28px; display: flex; flex-direction: column; gap: 14px; }
   .secrets .sec-head p { margin-top: 4px; }

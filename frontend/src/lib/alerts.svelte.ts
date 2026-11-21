@@ -9,6 +9,7 @@ export type AlertItem =
   | { kind: 'backups'; key: string; projectId: string; name: string; server: string; due: BackupDue }
   | { kind: 'failed'; key: string; projectId: string; name: string; server: string; at: string; error: string }
   | { kind: 'export'; key: string; last: string | null }
+  | { kind: 'update'; key: string; latest: string; url: string }
 
 // Cada cuántos días se recuerda hacer la copia de Draupnode.
 export const EXPORT_DAYS = 30
@@ -20,6 +21,8 @@ export const alerts = $state({
   busy: '',
   // Última copia de Draupnode exportada (undefined = aún no se sabe).
   lastExport: undefined as string | null | undefined,
+  // Versión nueva de Draupnode publicada (null = no hay o no se sabe).
+  update: null as { latest: string; url: string } | null,
   progress: null as BackupFetchProgress | null,
 })
 
@@ -47,6 +50,7 @@ export function alertItems(): AlertItem[] {
   if (le !== undefined && ui.servers.length && (!le || Date.now() - new Date(le).getTime() > EXPORT_DAYS * 86400000)) {
     out.push({ kind: 'export', key: 'e', last: le })
   }
+  if (alerts.update) out.push({ kind: 'update', key: 'u:' + alerts.update.latest, ...alerts.update })
   return out.filter((a) => !alerts.hidden.includes(a.key))
 }
 
@@ -81,6 +85,7 @@ export async function fetchBackups(d: BackupDue, quiet = false): Promise<boolean
 // Al abrir la app: mira las copias pendientes y trae solas las que lo tienen así.
 export async function loadAlerts() {
   api.BackupStatus().then((b) => (alerts.lastExport = b.lastExport ?? null)).catch(() => {})
+  api.CheckUpdate().then((u) => (alerts.update = u.newer && u.url ? { latest: u.latest, url: u.url } : null)).catch(() => {})
   try {
     alerts.due = await api.BackupsDue()
   } catch {

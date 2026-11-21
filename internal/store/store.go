@@ -68,6 +68,8 @@ type Settings struct {
 	// SecretBackend: dónde guardar contraseñas nuevas: "auto" | "keyring" | "vault".
 	SecretBackend  string          `json:"secretBackend"`
 	CustomPalettes json.RawMessage `json:"customPalettes,omitempty"`
+	// NoUpdateCheck: no mirar en GitHub si hay versión nueva al abrir.
+	NoUpdateCheck bool `json:"noUpdateCheck,omitempty"`
 }
 
 // ProjectModule es un módulo elegido en un proyecto con sus valores.

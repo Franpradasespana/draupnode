@@ -53,6 +53,7 @@ export interface Settings {
   theme: string
   secretBackend?: string
   customPalettes?: unknown
+  noUpdateCheck?: boolean
 }
 
 export type TestStatus =
@@ -603,6 +604,8 @@ interface Backend {
   ProjectSecretsInfo(projectId: string): Promise<ProjectSecretsSummary>
   ProjectSecrets(projectId: string, master: string): Promise<ProjectSecret[]>
   BackupStatus(): Promise<{ lastExport?: string | null }>
+  CheckUpdate(): Promise<{ current: string; latest: string; newer: boolean; url: string; notes?: string; enabled: boolean }>
+  SetUpdateCheck(enabled: boolean): Promise<void>
   TerminalOpen(serverId: string, secret: string, accept: string, cols: number, rows: number): Promise<RunStart & { id?: string }>
   TerminalInput(id: string, data: string): Promise<void>
   TerminalResize(id: string, cols: number, rows: number): Promise<void>
@@ -1093,6 +1096,13 @@ function mockBackend(): Backend {
     async TerminalResize() {},
     async TerminalClose(id) {
       if (mockTerms[id]) { delete mockTerms[id]; mockEmit('term', { id, closed: true, reason: 'Sesión terminada.' }) }
+    },
+    async CheckUpdate() {
+      const enabled = !load('noUpdateCheck', false)
+      return { current: '0.2.0', latest: '0.43.0', newer: enabled, url: 'https://github.com/Franpradasespana/draupnode/releases', enabled }
+    },
+    async SetUpdateCheck(en) {
+      save('noUpdateCheck', !en)
     },
     async BackupStatus() {
       return { lastExport: load<string | null>('lastExport', null) }

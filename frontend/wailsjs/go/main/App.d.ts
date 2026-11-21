@@ -42,6 +42,8 @@ export function CheckRecipe(arg1:store.Recipe):Promise<main.ProjectCheck>;
 
 export function CheckUninstall(arg1:string,arg2:Array<string>):Promise<main.UninstallCheck>;
 
+export function CheckUpdate():Promise<main.UpdateInfo>;
+
 export function ChooseBackupFile():Promise<string>;
 
 export function ChooseBackupFolder(arg1:string):Promise<string>;
@@ -185,6 +187,8 @@ export function SetProjectCollapsed(arg1:string,arg2:Array<string>):Promise<void
 export function SetProjectSecret(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SetSecretBackend(arg1:string):Promise<void>;
+
+export function SetUpdateCheck(arg1:boolean):Promise<void>;
 
 export function TerminalClose(arg1:string):Promise<void>;
 

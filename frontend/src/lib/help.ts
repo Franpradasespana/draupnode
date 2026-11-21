@@ -160,6 +160,7 @@ export const HELP: HelpSection[] = [
     steps: [
       { title: 'Copias sin traer', img: 'avisos', text: 'Un servidor con Copias cuyas copias hace tiempo (o nunca) que no traes a este equipo. «Traer ahora» las descarga. En la plantilla del servidor → Copias eliges cada cuántos días avisa, que se traigan solas al abrir la app o que no avise.' },
       { title: 'Aplicaciones que fallaron', text: 'La última vez que pulsaste «Aplicar» en ese servidor hubo un error. «Abrir» lleva allí para ver qué pasó; desaparece cuando vuelve a aplicarse bien.' },
+      { title: 'Versión nueva', text: 'Al abrir, Draupnode mira en GitHub la última versión publicada (una consulta anónima; se puede desactivar en Ajustes). Si hay una más nueva, «Descargar» abre su página.' },
       { title: 'Ocultar', text: 'La ✕ lo quita hasta la próxima vez que abras la app.' },
     ],
   },

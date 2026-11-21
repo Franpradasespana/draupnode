@@ -21,7 +21,7 @@ import (
 )
 
 // Version de la aplicación.
-const Version = "0.42.0"
+const Version = "0.43.0"
 
 // Prefijos que la interfaz reconoce en los errores para abrir el diálogo
 // de la bóveda (crear o desbloquear) y reintentar.
@@ -446,6 +446,7 @@ func (a *App) GetSettings() store.Settings { return a.store.Settings() }
 
 // SaveSettings guarda tema y paletas (la preferencia de contraseñas va aparte).
 func (a *App) SaveSettings(s store.Settings) error {
-	s.SecretBackend = a.store.Settings().SecretBackend
+	cur := a.store.Settings()
+	s.SecretBackend, s.NoUpdateCheck = cur.SecretBackend, cur.NoUpdateCheck
 	return a.store.SaveSettings(s)
 }

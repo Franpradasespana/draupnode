@@ -1443,6 +1443,28 @@ export namespace main {
 		}
 	}
 	
+	export class UpdateInfo {
+	    current: string;
+	    latest: string;
+	    newer: boolean;
+	    url: string;
+	    notes?: string;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.latest = source["latest"];
+	        this.newer = source["newer"];
+	        this.url = source["url"];
+	        this.notes = source["notes"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class UserModule {
 	    id: string;
 	    name: string;
@@ -2083,6 +2105,7 @@ export namespace store {
 	    theme: string;
 	    secretBackend: string;
 	    customPalettes?: number[];
+	    noUpdateCheck?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -2093,6 +2116,7 @@ export namespace store {
 	        this.theme = source["theme"];
 	        this.secretBackend = source["secretBackend"];
 	        this.customPalettes = source["customPalettes"];
+	        this.noUpdateCheck = source["noUpdateCheck"];
 	    }
 	}
 

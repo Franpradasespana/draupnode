@@ -74,6 +74,10 @@ export function CheckUninstall(arg1, arg2) {
   return window['go']['main']['App']['CheckUninstall'](arg1, arg2);
 }
 
+export function CheckUpdate() {
+  return window['go']['main']['App']['CheckUpdate']();
+}
+
 export function ChooseBackupFile() {
   return window['go']['main']['App']['ChooseBackupFile']();
 }
@@ -360,6 +364,10 @@ export function SetProjectSecret(arg1, arg2, arg3) {
 
 export function SetSecretBackend(arg1) {
   return window['go']['main']['App']['SetSecretBackend'](arg1);
+}
+
+export function SetUpdateCheck(arg1) {
+  return window['go']['main']['App']['SetUpdateCheck'](arg1);
 }
 
 export function TerminalClose(arg1) {

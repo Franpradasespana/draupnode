@@ -580,3 +580,17 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
 - Arreglado: «¿igual a la plantilla?» fallaba por dentro (puntero nulo) cuando el servidor era idéntico a ella.
 - Probado de verdad: aplicar → ficha en el servidor → verla en el estado → recuperarla en otro Draupnode con sus
   valores → desinstalar y desaparece.
+
+## 2026-11-21 · 0.43.0 · Distribución: instaladores, aviso de versión nueva y README
+
+- **GitHub Actions** (`.github/workflows/`):
+  - `release.yml`: al subir una etiqueta `vX.Y.Z` compila en Windows (instalador NSIS + `.zip`), macOS
+    (`.dmg` universal, Intel y Apple Silicon) y Linux (`.deb` y `.tar.gz`) y crea la Release con ellos. A mano
+    («Run workflow») solo compila y deja los ficheros como artefactos. Probado: Linux y macOS compilan y
+    empaquetan; en Windows compila y faltaba NSIS en la máquina de GitHub (añadido con choco).
+  - `pruebas.yml`: tests de Go y de tipos de la interfaz en cada push a `main` (pasan).
+  - Los instaladores no están firmados (SmartScreen y Gatekeeper avisan la primera vez; el README dice cómo abrirlos).
+- **Aviso de versión nueva**: al abrir, consulta de forma anónima la última Release en la API de GitHub
+  (`User-Agent: draupnode`, sin datos del usuario, 8 s de límite) y, si hay una más nueva, sale en Avisos con
+  «Descargar». Se puede desactivar en Ajustes → Datos de la aplicación. Test con un servidor HTTP falso.
+- **README** reescrito: descargas por sistema, qué hace hoy la app, cómo publicar una versión, dónde guarda cada cosa.

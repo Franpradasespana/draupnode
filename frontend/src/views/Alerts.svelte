@@ -4,7 +4,7 @@
 
 <div class="head">
   <h1>Avisos</h1>
-  <p class="muted">Lo que conviene mirar: copias que hace tiempo que no traes a este equipo, aplicaciones que fallaron y la copia de Draupnode.</p>
+  <p class="muted">Lo que conviene mirar: copias que hace tiempo que no traes, aplicaciones que fallaron, la copia de Draupnode y versiones nuevas.</p>
 </div>
 <AlertsList />
 
