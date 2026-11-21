@@ -4,9 +4,10 @@
   // Están cifradas en la bóveda: para verlas hay que escribir su contraseña
   // cada vez, y se ocultan solas al cabo de un rato.
   import { onDestroy } from 'svelte'
-  import { KeyRound, Eye, EyeOff, Copy, Lock } from '@lucide/svelte'
+  import { KeyRound, Eye, EyeOff, Copy, Lock, Download } from '@lucide/svelte'
   import { api, errorText, type ProjectSecret, type ProjectSecretsSummary } from '../lib/api'
   import { ask, toast, timeAgo, ui } from '../lib/state.svelte'
+  import { withConnection } from '../lib/connect'
 
   // module: solo las de ese módulo (nombre visible), en su página.
   let { projectId, refreshKey = '', module = '' }: { projectId: string; refreshKey?: string; module?: string } = $props()
@@ -33,6 +34,24 @@
     void refreshKey
     api.ProjectSecretsInfo(projectId).then((i) => (info = i)).catch(() => {})
   })
+
+  // Traer del servidor sin Aplicar (p. ej. tras reinstalar Draupnode).
+  let fetching = $state(false)
+  async function fetchFromServer() {
+    fetching = true
+    try {
+      const srv = ui.servers.find((x) => x.id === project?.serverId)
+      const r = await withConnection(srv, (s, a, u) => api.FetchProjectSecrets(projectId, s, a, u))
+      if (!r) return
+      if (r.status !== 'ok') return toast(r.message || 'No se pudieron traer', 'error')
+      toast(r.count ? `${r.count} contraseña(s) traídas del servidor a la bóveda` : 'En el servidor no hay contraseñas de esta plantilla')
+      info = await api.ProjectSecretsInfo(projectId)
+    } catch (e) {
+      toast(errorText(e), 'error')
+    } finally {
+      fetching = false
+    }
+  }
 
   function hide() {
     list = null
@@ -94,6 +113,9 @@
           <span class="muted">Todavía no hay ninguna: los módulos las generan en el servidor la primera vez que pulsas <strong>Aplicar</strong> (al previsualizar no se crean). Draupnode las trae y las guarda cifradas en la bóveda.</span>
         {/if}
       </div>
+      {#if !module}
+        <button class="btn sm ghost" onclick={fetchFromServer} disabled={fetching} title="Las vuelve a leer del servidor (/etc/draupnode/secretos) sin tener que Aplicar"><Download size={14} /> {fetching ? 'Trayendo…' : 'Traer del servidor'}</button>
+      {/if}
       {#if list}
         <button class="btn sm" onclick={hide}><Lock size={14} /> Ocultar</button>
       {:else if count > 0}

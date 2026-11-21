@@ -1,3 +1,75 @@
+export namespace copia {
+	
+	export class KeyFile {
+	    serverId: string;
+	    server: string;
+	    file: string;
+	    origPath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeyFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.serverId = source["serverId"];
+	        this.server = source["server"];
+	        this.file = source["file"];
+	        this.origPath = source["origPath"];
+	    }
+	}
+	export class Manifest {
+	    version: number;
+	    // Go type: time
+	    created: any;
+	    app: string;
+	    servers: number;
+	    templates: number;
+	    deployments: number;
+	    vaultEntries: number;
+	    keyring: number;
+	    modules: number;
+	    keys: KeyFile[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Manifest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.created = this.convertValues(source["created"], null);
+	        this.app = source["app"];
+	        this.servers = source["servers"];
+	        this.templates = source["templates"];
+	        this.deployments = source["deployments"];
+	        this.vaultEntries = source["vaultEntries"];
+	        this.keyring = source["keyring"];
+	        this.modules = source["modules"];
+	        this.keys = this.convertValues(source["keys"], KeyFile);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace dockerize {
 	
 	export class Spec {
@@ -444,6 +516,37 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class BackupStatus {
+	    // Go type: time
+	    lastExport?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lastExport = this.convertValues(source["lastExport"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class BackupTargetResult {
 	    targetProjectId: string;
 	    targetProjectName: string;
@@ -547,6 +650,44 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class FetchSecretsResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FetchSecretsResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.count = source["count"];
+	    }
+	}
+	export class ImportResult {
+	    notes: string[];
+	    safety: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.notes = source["notes"];
+	        this.safety = source["safety"];
+	    }
 	}
 	export class KeyResult {
 	    path: string;

@@ -149,6 +149,8 @@ type data struct {
 	Recipes  []Recipe  `json:"recipes"`
 	Projects []Project `json:"projects"`
 	Settings Settings  `json:"settings"`
+	// LastExport: cuándo se exportó por última vez una copia de Draupnode.
+	LastExport *time.Time `json:"lastExport,omitempty"`
 }
 
 // Recipe es un proyecto «receta»: qué módulos y con qué opciones, sin
@@ -388,6 +390,21 @@ func (s *Store) Settings() Settings {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.d.Settings
+}
+
+// LastExport: cuándo se exportó la última copia de Draupnode (nil = nunca).
+func (s *Store) LastExport() *time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.d.LastExport
+}
+
+// SetLastExport apunta que se acaba de exportar una copia.
+func (s *Store) SetLastExport(t time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.d.LastExport = &t
+	return s.saveLocked()
 }
 
 // SaveSettings guarda las preferencias.

@@ -8,12 +8,18 @@ import { withConnection } from './connect'
 export type AlertItem =
   | { kind: 'backups'; key: string; projectId: string; name: string; server: string; due: BackupDue }
   | { kind: 'failed'; key: string; projectId: string; name: string; server: string; at: string; error: string }
+  | { kind: 'export'; key: string; last: string | null }
+
+// Cada cuántos días se recuerda hacer la copia de Draupnode.
+export const EXPORT_DAYS = 30
 
 export const alerts = $state({
   due: [] as BackupDue[],
   // Ocultos hasta que se vuelva a abrir la app.
   hidden: [] as string[],
   busy: '',
+  // Última copia de Draupnode exportada (undefined = aún no se sabe).
+  lastExport: undefined as string | null | undefined,
   progress: null as BackupFetchProgress | null,
 })
 
@@ -36,6 +42,10 @@ export function alertItems(): AlertItem[] {
     if (r && !r.ok && !r.check && !r.canceled) {
       out.push({ kind: 'failed', key: 'f:' + p.id + ':' + r.at, projectId: p.id, name: p.name, server: serverName(p.id), at: r.at, error: r.error ?? '' })
     }
+  }
+  const le = alerts.lastExport
+  if (le !== undefined && ui.servers.length && (!le || Date.now() - new Date(le).getTime() > EXPORT_DAYS * 86400000)) {
+    out.push({ kind: 'export', key: 'e', last: le })
   }
   return out.filter((a) => !alerts.hidden.includes(a.key))
 }
@@ -70,6 +80,7 @@ export async function fetchBackups(d: BackupDue, quiet = false): Promise<boolean
 
 // Al abrir la app: mira las copias pendientes y trae solas las que lo tienen así.
 export async function loadAlerts() {
+  api.BackupStatus().then((b) => (alerts.lastExport = b.lastExport ?? null)).catch(() => {})
   try {
     alerts.due = await api.BackupsDue()
   } catch {

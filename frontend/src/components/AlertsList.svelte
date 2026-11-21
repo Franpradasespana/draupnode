@@ -1,8 +1,8 @@
 <script lang="ts">
   // La lista de avisos (pantalla «Avisos» y, si hay, arriba del Panel).
-  import { DatabaseBackup, Download, LoaderCircle, X, CircleX, ArrowRight } from '@lucide/svelte'
+  import { DatabaseBackup, Download, LoaderCircle, X, CircleX, ArrowRight, HardDriveDownload } from '@lucide/svelte'
   import { alerts, alertItems, hideAlert, fetchBackups } from '../lib/alerts.svelte'
-  import { openDeployment, timeAgo } from '../lib/state.svelte'
+  import { openDeployment, timeAgo, ui } from '../lib/state.svelte'
 
   let { compact = false }: { compact?: boolean } = $props()
   const items = $derived(alertItems())
@@ -12,7 +12,7 @@
 <div class="alerts" class:compact>
   {#each items as a (a.key)}
     <div class="card alert" class:bad={a.kind === 'failed'}>
-      {#if a.kind === 'backups'}<DatabaseBackup size={17} />{:else}<CircleX size={17} />{/if}
+      {#if a.kind === 'backups'}<DatabaseBackup size={17} />{:else if a.kind === 'export'}<HardDriveDownload size={17} />{:else}<CircleX size={17} />{/if}
       <div class="txt">
         {#if a.kind === 'backups'}
           {#if alerts.busy === a.projectId}
@@ -21,6 +21,8 @@
             <span>Copias de <strong>{a.name}</strong>{#if a.server}{' '}({a.server}){/if}: {a.due.age < 0 ? 'nunca las has traído a este equipo' : `las de este equipo son de hace ${a.due.age} días`}.</span>
             {#if !compact}<span class="muted small">Puedes hacer que se traigan solas, o cambiar cada cuántos días avisa, en la plantilla del servidor → Copias.</span>{/if}
           {/if}
+        {:else if a.kind === 'export'}
+          <span>{a.last ? `Tu última copia de Draupnode es de ${timeAgo(a.last)}.` : 'Nunca has hecho una copia de Draupnode.'} Si se rompe este equipo, perderías servidores, plantillas y contraseñas.</span>
         {:else}
           <span>La última aplicación de <strong>{a.name}</strong>{#if a.server}{' '}en {a.server}{/if} falló ({timeAgo(a.at)}).</span>
           {#if !compact && a.error}<span class="muted small">{a.error}</span>{/if}
@@ -30,7 +32,11 @@
         {#if a.kind === 'backups'}
           <button class="btn sm" onclick={() => fetchBackups(a.due)} disabled={!!alerts.busy}><Download size={13} /> Traer ahora</button>
         {/if}
-        <button class="btn sm ghost" onclick={() => openDeployment(a.projectId)}>Abrir <ArrowRight size={13} /></button>
+        {#if a.kind === 'export'}
+          <button class="btn sm" onclick={() => (ui.view = 'settings')}><HardDriveDownload size={13} /> Hacer la copia</button>
+        {:else}
+          <button class="btn sm ghost" onclick={() => openDeployment(a.projectId)}>Abrir <ArrowRight size={13} /></button>
+        {/if}
         <button class="btn sm ghost icon" title="Ocultar hasta la próxima vez que abras la app" onclick={() => hideAlert(a.key)}><X size={14} /></button>
       </div>
     </div>

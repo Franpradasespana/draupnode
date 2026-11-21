@@ -253,6 +253,19 @@ export interface BackupFetchProgress {
   stage: string
 }
 
+export interface BackupManifest {
+  version: number
+  created: string
+  app: string
+  servers: number
+  templates: number
+  deployments: number
+  vaultEntries: number
+  keyring: number
+  modules: number
+  keys: { serverId: string; server: string; file: string; origPath: string }[]
+}
+
 export interface ProjectSecretsSummary {
   vaultExists: boolean
   generated: number
@@ -547,6 +560,12 @@ interface Backend {
   UninstallModules(projectId: string, modules: string[], purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   ProjectSecretsInfo(projectId: string): Promise<ProjectSecretsSummary>
   ProjectSecrets(projectId: string, master: string): Promise<ProjectSecret[]>
+  BackupStatus(): Promise<{ lastExport?: string | null }>
+  ExportBackup(password: string, withKeys: boolean): Promise<string>
+  ChooseBackupFile(): Promise<string>
+  InspectBackup(path: string, password: string): Promise<BackupManifest>
+  ImportBackup(path: string, password: string): Promise<{ notes: string[]; safety: string }>
+  FetchProjectSecrets(projectId: string, secret: string, accept: string, sudoPassword: string): Promise<RunStart & { count: number }>
   ExportProject(id: string): Promise<string>
   RunProject(id: string, check: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   CancelRun(runId: string): Promise<boolean>
@@ -960,6 +979,35 @@ function mockBackend(): Backend {
       const k = `${id}:${variable}`
       if (value) mockTyped[k] = value
       else delete mockTyped[k]
+    },
+    async BackupStatus() {
+      return { lastExport: load<string | null>('lastExport', null) }
+    },
+    async ExportBackup(password) {
+      await wait(800)
+      if (password.length < 10) throw 'la contraseña de la copia debe tener al menos 10 caracteres'
+      save('lastExport', new Date().toISOString())
+      return '/home/demo/draupnode-copia-' + new Date().toISOString().slice(0, 10) + '.draupnode'
+    },
+    async ChooseBackupFile() {
+      return '/home/demo/draupnode-copia.draupnode'
+    },
+    async InspectBackup(_p, password) {
+      await wait(600)
+      if (password !== 'copia-de-prueba') throw 'la contraseña no es correcta o el fichero está dañado'
+      return { version: 1, created: new Date().toISOString(), app: '0.39.0', servers: servers.length, templates: 3, deployments: projects.length, vaultEntries: 6, keyring: 1, modules: 0, keys: [] }
+    },
+    async ImportBackup() {
+      await wait(800)
+      return { notes: ['La bóveda se abre con la contraseña maestra que tenía cuando hiciste la copia.'], safety: '/home/demo/.config/draupnode/antes-de-importar' }
+    },
+    async FetchProjectSecrets(id) {
+      await wait(900)
+      if (!vault.exists) return { status: 'vault_missing', count: 0 }
+      if (!vault.unlocked) return { status: 'vault_locked', count: 0 }
+      const p = projects.find((x) => x.id === id)
+      if (!p?.appliedAt) return { status: 'error', message: 'en el servidor no hay contraseñas de esta plantilla todavía: se generan la primera vez que pulsas Aplicar', count: 0 }
+      return { status: 'ok', count: mockGenerated(p).length }
     },
     async ProjectSecretsInfo(id) {
       const p = projects.find((x) => x.id === id)

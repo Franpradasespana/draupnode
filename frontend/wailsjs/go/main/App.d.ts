@@ -4,6 +4,7 @@ import {main} from '../models';
 import {dockerize} from '../models';
 import {store} from '../models';
 import {sshx} from '../models';
+import {copia} from '../models';
 
 export function AlertsRun(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.AlertsResult>;
 
@@ -23,6 +24,8 @@ export function BackupRestoreDB(arg1:string,arg2:string,arg3:string,arg4:string,
 
 export function BackupSnapshots(arg1:string,arg2:boolean,arg3:string,arg4:string,arg5:string):Promise<main.BackupResult>;
 
+export function BackupStatus():Promise<main.BackupStatus>;
+
 export function BackupsDue():Promise<Array<main.BackupDue>>;
 
 export function BuildDockerImage(arg1:string,arg2:dockerize.Spec):Promise<void>;
@@ -38,6 +41,8 @@ export function CheckProject(arg1:store.Project):Promise<main.ProjectCheck>;
 export function CheckRecipe(arg1:store.Recipe):Promise<main.ProjectCheck>;
 
 export function CheckUninstall(arg1:string,arg2:Array<string>):Promise<main.UninstallCheck>;
+
+export function ChooseBackupFile():Promise<string>;
 
 export function ChooseBackupFolder(arg1:string):Promise<string>;
 
@@ -65,15 +70,23 @@ export function DockerLabStop(arg1:string,arg2:dockerize.Spec):Promise<void>;
 
 export function DockerLabTest(arg1:string,arg2:dockerize.Spec):Promise<void>;
 
+export function ExportBackup(arg1:string,arg2:boolean):Promise<string>;
+
 export function ExportProject(arg1:string):Promise<string>;
 
 export function FetchBackups(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.BackupResult>;
+
+export function FetchProjectSecrets(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.FetchSecretsResult>;
 
 export function FindKeys():Promise<Array<sshx.KeyInfo>>;
 
 export function GenerateDocker(arg1:string,arg2:dockerize.Spec):Promise<main.DockerPreview>;
 
 export function GetSettings():Promise<store.Settings>;
+
+export function ImportBackup(arg1:string,arg2:string):Promise<main.ImportResult>;
+
+export function InspectBackup(arg1:string,arg2:string):Promise<copia.Manifest>;
 
 export function InspectKey(arg1:string):Promise<main.KeyResult>;
 

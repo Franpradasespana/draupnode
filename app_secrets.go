@@ -15,8 +15,11 @@ import (
 
 	"draupnode/internal/bundle"
 	"draupnode/internal/modules"
+	"draupnode/internal/runner"
 	"draupnode/internal/secrets"
 	"draupnode/internal/store"
+
+	"golang.org/x/crypto/ssh"
 )
 
 // Contraseñas de cada proyecto en la bóveda cifrada:
@@ -275,4 +278,51 @@ func slugOf(p store.Project) string {
 		return p.Slug
 	}
 	return bundle.Slug(p.Name)
+}
+
+// FetchSecretsResult es la respuesta de FetchProjectSecrets.
+type FetchSecretsResult struct {
+	RunStart
+	Count int `json:"count"`
+}
+
+// FetchProjectSecrets trae a la bóveda las contraseñas que generaron los
+// módulos en el servidor (/etc/draupnode/secretos/<slug>), sin tener que
+// Aplicar: por ejemplo tras reinstalar Draupnode o volver a asociar la
+// plantilla. Si en el servidor no hay carpeta, no borra nada de la bóveda.
+func (a *App) FetchProjectSecrets(projectID, secret, accept, sudoPassword string) FetchSecretsResult {
+	var res FetchSecretsResult
+	p, err := a.store.Project(projectID)
+	if err != nil {
+		res.Status, res.Message = "error", err.Error()
+		return res
+	}
+	st := a.vault.Status()
+	if !st.Exists {
+		res.Status, res.Message = "vault_missing", "Las contraseñas se guardan en la bóveda cifrada de Draupnode: créala primero."
+		return res
+	}
+	if !st.Unlocked {
+		res.Status, res.Message = "vault_locked", "Desbloquea la bóveda: ahí se guardan las contraseñas."
+		return res
+	}
+	dir := bundle.ShellQuote("/etc/draupnode/secretos/" + slugOf(p))
+	cmd := "d=" + dir + "; [ -d \"$d\" ] || { echo DN-NODIR; exit 0; }; echo \"DN-OK $(tar -C \"$d\" --exclude='./.*' -cz . | base64 -w0)\""
+	res.RunStart = a.withServerConn(p.ServerID, secret, accept, sudoPassword, func(c *ssh.Client, su runner.Sudo) RunStart {
+		out, errOut, err := execOut(c, su, cmd)
+		out = strings.TrimSpace(out)
+		switch {
+		case strings.Contains(out, "DN-NODIR"):
+			return RunStart{Status: "error", Message: "en el servidor no hay contraseñas de esta plantilla todavía: se generan la primera vez que pulsas Aplicar"}
+		case err != nil || !strings.Contains(out, "DN-OK "):
+			return RunStart{Status: "error", Message: strings.TrimSpace(firstLine(errOut, err))}
+		}
+		n, err := a.storeGenerated(projectID, strings.TrimSpace(out[strings.LastIndex(out, "DN-OK ")+6:]))
+		if err != nil {
+			return RunStart{Status: "error", Message: "no se pudieron guardar: " + err.Error()}
+		}
+		res.Count = n
+		return RunStart{Status: "ok"}
+	})
+	return res
 }

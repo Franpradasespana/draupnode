@@ -517,3 +517,20 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
   opciones» (borde de color) hasta pulsar «Valores revisados» o guardar. La franja de abajo lista los que faltan,
   con enlace a cada uno. Recuerda que son valores predeterminados que se pueden retocar al aplicar en un servidor.
 - Ayuda: paso «Guardar y revisar» con captura `plantilla-cambios`.
+
+## 2026-11-21 · 0.39.0 · Copia de Draupnode y «Traer del servidor»
+
+- **Copia de Draupnode** (Ajustes): todo lo de Draupnode vivía solo en este equipo. «Exportar copia…» lo guarda en
+  un único fichero `.draupnode` cifrado con una contraseña propia (Argon2id + XChaCha20-Poly1305, con la cabecera
+  como dato asociado): `draupnode.json`, la bóveda (tal cual, sigue abriéndose con su contraseña maestra),
+  `known_hosts`, los módulos propios, las frases de paso del llavero del sistema y, si se marca, las claves SSH.
+  - «Importar una copia…» la descifra, enseña lo que trae y, al confirmar, sustituye la configuración. Lo de antes
+    se mueve a `antes-de-importar-<fecha>/`. Si la clave SSH ya está igual en su ruta original se usa; si no, se
+    deja en `claves/<servidor>/` y el servidor apunta allí. Las frases de paso van al llavero; si no hay llavero,
+    el servidor la pedirá al conectar. Sin reiniciar la app.
+  - Aviso en «Avisos» si nunca se ha hecho la copia o tiene más de 30 días.
+  - Paquete `internal/copia` con su test (ida y vuelta, contraseña mala, cabecera manipulada, rutas que salen de la
+    copia) y test de exportar/importar entre dos instalaciones.
+- **«Traer del servidor»** en Contraseñas: lee `/etc/draupnode/secretos/<slug>` y lo guarda en la bóveda sin tener
+  que Aplicar (tras importar una copia, volver a asociar la plantilla…). Si en el servidor no hay carpeta, no borra
+  nada. Probado contra un Ubuntu desechable.

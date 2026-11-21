@@ -3,6 +3,7 @@
   import Modal from '../components/Modal.svelte'
   import PalettePreview from '../components/PalettePreview.svelte'
   import KeyringHelp from '../components/KeyringHelp.svelte'
+  import BackupSection from '../components/BackupSection.svelte'
   import { BUILTIN_PALETTES, COLOR_KEYS, applyPalette, contrast, cssVars, isHex, type Palette } from '../lib/palettes'
   import { ui, allPalettes, currentPalette, setTheme, persistSettings, sanitizePalettes, toast, requestVault, refreshSecrets } from '../lib/state.svelte'
   import { api, errorText } from '../lib/api'
@@ -135,6 +136,8 @@
     <p class="muted">Apariencia y datos de la aplicación.</p>
   </div>
 </div>
+
+<BackupSection />
 
 <section class="card secrets">
   <div class="sec-head">

@@ -38,6 +38,10 @@ export function BackupSnapshots(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['BackupSnapshots'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function BackupStatus() {
+  return window['go']['main']['App']['BackupStatus']();
+}
+
 export function BackupsDue() {
   return window['go']['main']['App']['BackupsDue']();
 }
@@ -68,6 +72,10 @@ export function CheckRecipe(arg1) {
 
 export function CheckUninstall(arg1, arg2) {
   return window['go']['main']['App']['CheckUninstall'](arg1, arg2);
+}
+
+export function ChooseBackupFile() {
+  return window['go']['main']['App']['ChooseBackupFile']();
 }
 
 export function ChooseBackupFolder(arg1) {
@@ -122,12 +130,20 @@ export function DockerLabTest(arg1, arg2) {
   return window['go']['main']['App']['DockerLabTest'](arg1, arg2);
 }
 
+export function ExportBackup(arg1, arg2) {
+  return window['go']['main']['App']['ExportBackup'](arg1, arg2);
+}
+
 export function ExportProject(arg1) {
   return window['go']['main']['App']['ExportProject'](arg1);
 }
 
 export function FetchBackups(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['FetchBackups'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function FetchProjectSecrets(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['FetchProjectSecrets'](arg1, arg2, arg3, arg4);
 }
 
 export function FindKeys() {
@@ -140,6 +156,14 @@ export function GenerateDocker(arg1, arg2) {
 
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
+}
+
+export function ImportBackup(arg1, arg2) {
+  return window['go']['main']['App']['ImportBackup'](arg1, arg2);
+}
+
+export function InspectBackup(arg1, arg2) {
+  return window['go']['main']['App']['InspectBackup'](arg1, arg2);
 }
 
 export function InspectKey(arg1) {
