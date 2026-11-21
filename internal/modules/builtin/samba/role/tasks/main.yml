@@ -1,0 +1,84 @@
+---
+- name: Instalar Samba
+  ansible.builtin.apt:
+    name: [samba, smbclient]
+    state: present
+    lock_timeout: 600
+
+# Samba no escucha en wg0 por su nombre (es punto a punto): se le da su IP.
+- name: ¿Hay VPN (wg0)?
+  ansible.builtin.shell: ip -4 -o addr show wg0 2>/dev/null | awk '{print $4}'
+  register: samba_wg_link
+  changed_when: false
+  check_mode: false
+
+- name: Datos
+  ansible.builtin.set_fact:
+    samba_wg: "{{ samba_wg_link.stdout }}"
+
+- name: Contraseña del usuario (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    samba_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.samba_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Usuario del sistema (sin entrada por SSH)
+  ansible.builtin.user:
+    name: "{{ samba_user }}"
+    shell: /usr/sbin/nologin
+    create_home: false
+    system: true
+
+- name: Carpetas compartidas
+  ansible.builtin.file:
+    path: "{{ item.split()[1] }}"
+    state: directory
+    owner: "{{ samba_user }}"
+    group: "{{ samba_user }}"
+    mode: "0775"
+  loop: "{{ samba_shares }}"
+
+- name: smb.conf (se comprueba antes de ponerlo)
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+    mode: "0644"
+    validate: testparm -s %s
+  register: samba_conf
+
+- name: Contraseña de Samba del usuario
+  ansible.builtin.shell: |
+    printf '%s\n%s\n' "$P" "$P" | smbpasswd -s -a {{ samba_user | quote }} >/dev/null
+    smbpasswd -e {{ samba_user | quote }} >/dev/null
+  environment:
+    P: "{{ samba_pass }}"
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/samba_usuario"
+    mode: "0600"
+    content: "Usuario: {{ samba_user }}\nContraseña: {{ samba_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Samba en marcha (sin NetBIOS)
+  ansible.builtin.systemd:
+    name: "{{ item.name }}"
+    enabled: "{{ item.activo }}"
+    state: "{{ ('restarted' if samba_conf is changed else 'started') if item.activo else 'stopped' }}"
+  loop:
+    - { name: smbd, activo: true }
+    - { name: nmbd, activo: false }
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Samba comparte {{ samba_shares | map('split') | map('first') | join(', ') }}
+      en {{ 'la VPN (\\\\' ~ (samba_wg | regex_replace('/.*$', '')) ~ '\\' ~ (samba_shares[0].split()[0]) ~ ')' if samba_wg else 'el propio servidor (no hay VPN)' }}{{ (' y en ' ~ samba_interfaces | join(', ')) if samba_interfaces else '' }}.
+      Usuario «{{ samba_user }}» (contraseña en «Contraseñas del proyecto»).
+      {%- if not samba_wg and not samba_interfaces %} OJO: sin VPN ni red local no se puede entrar desde fuera: instala WireGuard o indica una interfaz de red local.{% endif %}

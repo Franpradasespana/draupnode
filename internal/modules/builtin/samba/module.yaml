@@ -1,0 +1,44 @@
+id: samba
+name: Samba (carpetas compartidas)
+version: 1.0.0
+category: 7 · Apps
+description: "Carpetas del servidor como unidades de red en Windows, macOS o Linux (\\\\servidor\\carpeta). Solo por la VPN o la red local, nunca a internet."
+details: |
+  Samba (GPL-3) del sistema. Solo escucha en el propio servidor, en la VPN
+  (wg0, si está WireGuard) y en las interfaces de red local que indiques
+  (por ejemplo eth0 en una Raspberry de casa). No abre nada en el
+  Cortafuegos: compartir archivos por internet sin VPN es peligroso.
+  Cada línea de «Carpetas» es «nombre /ruta»; se entra con el usuario del
+  módulo y su contraseña generada en el servidor (en «Contraseñas del
+  proyecto»). Desde la VPN: \\10.8.0.1\nombre (Windows) o
+  smb://10.8.0.1/nombre (macOS/Linux).
+depends: [base]
+after: [wireguard]
+requires:
+  os: [ubuntu, debian]
+secrets:
+  - file: samba_usuario
+    label: Usuario de las carpetas compartidas
+uninstall_warning: Desinstala Samba. Las carpetas compartidas dejan de verse en red; su contenido no se toca.
+uninstall_data: Borrar también el usuario de Samba (las carpetas y sus archivos NO se borran).
+variables:
+  - name: samba_shares
+    label: Carpetas
+    help: "Una por línea: «nombre /ruta» (p. ej. «documentos /srv/compartido/documentos»). Se crean si no existen."
+    type: list
+    default: ["compartido /srv/compartido"]
+    pattern: '^[A-Za-z0-9_-]{1,40} +/[A-Za-z0-9._/-]+$'
+    pattern_help: "nombre /ruta"
+  - name: samba_user
+    label: Usuario
+    type: string
+    default: compartir
+    pattern: '^[a-z][a-z0-9_-]{2,30}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: samba_interfaces
+    label: Interfaces de red local
+    help: "Además de la VPN. Vacío = solo VPN. Ejemplo: eth0 (mira «ip a» en el servidor)."
+    type: list
+    default: []
+    pattern: '^[a-z0-9.@-]{1,15}$'
+    pattern_help: Nombre de interfaz (eth0, enp3s0…)

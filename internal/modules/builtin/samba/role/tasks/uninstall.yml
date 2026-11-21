@@ -1,0 +1,20 @@
+---
+- name: Desinstalar Samba
+  ansible.builtin.apt:
+    name: [samba, samba-common-bin]
+    state: absent
+    lock_timeout: 600
+
+- name: Borrar el usuario de Samba
+  ansible.builtin.user:
+    name: "{{ samba_user }}"
+    state: absent
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Borrar su contraseña
+  ansible.builtin.shell: rm -f {{ draupnode_secrets_dir | quote }}/samba_usuario {{ draupnode_secrets_dir | quote }}/.samba_pass
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Samba {{ 'se desinstalará' if ansible_check_mode else 'desinstalado' }}. Las carpetas y sus archivos no se tocan."

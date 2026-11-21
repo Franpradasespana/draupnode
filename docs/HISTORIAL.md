@@ -402,3 +402,8 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 - **Cockpit** (LGPL-2.1) del sistema, escuchando **solo en 127.0.0.1 y en la VPN** (socket de systemd); se abre con «Abrir» (túnel), la VPN o dominio (con `Origins` y `X-Forwarded-Proto` para Caddy/nginx). Usuario propio (por defecto «panel») con contraseña generada en el servidor (→ bóveda) y sudo opcional.
 - Salió al probar: crear la carpeta del ajuste del socket; la contraseña se pone con `chpasswd` (`password_hash` necesita passlib, que no está); si un `daemon-reload` deja el socket sin escuchar, se reinicia; al desinstalar se cierran las sesiones del usuario antes de borrarlo.
 - **Probado** en un Ubuntu desechable: escucha en 127.0.0.1 y 10.8.0.1 (nunca en 0.0.0.0), entra con el usuario generado, responde por el túnel; desinstalar con datos no deja nada.
+
+## 2026-11-21 · 0.32.0 · Samba (carpetas compartidas)
+
+- **Samba** (GPL-3) del sistema: carpetas «nombre /ruta», un usuario (sin SSH) con contraseña generada (→ bóveda), SMB2 o más, cifrado si el cliente puede, sin NetBIOS ni impresoras. Escucha **solo en el servidor, la VPN y las interfaces de red local indicadas**; no abre nada en el Cortafuegos. La VPN se le da por su IP (por el nombre `wg0` Samba no escucha: es punto a punto; salió al probar). `testparm` antes de poner la configuración.
+- **Probado**: el usuario sube y lista ficheros; otro usuario → LOGON_FAILURE; escucha en 10.8.0.1 y 127.0.0.1.
