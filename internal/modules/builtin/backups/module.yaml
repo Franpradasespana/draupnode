@@ -52,6 +52,22 @@ variables:
     default: pg-compartido
     pattern: '^[a-z][a-z0-9_-]{1,40}$'
     pattern_help: Minúsculas, números, - y _
+  - name: backups_mariadb
+    label: Volcar MariaDB
+    help: Cada base del contenedor indicado (mariadb-dump), si existe.
+    type: bool
+    default: true
+  - name: backups_mariadb_container
+    label: Contenedor de MariaDB
+    type: string
+    default: mariadb-compartido
+    pattern: '^[a-z][a-z0-9_-]{1,40}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: backups_apps
+    label: Copiar las apps de Draupnode
+    help: La carpeta /srv/draupnode/apps (código, .env y datos de las apps instaladas con Draupnode), si existe.
+    type: bool
+    default: true
   - name: backups_coolify
     label: Copiar Coolify
     help: Su base de datos, su .env y sus claves SSH, si Coolify está instalado.

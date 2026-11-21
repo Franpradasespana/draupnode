@@ -1,0 +1,58 @@
+id: mariadb
+name: MariaDB compartido
+version: 1.0.0
+category: 4 · Bases de datos
+description: Un MariaDB (compatible con MySQL) en Docker para tus apps, con una base y un usuario por app. Las contraseñas se generan en el servidor.
+details: |
+  MariaDB (GPL-2) en Docker. Solo es accesible desde la red Docker indicada
+  (las apps lo ven por el nombre del contenedor); no se publica ningún puerto.
+  Las contraseñas se generan en el propio servidor la primera vez y se
+  guardan en /etc/draupnode/secretos/<proyecto>/ (solo root); Draupnode trae
+  una copia a tu bóveda. El módulo Copias vuelca sus bases cada día.
+  Puede ir junto al PostgreSQL compartido (cada app usa el que necesite).
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 700
+checks:
+  - container_free: mariadb_container
+secrets:
+  - file: mariadb_root
+    label: Usuario «root» de MariaDB
+  - file: mariadb_*
+    label: Usuario de la base
+uninstall_warning: Para y quita el contenedor de MariaDB. Las apps que lo usan dejan de tener base de datos.
+uninstall_data: Borrar también los DATOS de todas las bases y sus contraseñas. No se puede deshacer.
+variables:
+  - name: mariadb_version
+    label: Versión de MariaDB
+    help: Las LTS (con años de actualizaciones).
+    type: select
+    options: ["11.4", "10.11"]
+    default: "11.4"
+  - name: mariadb_container
+    label: Nombre del contenedor
+    help: Es el «host» con el que tus apps se conectan.
+    type: string
+    default: mariadb-compartido
+    pattern: '^[a-z][a-z0-9_-]{1,40}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: mariadb_network
+    label: Red Docker compartida
+    type: string
+    default: apps
+    pattern: '^[a-z][a-z0-9_-]{1,40}$'
+    pattern_help: Minúsculas, números, - y _
+  - name: mariadb_databases
+    label: Bases de datos
+    help: Una por línea. Cada una tendrá un usuario con el mismo nombre y su propia contraseña.
+    type: list
+    default: []
+    pattern: '^[a-z][a-z0-9_]{0,30}$'
+    pattern_help: Minúsculas, números y _ (empezando por letra)
+  - name: mariadb_dir
+    label: Carpeta en el servidor
+    type: string
+    default: /srv/draupnode/mariadb
+    pattern: '^/[A-Za-z0-9._/-]+$'
+    pattern_help: Ruta absoluta

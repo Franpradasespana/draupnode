@@ -102,6 +102,22 @@ if docker inspect --type container "$pg" >/dev/null 2>&1; then
   rm -rf "$vol"
 fi
 {% endif %}
+{% if backups_mariadb | bool %}
+
+# MariaDB: una base por fichero .sql (se puede restaurar una sola).
+my={{ backups_mariadb_container | quote }}
+if docker inspect --type container "$my" >/dev/null 2>&1; then
+  log "Volcando MariaDB ($my)"
+  volm="/var/tmp/draupnode-volcado-my-{{ draupnode_project }}"
+  rm -rf "$volm"; mkdir -p "$volm/mariadb-$my"
+  for db in $(docker exec "$my" sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot -N -e "SHOW DATABASES"' | grep -Ev '^(information_schema|performance_schema|mysql|sys)$'); do
+    docker exec "$my" sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb-dump -uroot --single-transaction --routines --triggers --databases "$1"' _ "$db" > "$volm/mariadb-$my/$db.sql" \
+      || { log "FALLO al volcar la base $db"; fallos=1; }
+  done
+  (cd "$volm" && restic backup --quiet "mariadb-$my" --tag "$etiqueta" --tag mariadb) || { log "FALLO al guardar los volcados de MariaDB"; fallos=1; }
+  rm -rf "$volm"
+fi
+{% endif %}
 {% if backups_coolify | bool %}
 
 if docker inspect --type container coolify-db >/dev/null 2>&1; then
@@ -117,6 +133,9 @@ fi
 
 log "Copiando archivos"
 rutas=({{ draupnode_secrets_dir | quote }}{% for p in backups_paths %} {{ p | quote }}{% endfor %})
+{% if backups_apps | bool %}
+[ -d /srv/draupnode/apps ] && rutas+=(/srv/draupnode/apps)
+{% endif %}
 existen=()
 for r in "${rutas[@]}"; do
   if [ -e "$r" ]; then existen+=("$r"); else log "AVISO: no existe $r (se salta)"; fi

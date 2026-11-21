@@ -1,0 +1,80 @@
+---
+- name: Carpeta de MariaDB
+  ansible.builtin.file:
+    path: "{{ mariadb_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Contraseña de root (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    mariadb_root_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/mariadb_root', chars=['ascii_letters', 'digits'], length=32) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Red Docker «{{ mariadb_network }}»
+  ansible.builtin.shell: docker network inspect {{ mariadb_network | quote }} >/dev/null 2>&1 || { docker network create {{ mariadb_network | quote }} >/dev/null && echo creada; }
+  register: mariadb_red
+  changed_when: "'creada' in mariadb_red.stdout"
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ mariadb_dir }}/docker-compose.yml"
+    mode: "0600"
+
+- name: Fichero .env con la contraseña
+  ansible.builtin.copy:
+    dest: "{{ mariadb_dir }}/.env"
+    mode: "0600"
+    content: "MARIADB_ROOT_PASSWORD={{ mariadb_root_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Arrancar MariaDB
+  ansible.builtin.command: docker compose up -d --quiet-pull
+  args:
+    chdir: "{{ mariadb_dir }}"
+  register: mariadb_up
+  changed_when: "'Started' in mariadb_up.stderr or 'Created' in mariadb_up.stderr or 'Recreated' in mariadb_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que MariaDB acepte conexiones
+  ansible.builtin.command: docker exec {{ mariadb_container | quote }} healthcheck.sh --connect --innodb_initialized
+  register: mariadb_listo
+  until: mariadb_listo.rc == 0
+  retries: 40
+  delay: 3
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Contraseñas de cada base (se generan en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    mariadb_db_pass: "{{ mariadb_db_pass | default({}) | combine({item: lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/mariadb_' ~ item, chars=['ascii_letters', 'digits'], length=32)}) }}"
+  loop: "{{ mariadb_databases }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Base y usuario de cada app
+  ansible.builtin.command:
+    cmd: docker exec -i -e MYSQL_PWD {{ mariadb_container | quote }} mariadb -uroot
+    stdin: |
+      CREATE DATABASE IF NOT EXISTS `{{ item }}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      CREATE USER IF NOT EXISTS '{{ item }}'@'%' IDENTIFIED BY '{{ mariadb_db_pass[item] }}';
+      ALTER USER '{{ item }}'@'%' IDENTIFIED BY '{{ mariadb_db_pass[item] }}';
+      GRANT ALL PRIVILEGES ON `{{ item }}`.* TO '{{ item }}'@'%';
+      FLUSH PRIVILEGES;
+  environment:
+    MYSQL_PWD: "{{ mariadb_root_pass }}"
+  loop: "{{ mariadb_databases }}"
+  loop_control:
+    label: "{{ item }}"
+  no_log: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      MariaDB «{{ mariadb_container }}» en la red Docker «{{ mariadb_network }}» (puerto 3306 dentro de la red).
+      Contraseñas en {{ draupnode_secrets_dir }}/ (solo root) y en «Contraseñas del proyecto»:
+      mariadb_root{% for d in mariadb_databases %}, mariadb_{{ d }}{% endfor %}.

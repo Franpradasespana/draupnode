@@ -361,3 +361,9 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 - **Dominio automático** (`proxy_site` nuevo en module.yaml, para este y los futuros módulos de apps): si la app tiene dominio y el proyecto tiene Caddy o nginx, se añade sola la línea `dominio 127.0.0.1:puerto` a sus «Sitios» (sin duplicar; avisa si el dominio ya apunta a otro sitio); sin Caddy ni nginx, avisa de que falta.
 - Opcional: abrir un puerto a internet (va al Cortafuegos).
 - **Probado** en dos Ubuntu desechables: repositorio privado por SSH en el otro servidor → primer Aplicar pide la deploy key → añadida → la app responde por `https://tienda.localhost` a través de Caddy (sitio añadido solo) con el `.env` (valor normal + SECRET_KEY de 40 generada); un cambio en el repositorio llega al volver a aplicar; desinstalar con datos no deja contenedores ni carpeta. Test unitario del sitio automático.
+
+## 2026-11-21 · 0.24.0 · MariaDB compartido (y copias de MariaDB y de las apps)
+
+- **Módulo «MariaDB compartido»** (`mariadb`, GPL-2; versiones LTS 11.4 y 10.11): como el PostgreSQL compartido. Contenedor `mariadb-compartido` en la red Docker `apps` (sin puertos publicados), una base y un usuario por app con contraseñas generadas en el servidor (→ bóveda). La contraseña nunca va en la línea de órdenes (`MYSQL_PWD` por entorno). Puede ir junto al PostgreSQL.
+- **Módulo Copias**: «Volcar MariaDB» (una base por fichero `.sql`, con `mariadb-dump --single-transaction --routines --triggers`, en `mariadb-<contenedor>/`) y «Copiar las apps de Draupnode» (`/srv/draupnode/apps`: código, `.env` y datos de las apps instaladas con Draupnode).
+- **Probado** en un Ubuntu desechable: base `tienda` creada; su usuario entra con la contraseña de la bóveda y crea/lee una tabla; la copia diaria incluye el volcado de MariaDB; desinstalar con datos no deja nada.
