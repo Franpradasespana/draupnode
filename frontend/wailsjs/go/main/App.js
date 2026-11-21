@@ -46,6 +46,10 @@ export function CancelDockerBuild() {
   return window['go']['main']['App']['CancelDockerBuild']();
 }
 
+export function CancelDockerLabTest() {
+  return window['go']['main']['App']['CancelDockerLabTest']();
+}
+
 export function CancelRun(arg1) {
   return window['go']['main']['App']['CancelRun'](arg1);
 }
@@ -92,6 +96,14 @@ export function DeleteServer(arg1) {
 
 export function DockerInfo() {
   return window['go']['main']['App']['DockerInfo']();
+}
+
+export function DockerLabStop(arg1, arg2) {
+  return window['go']['main']['App']['DockerLabStop'](arg1, arg2);
+}
+
+export function DockerLabTest(arg1, arg2) {
+  return window['go']['main']['App']['DockerLabTest'](arg1, arg2);
 }
 
 export function ExportProject(arg1) {

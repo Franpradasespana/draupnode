@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte'
   import {
     FolderOpen, ArrowLeft, ArrowRight, Save, Hammer, LoaderCircle, CircleCheck, CircleX, TriangleAlert,
-    Info, Copy, Square, RefreshCw, FileCode,
+    Info, Copy, Square, RefreshCw, FileCode, FlaskConical, ExternalLink, Trash2,
   } from '@lucide/svelte'
   import { api, errorText, onEvent, type DockerAnalysis, type DockerInfo, type DockerPreview, type DockerSpec } from '../lib/api'
   import { toast, confirmDialog } from '../lib/state.svelte'
@@ -40,9 +40,29 @@
   let buildResult = $state<{ ok: boolean; error?: string; image?: string; secs?: number } | null>(null)
   let logEl = $state<HTMLElement | null>(null)
 
+  // Prueba en el servidor de pruebas
+  let labRunning = $state(false)
+  let labStages = $state<string[]>([])
+  let labLines = $state<string[]>([])
+  let labResult = $state<{ ok: boolean; error?: string; url?: string; http?: number; output?: string } | null>(null)
+  let labLogEl = $state<HTMLElement | null>(null)
+
   onMount(() => {
     api.DockerInfo().then((i) => (info = i)).catch(() => {})
-    return onEvent('dockerbuild', async (e) => {
+    const offLab = onEvent('dockerlab', async (e) => {
+      if (e.kind === 'stage') labStages.push(e.text ?? '')
+      else if (e.kind === 'line') {
+        labLines.push(e.text ?? '')
+        if (labLines.length > 2000) labLines.splice(0, labLines.length - 2000)
+        await tick()
+        if (labLogEl) labLogEl.scrollTop = labLogEl.scrollHeight
+      } else {
+        labRunning = false
+        labResult = { ok: !!e.ok, error: e.error, url: e.url, http: e.http, output: e.output }
+        if (e.ok) toast('Funciona en el servidor de pruebas')
+      }
+    })
+    const offBuild = onEvent('dockerbuild', async (e) => {
       if (e.kind === 'line') {
         buildLines.push(e.text ?? '')
         if (buildLines.length > 2000) buildLines.splice(0, buildLines.length - 2000)
@@ -54,6 +74,7 @@
       buildResult = { ok: !!e.ok, error: e.error, image: e.image, secs: e.secs }
       if (e.ok) toast('Imagen construida: ' + e.image)
     })
+    return () => { offLab(); offBuild() }
   })
 
   const list = (t: string, sep: RegExp) => t.split(sep).map((x) => x.trim()).filter(Boolean)
@@ -174,6 +195,31 @@
       toast('Copiado')
     } catch {
       toast('No se pudo copiar', 'error')
+    }
+  }
+
+  async function labTest() {
+    if (!spec) return
+    labStages = []
+    labLines = []
+    labResult = null
+    try {
+      await api.DockerLabTest(dir, $state.snapshot(spec) as DockerSpec)
+      labRunning = true
+    } catch (e) {
+      toast(errorText(e), 'error')
+    }
+  }
+  async function labStop() {
+    if (!spec) return
+    try {
+      await api.DockerLabStop(dir, $state.snapshot(spec) as DockerSpec)
+      labResult = null
+      labStages = []
+      labLines = []
+      toast('Prueba parada y borrada del servidor de pruebas')
+    } catch (e) {
+      toast(errorText(e), 'error')
     }
   }
 
@@ -415,6 +461,7 @@
         {#if saved}
           <button class="btn" onclick={build} disabled={building || !info?.docker} title={info?.docker ? '' : 'No hay Docker en este equipo (pantalla «Pruebas»)'}><Hammer size={15} /> Probar a construir</button>
           {#if building}<button class="btn ghost" onclick={() => api.CancelDockerBuild()}><Square size={14} /> Cancelar</button>{/if}
+          <button class="btn" onclick={labTest} disabled={labRunning || !info?.docker} title={info?.docker ? 'Lo arranca en el servidor de pruebas de este equipo (lo crea si no existe)' : 'No hay Docker en este equipo (pantalla «Pruebas»)'}><FlaskConical size={15} /> Probar en el servidor de pruebas</button>
           <button class="btn ghost" onclick={() => api.OpenProjectDir(dir)}><FolderOpen size={15} /> Abrir carpeta</button>
         {/if}
       </div>
@@ -425,6 +472,27 @@
           <div class="cmd"><code class="selectable">{upCmd}</code><button class="btn icon sm ghost" title="Copiar" onclick={() => copy(upCmd)}><Copy size={14} /></button></div>
           {#if openUrl}<p>Después ábrela en <code>{openUrl}</code>{spec?.proxyDomain ? ' (el dominio tiene que apuntar a donde la arranques)' : ''}.</p>{/if}
           <p>Si tu app usa variables (contraseñas…), crea antes un fichero <code>.env</code> con ellas. Coolify también puede desplegarlo con este {composeName}.</p>
+        </div>
+      {/if}
+      {#if labRunning || labResult}
+        <div class="progress">
+          <div class="p-head">
+            {#if labRunning}<LoaderCircle size={15} class="spin" /> {labStages[labStages.length - 1] ?? 'Empezando…'}
+              <button class="btn sm ghost push" onclick={() => api.CancelDockerLabTest()}><Square size={13} /> Cancelar</button>
+            {:else if labResult?.ok}<CircleCheck size={15} /> Funciona en el servidor de pruebas ({labResult.http})
+            {:else if labResult}<CircleX size={15} /> {labResult.error}{/if}
+          </div>
+          {#if labResult?.ok}
+            <div class="lab-ok">
+              <button class="btn sm primary" onclick={() => api.OpenURL(labResult!.url!)}><ExternalLink size={14} /> Abrir en el navegador</button>
+              <code class="selectable">{labResult.url}</code>
+              <button class="btn sm ghost" onclick={labStop}><Trash2 size={14} /> Parar la prueba</button>
+            </div>
+          {:else if labResult}
+            <div class="lab-ok"><button class="btn sm ghost" onclick={labStop}><Trash2 size={14} /> Parar y borrar la prueba</button><span class="muted small">Corrige y vuelve a «Probar»: se sube de nuevo.</span></div>
+          {/if}
+          {#if labStages.length}<ol class="stages">{#each labStages as st, i}<li class:cur={labRunning && i === labStages.length - 1}>{st}</li>{/each}</ol>{/if}
+          <pre class="log selectable" bind:this={labLogEl}>{labResult?.output ? labResult.output : labLines.join('\n')}</pre>
         </div>
       {/if}
       {#if building || buildResult || buildLines.length}
@@ -492,5 +560,10 @@
   .log { margin: 0; padding: 10px 12px; max-height: 260px; overflow-y: auto; font-family: var(--mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
   .proxy { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
   .proxy p { margin: 0; }
+  .push { margin-left: auto; }
+  .lab-ok { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--border-soft); }
+  .lab-ok code { font-family: var(--mono); font-size: 12px; }
+  .stages { margin: 0; padding: 8px 12px 8px 32px; font-size: 12.5px; color: var(--muted); border-bottom: 1px solid var(--border-soft); }
+  .stages li.cur { color: var(--text); font-weight: 500; }
   .nav { display: flex; justify-content: space-between; border-top: 1px solid var(--border-soft); padding-top: 14px; }
 </style>

@@ -27,6 +27,8 @@ export function BuildDockerImage(arg1:string,arg2:dockerize.Spec):Promise<void>;
 
 export function CancelDockerBuild():Promise<boolean>;
 
+export function CancelDockerLabTest():Promise<boolean>;
+
 export function CancelRun(arg1:string):Promise<boolean>;
 
 export function CheckProject(arg1:store.Project):Promise<main.ProjectCheck>;
@@ -50,6 +52,10 @@ export function DeleteProject(arg1:string):Promise<void>;
 export function DeleteServer(arg1:string):Promise<void>;
 
 export function DockerInfo():Promise<main.DockerInfo>;
+
+export function DockerLabStop(arg1:string,arg2:dockerize.Spec):Promise<void>;
+
+export function DockerLabTest(arg1:string,arg2:dockerize.Spec):Promise<void>;
 
 export function ExportProject(arg1:string):Promise<string>;
 

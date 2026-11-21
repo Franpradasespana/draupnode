@@ -417,6 +417,16 @@ export interface DockerInfo {
   docker: boolean
 }
 
+export interface DockerLabEvent {
+  kind: 'stage' | 'line' | 'done'
+  text?: string
+  ok?: boolean
+  error?: string
+  url?: string
+  http?: number
+  output?: string
+}
+
 export interface DockerBuildEvent {
   kind: 'line' | 'done'
   text?: string
@@ -489,6 +499,9 @@ interface Backend {
   WriteDockerFiles(dir: string, spec: DockerSpec, overwrite: boolean): Promise<string[]>
   BuildDockerImage(dir: string, spec: DockerSpec): Promise<void>
   CancelDockerBuild(): Promise<boolean>
+  DockerLabTest(dir: string, spec: DockerSpec): Promise<void>
+  CancelDockerLabTest(): Promise<boolean>
+  DockerLabStop(dir: string, spec: DockerSpec): Promise<void>
   OpenProjectDir(dir: string): Promise<void>
 }
 
@@ -982,6 +995,18 @@ function mockBackend(): Backend {
     },
     async CancelDockerBuild() {
       return false
+    },
+    async DockerLabTest(_dir, spec) {
+      const st = ['Comprobando Docker en este equipo', 'Creando el servidor de pruebas (la primera vez tarda unos minutos)', 'Preparando Docker dentro del servidor de pruebas', 'Subiendo el proyecto', 'Construyendo y arrancando (puede tardar)', 'Comprobando que responde']
+      st.forEach((t, i) => setTimeout(() => mockEmit('dockerlab', { kind: 'stage', text: t }), 400 * (i + 1)))
+      setTimeout(() => mockEmit('dockerlab', { kind: 'line', text: '#8 naming to docker.io/library/' + spec.name + ':latest done' }), 2300)
+      setTimeout(() => mockEmit('dockerlab', { kind: 'done', ok: true, http: 200, url: 'http://127.0.0.1:41234/', output: spec.name + ': Up 3 seconds\nweb: Up 2 seconds' }), 3000)
+    },
+    async CancelDockerLabTest() {
+      return false
+    },
+    async DockerLabStop() {
+      await wait()
     },
     async OpenProjectDir() {},
     async OpenURL(url) {

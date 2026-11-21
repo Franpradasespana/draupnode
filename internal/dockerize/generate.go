@@ -693,3 +693,21 @@ func nginxConf(s Spec) string {
 	}
 	return b.String()
 }
+
+// PublishedPort es el puerto por el que se entra a la app desde fuera del
+// compose: el de nginx si va delante, o el publicado de la app.
+func PublishedPort(s Spec) int {
+	if s.Proxy {
+		if s.ProxyPort == 0 {
+			return 80
+		}
+		return s.ProxyPort
+	}
+	if s.HostPort != 0 {
+		return s.HostPort
+	}
+	if s.Stack == StackStatic || s.Stack == StackPHP || (s.Stack == StackNode && s.Framework == "spa") || s.Port == 80 {
+		return 8080
+	}
+	return s.Port
+}

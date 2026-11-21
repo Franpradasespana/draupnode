@@ -55,7 +55,7 @@ const ALL_SHOTS = [
   { name: 'docker-nginx', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900], ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'],
     ['click', 'button', 'Siguiente'], ['wait', 300], ['click', 'label.check', 'Poner nginx delante'], ['wait', 300], ['type', 'input[placeholder="tienda.ejemplo.com"]', 'tienda.ejemplo.com'], ['wait', 300]] },
   { name: 'docker-vista', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900], ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'],
-    ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'], ['wait', 500], ['click', 'button', 'Guardar en la carpeta'], ['wait', 600], ['click', 'button', 'Probar a construir'], ['wait', 2600]] },
+    ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'], ['wait', 500], ['click', 'button', 'Guardar en la carpeta'], ['wait', 600], ['click', 'button', 'Probar en el servidor de pruebas'], ['wait', 3600]] },
   { name: 'destino-copias', view: 'projects', seed: (d) => {
       d.servers.push({ id: 'demo2', name: 'Servidor de copias', host: '203.0.113.40', port: 22, user: 'ubuntu', authMethod: 'key', keyPath: '/home/demo/.ssh/id_ed25519', keyEncrypted: true, secretStore: 'keyring', hasSecret: true, notes: '', createdAt: ago(100) })
       d.projects.push({ id: 'p4', name: 'Tienda', serverId: 'demo1', slug: 'tienda', modules: [{ id: 'base', values: {} }, { id: 'backups', values: { backups_time: '03:30', backups_remote_type: 'no' } }],
