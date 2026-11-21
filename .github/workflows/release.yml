@@ -1,0 +1,133 @@
+# Instaladores para Windows, macOS y Linux.
+#  - Al subir una etiqueta vX.Y.Z se compilan y se publica una versión (Release) con ellos.
+#  - «Run workflow» (a mano) solo compila y deja los ficheros como artefactos.
+name: Instaladores
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  WAILS_VERSION: v2.17.1
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: linux
+          - os: windows-latest
+            name: windows
+          - os: macos-latest
+            name: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+
+      - name: Versión
+        shell: bash
+        run: echo "VERSION=$(sed -n 's/^const Version = "\(.*\)"/\1/p' app.go)" >> "$GITHUB_ENV"
+
+      # ---------------- Linux: .deb y .tar.gz
+      - name: Dependencias (Linux)
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Compilar (Linux)
+        if: matrix.name == 'linux'
+        run: wails build -tags webkit2_41 -clean -trimpath
+
+      - name: Empaquetar (Linux)
+        if: matrix.name == 'linux'
+        run: |
+          set -e
+          mkdir -p dist
+          # .tar.gz con el ejecutable, el icono y el lanzador
+          mkdir -p tgz/draupnode
+          cp build/bin/draupnode build/linux/draupnode.png build/linux/draupnode.desktop tgz/draupnode/
+          tar -C tgz -czf "dist/draupnode-${VERSION}-linux-amd64.tar.gz" draupnode
+          # .deb
+          D=deb/draupnode
+          install -Dm755 build/bin/draupnode $D/usr/bin/draupnode
+          install -Dm644 build/linux/draupnode.png $D/usr/share/icons/hicolor/512x512/apps/draupnode.png
+          install -Dm644 build/linux/draupnode.desktop $D/usr/share/applications/draupnode.desktop
+          mkdir -p $D/DEBIAN
+          cat > $D/DEBIAN/control <<CONTROL
+          Package: draupnode
+          Version: ${VERSION}
+          Section: admin
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-3-0t64 | libgtk-3-0, libwebkit2gtk-4.1-0
+          Maintainer: Draupnode <draupnode@users.noreply.github.com>
+          Homepage: https://github.com/${{ github.repository }}
+          Description: Prepara servidores Linux desde cero con SSH y Ansible
+           Draupnode es una aplicación de escritorio para preparar y vigilar servidores:
+           plantillas de módulos (Docker, Caddy, copias, apps...) que se aplican por SSH.
+          CONTROL
+          sed -i 's/^          //' $D/DEBIAN/control
+          dpkg-deb --root-owner-group --build $D "dist/draupnode_${VERSION}_amd64.deb"
+          ls -la dist
+
+      # ---------------- Windows: instalador NSIS y .zip
+      - name: Compilar (Windows)
+        if: matrix.name == 'windows'
+        shell: bash
+        run: |
+          set -e
+          wails build -platform windows/amd64 -nsis -clean -trimpath
+          mkdir -p dist
+          cp build/bin/draupnode-amd64-installer.exe "dist/draupnode-${VERSION}-windows-amd64-instalador.exe"
+          (cd build/bin && 7z a "../../dist/draupnode-${VERSION}-windows-amd64.zip" draupnode.exe)
+          ls -la dist
+
+      # ---------------- macOS: .dmg (universal: Intel y Apple Silicon)
+      - name: Compilar (macOS)
+        if: matrix.name == 'macos'
+        run: |
+          set -e
+          wails build -platform darwin/universal -clean -trimpath
+          mkdir -p dist dmg
+          cp -R build/bin/draupnode.app dmg/Draupnode.app
+          ln -s /Applications dmg/Aplicaciones
+          hdiutil create -volname Draupnode -srcfolder dmg -ov -format UDZO "dist/draupnode-${VERSION}-macos-universal.dmg"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: draupnode-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
