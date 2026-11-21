@@ -38,6 +38,10 @@ export function BackupSnapshots(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['BackupSnapshots'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function BackupsDue() {
+  return window['go']['main']['App']['BackupsDue']();
+}
+
 export function BuildDockerImage(arg1, arg2) {
   return window['go']['main']['App']['BuildDockerImage'](arg1, arg2);
 }
@@ -232,6 +236,10 @@ export function SecretsInfo() {
 
 export function ServerLive(arg1) {
   return window['go']['main']['App']['ServerLive'](arg1);
+}
+
+export function SetBackupsAuto(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetBackupsAuto'](arg1, arg2, arg3);
 }
 
 export function SetProjectCollapsed(arg1, arg2) {

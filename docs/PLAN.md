@@ -57,7 +57,7 @@
 ### Ideas aprobadas por el usuario (2026-11-21)
 
 - ~~**Módulo «Destino de copias»**~~ hecho en la 0.15.0. Prepara OTRO servidor (VPS, Raspberry, NAS) para recibir las copias restic de los demás. rest-server (BSD-2) en modo `--append-only` + usuario/contraseña por proyecto: el servidor de origen puede añadir copias pero no borrarlas (protege frente a ransomware o intrusión). En el módulo backups, elegir ese destino de una lista en vez de teclear la URL.
-- **Aviso / descarga automática de copias al abrir la app**: al arrancar, comprobar la fecha de la última copia traída al equipo por proyecto. Opción por proyecto: «avisar si tiene más de N días» (aviso con botón «Traer ahora») o «traer automáticamente» (incremental, progreso en la barra de estado).
+- ~~**Aviso / descarga automática de copias al abrir la app**~~ (hecho en la 0.22.0): al arrancar, comprobar la fecha de la última copia traída al equipo por proyecto. Opción por proyecto: «avisar si tiene más de N días» (aviso con botón «Traer ahora») o «traer automáticamente» (incremental, progreso en la barra de estado).
 
 ### Hecho el 2026-11-21 (0.14.0 – 0.18.0)
 
@@ -65,7 +65,7 @@
 
 ### Pendiente (anotado 2026-11-21)
 
-- Aviso / descarga automática de copias al abrir la app (idea aprobada, sin hacer).
+- ~~Aviso / descarga automática de copias al abrir la app~~ hecho en la 0.22.0.
 - Probar en un servidor con dominio real: certificados de Let's Encrypt con Caddy y con nginx/certbot.
 - ~~Destino de copias: rotación~~ hecho en la 0.19.0 (la hace el propio destino, con la contraseña que le da Draupnode).
 - ~~Avisar del cortafuegos del proveedor de nube~~ hecho en la 0.19.2.

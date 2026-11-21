@@ -612,3 +612,51 @@ func (a *App) BackupDownload(projectID, snapID string, paths []string, dest, sec
 		return BackupResult{OK: true, Output: fmt.Sprintf("%d fichero(s), %d bytes, en %s", files, done, root), Fetch: &store.FetchInfo{Dir: root, Bytes: done, Files: files, At: time.Now()}}
 	})
 }
+
+// SetBackupsAuto: qué hacer al abrir la app si las copias de este equipo son
+// viejas: off | warn | fetch, a partir de days días.
+func (a *App) SetBackupsAuto(projectID, mode string, days int) error {
+	if mode != "off" && mode != "warn" && mode != "fetch" {
+		return errors.New("modo no válido")
+	}
+	if days < 1 || days > 365 {
+		return errors.New("los días deben estar entre 1 y 365")
+	}
+	return a.store.SetBackupsAuto(projectID, store.BackupsAuto{Mode: mode, Days: days})
+}
+
+// BackupDue: un proyecto cuyas copias en este equipo están viejas (o nunca se trajeron).
+type BackupDue struct {
+	ProjectID string `json:"projectId"`
+	Name      string `json:"name"`
+	Mode      string `json:"mode"` // warn | fetch
+	Days      int    `json:"days"` // umbral
+	Age       int    `json:"age"`  // días desde la última vez (-1 = nunca)
+	Dest      string `json:"dest"` // carpeta donde se traen
+}
+
+// BackupsDue lista, al abrir la app, los proyectos con copias que conviene traer.
+func (a *App) BackupsDue() []BackupDue {
+	out := []BackupDue{}
+	for _, p := range a.store.Projects() {
+		if !contains(p.InstalledModules, "backups") {
+			continue
+		}
+		auto := store.BackupsAuto{Mode: "warn", Days: 7}
+		if p.BackupsAuto != nil {
+			auto = *p.BackupsAuto
+		}
+		if auto.Mode == "off" {
+			continue
+		}
+		age := -1
+		if p.BackupsFetched != nil {
+			age = int(time.Since(p.BackupsFetched.At).Hours() / 24)
+			if age < auto.Days {
+				continue
+			}
+		}
+		out = append(out, BackupDue{ProjectID: p.ID, Name: p.Name, Mode: auto.Mode, Days: auto.Days, Age: age, Dest: a.DefaultBackupFolder(p.ID)})
+	}
+	return out
+}

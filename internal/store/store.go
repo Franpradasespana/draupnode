@@ -119,6 +119,16 @@ type Project struct {
 	InstalledValues map[string]map[string]any `json:"installedValues,omitempty"`
 	// BackupsFetched: la última vez que se trajeron las copias a este equipo.
 	BackupsFetched *FetchInfo `json:"backupsFetched,omitempty"`
+	// BackupsAuto: qué hacer al abrir la app si las copias traídas a este
+	// equipo son viejas. Solo lo cambia SetBackupsAuto.
+	BackupsAuto *BackupsAuto `json:"backupsAuto,omitempty"`
+}
+
+// BackupsAuto: «warn» (avisar) o «fetch» (traerlas solas) si las copias del
+// equipo tienen más de Days días; «off» = nada. Sin configurar = avisar a los 7 días.
+type BackupsAuto struct {
+	Mode string `json:"mode"`
+	Days int    `json:"days"`
 }
 
 // FetchInfo resume una descarga de copias al equipo.
@@ -404,6 +414,7 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 			p.InstalledModules = old.InstalledModules // solo lo cambian SetLastRun y MarkUninstalled
 			p.InstalledValues = old.InstalledValues
 			p.BackupsFetched = old.BackupsFetched
+			p.BackupsAuto = old.BackupsAuto
 			if old.Slug != "" {
 				p.Slug = old.Slug // fijo para siempre
 			}
@@ -505,6 +516,19 @@ func (s *Store) SetBackupsFetched(id string, f FetchInfo) error {
 	for i := range s.d.Projects {
 		if s.d.Projects[i].ID == id {
 			s.d.Projects[i].BackupsFetched = &f
+			return s.saveLocked()
+		}
+	}
+	return fmt.Errorf("proyecto %q no encontrado", id)
+}
+
+// SetBackupsAuto guarda qué hacer con las copias al abrir la app.
+func (s *Store) SetBackupsAuto(id string, b BackupsAuto) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.d.Projects {
+		if s.d.Projects[i].ID == id {
+			s.d.Projects[i].BackupsAuto = &b
 			return s.saveLocked()
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"strings"
 	"testing"
+	"time"
 
 	"draupnode/internal/secrets"
 	"draupnode/internal/store"
@@ -129,5 +130,39 @@ func TestDestinoDeCopias(t *testing.T) {
 	a.vault.Lock()
 	if _, err := a.CreateBackupTarget(src.ID, s2.ID, 8000); err == nil || !strings.HasPrefix(err.Error(), codeVaultLocked) {
 		t.Fatalf("bóveda cerrada: %v", err)
+	}
+}
+
+func TestCopiasPendientes(t *testing.T) {
+	a := newTestApp(t, secrets.Memory{})
+	s, _ := a.store.SaveServer(store.Server{Name: "web", Host: "203.0.113.10", User: "root", AuthMethod: store.AuthPassword})
+	p, _ := a.SaveProject(store.Project{Name: "Tienda", ServerID: s.ID, Modules: []store.ProjectModule{{ID: "backups", Values: map[string]any{}}}})
+	if len(a.BackupsDue()) != 0 {
+		t.Fatal("sin instalar no avisa")
+	}
+	a.store.SetLastRun(p.ID, store.RunSummary{At: time.Now(), OK: true})
+	if d := a.BackupsDue(); len(d) != 1 || d[0].Age != -1 || d[0].Mode != "warn" || d[0].Days != 7 {
+		t.Fatalf("nunca traídas: %+v", d)
+	}
+	a.store.SetBackupsFetched(p.ID, store.FetchInfo{At: time.Now().Add(-3 * 24 * time.Hour)})
+	if len(a.BackupsDue()) != 0 {
+		t.Fatal("de hace 3 días no avisa (umbral 7)")
+	}
+	if err := a.SetBackupsAuto(p.ID, "fetch", 2); err != nil {
+		t.Fatal(err)
+	}
+	if d := a.BackupsDue(); len(d) != 1 || d[0].Mode != "fetch" || d[0].Age != 3 {
+		t.Fatalf("traer solas: %+v", d)
+	}
+	// Guardar el proyecto desde el editor no pisa la opción.
+	pp, _ := a.store.Project(p.ID)
+	pp.BackupsAuto = nil
+	a.SaveProject(pp)
+	if pp, _ = a.store.Project(p.ID); pp.BackupsAuto == nil || pp.BackupsAuto.Mode != "fetch" {
+		t.Fatal("el editor pisó la opción")
+	}
+	a.SetBackupsAuto(p.ID, "off", 7)
+	if len(a.BackupsDue()) != 0 || a.SetBackupsAuto(p.ID, "otro", 7) == nil {
+		t.Fatal("off / modo inválido")
 	}
 }

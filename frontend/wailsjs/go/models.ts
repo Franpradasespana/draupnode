@@ -244,6 +244,28 @@ export namespace main {
 	        this.os = source["os"];
 	    }
 	}
+	export class BackupDue {
+	    projectId: string;
+	    name: string;
+	    mode: string;
+	    days: number;
+	    age: number;
+	    dest: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupDue(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectId = source["projectId"];
+	        this.name = source["name"];
+	        this.mode = source["mode"];
+	        this.days = source["days"];
+	        this.age = source["age"];
+	        this.dest = source["dest"];
+	    }
+	}
 	export class SnapEntry {
 	    name: string;
 	    path: string;
@@ -1286,6 +1308,20 @@ export namespace sshx {
 
 export namespace store {
 	
+	export class BackupsAuto {
+	    mode: string;
+	    days: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupsAuto(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.days = source["days"];
+	    }
+	}
 	export class CheckResult {
 	    // Go type: time
 	    at: any;
@@ -1444,6 +1480,7 @@ export namespace store {
 	    installedModules?: string[];
 	    installedValues?: Record<string, any>;
 	    backupsFetched?: FetchInfo;
+	    backupsAuto?: BackupsAuto;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -1464,6 +1501,7 @@ export namespace store {
 	        this.installedModules = source["installedModules"];
 	        this.installedValues = source["installedValues"];
 	        this.backupsFetched = this.convertValues(source["backupsFetched"], FetchInfo);
+	        this.backupsAuto = this.convertValues(source["backupsAuto"], BackupsAuto);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

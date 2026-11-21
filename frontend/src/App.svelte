@@ -16,6 +16,7 @@
   import Dockerize from './views/Dockerize.svelte'
   import StatusBar from './components/StatusBar.svelte'
   import HelpDialog from './components/HelpDialog.svelte'
+  import BackupsDueBanner from './components/BackupsDueBanner.svelte'
   import { ui, boot, toast, type View } from './lib/state.svelte'
   import { errorText, isDesktop } from './lib/api'
 
@@ -96,6 +97,7 @@
 
   <main class="content">
     {#if ready}
+      <BackupsDueBanner />
       {#if ui.view === 'dashboard'}<Dashboard />
       {:else if ui.view === 'servers'}<Servers />
       {:else if ui.view === 'catalog'}<Catalog />

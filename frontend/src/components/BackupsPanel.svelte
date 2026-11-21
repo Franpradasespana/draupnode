@@ -67,6 +67,17 @@
     const d = await api.ChooseBackupFolder(project.id)
     if (d) dest = d
   }
+  const auto = $derived(project.backupsAuto ?? { mode: 'warn' as const, days: 7 })
+  async function setAuto(mode: string, days: number) {
+    try {
+      await api.SetBackupsAuto(project.id, mode, Math.min(365, Math.max(1, days || 7)))
+      await refreshProjects()
+      toast(mode === 'off' ? 'No se avisará de estas copias' : mode === 'fetch' ? `Se traerán solas al abrir Draupnode si tienen más de ${days} días` : `Te avisará si tienen más de ${days} días`)
+    } catch (e) {
+      toast(String(e), 'error')
+    }
+  }
+
   async function fetchAll() {
     const r = await call('fetch', (s, a, u) => api.FetchBackups(project.id, dest, s, a, u))
     if (r?.fetch) {
@@ -155,6 +166,16 @@
         {#if busy === 'fetch'}<LoaderCircle size={14} class="spin" /> Trayendo…{:else}<Download size={14} /> Traer{/if}
       </button>
     </div>
+    <div class="auto">
+      <span class="muted small">Al abrir Draupnode, si las de este equipo tienen más de</span>
+      <input class="input days" type="number" min="1" max="365" value={auto.days} onchange={(e) => setAuto(auto.mode, +(e.target as HTMLInputElement).value)} />
+      <span class="muted small">días:</span>
+      <select class="input" value={auto.mode} onchange={(e) => setAuto((e.target as HTMLSelectElement).value, auto.days)}>
+        <option value="warn">avisarme</option>
+        <option value="fetch">traerlas solas</option>
+        <option value="off">no hacer nada</option>
+      </select>
+    </div>
     {#if busy === 'fetch' && progress}
       <div class="prog">
         <span class="muted small">{progress.stage}{#if progress.total} · {size(progress.done)} de {size(progress.total)}{/if}</span>
@@ -201,6 +222,9 @@
   .fetch-t :global(svg) { color: var(--accent); align-self: center; }
   .row { display: flex; gap: 6px; }
   .row .input { flex: 1; min-width: 0; }
+  .auto { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .auto .input { height: 30px; font-size: 13px; width: auto; }
+  .auto .days { width: 70px; }
   .prog { display: flex; flex-direction: column; gap: 4px; }
   .bar { height: 6px; border-radius: 3px; background: var(--border-soft); overflow: hidden; }
   .bar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }

@@ -23,6 +23,8 @@ export function BackupRestoreDB(arg1:string,arg2:string,arg3:string,arg4:string,
 
 export function BackupSnapshots(arg1:string,arg2:boolean,arg3:string,arg4:string,arg5:string):Promise<main.BackupResult>;
 
+export function BackupsDue():Promise<Array<main.BackupDue>>;
+
 export function BuildDockerImage(arg1:string,arg2:dockerize.Spec):Promise<void>;
 
 export function CancelDockerBuild():Promise<boolean>;
@@ -120,6 +122,8 @@ export function SaveTextFile(arg1:string,arg2:string):Promise<string>;
 export function SecretsInfo():Promise<main.SecretsInfo>;
 
 export function ServerLive(arg1:string):Promise<main.ServerLive>;
+
+export function SetBackupsAuto(arg1:string,arg2:string,arg3:number):Promise<void>;
 
 export function SetProjectCollapsed(arg1:string,arg2:Array<string>):Promise<void>;
 

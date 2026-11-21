@@ -80,6 +80,12 @@ const ALL_SHOTS = [
     },
     act: [['click', 'button.proj', 'Alertas'], ['wait', 700], ['click', 'button', 'Alertas al móvil'], ['wait', 700], ['click', 'button', 'Qué ve ahora'], ['wait', 1000],
       ['click', 'button', 'Suscribirse en el móvil'], ['wait', 400], ['type', '.modal input', 'demo-demo-demo'], ['click', 'button', 'Continuar'], ['wait', 900]] },
+  { name: 'copias-aviso', view: 'dashboard', seed: (d) => {
+      d.projects.push({ id: 'p7', name: 'Tienda', serverId: 'demo1', slug: 'tienda', modules: [{ id: 'base', values: {} }, { id: 'backups', values: {} }],
+        installedModules: ['base', 'backups'], appliedAt: ago(3000), backupsFetched: { at: ago(23 * 1440), dir: '/home/demo/Draupnode-copias/tienda', bytes: 48000000, files: 0 } })
+      d.projects.push({ id: 'p8', name: 'Blog', serverId: 'demo1', slug: 'blog', modules: [{ id: 'base', values: {} }, { id: 'backups', values: {} }],
+        installedModules: ['base', 'backups'], appliedAt: ago(3000), backupsAuto: { mode: 'fetch', days: 3 }, backupsFetched: { at: ago(5 * 1440), dir: '/home/demo/Draupnode-copias/blog', bytes: 9000000, files: 0 } })
+    }, act: [['wait', 1500]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]

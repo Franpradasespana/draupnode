@@ -184,6 +184,7 @@ export interface Project {
   installedModules?: string[] | null
   installedValues?: Record<string, Record<string, unknown>> | null
   backupsFetched?: FetchInfo | null
+  backupsAuto?: { mode: 'off' | 'warn' | 'fetch'; days: number } | null
 }
 
 export interface FetchInfo {
@@ -417,6 +418,15 @@ export interface DockerInfo {
   docker: boolean
 }
 
+export interface BackupDue {
+  projectId: string
+  name: string
+  mode: 'warn' | 'fetch'
+  days: number
+  age: number // -1 = nunca
+  dest: string
+}
+
 export interface DockerLabEvent {
   kind: 'stage' | 'line' | 'done'
   text?: string
@@ -489,6 +499,8 @@ interface Backend {
   OpenURL(url: string): Promise<void>
   ServerLive(id: string): Promise<ServerLive>
   DockerInfo(): Promise<DockerInfo>
+  SetBackupsAuto(projectId: string, mode: string, days: number): Promise<void>
+  BackupsDue(): Promise<BackupDue[]>
   SaveTextFile(defaultName: string, content: string): Promise<string>
   AlertsRun(projectId: string, what: string, secret: string, accept: string, sudoPassword: string): Promise<AlertsResult>
   CreateBackupTarget(sourceProjectId: string, targetServerId: string, port: number): Promise<BackupTargetResult>
@@ -949,6 +961,22 @@ function mockBackend(): Backend {
       if (b) Object.assign(b.values, { backups_remote_type: 'rest-server', backups_remote: url, backups_remote_user: slug, backups_remote_append_only: true })
       save('projects', projects)
       return { targetProjectId: tgt.id, targetProjectName: tgt.name, targetIsNew: isNew, url, notes: [`Aplica primero «${tgt.name}» (en ${srv.name}) y después este proyecto.`] }
+    },
+    async SetBackupsAuto(id, mode, days) {
+      projects = projects.map((x) => (x.id === id ? { ...x, backupsAuto: { mode: mode as 'off' | 'warn' | 'fetch', days } } : x))
+      save('projects', projects)
+    },
+    async BackupsDue() {
+      const out: BackupDue[] = []
+      for (const p of projects) {
+        if (!p.installedModules?.includes('backups')) continue
+        const auto = p.backupsAuto ?? { mode: 'warn', days: 7 }
+        if (auto.mode === 'off') continue
+        const age = p.backupsFetched ? Math.floor((Date.now() - new Date(p.backupsFetched.at).getTime()) / 86400000) : -1
+        if (age >= 0 && age < auto.days) continue
+        out.push({ projectId: p.id, name: p.name, mode: auto.mode, days: auto.days, age, dest: '/home/demo/Draupnode-copias/' + p.id })
+      }
+      return out
     },
     async DockerInfo() {
       return { versions: MOCK_VERSIONS, docker: true }
