@@ -53,7 +53,17 @@ type Options struct {
 	// módulo, en orden inverso. Purge: borra también sus datos.
 	Uninstall bool
 	Purge     bool
+	// Marker: ficha de la plantilla que queda en el servidor al terminar bien
+	// (/etc/draupnode/plantillas/<slug>.json, sin contraseñas). Sirve para
+	// reconocer después lo que instaló Draupnode. MarkerDelete la borra (al
+	// desinstalar el último módulo).
+	Marker       []byte
+	MarkerDelete bool
 }
+
+// MarkersDir es donde queda la ficha de cada plantilla aplicada.
+const MarkersDir = "/etc/draupnode/plantillas"
+
 
 func (o Options) coolifyURL() string {
 	if o.CoolifyURL != "" {
@@ -492,6 +502,18 @@ etapa "Ejecutando Ansible"
 rc=0
 "$VENV/bin/ansible-playbook" -i localhost, -c local site.yml "${MODO[@]}" || rc=$?
 
+{{- if .MarkerB64}}
+# Ficha de la plantilla en este servidor (sin contraseñas): así Draupnode sabe
+# después qué instaló, aunque se pierda su configuración.
+if [ $rc -eq 0 ] && [ ${#MODO[@]} -eq 0 ]; then
+  install -d -m 700 {{.MarkersDirQ}}
+  (umask 077; printf '%s' '{{.MarkerB64}}' | base64 -d > {{.MarkerFileQ}})
+fi
+{{- end}}
+{{- if .MarkerDelete}}
+if [ $rc -eq 0 ] && [ ${#MODO[@]} -eq 0 ]; then rm -f {{.MarkerFileQ}}; fi
+{{- end}}
+
 # Draupnode (al Aplicar) recoge lo generado para guardarlo en tu bóveda. Esta
 # línea no se enseña ni se guarda en el registro.
 if [ -n "${DRAUPNODE_SECRETS_BACK:-}" ] && [ ${#MODO[@]} -eq 0 ] && [ -d {{.SecretsDirQ}} ]; then
@@ -523,7 +545,15 @@ func Script(o Options, sel []Selection) ([]byte, error) {
 		fmt.Fprintf(&prompts, "  pedir %s %s %s\n", v.Name, SecretEnv(v.Name), shq(oneLine(v.Label)))
 	}
 	var buf bytes.Buffer
+	markerDel := ""
+	if o.MarkerDelete {
+		markerDel = "1"
+	}
 	err = scriptTmpl.Execute(&buf, map[string]string{
+		"MarkerB64":     base64.StdEncoding.EncodeToString(o.Marker),
+		"MarkerDelete":  markerDel,
+		"MarkersDirQ":   shq(MarkersDir),
+		"MarkerFileQ":   shq(MarkersDir + "/" + o.Slug + ".json"),
 		"SecretPrompts": prompts.String(),
 		"SecretsDirQ":   shq(SecretsDir(o.Slug)),
 		"AppVersion":    o.AppVersion,

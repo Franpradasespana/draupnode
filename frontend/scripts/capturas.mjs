@@ -94,6 +94,7 @@ const ALL_SHOTS = [
   { name: 'terminal', view: 'terminal', act: [['click', 'button', 'Abrir terminal'], ['wait', 1200],
     ['js', `(() => { const t = document.querySelector('.xterm-helper-textarea'); t.dispatchEvent(new InputEvent('input', { data: 'uptime', inputType: 'insertText', bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true })) })()`], ['wait', 800]] },
   { name: 'modulos', view: 'modules', act: [['click', 'button', 'Nuevo módulo'], ['wait', 400], ['type', 'input[placeholder="mi-modulo"]', 'mis-paquetes'], ['click', 'button', 'Crear'], ['wait', 1200]] },
+  { name: 'adoptar', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1800], ['js', `document.querySelector('.adopt')?.scrollIntoView()`], ['wait', 300]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]

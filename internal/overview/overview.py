@@ -226,5 +226,46 @@ def _():
     key = lambda x: int(x.split("-")[0]) if x.split("-")[0].isdigit() else 0
     return {"active": blocks, "tcp": sorted(allow["tcp"], key=key), "udp": sorted(allow["udp"], key=key)}
 
+@part("draupnode")
+def _():
+    # Lo que dejó Draupnode: fichas de plantillas, carpetas de secretos y de apps.
+    marks = []
+    for p in sorted(glob.glob("/etc/draupnode/plantillas/*.json")):
+        try:
+            m = json.load(open(p))
+            if isinstance(m, dict) and isinstance(m.get("modulos"), list):
+                marks.append(m)
+        except Exception:
+            pass
+    sec = sorted(os.path.basename(d) for d in glob.glob("/etc/draupnode/secretos/*") if os.path.isdir(d))
+    apps = sorted(os.path.basename(d) for d in glob.glob("/srv/draupnode/apps/*") if os.path.isdir(d))
+    return {"markers": marks, "secretDirs": sec, "appDirs": apps}
+
+@part("software")
+def _():
+    # Programas que hay en el servidor (con o sin Draupnode), por módulo.
+    def svc(name):
+        return run("systemctl", "is-active", name).strip() == "active"
+    names = set()
+    for l in run("docker", "ps", "-a", "--format", "{{.Names}}|{{.Image}}").splitlines() if DOCKER else []:
+        n, _, img = l.partition("|")
+        names.add(n)
+        names.add(img.split(":")[0].split("/")[-1])
+    found = {
+        "docker": DOCKER or bool(shutil.which("docker")),
+        "nginx": bool(shutil.which("nginx")),
+        "caddy": bool(shutil.which("caddy")),
+        "ssh": bool(shutil.which("fail2ban-client")),
+        "wireguard": os.path.exists("/etc/wireguard/wg0.conf"),
+        "cockpit": os.path.exists("/usr/lib/systemd/system/cockpit.socket") or os.path.exists("/lib/systemd/system/cockpit.socket"),
+        "samba": bool(shutil.which("smbd")),
+        "coolify": "coolify" in names,
+        "backups": bool(shutil.which("restic")),
+        "adguard": "adguardhome" in names or os.path.isdir("/opt/AdGuardHome"),
+        "firewall": "draupnode" in run("iptables", "-S", "INPUT"),
+    }
+    active = {"nginx": svc("nginx"), "caddy": svc("caddy"), "docker": svc("docker")}
+    return [{"module": k, "active": active.get(k, True)} for k, v in found.items() if v]
+
 out["at"] = int(time.time())
 print(json.dumps(out))

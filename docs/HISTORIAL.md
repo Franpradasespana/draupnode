@@ -562,3 +562,21 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
   - Rutas confinadas a la carpeta del módulo (`module.yaml` y `role/…`), con test de rutas maliciosas.
   - Probado de verdad: el ejemplo se aplica y se desinstala en un Ubuntu desechable.
 - Captura `modulos` y ayuda de la pantalla.
+
+## 2026-11-21 · 0.42.0 · Adoptar lo que ya hay en un servidor
+
+- **Ficha de la plantilla en el servidor**: al terminar bien Aplicar, el script deja
+  `/etc/draupnode/plantillas/<slug>.json` (carpeta 700, fichero 600) con la plantilla, el nombre, la versión de
+  Draupnode y los módulos con sus opciones **sin datos secretos**. Al desinstalar se actualiza, y se borra al
+  quitar el último módulo.
+- **Ficha del servidor → «Lo que ya hay en este servidor»** (el estado lee fichas, carpetas de secretos, apps y
+  programas instalados):
+  - Plantillas aplicadas con Draupnode que este no conoce (otro equipo, configuración perdida): **«Recuperar»**
+    crea (o reutiliza) la plantilla y su despliegue con la misma carpeta de secretos, la marca como ya instalada
+    sin aplicar nada y ofrece traer sus contraseñas.
+  - Carpetas de secretos de antes de la 0.42 (sin ficha): se recuperan con los módulos que se deducen.
+  - Programas instalados fuera de las plantillas (Docker, nginx, Caddy, Coolify, WireGuard, fail2ban, Cockpit,
+    Samba, restic…), con lo que pasaría al añadir su módulo.
+- Arreglado: «¿igual a la plantilla?» fallaba por dentro (puntero nulo) cuando el servidor era idéntico a ella.
+- Probado de verdad: aplicar → ficha en el servidor → verla en el estado → recuperarla en otro Draupnode con sus
+  valores → desinstalar y desaparece.

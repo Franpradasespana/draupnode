@@ -143,9 +143,15 @@ func (a *App) UninstallModules(projectID string, mods []string, purge bool, secr
 	if err != nil {
 		return RunStart{Status: "error", Message: err.Error()}
 	}
+	ids0 := make([]string, len(sel))
+	for i, s := range sel {
+		ids0[i] = s.Module.ID
+	}
+	marker := a.markerAfterUninstall(p, ids0)
 	script, err := bundle.Script(bundle.Options{
 		Project: p.Name, Slug: slugOf(p), Host: srv.Host, SSHUser: srv.User, CoolifyURL: coolifyURLFor(srv),
 		AppVersion: Version, Now: time.Now(), SSHAuth: srv.AuthMethod, Uninstall: true, Purge: purge,
+		Marker: marker, MarkerDelete: marker == nil,
 	}, sel)
 	if err != nil {
 		return RunStart{Status: "error", Message: err.Error()}

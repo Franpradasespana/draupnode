@@ -148,6 +148,9 @@ func (a *App) ProjectRecipeDiff(projectID string) (RecipeDiff, error) {
 		return RecipeDiff{}, err
 	}
 	o := diffModules(p.Modules, r.Modules)
+	if o == nil { // igual que la plantilla
+		o = &store.Overrides{}
+	}
 	d := RecipeDiff{RecipeID: r.ID, RecipeName: r.Name, Added: o.Added, Removed: o.Removed, Changed: map[string][]string{}}
 	if d.Added == nil {
 		d.Added = []string{}

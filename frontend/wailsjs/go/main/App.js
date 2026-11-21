@@ -278,6 +278,10 @@ export function ReadUserModuleFile(arg1, arg2) {
   return window['go']['main']['App']['ReadUserModuleFile'](arg1, arg2);
 }
 
+export function RecoverFromServer(arg1, arg2) {
+  return window['go']['main']['App']['RecoverFromServer'](arg1, arg2);
+}
+
 export function ReloadModules() {
   return window['go']['main']['App']['ReloadModules']();
 }

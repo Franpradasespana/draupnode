@@ -11,6 +11,7 @@
   import Modal from '../components/Modal.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
   import RunHistory from '../components/RunHistory.svelte'
+  import AdoptSection from '../components/AdoptSection.svelte'
   import ServerForm from './ServerForm.svelte'
   import { api, errorText, type MonitorResult, type ServerLogsResult, type ServerOverview, type ServerOverviewResult } from '../lib/api'
   import { ui, toast, timeAgo, refreshProjects, openDeployment, openRecipe, moduleName, openTerminal } from '../lib/state.svelte'
@@ -199,6 +200,8 @@
       <button class="btn sm ghost" onclick={() => openRecipe('')}><Plus size={14} /> Crear una plantilla nueva</button>
     </div>
   </section>
+
+  {#if ov}<AdoptSection serverId={id} {ov} {deployments} />{/if}
 
   <!-- Apps y direcciones -->
   <section class="card block">

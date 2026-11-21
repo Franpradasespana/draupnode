@@ -335,6 +335,7 @@ func (a *App) buildScript(p store.Project, withSecrets bool) ([]byte, store.Serv
 			return nil, srv, vaultErr(err)
 		}
 	}
+	o.Marker = a.markerForApply(p, sel)
 	sc, err := bundle.Script(o, sel)
 	return sc, srv, err
 }

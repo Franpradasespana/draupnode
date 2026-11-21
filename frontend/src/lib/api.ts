@@ -507,6 +507,17 @@ export interface ServerOverview {
   failed?: string[]
   ports?: { proto: string; addr: string; port: number; process: string; public: boolean }[]
   firewall?: { active: boolean; tcp: string[]; udp: string[] }
+  draupnode?: { markers: ServerMarker[]; secretDirs: string[]; appDirs: string[] }
+  software?: { module: string; active: boolean }[]
+}
+
+export interface ServerMarker {
+  draupnode?: string
+  at?: string
+  nombre?: string
+  plantilla?: string
+  slug: string
+  modulos: { id: string; values?: Record<string, unknown> }[]
 }
 
 export interface ServerLogsResult extends RunStart {
@@ -605,6 +616,7 @@ interface Backend {
   RunProject(id: string, check: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   CancelRun(runId: string): Promise<boolean>
   RunLogs(projectId: string): Promise<string[]>
+  RecoverFromServer(serverId: string, markerJson: string): Promise<{ project: Project; notes: string[] }>
   RunHistory(serverId: string, projectId: string, limit: number): Promise<RunEntry[]>
   ReadRunLog(projectId: string, name: string): Promise<string>
   LabStatus(): Promise<LabStatus>
@@ -1147,6 +1159,18 @@ function mockBackend(): Backend {
       cancelled.add(runId)
       return true
     },
+    async RecoverFromServer(sid, mj) {
+      await wait(400)
+      const m = JSON.parse(mj)
+      const rid = 'r' + Date.now()
+      const mods = m.modulos.map((x: { id: string }) => ({ id: x.id, values: {} }))
+      recipes.push({ id: rid, name: m.plantilla || m.nombre || m.slug, notes: '', modules: mods, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Recipe)
+      save('recipes', recipes)
+      const p = { id: 'p' + Date.now(), name: m.nombre || m.slug, slug: m.slug, serverId: sid, recipeId: rid, modules: mods, installedModules: mods.map((x: { id: string }) => x.id), appliedAt: m.at, updatedAt: m.at } as Project
+      projects.push(p)
+      save('projects', projects)
+      return { project: p, notes: ['Se ha creado la plantilla «' + (m.plantilla || m.nombre) + '».'] }
+    },
     async RunHistory(sid, pid) {
       return projects.filter((p) => p.serverId === sid && (!pid || p.id === pid) && p.lastRun).map((p) => {
         const r = p.lastRun!
@@ -1315,6 +1339,8 @@ function mockBackend(): Backend {
         failed: ['certbot.service'],
         ports: [{ proto: 'tcp', addr: '0.0.0.0', port: 22, process: 'sshd', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 80, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 443, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 8000, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '127.0.0.1', port: 3000, process: 'docker-proxy', public: false }],
         firewall: { active: true, tcp: ['22', '80', '443', '8000'], udp: [] },
+        draupnode: { markers: [{ draupnode: '0.41.0', at: new Date(Date.now() - 40 * 86400000).toISOString(), nombre: 'Copias', plantilla: 'Copias diarias', slug: 'copias', modulos: [{ id: 'docker', values: {} }, { id: 'backups', values: {} }] }], secretDirs: ['copias'], appDirs: [] },
+        software: [{ module: 'docker', active: true }, { module: 'nginx', active: true }, { module: 'coolify', active: true }, { module: 'backups', active: true }],
       } }
     },
     async ServerLogs(_id, kind, name) {

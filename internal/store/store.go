@@ -534,6 +534,32 @@ func (s *Store) SetLastRun(id string, r RunSummary) error {
 	return fmt.Errorf("proyecto %q no encontrado", id)
 }
 
+// Adopt marca un despliegue como ya instalado en el servidor (lo instaló
+// Draupnode antes, desde aquí o desde otro equipo): fija su carpeta de
+// secretos y lo que tiene instalado, sin tener que Aplicar.
+func (s *Store) Adopt(id, slug string, installed map[string]map[string]any, at time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.d.Projects {
+		p := &s.d.Projects[i]
+		if p.ID != id {
+			continue
+		}
+		p.Slug = slug
+		p.InstalledModules = p.InstalledModules[:0]
+		p.InstalledValues = map[string]map[string]any{}
+		for mid, v := range installed {
+			p.InstalledModules = append(p.InstalledModules, mid)
+			p.InstalledValues[mid] = v
+		}
+		sort.Strings(p.InstalledModules)
+		p.AppliedAt = &at
+		p.UpdatedAt = at
+		return s.saveLocked()
+	}
+	return fmt.Errorf("proyecto %q no encontrado", id)
+}
+
 // SetCollapsed guarda qué ventanas de módulo están plegadas en el editor,
 // sin tocar la fecha de modificación del proyecto.
 func (s *Store) SetCollapsed(id string, modules []string) error {

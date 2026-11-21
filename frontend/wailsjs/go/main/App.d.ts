@@ -144,6 +144,8 @@ export function ReadRunLog(arg1:string,arg2:string):Promise<string>;
 
 export function ReadUserModuleFile(arg1:string,arg2:string):Promise<string>;
 
+export function RecoverFromServer(arg1:string,arg2:string):Promise<main.RecoverResult>;
+
 export function ReloadModules():Promise<main.ModulesInfo>;
 
 export function ResetToRecipe(arg1:string):Promise<store.Project>;
