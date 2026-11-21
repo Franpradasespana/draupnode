@@ -66,7 +66,7 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 		return res, errors.New("elige OTRO servidor: si las copias se guardan en el mismo, no te salvan si lo pierdes")
 	}
 	if port == 0 {
-		port = 8000
+		port = RandomTargetPort()
 	}
 	if port < 1024 || port > 65535 {
 		return res, errors.New("el puerto debe estar entre 1024 y 65535")
@@ -385,4 +385,20 @@ func certValidFor(b64, host string) bool {
 		return false
 	}
 	return c.VerifyHostname(host) == nil && time.Now().AddDate(1, 0, 0).Before(c.NotAfter)
+}
+
+// Puertos al azar para el destino: un puerto poco común es una pequeña
+// barrera más (los robots prueban los conocidos); el que manda es la contraseña.
+const (
+	targetPortMin = 20000
+	targetPortMax = 60999
+)
+
+// RandomTargetPort devuelve un puerto al azar para el destino de copias.
+func RandomTargetPort() int {
+	n, err := rand.Int(rand.Reader, big.NewInt(targetPortMax-targetPortMin+1))
+	if err != nil {
+		return 28000
+	}
+	return targetPortMin + int(n.Int64())
 }

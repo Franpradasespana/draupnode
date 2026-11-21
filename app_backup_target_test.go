@@ -26,6 +26,11 @@ func TestDestinoDeCopias(t *testing.T) {
 	if err := a.vault.Create("maestra-de-prueba"); err != nil {
 		t.Fatal(err)
 	}
+	for i := 0; i < 200; i++ {
+		if p := RandomTargetPort(); p < targetPortMin || p > targetPortMax {
+			t.Fatalf("puerto fuera del rango: %d", p)
+		}
+	}
 	if _, err := a.CreateBackupTarget(src.ID, s1.ID, 8000); err == nil {
 		t.Fatal("el mismo servidor debería rechazarse")
 	}

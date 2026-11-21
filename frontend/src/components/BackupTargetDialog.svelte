@@ -1,7 +1,7 @@
 <script lang="ts">
   // «Guardar también en otro servidor»: crea (o reutiliza) el proyecto
   // «Destino de copias» en el servidor elegido y deja este proyecto apuntando a él.
-  import { ServerCog, ShieldCheck, LoaderCircle, CircleCheck, ArrowRight, TriangleAlert } from '@lucide/svelte'
+  import { ServerCog, ShieldCheck, LoaderCircle, CircleCheck, ArrowRight, TriangleAlert, Dices } from '@lucide/svelte'
   import Modal from './Modal.svelte'
   import { api, errorText, type BackupTargetResult, type Project } from '../lib/api'
   import { ui, toast, withVault, refreshProjects } from '../lib/state.svelte'
@@ -12,7 +12,9 @@
   const candidates = $derived(ui.servers.filter((s) => s.id !== project.serverId && s.host !== source?.host))
   const existing = (sid: string) => ui.projects.find((p) => p.serverId === sid && p.modules.some((m) => m.id === 'backup-target'))
   let serverId = $state('')
-  let port = $state(8000)
+  // Puerto al azar (20000-60999): se enseña y se puede cambiar.
+  const randomPort = () => 20000 + Math.floor(Math.random() * 41000)
+  let port = $state(randomPort())
   let busy = $state(false)
   let result = $state<BackupTargetResult | null>(null)
 
@@ -57,11 +59,14 @@
           </select>
         </label>
         {#if target}
-          <p class="muted small">Ya tiene el proyecto «{target.name}»: se añade este proyecto a él (con su mismo puerto).</p>
+          <p class="muted small">Ya tiene el proyecto «{target.name}»: se añade este proyecto a él, con su mismo puerto ({target.modules.find((m) => m.id === 'backup-target')?.values.backup_target_port ?? '—'}).</p>
         {:else}
-          <label class="field"><span>Puerto</span>
-            <input class="input" type="number" min="1024" max="65535" bind:value={port} disabled={busy} />
-            <small>Por él se conectará {source?.name ?? 'este servidor'}. Se abre en el Cortafuegos del destino.</small>
+          <label class="field"><span>Puerto (elegido al azar)</span>
+            <div class="port">
+              <input class="input" type="number" min="1024" max="65535" bind:value={port} disabled={busy} />
+              <button class="btn sm" type="button" onclick={() => (port = randomPort())} disabled={busy} title="Elegir otro al azar"><Dices size={14} /> Otro</button>
+            </div>
+            <small>Un puerto poco común para que no sea fácil de encontrar. Puedes poner el que quieras (1024-65535). Por él se conectará {source?.name ?? 'este servidor'}; se abre en el Cortafuegos del destino.</small>
           </label>
         {/if}
         {#if local}<p class="warn"><TriangleAlert size={16} /> Ese servidor se conecta por 127.0.0.1: el servidor de origen no podrá llegar a él.</p>{/if}
@@ -111,5 +116,7 @@
   .note li { display: flex; gap: 8px; align-items: flex-start; }
   .note li :global(svg) { color: var(--accent); flex: none; margin-top: 3px; }
   ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .port { display: flex; gap: 8px; }
+  .port .input { width: 140px; }
   code { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
 </style>

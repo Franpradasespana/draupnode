@@ -310,3 +310,7 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 - Canales (código abierto o gratuitos): **ntfy** (ntfy.sh o tu servidor; con token opcional; título en UTF-8 codificado RFC 2047, prioridad alta en los problemas) o **Telegram** (token del bot en la bóveda + número de chat). Con ntfy y el tema vacío, el servidor genera uno secreto de 28 caracteres que vuelve a la bóveda.
 - **En la app** (página del módulo): «Enviar aviso de prueba», «Qué ve ahora» (`AlertsRun`) y «Suscribirse en el móvil» (pide la contraseña de la bóveda y enseña la dirección del tema con su QR).
 - **Probado** en dos Ubuntu 24.04 desechables con la app por dentro y un ntfy falso en el otro servidor: aviso de prueba, disco por encima del umbral (un ext4 de 40 MB montado para la prueba) y servidor que no responde llegan con su tema secreto; una tercera comprobación no repite; al arreglarlo llegan los dos «Resuelto»; «Qué ve ahora» → «Sin problemas.»; desinstalar quita temporizadores y script. Sin probar: Telegram y ntfy.sh de verdad (la prueba no manda nada fuera).
+
+## 2026-11-21 · 0.18.1 · Destino de copias: puerto al azar
+
+- Petición del usuario: el puerto del destino ya no es el 8000 fijo. La ventana propone uno al azar entre 20000 y 60999, lo enseña y deja cambiarlo (o pedir «Otro»). Si el servidor ya es destino, se usa su puerto y se dice cuál es. Sin puerto, el backend también elige uno al azar (`RandomTargetPort`).
