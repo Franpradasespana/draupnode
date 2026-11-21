@@ -471,7 +471,7 @@ if [ ! -f secretos.yml ]; then
   (umask 077; : > secretos.yml)
   pedir() { # nombre, variable de entorno, texto
     local v="${!2:-}"
-    if [ -z "$v" ]; then
+    if [ -z "$v" ] && [ -z "${DN_OPCIONAL:-}" ]; then
       [ -r /dev/tty ] || { echo "Falta $3: dalo en la variable $2" >&2; exit 2; }
       read -rsp "$3: " v </dev/tty; echo >/dev/tty
     fi
@@ -515,6 +515,10 @@ func Script(o Options, sel []Selection) ([]byte, error) {
 	for _, v := range secretVars(sel) {
 		if o.Uninstall {
 			break // desinstalar no usa los datos secretos
+		}
+		if v.Managed { // lo calcula Draupnode al Aplicar; en el exportado, vacío (o de DN_SECRET_…)
+			fmt.Fprintf(&prompts, "  DN_OPCIONAL=1 pedir %s %s %s\n", v.Name, SecretEnv(v.Name), shq(oneLine(v.Label)))
+			continue
 		}
 		fmt.Fprintf(&prompts, "  pedir %s %s %s\n", v.Name, SecretEnv(v.Name), shq(oneLine(v.Label)))
 	}

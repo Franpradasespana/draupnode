@@ -99,6 +99,32 @@ func TestDestinoDeCopias(t *testing.T) {
 	if tv["backup_target_tls_cert"] != cert {
 		t.Fatal("no debería regenerar el certificado")
 	}
+	// Rotación: el destino recibe la contraseña de las copias de los orígenes
+	// que ya la tienen en la bóveda (la traen al aplicarse), y nada si se apaga.
+	if err := a.vault.Set(genName(src.ID, "restic"), "clave-de-tienda\n"); err != nil {
+		t.Fatal(err)
+	}
+	tgt, _ = a.store.Project(tgt.ID)
+	tv = projectModule(tgt, targetModule).Values
+	if got := a.managedSecret("backup_target_keys", tv); got != "tienda:clave-de-tienda" {
+		t.Fatalf("claves para rotar: %q", got)
+	}
+	_, sel := a.resolveProject(tgt)
+	sv, _ := a.secretValues(tgt.ID, sel)
+	if sv["backup_target_keys"] != "tienda:clave-de-tienda" {
+		t.Fatalf("al aplicar: %q", sv["backup_target_keys"])
+	}
+	tv2 := map[string]any{}
+	for k, v := range tv {
+		tv2[k] = v
+	}
+	tv2["backup_target_prune"] = false
+	if got := a.managedSecret("backup_target_keys", tv2); got != "" {
+		t.Fatalf("sin rotación no debería salir: %q", got)
+	}
+	if a.isSecretVar("backup_target_keys") {
+		t.Fatal("no se debe poder escribir a mano")
+	}
 	// Con la bóveda cerrada, no toca nada.
 	a.vault.Lock()
 	if _, err := a.CreateBackupTarget(src.ID, s2.ID, 8000); err == nil || !strings.HasPrefix(err.Error(), codeVaultLocked) {

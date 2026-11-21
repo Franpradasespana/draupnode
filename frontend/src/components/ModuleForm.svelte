@@ -10,11 +10,11 @@
   } = $props()
 </script>
 
-{#if !m.variables?.length}
+{#if !m.variables?.some((v) => !v.managed)}
   <p class="muted none">Este módulo no tiene opciones: se instala tal cual.</p>
 {:else}
   <div class="rows">
-    {#each m.variables as v (v.name)}
+    {#each m.variables.filter((v) => !v.managed) as v (v.name)}
       <div class="row" class:bad={!!errors[v.name]}>
         <div class="lbl">
           <strong>{v.label}{#if v.required} <span class="req">*</span>{/if}</strong>

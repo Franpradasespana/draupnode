@@ -402,3 +402,33 @@ func RandomTargetPort() int {
 	}
 	return targetPortMin + int(n.Int64())
 }
+
+// managedSecret calcula al Aplicar los datos secretos que rellena Draupnode.
+// backup_target_keys: «proyecto:contraseña de sus copias» de cada proyecto
+// que guarda en este destino y cuya contraseña ya está en la bóveda (llega al
+// aplicar el proyecto de origen). Con ella el destino puede borrar copias
+// viejas (rotación).
+func (a *App) managedSecret(name string, vals map[string]any) string {
+	if name != "backup_target_keys" {
+		return ""
+	}
+	if on, ok := vals["backup_target_prune"].(bool); ok && !on {
+		return "" // sin rotación, la contraseña no sale de aquí
+	}
+	bySlug := map[string]string{}
+	for _, p := range a.store.Projects() {
+		bySlug[slugOf(p)] = p.ID
+	}
+	var lines []string
+	for _, c := range toStrings(vals["backup_target_clients"]) {
+		slug, _, _ := strings.Cut(c, ":")
+		id, ok := bySlug[slug]
+		if !ok {
+			continue
+		}
+		if pw, err := a.vault.Get(genName(id, "restic")); err == nil && pw != "" {
+			lines = append(lines, slug+":"+strings.TrimSpace(pw))
+		}
+	}
+	return strings.Join(lines, "\n")
+}

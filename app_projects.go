@@ -157,7 +157,7 @@ func (a *App) resolveProject(p store.Project) (ProjectCheck, []bundle.Selection)
 		v, errs := m.Values(vals[id])
 		// Datos secretos obligatorios: tienen que estar en la bóveda.
 		for _, sv := range m.SecretVars() {
-			if sv.Required && (p.ID == "" || !a.vault.Has(varName(p.ID, sv.Name))) {
+			if sv.Required && !sv.Managed && (p.ID == "" || !a.vault.Has(varName(p.ID, sv.Name))) {
 				errs[sv.Name] = "falta: escríbelo (se guarda cifrado en la bóveda)"
 			}
 		}

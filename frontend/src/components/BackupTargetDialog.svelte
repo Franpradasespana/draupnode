@@ -76,6 +76,7 @@
             <li><ServerCog size={14} /> {target ? 'Se actualiza' : 'Se crea'} el proyecto «Destino de copias» en ese servidor, con Docker, el Cortafuegos y rest-server.</li>
             <li><ShieldCheck size={14} /> Se generan aquí un usuario y una contraseña para este proyecto y un certificado HTTPS propio. Al destino solo llega la huella de la contraseña.</li>
             <li><ArrowRight size={14} /> El módulo Copias de este proyecto queda apuntando al destino. Tus copias siguen también en este servidor.</li>
+            <li><ShieldCheck size={14} /> Rotación: el destino borra cada día sus copias viejas (30 días y una al mes durante un año; se cambia en su módulo). Para eso recibe la contraseña de las copias; si no quieres, desactiva allí «Borrar las copias viejas».</li>
           </ul>
           <span class="muted small">No se aplica nada todavía: lo haces tú después, en el orden que te diremos.</span>
         </div>
@@ -87,7 +88,7 @@
       <ol>
         {#each result.notes as n}<li>{n}</li>{/each}
       </ol>
-      <p class="muted small">Las copias viejas del destino no se borran (no se puede, a propósito): vigila su disco de vez en cuando.</p>
+      <p class="muted small">En el destino, las copias viejas se borran solas cada día (por defecto se guardan 30 días y una al mes durante 12 meses). Lo cambias en la página de su módulo «Destino de copias».</p>
     </div>
   {/if}
 

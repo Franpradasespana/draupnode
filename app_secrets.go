@@ -63,7 +63,7 @@ func (a *App) SetProjectSecret(projectID, variable, value string) error {
 func (a *App) isSecretVar(name string) bool {
 	for _, m := range a.cat().All() {
 		for _, v := range m.SecretVars() {
-			if v.Name == name {
+			if v.Name == name && !v.Managed {
 				return true
 			}
 		}
@@ -236,6 +236,10 @@ func (a *App) secretValues(projectID string, sel []bundle.Selection) (map[string
 	out := map[string]string{}
 	for _, s := range sel {
 		for _, v := range s.Module.SecretVars() {
+			if v.Managed {
+				out[v.Name] = a.managedSecret(v.Name, s.Values)
+				continue
+			}
 			val, err := a.vault.Get(varName(projectID, v.Name))
 			switch {
 			case errors.Is(err, secrets.ErrNotFound):

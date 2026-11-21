@@ -12,6 +12,14 @@
   changed_when: "'Removed' in backup_target_down.stderr or 'Stopped' in backup_target_down.stderr"
   when: backup_target_compose.stat.exists and not ansible_check_mode
 
+- name: Quitar la rotación
+  ansible.builtin.shell: |
+    systemctl disable --now draupnode-rotar-{{ draupnode_project }}.timer 2>/dev/null || true
+    rm -f /usr/local/sbin/draupnode-rotar-{{ draupnode_project }} /etc/systemd/system/draupnode-rotar-{{ draupnode_project }}.*
+    rm -rf {{ (draupnode_secrets_dir ~ '/.rotacion') | quote }}
+    systemctl daemon-reload
+  when: not ansible_check_mode
+
 - name: Borrar las copias guardadas
   ansible.builtin.file:
     path: "{{ backup_target_dir }}"

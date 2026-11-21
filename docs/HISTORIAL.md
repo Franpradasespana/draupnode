@@ -314,3 +314,10 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 ## 2026-11-21 · 0.18.1 · Destino de copias: puerto al azar
 
 - Petición del usuario: el puerto del destino ya no es el 8000 fijo. La ventana propone uno al azar entre 20000 y 60999, lo enseña y deja cambiarlo (o pedir «Otro»). Si el servidor ya es destino, se usa su puerto y se dice cuál es. Sin puerto, el backend también elige uno al azar (`RandomTargetPort`).
+
+## 2026-11-21 · 0.19.0 · Destino de copias: rotación
+
+- Petición del usuario: que en el destino las copias viejas se borren solas pasados X días, con opciones. Nuevas opciones del módulo «Destino de copias»: **Borrar las copias viejas** (sí por defecto), **conservar los últimos N días** (30), **una al mes durante N meses** (12) y la **hora** (05:30, lejos de la de las copias).
+- La hace el propio destino (temporizador `draupnode-rotar-<proyecto>`, `restic forget --prune --group-by '' --keep-within Nd --keep-within-monthly Mm --retry-lock 2h`). Necesita la contraseña de las copias de cada origen: Draupnode se la da al Aplicar el destino (variable nueva de tipo «la rellena Draupnode», `managed`, que no sale en los formularios ni se pide en el instalar.sh exportado), sacándola de la bóveda, donde llega al aplicar el origen. Se guarda en `/etc/draupnode/secretos/<proyecto>/.rotacion/<origen>` (solo root). Si un origen aún no la tiene, la nota de Aplicar lo dice («aplica su proyecto y vuelve a aplicar este»). Con la rotación desactivada la contraseña no sale de este equipo y en el destino no se borra nada.
+- Dos detalles de restic que salieron al probar: `--keep-monthly 12` guarda los últimos 12 meses *que tienen copias* (aunque sean de hace años) → se usa `--keep-within-monthly`; y sin `--group-by ''` cada grupo de rutas cuenta sus días por separado.
+- **Probado** con dos Ubuntu desechables: destino → origen → destino otra vez (se activa la rotación); una copia «de 2020» añadida desde el origen se borra al rotar y las de hoy se quedan; sigue sin poderse borrar desde el origen.

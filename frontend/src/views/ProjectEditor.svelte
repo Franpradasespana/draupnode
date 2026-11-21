@@ -482,7 +482,7 @@
 
 {#if wizard && draft.id}
   <ApplyWizard bind:modules={draft.modules}
-    steps={pending.map(byId).filter((m): m is Module => !!m?.variables?.length)}
+    steps={pending.map(byId).filter((m): m is Module => !!m?.variables?.some((v) => !v.managed))}
     install={pending.map(byId).filter((m): m is Module => !!m)}
     changed={changedInstalled.map(byId).filter((m): m is Module => !!m)}
     errors={check?.errors ?? {}} warnings={[...(check?.general ?? []), ...(check?.warnings ?? [])]}

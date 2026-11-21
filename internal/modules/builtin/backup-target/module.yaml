@@ -13,7 +13,13 @@ details: |
   Lo normal es no tocar esto a mano: en la página del módulo «Copias» de
   otro proyecto, «Guardar también en otro servidor…» crea este proyecto y
   deja las dos partes configuradas (usuario, contraseña y certificado).
-  Como nadie puede borrar, las copias viejas se acumulan: vigila el disco.
+  Rotación: con «Borrar las copias viejas» activado, ESTE servidor borra
+  cada día las que pasan de los días indicados (y guarda una al mes si lo
+  pides). Para eso necesita la contraseña de las copias de cada proyecto:
+  Draupnode se la da al aplicar (cuando ya la tiene, es decir, después de
+  aplicar el proyecto de origen). Así este servidor podría leer las copias;
+  si no quieres eso, desactívalo y aquí no se borrará nunca nada (vigila el
+  disco).
 depends: [docker]
 requires:
   os: [ubuntu, debian]
@@ -21,7 +27,7 @@ requires:
 firewall_ports_from: [backup_target_port]
 checks:
   - container_free: backup_target_container
-uninstall_warning: Para el rest-server. Los otros servidores dejan de poder guardar aquí sus copias (fallará su copia remota hasta que elijas otro destino).
+uninstall_warning: Para el rest-server y la rotación. Los otros servidores dejan de poder guardar aquí sus copias (fallará su copia remota hasta que elijas otro destino).
 uninstall_data: Borrar también TODAS las copias guardadas aquí. Si el servidor de origen se pierde, ya no habrá de dónde restaurar.
 variables:
   - name: backup_target_port
@@ -63,3 +69,32 @@ variables:
     help: La genera Draupnode y se guarda cifrada en tu bóveda.
     type: secret
     required: true
+  - name: backup_target_prune
+    label: Borrar las copias viejas (rotación)
+    help: Este servidor borra cada día las copias que pasan de los días de abajo. Necesita la contraseña de las copias (Draupnode se la da al aplicar).
+    type: bool
+    default: true
+  - name: backup_target_keep_days
+    label: Conservar las copias de los últimos (días)
+    type: int
+    default: 30
+    min: 1
+    max: 3650
+  - name: backup_target_keep_monthly
+    label: Y además una copia al mes durante (meses)
+    help: 0 = ninguna más.
+    type: int
+    default: 12
+    min: 0
+    max: 240
+  - name: backup_target_prune_time
+    label: Hora de la rotación
+    help: Mejor lejos de la hora de las copias (mientras rota, el origen espera para copiar).
+    type: string
+    default: "05:30"
+    pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+    pattern_help: Formato HH:MM
+  - name: backup_target_keys
+    label: Contraseñas de las copias (las pone Draupnode)
+    type: secret
+    managed: true

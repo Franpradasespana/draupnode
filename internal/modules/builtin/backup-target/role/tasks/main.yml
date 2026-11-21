@@ -69,10 +69,134 @@
   failed_when: false
   when: not ansible_check_mode
 
+# ---------------------------------------------------------------- rotación
+- name: Rotación (datos)
+  ansible.builtin.set_fact:
+    backup_target_keydir: "{{ draupnode_secrets_dir }}/.rotacion"
+    backup_target_rotar: "/usr/local/sbin/draupnode-rotar-{{ draupnode_project }}"
+    backup_target_unit: "draupnode-rotar-{{ draupnode_project }}"
+    backup_target_clientes: "{{ backup_target_clients | map('regex_replace', ':.*$', '') | list }}"
+    backup_target_con_clave: "{{ (backup_target_keys | default('')).splitlines() | select | map('regex_replace', ':.*$', '') | list }}"
+  no_log: true
+
+- name: Instalar restic (para rotar)
+  ansible.builtin.apt:
+    name: restic
+    state: present
+    lock_timeout: 600
+  when: backup_target_prune | bool
+
+- name: Carpeta de contraseñas de la rotación
+  ansible.builtin.file:
+    path: "{{ backup_target_keydir }}"
+    state: "{{ 'directory' if backup_target_prune | bool else 'absent' }}"
+    mode: "0700"
+  when: not ansible_check_mode
+
+- name: Contraseña de las copias de cada proyecto (solo root)
+  ansible.builtin.copy:
+    dest: "{{ backup_target_keydir }}/{{ item.split(':', 1)[0] }}"
+    content: "{{ item.split(':', 1)[1] }}"
+    mode: "0600"
+  loop: "{{ (backup_target_keys | default('')).splitlines() | select | list }}"
+  loop_control:
+    label: "{{ item.split(':', 1)[0] }}"
+  no_log: true
+  when: backup_target_prune | bool and not ansible_check_mode
+
+- name: Quitar contraseñas de proyectos que ya no guardan aquí
+  ansible.builtin.shell: |
+    cd {{ backup_target_keydir | quote }} 2>/dev/null || exit 0
+    for f in *; do
+      [ -e "$f" ] || continue
+      case " {{ backup_target_clientes | join(' ') }} " in *" $f "*) ;; *) rm -f -- "$f"; echo quitada ;; esac
+    done
+  register: backup_target_keys_quitadas
+  changed_when: "'quitada' in backup_target_keys_quitadas.stdout"
+  when: backup_target_prune | bool and not ansible_check_mode
+
+- name: Script de rotación
+  ansible.builtin.copy:
+    dest: "{{ backup_target_rotar }}"
+    mode: "0700"
+    content: |
+      #!/usr/bin/env bash
+      # Generado por Draupnode (módulo backup-target, proyecto {{ draupnode_project }}). Se reescribe al aplicar.
+      # Borra en cada proyecto las copias de más de {{ backup_target_keep_days }} días
+      # (y guarda una al mes durante {{ backup_target_keep_monthly }} meses).
+      set -uo pipefail
+      export RESTIC_CACHE_DIR=/var/cache/restic
+      fallos=0
+      for clave in {{ backup_target_keydir | quote }}/*; do
+        [ -f "$clave" ] || continue
+        p=$(basename "$clave")
+        repo={{ (backup_target_dir ~ '/datos') | quote }}/"$p"
+        [ -f "$repo/config" ] || { echo "$p: aún no tiene copias"; continue; }
+        echo "== $p"
+        if restic -r "$repo" --password-file "$clave" --retry-lock 2h forget --prune --group-by "" --keep-within {{ backup_target_keep_days }}d{{ (' --keep-within-monthly ' ~ backup_target_keep_monthly ~ 'm') if backup_target_keep_monthly | int > 0 else '' }} 2>&1 | tail -n 4; then
+          echo "$p: rotación hecha ($(restic -r "$repo" --password-file "$clave" snapshots --json 2>/dev/null | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo '?') copias)"
+        else
+          echo "$p: FALLO en la rotación"; fallos=1
+        fi
+      done
+      exit $fallos
+  when: backup_target_prune | bool
+
+- name: Servicio y temporizador de la rotación
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    mode: "0644"
+    content: "{{ item.content }}"
+  loop:
+    - name: "{{ backup_target_unit }}.service"
+      content: |
+        [Unit]
+        Description=Rotación de copias del destino de Draupnode ({{ draupnode_project }})
+        [Service]
+        Type=oneshot
+        ExecStart={{ backup_target_rotar }}
+    - name: "{{ backup_target_unit }}.timer"
+      content: |
+        [Unit]
+        Description=Rotación diaria de copias ({{ draupnode_project }})
+        [Timer]
+        OnCalendar=*-*-* {{ backup_target_prune_time }}
+        RandomizedDelaySec=10min
+        Persistent=true
+        [Install]
+        WantedBy=timers.target
+  loop_control:
+    label: "{{ item.name }}"
+  register: backup_target_units
+  when: backup_target_prune | bool
+
+- name: Temporizador de la rotación
+  ansible.builtin.systemd:
+    name: "{{ backup_target_unit }}.timer"
+    enabled: "{{ backup_target_prune | bool }}"
+    state: "{{ 'started' if backup_target_prune | bool else 'stopped' }}"
+    daemon_reload: "{{ backup_target_units is changed }}"
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Sin rotación, quitar su script
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ backup_target_rotar }}"
+    - "/etc/systemd/system/{{ backup_target_unit }}.service"
+    - "/etc/systemd/system/{{ backup_target_unit }}.timer"
+  when: not (backup_target_prune | bool)
+
 - name: Nota
   ansible.builtin.debug:
     msg: >-
       Destino de copias en https://{{ draupnode_host }}:{{ backup_target_port }}/ (solo añadir)
       para {{ backup_target_clients | length }} proyecto(s): {{ backup_target_clients | map('regex_replace', ':.*$', '') | join(', ') or 'ninguno todavía' }}.
       Copias en {{ backup_target_dir }}/datos.
+      {%- if backup_target_prune | bool %} Rotación cada día a las {{ backup_target_prune_time }}: se conservan {{ backup_target_keep_days }} días{{ (' y una al mes durante ' ~ backup_target_keep_monthly ~ ' meses') if backup_target_keep_monthly | int > 0 else '' }}.
+      {%- set sin = backup_target_clientes | reject('in', backup_target_con_clave) | list %}
+      {%- if sin %} Todavía sin rotación para {{ sin | join(', ') }}: aplica su proyecto y después vuelve a aplicar este.{% endif %}
+      {%- else %} Sin rotación: aquí no se borra ninguna copia (vigila el disco).{% endif %}
       {%- if backup_target_http.status is defined and backup_target_http.status not in [200, 401, 403, 404, 405] %} OJO: rest-server no responde ({{ backup_target_http.msg | default('') }}).{% endif %}

@@ -54,6 +54,10 @@ type Variable struct {
 	Min         *int   `yaml:"min" json:"min,omitempty"`
 	Max         *int   `yaml:"max" json:"max,omitempty"`
 	Placeholder string `yaml:"placeholder" json:"placeholder,omitempty"`
+	// Managed: lo rellena Draupnode (no sale en los formularios ni se pide en
+	// el instalar.sh exportado). Hoy solo para datos secretos calculados al
+	// Aplicar, como las contraseñas de copias que necesita el destino para rotar.
+	Managed bool `yaml:"managed" json:"managed,omitempty"`
 }
 
 // Requires son los requisitos mínimos del servidor.
