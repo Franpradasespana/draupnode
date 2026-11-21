@@ -110,6 +110,12 @@
   - Monitorización y Registros ya están por proyecto (pasarían a la ficha del servidor).
 - Datos que se pueden variar por servidor sin tocar la plantilla (dominio, IP pública…): decidir si un despliegue puede sobrescribir valores de la plantilla.
 
+**Decidido con el usuario (2026-11-21): «los proyectos son las recetas y los servidores la cocina».**
+- El «Destino de copias» es una receta más («Servidor de copias»: base + Docker + Cortafuegos + Destino de copias con su rotación) que se cocina en su servidor. Desaparece el proyecto especial que se crea solo en el otro servidor.
+- Una receta de apps (p. ej. base + Docker + nginx + App desde Git + Copias en el servidor, en el equipo y en otro servidor) se cocina en otro servidor.
+- Como la receta no tiene servidor, **a qué servidor de copias se envían se elige al desplegar**: «¿a qué servidor con la receta de copias?». Ahí Draupnode genera el usuario, la contraseña y el certificado y los da de alta en ese servidor, como ahora. Si la misma receta está en varios servidores, cada despliegue tiene su usuario y su carpeta en el destino.
+- Por tanto **un despliegue sí puede tener valores propios** (destino de copias, dominio, IP pública…) que sobrescriben los de la receta sin cambiarla.
+
 ### Módulos futuros (lista del usuario, 2026-11-20) — todos de código abierto
 
 | Programa | Licencia | Notas para el módulo |
