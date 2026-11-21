@@ -335,6 +335,79 @@ export interface ServerLive {
   webLabel?: string
 }
 
+// ---- creador de Dockerfile ----
+export interface DockerSpec {
+  stack: string
+  framework: string
+  name: string
+  version: string
+  port: number
+  hostPort: number
+  start: string
+  pyInstall: string
+  module: string
+  extraPip: string[]
+  djangoMigrate: boolean
+  djangoCollectstatic: boolean
+  djangoSuperuser: boolean
+  nodePm: string
+  nodeBuild: boolean
+  nodeLock: boolean
+  staticDir: string
+  javaBuild: string
+  javaWrapper: boolean
+  docRoot: string
+  laravelMigrate: boolean
+  goMain: string
+  systemPackages: string[]
+  volumes: string[]
+  envKeys: string[]
+  nonRoot: boolean
+  healthPath: string
+  postgres: boolean
+  mariadb: boolean
+  redis: boolean
+  dbMode: string
+  sharedNetwork: string
+  sharedHost: string
+  sideBySide: boolean
+}
+
+export interface DockerAnalysis {
+  dir: string
+  name: string
+  spec: DockerSpec
+  evidence: string[]
+  warnings: string[]
+  existing: string[]
+  alternatives: string[]
+}
+
+export interface DockerFile {
+  name: string
+  content: string
+  exists: boolean
+}
+
+export interface DockerPreview {
+  files: DockerFile[]
+  errors: string[]
+}
+
+export interface DockerInfo {
+  versions: Record<string, string[]>
+  docker: boolean
+}
+
+export interface DockerBuildEvent {
+  kind: 'line' | 'done'
+  text?: string
+  ok?: boolean
+  error?: string
+  image?: string
+  secs?: number
+}
+
 interface Backend {
   AppInfo(): Promise<AppInfo>
   SecretsInfo(): Promise<SecretsInfo>
@@ -387,6 +460,15 @@ interface Backend {
   LabRegister(): Promise<Server>
   OpenURL(url: string): Promise<void>
   ServerLive(id: string): Promise<ServerLive>
+  DockerInfo(): Promise<DockerInfo>
+  ChooseProjectDir(): Promise<string>
+  AnalyzeProject(dir: string, stack: string): Promise<DockerAnalysis>
+  DefaultDockerSpec(stack: string, name: string): Promise<DockerSpec>
+  GenerateDocker(dir: string, spec: DockerSpec): Promise<DockerPreview>
+  WriteDockerFiles(dir: string, spec: DockerSpec, overwrite: boolean): Promise<string[]>
+  BuildDockerImage(dir: string, spec: DockerSpec): Promise<void>
+  CancelDockerBuild(): Promise<boolean>
+  OpenProjectDir(dir: string): Promise<void>
 }
 
 declare global {
@@ -804,6 +886,52 @@ function mockBackend(): Backend {
       save('servers', servers)
       return srv
     },
+    async DockerInfo() {
+      return { versions: MOCK_VERSIONS, docker: true }
+    },
+    async ChooseProjectDir() {
+      await wait()
+      return '/home/usuario/proyectos/tienda'
+    },
+    async AnalyzeProject(dir, stack) {
+      await wait(400)
+      const st = stack || 'python'
+      const spec = mockSpec(st, 'tienda')
+      if (st === 'python') {
+        Object.assign(spec, { framework: 'django', module: 'config', start: 'gunicorn config.wsgi:application --bind 0.0.0.0:8000', djangoMigrate: true, djangoCollectstatic: true, postgres: true, envKeys: ['SECRET_KEY', 'DB_PASSWORD'] })
+      }
+      return {
+        dir, name: 'tienda', spec,
+        evidence: st === 'python' ? ['Hay manage.py: proyecto Django (módulo config).', 'requirements.txt incluye psycopg: usa PostgreSQL.', 'Variables de entorno sacadas de .env.example: SECRET_KEY, DB_PASSWORD.'] : ['Tipo elegido a mano.'],
+        warnings: [], existing: [], alternatives: st === 'python' ? ['node'] : ['python'],
+      }
+    },
+    async DefaultDockerSpec(stack, name) {
+      return mockSpec(stack, name)
+    },
+    async GenerateDocker(_dir, spec) {
+      await wait(120)
+      if (!/^[a-z0-9-]+$/.test(spec.name)) return { files: [], errors: ['el nombre solo puede tener minúsculas, números y guiones'] }
+      const files = [
+        { name: 'Dockerfile', content: `# Generado por Draupnode (demo)\nFROM ${spec.stack}:${spec.version}-slim\nWORKDIR /app\nCOPY . .\nEXPOSE ${spec.port}\nCMD ${JSON.stringify(spec.start.split(' '))}\n`, exists: false },
+        { name: 'docker-compose.yml', content: `services:\n  ${spec.name}:\n    build: .\n    ports:\n      - "${spec.hostPort || spec.port}:${spec.port}"\n`, exists: false },
+        { name: '.dockerignore', content: '.git\n.env\n__pycache__\n', exists: false },
+      ]
+      return { files, errors: [] }
+    },
+    async WriteDockerFiles() {
+      await wait()
+      return ['Dockerfile', 'docker-compose.yml', '.dockerignore']
+    },
+    async BuildDockerImage(_dir, spec) {
+      const lines = ['#1 [internal] load build definition from Dockerfile', '#2 [internal] load metadata', '#5 [2/4] RUN pip install -r requirements.txt', '#8 exporting to image', '#8 naming to draupnode-prueba/' + spec.name + ':latest done']
+      lines.forEach((t, i) => setTimeout(() => mockEmit('dockerbuild', { kind: 'line', text: t }), 300 * (i + 1)))
+      setTimeout(() => mockEmit('dockerbuild', { kind: 'done', ok: true, image: 'draupnode-prueba/' + spec.name + ':latest', secs: 2 }), 300 * (lines.length + 1))
+    },
+    async CancelDockerBuild() {
+      return false
+    },
+    async OpenProjectDir() {},
     async OpenURL(url) {
       window.open(url, '_blank')
     },
@@ -915,6 +1043,21 @@ function mockBackend(): Backend {
       save('projects', projects)
       ev({ kind: 'done', summary })
     }, t + 400)
+  }
+}
+
+const MOCK_VERSIONS: Record<string, string[]> = {
+  python: ['3.13', '3.12', '3.11', '3.10'], node: ['22', '20', '24'], java: ['21', '17', '25', '11'],
+  php: ['8.3', '8.4', '8.2'], go: ['1.23', '1.24', '1.22'], static: [''],
+}
+function mockSpec(stack: string, name: string): DockerSpec {
+  const port: Record<string, number> = { python: 8000, node: 3000, java: 8080, php: 80, go: 8080, static: 80 }
+  return {
+    stack, framework: stack === 'node' ? 'server' : '', name, version: MOCK_VERSIONS[stack]?.[0] ?? '', port: port[stack] ?? 8000, hostPort: 0,
+    start: stack === 'python' ? 'python main.py' : stack === 'node' ? 'npm run start' : '', pyInstall: 'requirements', module: 'config', extraPip: [],
+    djangoMigrate: false, djangoCollectstatic: false, djangoSuperuser: false, nodePm: 'npm', nodeBuild: false, nodeLock: true, staticDir: 'dist',
+    javaBuild: 'maven', javaWrapper: false, docRoot: '', laravelMigrate: false, goMain: '.', systemPackages: [], volumes: [], envKeys: [],
+    nonRoot: true, healthPath: '', postgres: false, mariadb: false, redis: false, dbMode: 'own', sharedNetwork: 'apps', sharedHost: 'pg-compartido', sideBySide: false,
   }
 }
 

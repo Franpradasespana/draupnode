@@ -105,6 +105,17 @@ export const HELP: HelpSection[] = [
     ],
   },
   {
+    id: 'docker',
+    title: 'Docker',
+    intro: 'Un asistente que crea los ficheros de Docker (Dockerfile, docker-compose.yml, .dockerignore y, si hace falta, docker-entrypoint.sh) de cualquier proyecto: Python, Node, Java, PHP, Go o web estática.',
+    steps: [
+      { title: '1 · Carpeta', text: 'Elige la carpeta del proyecto. Draupnode mira sus ficheros (requirements.txt, package.json, pom.xml…) y te dice qué ha reconocido y en qué se ha basado. El .env nunca se lee.', img: 'docker' },
+      { title: '2 a 4 · Revisa', text: 'Lenguaje y versión, cómo arranca y qué necesita (PostgreSQL, MariaDB, Redis, variables, carpetas de datos). Todo viene relleno con lo detectado: cambia solo lo que no cuadre.' },
+      { title: '5 · Vista previa y guardar', text: 'Ves cada fichero antes de guardarlo. Si el proyecto ya tenía Dockerfile, los nuevos se guardan al lado con «.draupnode» en el nombre y no se toca nada tuyo.', img: 'docker-vista' },
+      { title: 'Probar a construir', text: 'Si hay Docker en este equipo, construye la imagen y te enseña la salida. Si falla, las últimas líneas suelen decir qué falta.' },
+    ],
+  },
+  {
     id: 'settings',
     title: 'Ajustes',
     intro: 'Dónde se guardan las contraseñas, el tema de colores y los datos de la aplicación.',

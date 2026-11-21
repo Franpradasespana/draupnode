@@ -1,15 +1,10 @@
 <script lang="ts">
-  import { Boxes, FileCode, SquareTerminal } from '@lucide/svelte'
+  import { Boxes, SquareTerminal } from '@lucide/svelte'
   import type { View } from '../lib/state.svelte'
 
   let { view }: { view: View } = $props()
 
   const info: Record<string, { icon: typeof Boxes; title: string; phase: string; text: string; items: string[] }> = {
-    editor: {
-      icon: FileCode, title: 'Editor de código', phase: 'Fase 3',
-      text: 'El editor de VS Code (Monaco) integrado para crear y modificar módulos.',
-      items: ['YAML de Ansible, docker-compose, .sh y plantillas', 'Coloreado y autocompletado', 'Validación antes de guardar'],
-    },
     terminal: {
       icon: SquareTerminal, title: 'Terminal SSH', phase: 'Fase 3',
       text: 'Una consola real contra tus servidores, sin salir de la app.',

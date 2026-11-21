@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { LayoutDashboard, Server, Boxes, FolderGit2, FileCode, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X } from '@lucide/svelte'
+  import { LayoutDashboard, Server, Boxes, FolderGit2, Container, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X } from '@lucide/svelte'
   import Logo from './components/Logo.svelte'
   import Dashboard from './views/Dashboard.svelte'
   import Servers from './views/Servers.svelte'
@@ -13,6 +13,7 @@
   import Catalog from './views/Catalog.svelte'
   import Projects from './views/Projects.svelte'
   import Lab from './views/Lab.svelte'
+  import Dockerize from './views/Dockerize.svelte'
   import StatusBar from './components/StatusBar.svelte'
   import HelpDialog from './components/HelpDialog.svelte'
   import { ui, boot, toast, type View } from './lib/state.svelte'
@@ -24,13 +25,13 @@
     { id: 'projects', label: 'Proyectos', icon: FolderGit2 },
     { id: 'catalog', label: 'Catálogo', icon: Boxes },
     { id: 'lab', label: 'Pruebas', icon: FlaskConical },
-    { id: 'editor', label: 'Editor', icon: FileCode, soon: true },
+    { id: 'docker', label: 'Docker', icon: Container },
     { id: 'terminal', label: 'Terminal', icon: SquareTerminal, soon: true },
   ]
 
   const titles: Record<View, string> = {
     dashboard: 'Panel', servers: 'Servidores', catalog: 'Catálogo', projects: 'Proyectos',
-    editor: 'Editor', terminal: 'Terminal', settings: 'Ajustes', lab: 'Pruebas',
+    docker: 'Docker', terminal: 'Terminal', settings: 'Ajustes', lab: 'Pruebas',
   }
 
   let ready = $state(false)
@@ -100,6 +101,7 @@
       {:else if ui.view === 'catalog'}<Catalog />
       {:else if ui.view === 'projects'}<Projects />
       {:else if ui.view === 'lab'}<Lab />
+      {:else if ui.view === 'docker'}<Dockerize />
       {:else if ui.view === 'settings'}<SettingsView />
       {:else}<Upcoming view={ui.view} />
       {/if}

@@ -42,7 +42,7 @@ const seed = {
 }
 
 // ---- capturas: nombre, pantalla, acciones y recorte opcional ----
-const SHOTS = [
+const ALL_SHOTS = [
   { name: 'panel', view: 'dashboard' },
   { name: 'servidores', view: 'servers' },
   { name: 'servidor-nuevo', view: 'servers', act: [['click', 'button', 'Añadir servidor'], ['wait', 500],
@@ -51,9 +51,16 @@ const SHOTS = [
   { name: 'proyecto', view: 'projects', act: [['click', 'button.proj', 'Coolify producción'], ['wait', 900]] },
   { name: 'catalogo', view: 'catalog', act: [['wait', 1200], ['click', 'button.mod', 'Coolify'], ['wait', 700]] },
   { name: 'pruebas', view: 'lab', act: [['wait', 600], ['click', 'button', 'Crear y arrancar'], ['wait', 4500]] },
+  { name: 'docker', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900]] },
+  { name: 'docker-vista', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900], ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'],
+    ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'], ['wait', 500], ['click', 'button', 'Guardar en la carpeta'], ['wait', 600], ['click', 'button', 'Probar a construir'], ['wait', 2600]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]
+
+// CAPTURAS=docker,ajustes rehace solo esas.
+const only = (process.env.CAPTURAS ?? '').split(',').filter(Boolean)
+const SHOTS = only.length ? ALL_SHOTS.filter((s) => only.includes(s.name)) : ALL_SHOTS
 
 // ---- arranque de vite y chrome ----
 const vite = spawn('npx', ['vite', '--port', String(VITE_PORT), '--strictPort'], { cwd: join(here, '..'), stdio: 'ignore', shell: process.platform === 'win32' })
@@ -95,6 +102,13 @@ const evaluate = async (expr) => {
   return r.result.value
 }
 
+const jsErrors = []
+const origOnMessage = ws.onmessage
+ws.onmessage = (m) => {
+  const d = JSON.parse(m.data)
+  if (d.method === 'Runtime.exceptionThrown') jsErrors.push(d.params.exceptionDetails?.exception?.description ?? 'error')
+  origOnMessage(m)
+}
 await send('Page.enable')
 await send('Runtime.enable')
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false })
@@ -139,8 +153,9 @@ try {
     writeFileSync(join(outDir, s.name + '.webp'), Buffer.from(data, 'base64'))
     console.log('✓', s.name)
   }
+  if (jsErrors.length) { console.error('Errores de JavaScript:\n' + jsErrors.join('\n')); process.exitCode = 1 }
 } finally {
   ws.close()
   cleanup()
 }
-process.exit(0)
+process.exit(process.exitCode ?? 0)

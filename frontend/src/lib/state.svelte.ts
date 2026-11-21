@@ -2,7 +2,7 @@
 import { api, onEvent, vaultCode, type AppInfo, type ModulesInfo, type Project, type RunEvent, type RunSummary, type SecretsInfo, type Server } from './api'
 import { applyPalette, BUILTIN_PALETTES, DEFAULT_PALETTE_ID, isHex, COLOR_KEYS, type Palette } from './palettes'
 
-export type View = 'dashboard' | 'servers' | 'catalog' | 'projects' | 'lab' | 'editor' | 'terminal' | 'settings'
+export type View = 'dashboard' | 'servers' | 'catalog' | 'projects' | 'lab' | 'docker' | 'terminal' | 'settings'
 
 export function moduleName(id: string): string {
   return ui.modules?.modules.find((m) => m.id === id)?.name ?? id

@@ -69,7 +69,14 @@ func SafeName(s string) string {
 }
 
 // Analyze mira la carpeta y propone una configuración.
-func Analyze(dir string) (*Analysis, error) {
+func Analyze(dir string) (*Analysis, error) { return AnalyzeAs(dir, "") }
+
+// AnalyzeAs es Analyze, pero tratando el proyecto como el lenguaje indicado
+// (si el usuario elige otro distinto del detectado). "" = el detectado.
+func AnalyzeAs(dir, stack string) (*Analysis, error) {
+	if _, ok := Versions[stack]; stack != "" && !ok {
+		return nil, os.ErrInvalid
+	}
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, err
@@ -83,6 +90,9 @@ func Analyze(dir string) (*Analysis, error) {
 			a.Existing = append(a.Existing, f)
 		}
 	}
+	// Si ya tiene Dockerfile o compose, lo nuevo se guarda al lado.
+	sideBySide := exists(dir, "Dockerfile") || exists(dir, "docker-compose.yml") || exists(dir, "compose.yaml")
+	defer func() { a.Spec.SideBySide = sideBySide }()
 
 	var found []string
 	if exists(dir, "requirements.txt") || exists(dir, "pyproject.toml") || exists(dir, "Pipfile") || exists(dir, "manage.py") {
@@ -102,6 +112,15 @@ func Analyze(dir string) (*Analysis, error) {
 	}
 	if len(found) == 0 && exists(dir, "index.html") {
 		found = append(found, StackStatic)
+	}
+	if stack != "" && (len(found) == 0 || found[0] != stack) {
+		rest := []string{}
+		for _, f := range found {
+			if f != stack {
+				rest = append(rest, f)
+			}
+		}
+		found = append([]string{stack}, rest...)
 	}
 	if len(found) == 0 {
 		a.Warnings = append(a.Warnings, "No he reconocido el tipo de proyecto: elígelo tú en el primer paso.")

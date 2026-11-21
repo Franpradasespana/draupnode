@@ -54,6 +54,11 @@
 - Adoptar lo que ya hay en el servidor real (`pg-compartido`, `monitoring-*`, `apps-backup`) con sus mismos nombres.
 - Botón «Traer contraseñas del servidor» sin tener que Aplicar (hoy se traen al Aplicar).
 
+### Ideas aprobadas por el usuario (2026-11-21)
+
+- **Módulo «Destino de copias»**: prepara OTRO servidor (VPS, Raspberry, NAS) para recibir las copias restic de los demás. rest-server (BSD-2) en modo `--append-only` + usuario/contraseña por proyecto: el servidor de origen puede añadir copias pero no borrarlas (protege frente a ransomware o intrusión). En el módulo backups, elegir ese destino de una lista en vez de teclear la URL.
+- **Aviso / descarga automática de copias al abrir la app**: al arrancar, comprobar la fecha de la última copia traída al equipo por proyecto. Opción por proyecto: «avisar si tiene más de N días» (aviso con botón «Traer ahora») o «traer automáticamente» (incremental, progreso en la barra de estado).
+
 ### Módulos futuros (lista del usuario, 2026-11-20) — todos de código abierto
 
 | Programa | Licencia | Notas para el módulo |
