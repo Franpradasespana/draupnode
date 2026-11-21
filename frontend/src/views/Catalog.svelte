@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ModuleText from '../components/ModuleText.svelte'
+  import ModuleLinks from '../components/ModuleLinks.svelte'
   import { FolderOpen, RefreshCw, MemoryStick, HardDrive, Monitor, ArrowRight, FileCode, TriangleAlert, Package } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import { api, errorText, type Module } from '../lib/api'
@@ -99,8 +101,9 @@
 {#if open}
   {@const m = open}
   <Modal title={m.name} onclose={() => (open = null)} width={760}>
-    <p>{m.description}</p>
-    {#if m.details}<p class="muted details">{m.details}</p>{/if}
+    <p class="lead">{m.description}</p>
+    <ModuleLinks links={m.links} />
+    {#if m.details}<ModuleText text={m.details} />{/if}
     <div class="meta">
       <span class="badge mono">{m.id} · v{m.version}</span>
       <span class="badge">{m.source === 'user' ? 'Módulo tuyo' : 'Incluido en Draupnode'}</span>
@@ -155,7 +158,7 @@
   .errs :global(svg) { color: var(--danger); flex: none; }
   .errs ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
   .foot { margin-top: 26px; font-size: 12.5px; line-height: 1.7; }
-  .details { white-space: pre-line; font-size: 13px; }
+  .lead { margin: 0; font-size: 14px; font-weight: 500; }
   h3 { margin-top: 6px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--border); }

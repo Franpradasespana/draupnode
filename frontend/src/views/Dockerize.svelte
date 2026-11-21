@@ -459,9 +459,9 @@
       <div class="row">
         <button class="btn primary" onclick={save} disabled={saving}>{#if saving}<LoaderCircle size={15} class="spin" />{:else}<Save size={15} />{/if} Guardar en la carpeta</button>
         {#if saved}
-          <button class="btn" onclick={build} disabled={building || !info?.docker} title={info?.docker ? '' : 'No hay Docker en este equipo (pantalla «Pruebas»)'}><Hammer size={15} /> Probar a construir</button>
+          <button class="btn" onclick={build} disabled={building || !info?.docker} title={info?.docker ? '' : 'No hay Docker en este equipo (pantalla «Servidor de pruebas»)'}><Hammer size={15} /> Probar a construir</button>
           {#if building}<button class="btn ghost" onclick={() => api.CancelDockerBuild()}><Square size={14} /> Cancelar</button>{/if}
-          <button class="btn" onclick={labTest} disabled={labRunning || !info?.docker} title={info?.docker ? 'Lo arranca en el servidor de pruebas de este equipo (lo crea si no existe)' : 'No hay Docker en este equipo (pantalla «Pruebas»)'}><FlaskConical size={15} /> Probar en el servidor de pruebas</button>
+          <button class="btn" onclick={labTest} disabled={labRunning || !info?.docker} title={info?.docker ? 'Lo arranca en el servidor de pruebas de este equipo (lo crea si no existe)' : 'No hay Docker en este equipo (pantalla «Servidor de pruebas»)'}><FlaskConical size={15} /> Probar en el servidor de pruebas</button>
           <button class="btn ghost" onclick={() => api.OpenProjectDir(dir)}><FolderOpen size={15} /> Abrir carpeta</button>
         {/if}
       </div>

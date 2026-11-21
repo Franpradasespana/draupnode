@@ -28,3 +28,10 @@ variables:
     default: []
     pattern: '^[a-z_][a-z0-9_-]{0,31}$'
     pattern_help: Nombre de usuario de Linux
+links:
+  - label: "Web oficial"
+    url: https://www.docker.com
+  - label: "Documentación"
+    url: https://docs.docker.com
+  - label: "Código fuente (Moby)"
+    url: https://github.com/moby/moby

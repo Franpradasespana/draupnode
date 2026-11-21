@@ -55,7 +55,7 @@ requires:
 {extra_top}{('secrets:' + chr(10) + secrets + chr(10)) if secrets else ''}uninstall_warning: {json.dumps('Para y quita los contenedores de ' + a['short'] + '.', ensure_ascii=False)}
 uninstall_data: {json.dumps('Borrar también sus datos (' + a['data_desc'] + '). No se puede deshacer.', ensure_ascii=False)}
 variables:
-""" + "\n".join(v) + "\n"
+""" + "\n".join(v) + "\n" + ("links:\n" + "".join(f"  - label: {json.dumps(l, ensure_ascii=False)}\n    url: {u}\n" for l, u in a.get('links', [])) if a.get('links') else "")
 
 def tasks(a):
     p = a['id'].replace('-', '_')

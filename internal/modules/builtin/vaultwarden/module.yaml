@@ -56,3 +56,8 @@ variables:
     help: Descarga la última versión de la imagen cada vez que aplicas.
     type: bool
     default: true
+links:
+  - label: "Código fuente y wiki"
+    url: https://github.com/dani-garcia/vaultwarden
+  - label: "Apps de Bitwarden"
+    url: https://bitwarden.com/download/

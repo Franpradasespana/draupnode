@@ -46,3 +46,10 @@ variables:
     help: Coolify se actualiza solo a cada versión nueva. Desactívalo si prefieres actualizar tú desde el panel.
     type: bool
     default: true
+links:
+  - label: "Web oficial"
+    url: https://coolify.io
+  - label: "Documentación"
+    url: https://coolify.io/docs
+  - label: "Código fuente"
+    url: https://github.com/coollabsio/coolify

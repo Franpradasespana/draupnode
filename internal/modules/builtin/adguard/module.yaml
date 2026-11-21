@@ -42,3 +42,8 @@ variables:
     label: Actualizar AdGuard Home al aplicar
     type: bool
     default: true
+links:
+  - label: "Web oficial"
+    url: https://adguard.com/adguard-home/overview.html
+  - label: "Código fuente"
+    url: https://github.com/AdguardTeam/AdGuardHome

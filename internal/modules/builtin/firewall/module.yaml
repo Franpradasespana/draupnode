@@ -20,3 +20,8 @@ variables:
     default: ["22", "80", "443"]
     pattern: '^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$'
     pattern_help: Número de puerto entre 1 y 65535
+links:
+  - label: "iptables (netfilter)"
+    url: https://www.netfilter.org/projects/iptables/
+  - label: "Código fuente"
+    url: https://git.netfilter.org/iptables/

@@ -131,7 +131,7 @@ func (a *App) runLabTest(ctx context.Context, dir string, spec dockerize.Spec) D
 
 	a.labStage("Comprobando Docker en este equipo")
 	if st := l.Docker(ctx); st.Problem != lab.ProblemNone {
-		return fail(st.Message + " Arréglalo en la pantalla «Pruebas» y vuelve a probar.")
+		return fail(st.Message + " Arréglalo en la pantalla «Servidor de pruebas» y vuelve a probar.")
 	}
 
 	if !l.Server(ctx).Running {
@@ -139,7 +139,7 @@ func (a *App) runLabTest(ctx context.Context, dir string, spec dockerize.Spec) D
 		a.labMu.Lock()
 		if a.labBusy != "" {
 			a.labMu.Unlock()
-			return fail("La pantalla «Pruebas» está ocupada (" + a.labBusy + "): espera a que termine.")
+			return fail("La pantalla «Servidor de pruebas» está ocupada (" + a.labBusy + "): espera a que termine.")
 		}
 		a.labBusy = "start"
 		a.labMu.Unlock()

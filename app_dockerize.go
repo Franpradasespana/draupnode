@@ -218,7 +218,7 @@ func (a *App) BuildDockerImage(dir string, spec dockerize.Spec) error {
 		return errors.New("guarda antes los ficheros (falta " + df + ")")
 	}
 	if _, err := exec.LookPath("docker"); err != nil {
-		return errors.New("no hay Docker en este equipo: instálalo desde la pantalla «Pruebas»")
+		return errors.New("no hay Docker en este equipo: instálalo desde la pantalla «Servidor de pruebas»")
 	}
 	buildMu.Lock()
 	if buildCancel != nil {
@@ -280,7 +280,7 @@ func buildError(ctx context.Context, err error, tail string) string {
 	low := strings.ToLower(tail)
 	switch {
 	case strings.Contains(low, "permission denied") && strings.Contains(low, "docker.sock"):
-		return "Tu usuario no puede usar Docker todavía: mira la pantalla «Pruebas» (puede que haga falta reiniciar el equipo)."
+		return "Tu usuario no puede usar Docker todavía: mira la pantalla «Servidor de pruebas» (puede que haga falta reiniciar el equipo)."
 	case strings.Contains(low, "cannot connect to the docker daemon"):
 		return "Docker no está en marcha en este equipo."
 	}

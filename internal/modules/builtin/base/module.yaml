@@ -34,3 +34,10 @@ variables:
     label: Actualizaciones de seguridad automáticas
     type: bool
     default: true
+links:
+  - label: "Ubuntu Server (documentación)"
+    url: https://ubuntu.com/server/docs
+  - label: "Debian"
+    url: https://www.debian.org
+  - label: "Actualizaciones automáticas (unattended-upgrades)"
+    url: https://github.com/mvo5/unattended-upgrades

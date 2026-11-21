@@ -53,3 +53,8 @@ variables:
     help: Descarga la última versión de la imagen cada vez que aplicas.
     type: bool
     default: true
+links:
+  - label: "Web oficial"
+    url: https://www.navidrome.org
+  - label: "Código fuente"
+    url: https://github.com/navidrome/navidrome

@@ -91,6 +91,9 @@ type Module struct {
 	// ProxySite: si la variable Domain tiene un dominio, Draupnode añade
 	// «dominio 127.0.0.1:<Port>» a los sitios de Caddy o nginx del proyecto.
 	ProxySite *ProxySite `yaml:"proxy_site" json:"proxySite,omitempty"`
+	// Links: web oficial, código fuente y documentación de lo que instala
+	// (se enseñan en el Catálogo: es lo justo para quien lo crea).
+	Links []Link `yaml:"links" json:"links,omitempty"`
 	// Conflicts: módulos que no pueden ir en el mismo proyecto (en los dos sentidos).
 	Conflicts []string `yaml:"conflicts" json:"conflicts,omitempty"`
 	// After: si estos módulos están en el proyecto, este va detrás (sin obligar a marcarlos).
@@ -112,6 +115,12 @@ type Module struct {
 	Source string   `yaml:"-" json:"source"` // builtin | user
 	Files  []string `yaml:"-" json:"files"`  // ficheros del rol (para verlos)
 	role   fs.FS
+}
+
+// Link es un enlace a la web de un programa.
+type Link struct {
+	Label string `yaml:"label" json:"label"`
+	URL   string `yaml:"url" json:"url"`
 }
 
 // ProxySite: variables con el dominio y el puerto local de una app.
@@ -213,6 +222,11 @@ func (m *Module) validate() error {
 	for _, name := range m.FirewallPortsFrom {
 		if v := vars[name]; v == nil || v.Type != TypeInt {
 			return fmt.Errorf("firewall_ports_from: %q no es una variable numérica del módulo", name)
+		}
+	}
+	for _, l := range m.Links {
+		if l.Label == "" || !strings.HasPrefix(l.URL, "https://") || strings.ContainsAny(l.URL, " \"'<>") {
+			return fmt.Errorf("links: cada enlace necesita label y una dirección https:// (%q)", l.URL)
 		}
 	}
 	if ps := m.ProxySite; ps != nil {

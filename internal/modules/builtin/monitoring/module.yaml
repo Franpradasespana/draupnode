@@ -66,3 +66,14 @@ variables:
     default: 19090
     min: 1024
     max: 65535
+links:
+  - label: "Prometheus"
+    url: https://prometheus.io
+  - label: "Grafana"
+    url: https://grafana.com/oss/grafana/
+  - label: "Código de Grafana"
+    url: https://github.com/grafana/grafana
+  - label: "node_exporter"
+    url: https://github.com/prometheus/node_exporter
+  - label: "cAdvisor"
+    url: https://github.com/google/cadvisor

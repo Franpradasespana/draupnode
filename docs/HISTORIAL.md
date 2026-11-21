@@ -421,3 +421,11 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 - Los módulos de apps en Docker se generan con `herramientas/apps/gen.py` desde sus fichas (`apps.py`), ahora en el repositorio (LEEME en esa carpeta). Todos reintentan la descarga de imágenes (3 veces, cada 30 s): al probar, el registro de GitHub contestó «demasiadas peticiones».
 - PLAN.md: tabla de programas al día (hechos y los que se dejan fuera a propósito: Pi-hole, ufw, Borg).
 - **Probado** en un Ubuntu desechable (con las imágenes cargadas desde este equipo, por el límite de descargas de ghcr.io en el contenedor): `/api/server/ping` → pong, alta del administrador e inicio de sesión con token; desinstalar con datos no deja nada.
+
+## 2026-11-21 · 0.35.0 · Menú reordenado y Catálogo con enlaces y párrafos
+
+Primer paso del rediseño pedido (ver PLAN.md, «Rediseño pedido por el usuario»).
+- **Menú:** arriba Panel, Servidores y Proyectos; debajo, el grupo **«Utilidades»** con Docker Creator, Servidor de pruebas (antes «Pruebas») y Terminal; el **Catálogo abajo**, encima de Ayuda.
+- **Enlaces** a la web oficial, la documentación y el código fuente de lo que instala cada módulo (campo nuevo `links` en module.yaml; el test exige que todos los incluidos los tengan). Se ven en la ficha del Catálogo y en la página del módulo dentro del proyecto. También en los módulos de apps generados (`herramientas/apps`).
+- **Texto de los módulos en párrafos de verdad y a todo el ancho** (`ModuleText`): une las líneas que el fichero corta a mano, empieza párrafo tras una línea en blanco o al acabar una frase, y deja los ejemplos sangrados como líneas aparte en monoespaciada.
+- El catálogo de la demo es ahora una copia completa de los módulos reales.

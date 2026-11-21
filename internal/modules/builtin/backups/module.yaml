@@ -145,3 +145,10 @@ variables:
     help: Las copias viejas del destino no se borran desde aquí (el destino no lo permite). Las de este servidor sí.
     type: bool
     default: false
+links:
+  - label: "restic"
+    url: https://restic.net
+  - label: "Documentación"
+    url: https://restic.readthedocs.io
+  - label: "Código fuente"
+    url: https://github.com/restic/restic

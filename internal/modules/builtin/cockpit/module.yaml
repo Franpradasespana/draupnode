@@ -48,3 +48,8 @@ variables:
     default: ""
     pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
     pattern_help: Un dominio o vacío
+links:
+  - label: "Web oficial"
+    url: https://cockpit-project.org
+  - label: "Código fuente"
+    url: https://github.com/cockpit-project/cockpit

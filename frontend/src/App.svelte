@@ -20,19 +20,23 @@
   import { ui, boot, toast, type View } from './lib/state.svelte'
   import { errorText, isDesktop } from './lib/api'
 
-  const nav: { id: View; label: string; icon: typeof Server; soon?: boolean }[] = [
+  type NavItem = { id: View; label: string; icon: typeof Server; soon?: boolean }
+  // Lo principal arriba; las herramientas en «Utilidades»; el Catálogo
+  // (lo que se puede instalar) abajo, junto a la Ayuda.
+  const nav: NavItem[] = [
     { id: 'dashboard', label: 'Panel', icon: LayoutDashboard },
     { id: 'servers', label: 'Servidores', icon: Server },
     { id: 'projects', label: 'Proyectos', icon: FolderGit2 },
-    { id: 'catalog', label: 'Catálogo', icon: Boxes },
-    { id: 'lab', label: 'Pruebas', icon: FlaskConical },
+  ]
+  const tools: NavItem[] = [
     { id: 'docker', label: 'Docker Creator', icon: Container },
+    { id: 'lab', label: 'Servidor de pruebas', icon: FlaskConical },
     { id: 'terminal', label: 'Terminal', icon: SquareTerminal, soon: true },
   ]
 
   const titles: Record<View, string> = {
     dashboard: 'Panel', servers: 'Servidores', catalog: 'Catálogo', projects: 'Proyectos',
-    docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Pruebas',
+    docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Servidor de pruebas',
   }
 
   let ready = $state(false)
@@ -82,11 +86,22 @@
         <button class="nav-item" class:active={ui.view === item.id} onclick={() => go(item.id)}>
           <item.icon size={17} strokeWidth={1.8} />
           <span>{item.label}</span>
+        </button>
+      {/each}
+      <div class="nav-group">Utilidades</div>
+      {#each tools as item}
+        <button class="nav-item" class:active={ui.view === item.id} onclick={() => go(item.id)}>
+          <item.icon size={17} strokeWidth={1.8} />
+          <span>{item.label}</span>
           {#if item.soon}<em>pronto</em>{/if}
         </button>
       {/each}
     </nav>
     <div class="side-foot">
+      <button class="nav-item help-btn" class:active={ui.view === 'catalog'} onclick={() => go('catalog')} title="Los módulos que se pueden instalar">
+        <Boxes size={17} strokeWidth={1.8} />
+        <span>Catálogo</span>
+      </button>
       <button class="nav-item help-btn" onclick={() => { ui.help = ui.view; menuOpen = false }} title="Ayuda de esta pantalla">
         <CircleHelp size={17} strokeWidth={1.8} />
         <span>Ayuda</span>
@@ -181,7 +196,9 @@
   .nav-item em { margin-left: auto; font-style: normal; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; opacity: .6; }
 
   .help-btn { margin: 0 -18px; }
-  .side-foot { padding: 14px 18px 4px; display: flex; flex-direction: column; gap: 10px; }
+  .nav-group { margin: 16px 18px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--sidebar-muted); opacity: .75; font-weight: 600; }
+  .side-foot { padding: 14px 18px 4px; display: flex; flex-direction: column; gap: 2px; }
+  .side-foot .ver { margin-top: 10px; }
   .ver { font-size: 11.5px; color: var(--sidebar-muted); opacity: .7; font-family: var(--mono); }
 
   .content { overflow-y: auto; padding: 28px 32px 40px; }

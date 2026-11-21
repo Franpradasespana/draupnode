@@ -101,3 +101,10 @@ variables:
     label: Traer lo último de Git al aplicar
     type: bool
     default: true
+links:
+  - label: "Git"
+    url: https://git-scm.com
+  - label: "Docker Compose"
+    url: https://docs.docker.com/compose/
+  - label: "Código de Compose"
+    url: https://github.com/docker/compose

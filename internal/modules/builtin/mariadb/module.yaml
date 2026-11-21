@@ -56,3 +56,10 @@ variables:
     default: /srv/draupnode/mariadb
     pattern: '^/[A-Za-z0-9._/-]+$'
     pattern_help: Ruta absoluta
+links:
+  - label: "Web oficial"
+    url: https://mariadb.org
+  - label: "Documentación"
+    url: https://mariadb.com/kb/
+  - label: "Código fuente"
+    url: https://github.com/MariaDB/server

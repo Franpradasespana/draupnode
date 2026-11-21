@@ -98,3 +98,8 @@ variables:
     label: Contraseñas de las copias (las pone Draupnode)
     type: secret
     managed: true
+links:
+  - label: "rest-server (código fuente)"
+    url: https://github.com/restic/rest-server
+  - label: "restic"
+    url: https://restic.net

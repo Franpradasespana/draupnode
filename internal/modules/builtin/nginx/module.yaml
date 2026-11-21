@@ -60,3 +60,10 @@ variables:
     help: No dejar meter la web en un marco de otra, no adivinar tipos de fichero, no decir la versión de nginx…
     type: bool
     default: true
+links:
+  - label: "Web oficial"
+    url: https://nginx.org
+  - label: "Código fuente"
+    url: https://github.com/nginx/nginx
+  - label: "certbot (Let's Encrypt)"
+    url: https://certbot.eff.org

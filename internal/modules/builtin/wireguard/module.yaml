@@ -64,3 +64,10 @@ variables:
     default: ""
     pattern: '^([0-9.]+(, *[0-9.]+)*)?$'
     pattern_help: IPs separadas por comas
+links:
+  - label: "Web oficial"
+    url: https://www.wireguard.com
+  - label: "Apps para móvil y ordenador"
+    url: https://www.wireguard.com/install/
+  - label: "Código fuente"
+    url: https://git.zx2c4.com/wireguard-tools/

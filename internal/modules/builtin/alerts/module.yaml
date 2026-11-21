@@ -113,3 +113,10 @@ variables:
     default: 6
     min: 0
     max: 168
+links:
+  - label: "ntfy"
+    url: https://ntfy.sh
+  - label: "Código de ntfy"
+    url: https://github.com/binwiederhier/ntfy
+  - label: "Bots de Telegram"
+    url: https://core.telegram.org/bots

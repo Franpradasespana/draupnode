@@ -104,7 +104,7 @@ export const HELP: HelpSection[] = [
   },
   {
     id: 'lab',
-    title: 'Pruebas',
+    title: 'Servidor de pruebas',
     intro: 'Un servidor Ubuntu 24.04 dentro de Docker en este equipo, para probar sin miedo a romper nada.',
     steps: [
       { title: '1 · Docker en este equipo', text: 'Si falta Docker o no tienes permiso, los botones lo arreglan (te pide tu contraseña en una ventana del sistema). Si te añade al grupo docker, reinicia el equipo.', img: 'pruebas' },
@@ -123,7 +123,7 @@ export const HELP: HelpSection[] = [
       { title: 'nginx delante (dominio y puerto normal)', text: 'En «Servicios», «Poner nginx delante» añade al compose un nginx que recibe en el puerto 80 (o el que digas) las visitas a tu dominio y las pasa por dentro al puerto de la app, que ya no se publica. Para HTTPS, pon delante el módulo Caddy o nginx de Draupnode, o despliégalo con Coolify.', img: 'docker-nginx' },
       { title: '5 · Vista previa y guardar', text: 'Ves cada fichero antes de guardarlo. Si el proyecto ya tenía Dockerfile, los nuevos se guardan al lado con «.draupnode» en el nombre y no se toca nada tuyo.', img: 'docker-vista' },
       { title: 'Probar a construir', text: 'Si hay Docker en este equipo, construye la imagen y te enseña la salida. Si falla, las últimas líneas suelen decir qué falta.' },
-      { title: 'Probar en el servidor de pruebas', text: 'Arranca el proyecto de verdad (con su compose: base de datos, nginx…) en el servidor de pruebas de este equipo; si no existe, lo crea, y le instala Docker si le falta. Sube la carpeta sin .git ni node_modules (si no hay .env, crea uno de prueba desde .env.example), comprueba que responde y te da «Abrir en el navegador». «Parar la prueba» lo borra todo del servidor de pruebas. Necesita Docker en este equipo (pantalla «Pruebas»).', img: 'docker-vista' },
+      { title: 'Probar en el servidor de pruebas', text: 'Arranca el proyecto de verdad (con su compose: base de datos, nginx…) en el servidor de pruebas de este equipo; si no existe, lo crea, y le instala Docker si le falta. Sube la carpeta sin .git ni node_modules (si no hay .env, crea uno de prueba desde .env.example), comprueba que responde y te da «Abrir en el navegador». «Parar la prueba» lo borra todo del servidor de pruebas. Necesita Docker en este equipo (pantalla «Servidor de pruebas»).', img: 'docker-vista' },
     ],
   },
   {

@@ -64,3 +64,8 @@ variables:
     help: Descarga la última versión de la imagen cada vez que aplicas.
     type: bool
     default: true
+links:
+  - label: "Web oficial"
+    url: https://forgejo.org
+  - label: "Código fuente"
+    url: https://codeberg.org/forgejo/forgejo

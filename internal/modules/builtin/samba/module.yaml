@@ -42,3 +42,8 @@ variables:
     default: []
     pattern: '^[a-z0-9.@-]{1,15}$'
     pattern_help: Nombre de interfaz (eth0, enp3s0…)
+links:
+  - label: "Web oficial"
+    url: https://www.samba.org
+  - label: "Código fuente"
+    url: https://gitlab.com/samba-team/samba

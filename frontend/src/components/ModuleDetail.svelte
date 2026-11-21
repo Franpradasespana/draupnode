@@ -4,6 +4,8 @@
   import { Hammer, Trash2, Undo2, ExternalLink, Info, ChevronDown, ChevronRight, CircleCheck } from '@lucide/svelte'
   import ModuleForm from './ModuleForm.svelte'
   import BackupsPanel from './BackupsPanel.svelte'
+  import ModuleText from './ModuleText.svelte'
+  import ModuleLinks from './ModuleLinks.svelte'
   import WireguardPanel from './WireguardPanel.svelte'
   import AlertsPanel from './AlertsPanel.svelte'
   import MonitoringPanel from './MonitoringPanel.svelte'
@@ -67,9 +69,10 @@
     {:else}<span class="pill new">Se instalará al aplicar</span>{/if}
   </div>
   <p class="muted">{m.description}</p>
+  <ModuleLinks links={m.links} />
   {#if m.details}
     <button class="more" onclick={() => (more = !more)}>{#if more}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if} Cómo funciona</button>
-    {#if more}<p class="details">{m.details}</p>{/if}
+    {#if more}<ModuleText text={m.details} />{/if}
   {/if}
   {#if !pm && installed}
     <p class="info"><Info size={15} /> Sigue instalado y funcionando en el servidor, pero este proyecto ya no lo gestiona (no lo comprueba ni lo actualiza al aplicar).</p>
@@ -156,7 +159,6 @@
   .pill.left { border: 1px dashed var(--success); color: var(--success); }
   .head p { margin: 0; font-size: 13.5px; }
   .more { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; padding: 0; align-self: flex-start; }
-  .details { white-space: pre-line; font-size: 13px; color: var(--muted); }
   .info { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; background: var(--panel-2); padding: 8px 10px; border-radius: var(--radius-sm); }
   .small { font-size: 12px; }
   .cfg { margin: 14px 0; }

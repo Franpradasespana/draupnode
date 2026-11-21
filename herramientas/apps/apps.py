@@ -8,6 +8,7 @@ UPDATE = lambda p, short: f"""- name: {p}_update
   default: true"""
 
 APPS['vaultwarden'] = dict(
+    links=[('Código fuente y wiki', 'https://github.com/dani-garcia/vaultwarden'), ('Apps de Bitwarden', 'https://bitwarden.com/download/')],
     id='vaultwarden', name='Vaultwarden (contraseñas)', short='Vaultwarden', license='AGPL-3.0',
     description='Tu gestor de contraseñas, compatible con las apps y extensiones de Bitwarden. Tus contraseñas, en tu servidor.',
     details="""Vaultwarden (servidor libre compatible con Bitwarden) en Docker.
@@ -47,6 +48,7 @@ y vuelve a aplicar. El panel /admin usa el «Token de administración»
 )
 
 APPS['navidrome'] = dict(
+    links=[('Web oficial', 'https://www.navidrome.org'), ('Código fuente', 'https://github.com/navidrome/navidrome')],
     id='navidrome', name='Navidrome (música)', short='Navidrome', license='GPL-3.0',
     description='Tu propio Spotify: escucha tu colección de música desde el navegador o el móvil (apps compatibles con Subsonic).',
     details="""Navidrome en Docker. Lee la música de la carpeta indicada (solo
@@ -91,6 +93,7 @@ Apps de móvil compatibles (Subsonic): Symfonium, Tempo, Substreamer, play:Sub�
 )
 
 APPS['jellyfin'] = dict(
+    links=[('Web oficial', 'https://jellyfin.org'), ('Código fuente', 'https://github.com/jellyfin/jellyfin')],
     id='jellyfin', name='Jellyfin (películas y series)', short='Jellyfin', license='GPL-2.0',
     description='Tu propio Netflix: películas, series y fotos desde el navegador, la tele o el móvil.',
     details="""Jellyfin en Docker. Lee tus vídeos de la carpeta indicada (solo
@@ -134,6 +137,7 @@ reproduzcan tal cual (la app de Jellyfin, Kodi…).""",
 )
 
 APPS['syncthing'] = dict(
+    links=[('Web oficial', 'https://syncthing.net'), ('Código fuente', 'https://github.com/syncthing/syncthing')],
     id='syncthing', name='Syncthing (sincronizar carpetas)', short='Syncthing', license='MPL-2.0',
     description='Sincroniza carpetas entre tus equipos y el servidor, sin nube de nadie. Por ejemplo, para subir tu música o tus fotos.',
     details="""Syncthing en Docker. Su panel solo se ve desde el servidor («Abrir»
@@ -176,6 +180,7 @@ Las carpetas sincronizadas quedan en /srv/draupnode/apps/syncthing/data.""",
 )
 
 APPS['forgejo'] = dict(
+    links=[('Web oficial', 'https://forgejo.org'), ('Código fuente', 'https://codeberg.org/forgejo/forgejo')],
     id='forgejo', name='Forgejo (tu GitHub)', short='Forgejo', license='GPL-3.0',
     description='Tu propio GitHub: repositorios Git, incidencias, revisiones de código y paquetes, en tu servidor.',
     details="""Forgejo 15 en Docker, con su base SQLite (sin servidor de base de
@@ -261,6 +266,7 @@ El registro de usuarios nuevos está cerrado salvo que lo abras.""",
 )
 
 APPS['paperless'] = dict(
+    links=[('Documentación', 'https://docs.paperless-ngx.com'), ('Código fuente', 'https://github.com/paperless-ngx/paperless-ngx')],
     id='paperless', name='Paperless-ngx (documentos)', short='Paperless-ngx', license='GPL-3.0',
     description='Escanea o sube tus papeles (facturas, contratos, recibos…) y encuéntralos al momento: lee el texto (OCR), los etiqueta y los archiva.',
     details="""Paperless-ngx en Docker, con su propio PostgreSQL y Redis. Draupnode
@@ -323,6 +329,7 @@ La primera vez tarda unos minutos en arrancar.""",
 )
 
 APPS['immich'] = dict(
+    links=[('Web oficial', 'https://immich.app'), ('Código fuente', 'https://github.com/immich-app/immich')],
     id='immich', name='Immich (fotos y vídeos)', short='Immich', license='AGPL-3.0',
     description='Tu propio Google Fotos: copia automática de las fotos del móvil, álbumes, búsqueda por lo que sale en la foto y por caras.',
     details="""Immich (versión 3) en Docker, como su compose oficial: servidor,

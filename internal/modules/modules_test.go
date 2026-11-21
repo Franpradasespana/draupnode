@@ -22,6 +22,12 @@ func TestCatalogoIncluido(t *testing.T) {
 			t.Fatalf("falta %s: %+v", id, m)
 		}
 	}
+	// Todos los incluidos enlazan a la web o al código de lo que instalan.
+	for _, m := range c.All() {
+		if m.Source == "builtin" && len(m.Links) == 0 {
+			t.Errorf("%s no tiene enlaces (links) a su web o su código", m.ID)
+		}
+	}
 	ord, added, err := c.Resolve([]string{"coolify"})
 	if err != nil {
 		t.Fatal(err)

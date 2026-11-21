@@ -48,3 +48,10 @@ variables:
     help: HSTS, no dejar meter la web en un marco de otra, no adivinar tipos de fichero…
     type: bool
     default: true
+links:
+  - label: "Web oficial"
+    url: https://caddyserver.com
+  - label: "Documentación"
+    url: https://caddyserver.com/docs/
+  - label: "Código fuente"
+    url: https://github.com/caddyserver/caddy

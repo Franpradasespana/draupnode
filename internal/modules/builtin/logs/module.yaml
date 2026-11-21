@@ -28,3 +28,10 @@ variables:
     help: SSH, sudo, servicios, copias de seguridad… además de los contenedores.
     type: bool
     default: true
+links:
+  - label: "Loki"
+    url: https://grafana.com/oss/loki/
+  - label: "Código de Loki"
+    url: https://github.com/grafana/loki
+  - label: "Grafana Alloy"
+    url: https://github.com/grafana/alloy
