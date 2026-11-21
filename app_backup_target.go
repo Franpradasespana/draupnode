@@ -31,7 +31,7 @@ import (
 
 const (
 	targetModule      = "backup-target"
-	targetProjectName = "Destino de copias"
+	targetProjectName = "Servidor de copias"
 )
 
 // BackupTargetResult explica lo que se ha hecho y qué falta.
@@ -87,7 +87,12 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 	// 1. El proyecto destino (uno por servidor).
 	tgt, isNew := a.findTargetProject(tgtSrv.ID)
 	if isNew {
-		tgt, err = a.SaveProject(store.Project{Name: uniqueName(a, targetProjectName+" · "+tgtSrv.Name), ServerID: tgtSrv.ID})
+		// El destino es una receta más («Servidor de copias») desplegada en ese servidor.
+		rec, err := a.copiasRecipe()
+		if err != nil {
+			return res, err
+		}
+		tgt, err = a.SaveProject(store.Project{Name: rec.Name, ServerID: tgtSrv.ID, RecipeID: rec.ID})
 		if err != nil {
 			return res, err
 		}
@@ -207,18 +212,6 @@ func (a *App) findTargetProject(serverID string) (store.Project, bool) {
 		}
 	}
 	return store.Project{}, true
-}
-
-func uniqueName(a *App, name string) string {
-	used := map[string]bool{}
-	for _, p := range a.store.Projects() {
-		used[p.Name] = true
-	}
-	n := name
-	for i := 2; used[n]; i++ {
-		n = fmt.Sprintf("%s (%d)", name, i)
-	}
-	return n
 }
 
 // targetFirewall abre el puerto: en el Cortafuegos de este proyecto, o en el
@@ -431,4 +424,17 @@ func (a *App) managedSecret(name string, vals map[string]any) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// copiasRecipe: la receta «Servidor de copias» (la crea si no existe).
+func (a *App) copiasRecipe() (store.Recipe, error) {
+	for _, r := range a.store.Recipes() {
+		for _, m := range r.Modules {
+			if m.ID == targetModule {
+				return r, nil
+			}
+		}
+	}
+	return a.SaveRecipe(store.Recipe{Name: targetProjectName, Notes: "Recibe las copias de otros servidores (solo añadir) y borra las viejas.",
+		Modules: []store.ProjectModule{{ID: "firewall", Values: map[string]any{}}, {ID: targetModule, Values: map[string]any{}}}})
 }

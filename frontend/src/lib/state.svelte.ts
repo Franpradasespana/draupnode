@@ -1,5 +1,5 @@
 // Estado global de la interfaz (Svelte 5 runes).
-import { api, onEvent, vaultCode, type AppInfo, type ModulesInfo, type Project, type RunEvent, type RunSummary, type SecretsInfo, type Server } from './api'
+import { api, onEvent, vaultCode, type RecipeView, type AppInfo, type ModulesInfo, type Project, type RunEvent, type RunSummary, type SecretsInfo, type Server } from './api'
 import { applyPalette, BUILTIN_PALETTES, DEFAULT_PALETTE_ID, isHex, COLOR_KEYS, type Palette } from './palettes'
 
 export type View = 'dashboard' | 'servers' | 'catalog' | 'projects' | 'lab' | 'docker' | 'terminal' | 'settings'
@@ -41,8 +41,13 @@ export const ui = $state({
   servers: [] as Server[],
   modules: null as ModulesInfo | null,
   projects: [] as Project[],
-  // Proyecto abierto en el editor ('' = nuevo, null = lista).
+  // Proyecto desplegado abierto (su pantalla de aplicar y módulos), dentro de la ficha de su servidor.
   projectId: null as string | null,
+  // Ficha de servidor abierta (null = lista de servidores).
+  serverId: null as string | null,
+  // Recetas («Proyectos»): la abierta ('' = nueva, null = lista) y la lista.
+  recipeId: null as string | null,
+  recipes: [] as RecipeView[],
   // Servidor por el que se filtra la lista de proyectos (null = todos).
   projectServer: null as string | null,
   // Servidor que se muestra en la barra de estado (el último elegido).
@@ -73,21 +78,38 @@ export function setActiveServer(id: string) {
   try { localStorage.setItem('draupnode.activeServer', id) } catch { /* sin almacenamiento */ }
 }
 
-/** Abre la lista de proyectos de un servidor. */
-export function openServerProjects(id: string) {
+/** Abre la ficha de un servidor. */
+export function openServer(id: string) {
   setActiveServer(id)
-  ui.projectServer = id
+  ui.serverId = id
   ui.projectId = null
+  ui.view = 'servers'
+}
+/** Compatibilidad: antes abría la lista de proyectos de un servidor; ahora su ficha. */
+export const openServerProjects = openServer
+
+/** Abre el proyecto desplegado en un servidor (su pantalla de aplicar y módulos). */
+export function openDeployment(projectId: string) {
+  const p = ui.projects.find((x) => x.id === projectId)
+  if (p) setActiveServer(p.serverId)
+  ui.serverId = p?.serverId ?? ui.serverId
+  ui.projectId = projectId
+  ui.view = 'servers'
+}
+
+/** Abre una receta (proyecto) para editarla; '' = nueva. */
+export function openRecipe(id: string) {
+  ui.recipeId = id
   ui.view = 'projects'
 }
 
 /** Servidor del que habla la pantalla actual, o el último elegido. */
 export function contextServerId(): string | null {
-  if (ui.view === 'projects' && ui.projectId) {
+  if (ui.view === 'servers' && ui.serverId) return ui.serverId
+  if (ui.projectId) {
     const p = ui.projects.find((x) => x.id === ui.projectId)
     if (p) return p.serverId
   }
-  if (ui.view === 'projects' && ui.projectServer) return ui.projectServer
   if (ui.activeServer && ui.servers.some((s) => s.id === ui.activeServer)) return ui.activeServer
   return ui.servers[0]?.id ?? null
 }
@@ -137,7 +159,9 @@ export async function refreshServers() {
 }
 
 export async function refreshProjects() {
-  ui.projects = await api.ListProjects()
+  const [p, r] = await Promise.all([api.ListProjects(), api.ListRecipes()])
+  ui.projects = p
+  ui.recipes = r
 }
 
 export async function refreshModules(reload = false) {

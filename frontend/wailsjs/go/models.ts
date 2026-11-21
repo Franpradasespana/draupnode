@@ -464,6 +464,28 @@ export namespace main {
 	        this.notes = source["notes"];
 	    }
 	}
+	export class Deployment {
+	    projectId: string;
+	    serverId: string;
+	    serverName: string;
+	    applied: boolean;
+	    pending: boolean;
+	    sameRecipe: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Deployment(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectId = source["projectId"];
+	        this.serverId = source["serverId"];
+	        this.serverName = source["serverName"];
+	        this.applied = source["applied"];
+	        this.pending = source["pending"];
+	        this.sameRecipe = source["sameRecipe"];
+	    }
+	}
 	export class DockerFile {
 	    name: string;
 	    content: string;
@@ -840,6 +862,70 @@ export namespace main {
 	        this.at = source["at"];
 	    }
 	}
+	export class RecipeDiff {
+	    recipeId: string;
+	    recipeName: string;
+	    added: string[];
+	    removed: string[];
+	    changed: Record<string, Array<string>>;
+	
+	    static createFrom(source: any = {}) {
+	        return new RecipeDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.recipeId = source["recipeId"];
+	        this.recipeName = source["recipeName"];
+	        this.added = source["added"];
+	        this.removed = source["removed"];
+	        this.changed = source["changed"];
+	    }
+	}
+	export class RecipeView {
+	    id: string;
+	    name: string;
+	    notes?: string;
+	    modules: store.ProjectModule[];
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	    deployments: Deployment[];
+	
+	    static createFrom(source: any = {}) {
+	        return new RecipeView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.notes = source["notes"];
+	        this.modules = this.convertValues(source["modules"], store.ProjectModule);
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	        this.deployments = this.convertValues(source["deployments"], Deployment);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class RunStart {
 	    status: string;
 	    runId?: string;
@@ -916,6 +1002,54 @@ export namespace main {
 	        this.error = source["error"];
 	        this.webUrl = source["webUrl"];
 	        this.webLabel = source["webLabel"];
+	    }
+	}
+	export class ServerLogsResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    text?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerLogsResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.text = source["text"];
+	    }
+	}
+	export class ServerOverviewResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    overview?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerOverviewResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.overview = source["overview"];
 	    }
 	}
 	export class ServerView {
@@ -1075,6 +1209,20 @@ export namespace modules {
 	        this.containerFree = source["containerFree"];
 	    }
 	}
+	export class Link {
+	    label: string;
+	    url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Link(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.url = source["url"];
+	    }
+	}
 	export class SecretFile {
 	    file: string;
 	    label: string;
@@ -1169,6 +1317,7 @@ export namespace modules {
 	    firewallPortsFrom?: string[];
 	    udpPortsFrom?: string[];
 	    proxySite?: ProxySite;
+	    links?: Link[];
 	    conflicts?: string[];
 	    after?: string[];
 	    checks?: Check[];
@@ -1199,6 +1348,7 @@ export namespace modules {
 	        this.firewallPortsFrom = source["firewallPortsFrom"];
 	        this.udpPortsFrom = source["udpPortsFrom"];
 	        this.proxySite = this.convertValues(source["proxySite"], ProxySite);
+	        this.links = this.convertValues(source["links"], Link);
 	        this.conflicts = source["conflicts"];
 	        this.after = source["after"];
 	        this.checks = this.convertValues(source["checks"], Check);
@@ -1415,6 +1565,22 @@ export namespace store {
 		    return a;
 		}
 	}
+	export class Overrides {
+	    added?: string[];
+	    removed?: string[];
+	    values?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new Overrides(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.added = source["added"];
+	        this.removed = source["removed"];
+	        this.values = source["values"];
+	    }
+	}
 	export class RunSummary {
 	    // Go type: time
 	    at: any;
@@ -1498,6 +1664,8 @@ export namespace store {
 	    installedValues?: Record<string, any>;
 	    backupsFetched?: FetchInfo;
 	    backupsAuto?: BackupsAuto;
+	    recipeId?: string;
+	    overrides?: Overrides;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -1519,6 +1687,8 @@ export namespace store {
 	        this.installedValues = source["installedValues"];
 	        this.backupsFetched = this.convertValues(source["backupsFetched"], FetchInfo);
 	        this.backupsAuto = this.convertValues(source["backupsAuto"], BackupsAuto);
+	        this.recipeId = source["recipeId"];
+	        this.overrides = this.convertValues(source["overrides"], Overrides);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1540,6 +1710,48 @@ export namespace store {
 		}
 	}
 	
+	export class Recipe {
+	    id: string;
+	    name: string;
+	    notes?: string;
+	    modules: ProjectModule[];
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Recipe(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.notes = source["notes"];
+	        this.modules = this.convertValues(source["modules"], ProjectModule);
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	export class Server {
 	    id: string;

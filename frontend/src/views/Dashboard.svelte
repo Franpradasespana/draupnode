@@ -14,7 +14,8 @@
   const steps = $derived([
     { done: total > 0, text: 'Añade un servidor con su clave SSH', go: 'servers' as const },
     { done: ok > 0, text: 'Prueba la conexión y confía en su huella', go: 'servers' as const },
-    { done: ui.projects.length > 0, text: 'Crea un proyecto y elige módulos (Docker, Coolify, PostgreSQL…)', go: 'projects' as const },
+    { done: ui.recipes.length > 0, text: 'Crea un proyecto (la receta: módulos y opciones)', go: 'projects' as const },
+    { done: ui.projects.length > 0, text: 'Asócialo a un servidor desde su ficha', go: 'servers' as const },
     { done: ui.projects.some((p) => p.lastRun?.ok && !p.lastRun.check), text: 'Previsualiza y aplica con Ansible, o exporta un único instalar.sh', go: 'projects' as const },
   ])
 </script>
@@ -47,7 +48,7 @@
       <ul>
         {#each ui.servers as s (s.id)}
           {@const n = ui.projects.filter((p) => p.serverId === s.id).length}
-          <li><button class="srow" onclick={() => openServerProjects(s.id)} title="Ver los proyectos de este servidor">
+          <li><button class="srow" onclick={() => openServerProjects(s.id)} title="Ver la ficha del servidor">
             <span class="dot" class:ok={s.lastCheck?.ok} class:err={s.lastCheck && !s.lastCheck.ok}></span>
             <span class="name">{s.name}</span>
             <span class="muted mono host">{s.host}</span>

@@ -9,9 +9,9 @@
   import ApplyWizard from '../components/ApplyWizard.svelte'
   import { orderModules, clashesWith, modulePorts, sameValues, type CardState } from '../lib/modules'
   import { withConnection } from '../lib/connect'
-  import { api, errorText, type Module, type Project, type ProjectCheck, type RunStart, type UninstallCheck, type UninstallChoice } from '../lib/api'
+  import { api, errorText, type Module, type Project, type RecipeDiff, type ProjectCheck, type RunStart, type UninstallCheck, type UninstallChoice } from '../lib/api'
   import {
-    ui, toast, refreshProjects, moduleName, timeAgo, startRun, confirmDialog,
+    ui, toast, refreshProjects, moduleName, timeAgo, startRun, confirmDialog, openRecipe,
   } from '../lib/state.svelte'
 
   let { id }: { id: string } = $props()
@@ -273,18 +273,70 @@
     return save(true)
   }
 
+  // ---- receta de la que sale ----
+  const recipe = $derived(ui.recipes.find((r) => r.id === draft.recipeId))
+  let diff = $state<RecipeDiff | null>(null)
+  $effect(() => {
+    void stored?.updatedAt
+    void recipe?.updatedAt
+    if (draft.recipeId && draft.id) api.ProjectRecipeDiff(draft.id).then((d) => (diff = d)).catch(() => {})
+  })
+  const diffText = $derived.by(() => {
+    if (!diff) return ''
+    const parts: string[] = []
+    if (diff.added.length) parts.push('añade ' + diff.added.map(moduleName).join(', '))
+    if (diff.removed.length) parts.push('quita ' + diff.removed.map(moduleName).join(', '))
+    const ch = Object.keys(diff.changed)
+    if (ch.length) parts.push('opciones propias en ' + ch.map(moduleName).join(', '))
+    return parts.join(' · ')
+  })
+  async function pushToRecipe() {
+    const ok = await confirmDialog({
+      title: 'Llevar a la receta',
+      message: `Lo que este servidor tiene distinto (${diffText}) pasa a la receta «${recipe?.name}». Los demás servidores con esta receta lo recibirán (sin aplicarlo todavía) y conservarán lo suyo.`,
+      confirmLabel: 'Llevar a la receta',
+    })
+    if (!ok) return
+    try {
+      await api.PushToRecipe(draft.id)
+      await refreshProjects()
+      reloadDraft()
+      toast('Receta actualizada')
+    } catch (e) {
+      toast(errorText(e), 'error')
+    }
+  }
+  async function resetToRecipe() {
+    const ok = await confirmDialog({
+      title: 'Volver a la receta',
+      message: `Se deshace lo propio de este servidor (${diffText}) y queda igual que la receta. Lo instalado no cambia hasta que apliques.`,
+      confirmLabel: 'Volver a la receta', danger: true,
+    })
+    if (!ok) return
+    try {
+      await api.ResetToRecipe(draft.id)
+      await refreshProjects()
+      reloadDraft()
+      toast('Igual que la receta')
+    } catch (e) {
+      toast(errorText(e), 'error')
+    }
+  }
+
   async function remove() {
     const ok = await confirmDialog({
-      title: 'Eliminar proyecto',
-      message: `¿Eliminar «${draft.name}»? Solo se borra de Draupnode (y sus registros); el servidor no se toca.`,
-      confirmLabel: 'Eliminar', danger: true,
+      title: draft.recipeId ? 'Quitar del servidor' : 'Eliminar proyecto',
+      message: draft.recipeId
+        ? `¿Quitar «${draft.name}» de ${server?.name}? Se borra de Draupnode (con sus registros y sus contraseñas guardadas); lo instalado en el servidor NO se toca (para eso, desinstala antes sus módulos). La receta se conserva.`
+        : `¿Eliminar «${draft.name}»? Solo se borra de Draupnode (y sus registros); el servidor no se toca.`,
+      confirmLabel: draft.recipeId ? 'Quitar' : 'Eliminar', danger: true,
     })
     if (!ok) return
     try {
       await api.DeleteProject(draft.id)
       await refreshProjects()
       ui.projectId = null
-      toast('Proyecto eliminado')
+      toast(draft.recipeId ? 'Quitado del servidor' : 'Proyecto eliminado')
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -356,7 +408,7 @@
   {#if openModule}
     <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> {draft.name || 'Proyecto'}</button>
   {:else}
-    <button class="btn ghost sm" onclick={() => (ui.projectId = null)}><ArrowLeft size={15} /> Proyectos</button>
+    <button class="btn ghost sm" onclick={() => (ui.projectId = null)}><ArrowLeft size={15} /> {server?.name ?? 'Servidor'}</button>
   {/if}
   <div class="spacer"></div>
   {#if !isNew}
@@ -372,7 +424,7 @@
 <!-- Siempre a la vista: en qué servidor y proyecto estás. -->
 <nav class="crumbs" aria-label="Dónde estás">
   <ServerIcon size={14} />
-  <button class="crumb" onclick={() => { ui.projectServer = draft.serverId; ui.projectId = null }} title="Ver los proyectos de este servidor">{server?.name ?? 'Sin servidor'}</button>
+  <button class="crumb" onclick={() => (ui.projectId = null)} title="Ficha del servidor">{server?.name ?? 'Sin servidor'}</button>
   {#if server}<span class="muted mono small">{server.user}@{server.host}</span>{/if}
   <ChevronRight size={14} class="sep" />
   {#if openModule}
@@ -394,6 +446,24 @@
     onapply={() => (pending.length ? openWizard() : start(false))}
     onremove={() => removeFromProject(openModule.id)} onreadd={() => readd(openModule.id)} onuninstall={() => uninstallOne(openModule.id)} onreload={reloadDraft} />
 {:else}
+  {#if draft.recipeId}
+    <div class="recipe-row card">
+      <div class="rr-text">
+        <span class="muted small">Proyecto</span>
+        <strong>{recipe?.name ?? draft.name}</strong>
+        <span class="muted small">en {server?.name}</span>
+      </div>
+      <div class="rr-diff">
+        {#if diffText}
+          <span class="pill warn">Distinto de la receta: {diffText}</span>
+          <button class="btn sm" onclick={pushToRecipe} disabled={running || dirty} title="Lo de este servidor pasa a la receta (y a los demás servidores que la usan)">Llevar a la receta</button>
+          <button class="btn sm" onclick={resetToRecipe} disabled={running || dirty} title="Deshace lo propio de este servidor">Volver a la receta</button>
+        {:else}<span class="pill ok">Igual que la receta</span>{/if}
+        <button class="btn sm ghost" onclick={() => openRecipe(draft.recipeId!)}>Editar la receta</button>
+        <button class="btn sm danger" onclick={remove} disabled={running} title="Lo quita de Draupnode; lo instalado en el servidor no se toca"><Trash2 size={14} /> Quitar del servidor</button>
+      </div>
+    </div>
+  {:else}
   <div class="title-row">
     <input class="name" bind:value={draft.name} placeholder="Nombre del proyecto (p. ej. Servidor web)" disabled={running} />
     <label class="field srv">
@@ -410,6 +480,7 @@
       <button class="btn danger" onclick={remove} disabled={running}><Trash2 size={15} /> Eliminar</button>
     {/if}
   </div>
+  {/if}
 
   {#if isNew}
     <p class="new-hint muted">Escribe el nombre, elige el servidor y pulsa <strong>Guardar</strong>. Después podrás elegir los módulos.</p>
@@ -506,6 +577,14 @@
   .crumb:hover { text-decoration: underline; }
   .crumbs :global(.sep) { opacity: .6; }
   .mono { font-family: var(--mono); }
+  .small { font-size: 12px; }
+  .recipe-row { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 14px; }
+  .rr-text { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .rr-text strong { font-size: 17px; }
+  .rr-diff { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .rr-diff .pill { display: inline-flex; padding: 3px 9px; border-radius: 999px; font-size: 12px; }
+  .rr-diff .pill.ok { background: var(--success-soft); color: var(--success); }
+  .rr-diff .pill.warn { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
   .small { font-size: 12px; }
   .title-row { display: grid; grid-template-columns: 1fr 340px auto; gap: 16px; align-items: end; margin-bottom: 14px; }
   .name { font-size: 22px; font-weight: 600; background: none; border: 0; border-bottom: 1px solid transparent; padding: 4px 0; outline: none; color: var(--text); }

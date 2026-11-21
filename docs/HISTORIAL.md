@@ -429,3 +429,24 @@ Primer paso del rediseño pedido (ver PLAN.md, «Rediseño pedido por el usuario
 - **Enlaces** a la web oficial, la documentación y el código fuente de lo que instala cada módulo (campo nuevo `links` en module.yaml; el test exige que todos los incluidos los tengan). Se ven en la ficha del Catálogo y en la página del módulo dentro del proyecto. También en los módulos de apps generados (`herramientas/apps`).
 - **Texto de los módulos en párrafos de verdad y a todo el ancho** (`ModuleText`): une las líneas que el fichero corta a mano, empieza párrafo tras una línea en blanco o al acabar una frase, y deja los ejemplos sangrados como líneas aparte en monoespaciada.
 - El catálogo de la demo es ahora una copia completa de los módulos reales.
+
+## 2026-11-21 · 0.36.0 · Recetas y servidores: el servidor es la pieza principal
+
+Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y los servidores la cocina».
+
+- **Proyecto = receta** (`store.Recipe`): nombre, para qué es, módulos y opciones, **sin servidor**. Pantalla «Proyectos» = lista de recetas con en qué servidores están y su estado; editor de recetas (módulos por categoría, opciones por módulo, sin datos secretos: esos van en cada servidor), «Asociar a un servidor».
+- **Despliegue** = la receta en un servidor: es el «proyecto» de antes (`store.Project`, con `recipeId`), así que aplicar, contraseñas, copias, apps, desinstalar… siguen igual. Puede tener **datos propios** (`overrides`: módulos añadidos o quitados y opciones cambiadas) que se calculan solos al guardar. Al cambiar la receta, sus servidores reciben el cambio (con «cambios sin aplicar») y conservan lo suyo. En la pantalla del proyecto de un servidor: de qué receta sale, «Igual que la receta» o qué tiene distinto, **«Llevar a la receta»** (y a los demás servidores), **«Volver a la receta»** y «Quitar del servidor» (no toca lo instalado).
+- **Conversión automática** al abrir: cada proyecto de antes pasa a ser una receta con sus módulos y un despliegue en su servidor con el mismo id (sus contraseñas, registros y copias siguen siendo suyos). Formato de datos versión 2.
+- **«Servidor de copias»** es ahora una receta más: «Guardar también en otro servidor…» la crea si no existe y la despliega en el servidor elegido.
+- **Ficha del servidor** (al pulsar un servidor; antes llevaba a la lista de proyectos). Al abrirla se conecta por SSH y, **solo leyendo** (`internal/overview`, Python en el servidor), enseña:
+  - CPU (medida al momento), carga, memoria y swap, discos y tiempo encendido;
+  - avisos de contenedores caídos o reiniciándose y servicios con fallos (con su registro);
+  - sus proyectos (estado, datos propios, «Abrir»), «Asociar» uno y «Crear un proyecto nuevo»;
+  - **apps y direcciones**: las de Draupnode (con «Abrir» por túnel o su dominio), el **panel y las apps de Coolify con sus dominios** (leídos de su base de datos, sin token) y los **sitios de nginx y Caddy**, aunque no los instalara Draupnode;
+  - **bases de datos** de cada PostgreSQL y MariaDB/MySQL en Docker y **lo que pesa cada una**;
+  - **contenedores** con estado, CPU, memoria, puertos y de quién son (Draupnode, Coolify, compose), con su **registro**;
+  - puertos abiertos a la red, registro del sistema y de SSH, y las contraseñas generadas de sus proyectos;
+  - «Actualizar» y «Editar conexión».
+  - Registros (`ServerLogs`): contenedor, servicio de systemd o todo el sistema, últimas 400 líneas; los nombres se validan.
+- Navegación: Servidores → ficha → proyecto del servidor; la barra de estado, el panel y los avisos llevan a la ficha o al proyecto en su servidor.
+- **Probado**: tests de recetas (desplegar, valores propios, cambio de receta que llega a todos sin pisar lo propio, llevar a la receta, volver a la receta, no borrar una receta en uso) y de la conversión de datos viejos. En un Ubuntu desechable: receta con PostgreSQL (dos bases) y nginx → asociada → aplicada; la ficha encuentra el PostgreSQL con sus bases y tamaños, un Coolify (su base, con dos apps y su panel), el sitio de nginx y un contenedor que se reinicia sin parar; registros de contenedor y de servicio; un nombre malicioso se rechaza. El destino de copias sigue funcionando como receta. Demo: ficha, proyecto en el servidor, editor de recetas y el resto de pantallas sin errores de JavaScript.

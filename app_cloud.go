@@ -63,7 +63,9 @@ func cloudPortWarning(sel []bundle.Selection, cloud string) string {
 	for p := range set {
 		ports = append(ports, p)
 	}
-	sort.Slice(ports, func(i, j int) bool { return atoi(strings.Split(ports[i], "/")[0]) < atoi(strings.Split(ports[j], "/")[0]) })
+	sort.Slice(ports, func(i, j int) bool {
+		return atoi(strings.Split(ports[i], "/")[0]) < atoi(strings.Split(ports[j], "/")[0])
+	})
 	return "El servidor está en " + cf[0] + ", que tiene su propio cortafuegos fuera del servidor: si no lo has hecho ya, abre también " +
 		strings.Join(ports, ", ") + " en " + cf[1] + ". Draupnode no puede hacerlo por ti."
 }

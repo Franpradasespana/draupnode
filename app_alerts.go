@@ -48,4 +48,3 @@ func (a *App) AlertsRun(projectID, what, secret, accept, sudoPassword string) Al
 }
 
 func alertsScript(p store.Project) string { return "/usr/local/sbin/draupnode-alertas-" + slugOf(p) }
-

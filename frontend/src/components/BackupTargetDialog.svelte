@@ -4,7 +4,7 @@
   import { ServerCog, ShieldCheck, LoaderCircle, CircleCheck, ArrowRight, TriangleAlert, Dices } from '@lucide/svelte'
   import Modal from './Modal.svelte'
   import { api, errorText, type BackupTargetResult, type Project } from '../lib/api'
-  import { ui, toast, withVault, refreshProjects, startRun } from '../lib/state.svelte'
+  import { ui, toast, withVault, refreshProjects, startRun, openDeployment } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
   import { cloudHint } from '../lib/modules'
 
@@ -102,9 +102,7 @@
 
   function openTarget() {
     if (!result) return
-    ui.projectServer = null
-    ui.projectId = result.targetProjectId
-    ui.view = 'projects'
+    openDeployment(result.targetProjectId)
     onclose()
   }
 </script>

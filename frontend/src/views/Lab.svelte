@@ -5,7 +5,7 @@
     Download, Wrench, ServerCog, Copy, ExternalLink, ArrowRight, KeyRound,
   } from '@lucide/svelte'
   import { api, errorText, onEvent, type LabStatus } from '../lib/api'
-  import { ui, toast, refreshServers, confirmDialog } from '../lib/state.svelte'
+  import { ui, toast, refreshServers, confirmDialog, openRecipe } from '../lib/state.svelte'
 
   let st = $state<LabStatus | null>(null)
   let loading = $state(true)
@@ -208,7 +208,7 @@
     <div class="buttons">
       {#if st.serverId}
         <button class="btn" onclick={() => (ui.view = 'servers')}><ServerCog size={15} /> Ver en Servidores</button>
-        <button class="btn primary" onclick={() => { ui.view = 'projects'; ui.projectId = '' }}><ArrowRight size={15} /> Crear un proyecto</button>
+        <button class="btn primary" onclick={() => openRecipe('')}><ArrowRight size={15} /> Crear un proyecto</button>
       {:else}
         <button class="btn primary" onclick={register} disabled={!st.server.running}><ServerCog size={15} /> Dar de alta en Draupnode</button>
         <span class="muted small">Con la clave sin contraseña y la huella ya confiada.</span>

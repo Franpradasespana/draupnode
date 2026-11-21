@@ -129,6 +129,12 @@ func (a *App) CheckProject(p store.Project) ProjectCheck {
 }
 
 func (a *App) resolveProject(p store.Project) (ProjectCheck, []bundle.Selection) {
+	return a.resolveModules(p, false)
+}
+
+// resolveModules: recipe = es una receta (sin servidor): los datos secretos
+// se escriben en cada despliegue, así que aquí no se exigen.
+func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bundle.Selection) {
 	res := ProjectCheck{Order: []string{}, Added: []string{}, Errors: map[string]map[string]string{}, General: []string{}, Warnings: []string{}}
 	c := a.cat()
 	vals := map[string]map[string]any{}
@@ -157,7 +163,7 @@ func (a *App) resolveProject(p store.Project) (ProjectCheck, []bundle.Selection)
 		v, errs := m.Values(vals[id])
 		// Datos secretos obligatorios: tienen que estar en la bóveda.
 		for _, sv := range m.SecretVars() {
-			if sv.Required && !sv.Managed && (p.ID == "" || !a.vault.Has(varName(p.ID, sv.Name))) {
+			if sv.Required && !sv.Managed && !recipe && (p.ID == "" || !a.vault.Has(varName(p.ID, sv.Name))) {
 				errs[sv.Name] = "falta: escríbelo (se guarda cifrado en la bóveda)"
 			}
 		}
@@ -279,6 +285,11 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 		mods = append(mods, store.ProjectModule{ID: s.Module.ID, Values: s.Values})
 	}
 	p.Modules = mods
+	if p.RecipeID != "" {
+		if r, err := a.store.Recipe(p.RecipeID); err == nil {
+			p.Overrides = diffModules(mods, r.Modules)
+		}
+	}
 	return a.store.SaveProject(p)
 }
 

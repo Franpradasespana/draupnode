@@ -44,7 +44,8 @@
   let menuOpen = $state(false)
   function go(v: View) {
     ui.view = v
-    if (v === 'projects') { ui.projectId = null; ui.projectServer = null }
+    if (v === 'projects') ui.recipeId = null
+    if (v === 'servers') { ui.serverId = null; ui.projectId = null }
     menuOpen = false
   }
   onMount(async () => {

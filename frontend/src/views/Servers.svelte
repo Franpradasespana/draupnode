@@ -2,9 +2,11 @@
   import { Plus, Plug, Pencil, Trash2, LoaderCircle, KeyRound, UserRound, ShieldAlert, ShieldQuestion, Fingerprint, Server as ServerIcon, FolderGit2 } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ServerForm from './ServerForm.svelte'
+  import ServerDetail from './ServerDetail.svelte'
+  import ProjectEditor from './ProjectEditor.svelte'
   import Facts from '../components/Facts.svelte'
   import { api, errorText, type Server, type TestResult } from '../lib/api'
-  import { ui, refreshServers, toast, timeAgo, kbToGB, requestVault, withVault, requestStore, storeName, openServerProjects } from '../lib/state.svelte'
+  import { ui, refreshServers, toast, timeAgo, kbToGB, requestVault, withVault, requestStore, storeName, openServer } from '../lib/state.svelte'
 
   type Dialog =
     | { kind: 'form'; server: Server | null }
@@ -81,7 +83,7 @@
   function openProjects(e: MouseEvent | KeyboardEvent, id: string) {
     if ((e.target as HTMLElement).closest('button, a, input, select')) return
     if (window.getSelection()?.toString()) return
-    openServerProjects(id)
+    openServer(id)
   }
 
   function submitPass(e: SubmitEvent, server: Server) {
@@ -92,6 +94,13 @@
     test(server, p, '', rememberPass)
   }
 </script>
+
+{#if ui.projectId}
+  {#key ui.projectId}<ProjectEditor id={ui.projectId} />{/key}
+{:else if ui.serverId}
+  {#key ui.serverId}<ServerDetail id={ui.serverId} />{/key}
+{:else}
+
 
 <div class="head">
   <div>
@@ -114,7 +123,7 @@
       {@const lc = s.lastCheck}
       {@const n = ui.projects.filter((p) => p.serverId === s.id).length}
       <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
-      <article class="card srv" role="link" tabindex="0" title="Ver los proyectos de este servidor"
+      <article class="card srv" role="link" tabindex="0" title="Ver la ficha del servidor"
         onclick={(e) => openProjects(e, s.id)}
         onkeydown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) openProjects(e, s.id) }}>
         <div class="top">
@@ -168,6 +177,8 @@
       </article>
     {/each}
   </div>
+{/if}
+
 {/if}
 
 {#if dialog?.kind === 'form'}

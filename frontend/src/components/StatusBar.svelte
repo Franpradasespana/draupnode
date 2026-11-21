@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ExternalLink, RefreshCw, LoaderCircle, Server as ServerIcon, Activity, ChevronDown } from '@lucide/svelte'
   import { api, errorText, type ServerLive } from '../lib/api'
-  import { ui, timeAgo, contextServerId, setActiveServer, openServerProjects } from '../lib/state.svelte'
+  import { ui, timeAgo, contextServerId, setActiveServer, openServerProjects, openDeployment } from '../lib/state.svelte'
 
   const id = $derived(contextServerId())
   const srv = $derived(ui.servers.find((s) => s.id === id))
@@ -42,7 +42,7 @@
   function pick(e: Event) {
     const v = (e.currentTarget as HTMLSelectElement).value
     setActiveServer(v)
-    if (ui.view === 'projects' && ui.projectServer && !ui.projectId) ui.projectServer = v
+    if (ui.view === 'servers' && ui.serverId && !ui.projectId) ui.serverId = v
   }
 </script>
 
@@ -80,14 +80,14 @@
     {#if running.length}
       <span class="sep"></span>
       {#each running as r (r.runId)}
-        <button class="lnk run" onclick={() => { ui.view = 'projects'; ui.projectId = r.projectId }}>
+        <button class="lnk run" onclick={() => openDeployment(r.projectId)}>
           <LoaderCircle size={12} class="spin" /> {r.check ? 'Previsualizando' : 'Aplicando'} «{projName(r.projectId)}»: {r.stage}
         </button>
       {/each}
     {/if}
 
     <span class="grow"></span>
-    <button class="lnk hide-sm" onclick={() => openServerProjects(srv.id)} title="Proyectos de este servidor">
+    <button class="lnk hide-sm" onclick={() => openServerProjects(srv.id)} title="Ficha de este servidor">
       <Activity size={12} /> {nProj} {nProj === 1 ? 'proyecto' : 'proyectos'}
     </button>
     <button class="icon-b" onclick={refresh} disabled={checking} title="Volver a comprobar" aria-label="Volver a comprobar">

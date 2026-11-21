@@ -122,6 +122,10 @@ type Project struct {
 	// BackupsAuto: qué hacer al abrir la app si las copias traídas a este
 	// equipo son viejas. Solo lo cambia SetBackupsAuto.
 	BackupsAuto *BackupsAuto `json:"backupsAuto,omitempty"`
+	// RecipeID: la receta de la que sale este despliegue. Overrides: lo que
+	// tiene distinto de ella (lo calcula la app).
+	RecipeID  string     `json:"recipeId,omitempty"`
+	Overrides *Overrides `json:"overrides,omitempty"`
 }
 
 // BackupsAuto: «warn» (avisar) o «fetch» (traerlas solas) si las copias del
@@ -142,8 +146,34 @@ type FetchInfo struct {
 type data struct {
 	Version  int       `json:"version"`
 	Servers  []Server  `json:"servers"`
+	Recipes  []Recipe  `json:"recipes"`
 	Projects []Project `json:"projects"`
 	Settings Settings  `json:"settings"`
+}
+
+// Recipe es un proyecto «receta»: qué módulos y con qué opciones, sin
+// servidor. Se despliega en uno o varios servidores (cada despliegue es un
+// Project con RecipeID).
+type Recipe struct {
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Notes     string          `json:"notes,omitempty"`
+	Modules   []ProjectModule `json:"modules"`
+	CreatedAt time.Time       `json:"createdAt"`
+	UpdatedAt time.Time       `json:"updatedAt"`
+}
+
+// Overrides: en qué se diferencia un despliegue de su receta (módulos
+// añadidos o quitados y valores cambiados). Lo calcula la app al guardar.
+type Overrides struct {
+	Added   []string                  `json:"added,omitempty"`
+	Removed []string                  `json:"removed,omitempty"`
+	Values  map[string]map[string]any `json:"values,omitempty"`
+}
+
+// Empty: el despliegue es igual que su receta.
+func (o *Overrides) Empty() bool {
+	return o == nil || (len(o.Added) == 0 && len(o.Removed) == 0 && len(o.Values) == 0)
 }
 
 // Store es seguro para usarlo desde varias goroutines.
@@ -171,7 +201,7 @@ func Open(dir string) (*Store, error) {
 		return nil, fmt.Errorf("no se pudo crear %s: %w", dir, err)
 	}
 	s := &Store{dir: dir, path: filepath.Join(dir, "draupnode.json")}
-	s.d = data{Version: 1, Settings: Settings{Theme: "draupnir-gold", SecretBackend: "auto"}}
+	s.d = data{Version: 2, Settings: Settings{Theme: "draupnir-gold", SecretBackend: "auto"}}
 	raw, err := os.ReadFile(s.path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -193,6 +223,31 @@ func Open(dir string) (*Store, error) {
 				p.InstalledValues[m.ID] = m.Values
 			}
 			sort.Strings(p.InstalledModules)
+		}
+	}
+	// Desde la 0.36 los proyectos son recetas y lo que hay en cada servidor es
+	// su despliegue: cada proyecto de antes pasa a ser una receta con los
+	// mismos módulos y un despliegue en su servidor (con el mismo id, así sus
+	// contraseñas, registros y copias siguen siendo suyos).
+	if s.d.Version < 2 {
+		now := time.Now()
+		for i := range s.d.Projects {
+			p := &s.d.Projects[i]
+			if p.RecipeID != "" {
+				continue
+			}
+			mods, _ := json.Marshal(p.Modules)
+			r := Recipe{ID: newID(), Name: p.Name, CreatedAt: now, UpdatedAt: now}
+			_ = json.Unmarshal(mods, &r.Modules)
+			if r.Modules == nil {
+				r.Modules = []ProjectModule{}
+			}
+			s.d.Recipes = append(s.d.Recipes, r)
+			p.RecipeID = r.ID
+		}
+		s.d.Version = 2
+		if err := s.saveLocked(); err != nil {
+			return nil, err
 		}
 	}
 	return s, nil
@@ -415,6 +470,9 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 			p.InstalledValues = old.InstalledValues
 			p.BackupsFetched = old.BackupsFetched
 			p.BackupsAuto = old.BackupsAuto
+			if p.RecipeID == "" {
+				p.RecipeID = old.RecipeID
+			}
 			if old.Slug != "" {
 				p.Slug = old.Slug // fijo para siempre
 			}
@@ -533,6 +591,73 @@ func (s *Store) SetBackupsAuto(id string, b BackupsAuto) error {
 		}
 	}
 	return fmt.Errorf("proyecto %q no encontrado", id)
+}
+
+// Recipes devuelve las recetas (por nombre).
+func (s *Store) Recipes() []Recipe {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := append([]Recipe(nil), s.d.Recipes...)
+	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
+	return out
+}
+
+// Recipe devuelve una receta.
+func (s *Store) Recipe(id string) (Recipe, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, r := range s.d.Recipes {
+		if r.ID == id {
+			return r, nil
+		}
+	}
+	return Recipe{}, fmt.Errorf("receta %q no encontrada", id)
+}
+
+// SaveRecipe crea o actualiza una receta.
+func (s *Store) SaveRecipe(r Recipe) (Recipe, error) {
+	r.Name = strings.TrimSpace(r.Name)
+	if r.Name == "" {
+		return Recipe{}, errors.New("el nombre del proyecto es obligatorio")
+	}
+	if r.Modules == nil {
+		r.Modules = []ProjectModule{}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	r.UpdatedAt = now
+	if r.ID == "" {
+		r.ID, r.CreatedAt = newID(), now
+		s.d.Recipes = append(s.d.Recipes, r)
+		return r, s.saveLocked()
+	}
+	for i, old := range s.d.Recipes {
+		if old.ID == r.ID {
+			r.CreatedAt = old.CreatedAt
+			s.d.Recipes[i] = r
+			return r, s.saveLocked()
+		}
+	}
+	return Recipe{}, fmt.Errorf("receta %q no encontrada", r.ID)
+}
+
+// DeleteRecipe elimina una receta que no está en ningún servidor.
+func (s *Store) DeleteRecipe(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, p := range s.d.Projects {
+		if p.RecipeID == id {
+			return errors.New("está en algún servidor: quítalo de ahí antes")
+		}
+	}
+	for i, r := range s.d.Recipes {
+		if r.ID == id {
+			s.d.Recipes = append(s.d.Recipes[:i], s.d.Recipes[i+1:]...)
+			return s.saveLocked()
+		}
+	}
+	return fmt.Errorf("receta %q no encontrada", id)
 }
 
 // DeleteProject elimina un proyecto.

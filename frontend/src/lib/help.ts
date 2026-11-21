@@ -30,7 +30,7 @@ export const HELP: HelpSection[] = [
     steps: [
       { title: '1 · Añade un servidor', text: 'En «Servidores», con su IP, usuario y clave SSH (o contraseña).', img: 'servidor-nuevo' },
       { title: '2 · Prueba la conexión', text: 'La primera vez te enseña la huella del servidor para que confirmes que es él.' },
-      { title: '3 · Crea un proyecto', text: 'En «Proyectos», elige el servidor y marca los módulos (Docker, Coolify, PostgreSQL…).', img: 'proyecto' },
+      { title: '3 · Crea un proyecto y asócialo', text: 'En «Proyectos» crea la receta (sin servidor) y asóciala al servidor desde su ficha. Marca los módulos (Docker, Coolify, PostgreSQL…).', img: 'proyecto' },
       { title: '4 · Previsualiza y aplica', text: '«Previsualizar» dice qué cambiaría sin tocar nada; «Aplicar» lo instala. También puedes exportar un único instalar.sh.' },
       { title: 'La barra de abajo', text: 'Muestra el servidor elegido: si responde ahora mismo, cuándo se probó la conexión, lo que se está instalando y un botón para abrir su web (Coolify si está instalado). Cambia de servidor con su desplegable.', img: 'barra-estado' },
       { title: 'Ventana estrecha', text: 'Si la ventana es estrecha (por ejemplo, a media pantalla), el menú de la izquierda se pliega: ábrelo con el botón ☰ de arriba a la izquierda.' },
@@ -42,7 +42,7 @@ export const HELP: HelpSection[] = [
     intro: 'Resumen de tus servidores y los siguientes pasos.',
     steps: [
       { title: 'Resumen', text: 'Arriba: cuántos servidores tienes, cuántos conectan bien, cuántos proyectos y cuándo fue la última comprobación.', img: 'panel' },
-      { title: 'Lista de servidores', text: 'Pulsa un servidor para ver sus proyectos. El punto verde indica que la última prueba de conexión fue bien; rojo, que falló.' },
+      { title: 'Lista de servidores', text: 'Pulsa un servidor para abrir su ficha. El punto verde indica que la última prueba de conexión fue bien; rojo, que falló.' },
       { title: 'Primeros pasos', text: 'Lista de lo que falta por hacer. «Ir» te lleva a la pantalla correspondiente.' },
     ],
   },
@@ -51,7 +51,9 @@ export const HELP: HelpSection[] = [
     title: 'Servidores',
     intro: 'Las máquinas que Draupnode va a preparar y cómo conectarse a ellas por SSH.',
     steps: [
-      { title: 'Lista', text: 'Cada tarjeta muestra la conexión (usuario@IP), cómo se entra (clave o contraseña), el resultado de la última prueba y los datos del servidor. Pulsa la tarjeta para ver sus proyectos.', img: 'servidores' },
+      { title: 'Lista', text: 'Cada tarjeta muestra la conexión (usuario@IP), cómo se entra (clave o contraseña), el resultado de la última prueba y los datos del servidor. Pulsa la tarjeta para abrir su ficha.', img: 'servidores' },
+      { title: 'Ficha del servidor', text: 'Es la pieza principal. Al abrirla se conecta por SSH (solo lee) y enseña: CPU, memoria, discos y tiempo encendido; avisos de contenedores caídos o servicios con fallos; el proyecto que tiene (o «Asociar» uno de tus proyectos); las apps con sus direcciones (las de Draupnode con «Abrir», las de Coolify y los sitios de nginx/Caddy aunque no los instalara Draupnode); las bases de datos y lo que pesa cada una; los contenedores con su uso y su registro; los puertos abiertos; los registros del sistema y las contraseñas generadas. «Actualizar» vuelve a leerlo; «Editar conexión» cambia sus datos.', img: 'servidor' },
+      { title: 'El proyecto de un servidor', text: 'Desde la ficha, «Abrir» lleva a la pantalla de siempre: módulos, previsualizar, aplicar, copias… Arriba dice de qué proyecto (receta) sale y si tiene algo distinto: «Llevar a la receta» pasa lo de este servidor al proyecto (y a los demás servidores que lo usan); «Volver a la receta» lo deshace. «Quitar del servidor» lo quita de Draupnode sin tocar lo instalado.', img: 'despliegue' },
       { title: 'Añadir servidor', text: 'Nombre, IP o dominio, puerto (22 normalmente) y usuario. Elige la clave de la lista (salen las de ~/.ssh) o escribe una contraseña. Si la clave tiene contraseña, marca «tiene contraseña» y decide si guardarla.', img: 'servidor-nuevo' },
       { title: 'Probar conexión', text: 'Conecta, comprueba sudo y recoge datos (sistema, memoria, disco). La primera vez pide confirmar la huella del servidor; compárala con la que te da tu proveedor.' },
       { title: 'Editar y eliminar', text: 'El lápiz cambia los datos; la papelera lo quita de Draupnode (el servidor en sí no se toca). No se puede eliminar un servidor que use algún proyecto.' },
@@ -60,11 +62,12 @@ export const HELP: HelpSection[] = [
   {
     id: 'projects',
     title: 'Proyectos',
-    intro: 'Un proyecto es un conjunto de módulos que se instala en un servidor. Un servidor puede tener varios proyectos; un proyecto está en un solo servidor (puedes cambiarlo con su desplegable).',
+    intro: 'Un proyecto es una receta: qué módulos quieres y con qué opciones. Existe sin servidor; los servidores son la cocina donde se hace. La misma receta sirve para varios servidores, y cada uno puede tener datos propios (dominio, destino de las copias…).',
     steps: [
-      { title: 'Lista', text: 'Cada proyecto muestra su servidor, sus módulos y el resultado de la última ejecución. Si vienes desde un servidor, arriba puedes cambiarlo o pulsar «Ver todos».', img: 'proyectos' },
-      { title: 'Nuevo proyecto', text: 'Ponle nombre, elige el servidor y pulsa «Guardar». Después, en «Añadir módulos», pulsa las tarjetas de lo que quieras instalar: se marcan en azul (las que necesitan otras las añaden solas, en ámbar). No hay que rellenar nada todavía: la configuración se pide al aplicar.', img: 'proyecto' },
-      { title: 'Se guarda solo', text: 'Una vez creado, cada cambio se guarda automáticamente («Cambios guardados», arriba a la derecha) y en el sitio de «Guardar» aparece «Eliminar». Si hay campos en rojo, no se guarda hasta corregirlos.' },
+      { title: 'Lista', text: 'Cada proyecto muestra sus módulos y en qué servidores está (con su estado: sin aplicar, cambios sin aplicar, aplicado, con datos propios). Pulsa un servidor para ir a ese proyecto en él.', img: 'proyectos' },
+      { title: 'Crear o editar un proyecto', text: 'Nombre, para qué es y los módulos (los que necesitan otros los añaden solos). Abre cada módulo para cambiar sus opciones y pulsa «Guardar». Los datos secretos (tokens, claves) no van aquí: se escriben en cada servidor. Si el proyecto ya está en servidores, reciben los cambios (con «cambios sin aplicar») y conservan lo suyo.', img: 'proyecto' },
+      { title: 'Asociar a un servidor', text: 'Desde el proyecto («Asociar a un servidor…») o desde la ficha del servidor («Asociar»). No instala nada: después lo revisas, previsualizas y aplicas desde la ficha del servidor.' },
+      { title: 'Se guarda solo', text: 'En el proyecto de un servidor, cada cambio se guarda automáticamente («Cambios guardados», arriba a la derecha) y en el sitio de «Guardar» aparece «Eliminar». Si hay campos en rojo, no se guarda hasta corregirlos.' },
       { title: 'Configurar y aplicar', text: 'Con módulos marcados aparece «Configurar y aplicar…»: se abre una ventana por cada módulo nuevo que tenga opciones (Anterior / Siguiente) y al final un resumen con «Previsualizar» y «Finalizar y aplicar». Arriba de la ventana ves siempre el servidor y el proyecto.' },
       { title: 'Página de un módulo', text: 'Pulsando un módulo instalado ves su estado, lo suyo (por ejemplo, los botones de copias, el panel de Coolify o sus contraseñas) y su configuración. Si cambias algo sale «Cambios sin aplicar» y el botón «Aplicar cambios». La ruta de arriba (Servidor › Proyecto › Módulo) te dice siempre dónde estás y te lleva atrás.' },
       { title: 'Previsualizar', text: 'Una simulación: no cambia nada de tu proyecto en el servidor. Al terminar te dice una de dos cosas: «Simulación completada. Todavía no se ha aplicado nada», con la lista de lo que hará Aplicar; o «Configuración ya aplicada en el servidor: no es necesario pulsar Aplicar». Si sale en rojo, dice qué falló. Cada tarea lleva su estado: «ya está bien», «se cambiará», «no hace falta en este servidor» o «fallo». «Para que lo sepas» son avisos, no errores.' },

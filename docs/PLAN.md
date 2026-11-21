@@ -72,7 +72,7 @@
 - Alertas: el servidor no puede avisar de que él mismo se ha caído (se cubre con «Vigilar otros servidores» desde otro servidor o con el aviso diario).
 - ~~Módulo genérico «App con Docker Compose»~~ hecho como «App desde Git» (0.23.0); las apps de la lista, como módulos propios (0.25.0–0.34.0).
 
-### Rediseño pedido por el usuario (anotado 2026-11-21, SIN EMPEZAR)
+### Rediseño pedido por el usuario (anotado 2026-11-21; HECHO en la 0.35.0 y la 0.36.0)
 
 **Idea del usuario.** El servidor es la pieza principal. Un **proyecto es una «carta a los Reyes»**: una plantilla de lo que quiero instalar y cómo, que puede existir **sin servidor**. Cuando tengo un servidor, entro en él, le **asocio un proyecto**, lo simulo, lo compruebo y lo aplico. Un mismo proyecto se puede desplegar en varios servidores. En cada servidor habría, en principio, un solo proyecto.
 

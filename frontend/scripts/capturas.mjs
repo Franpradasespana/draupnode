@@ -48,7 +48,9 @@ const ALL_SHOTS = [
   { name: 'servidor-nuevo', view: 'servers', act: [['click', 'button', 'Añadir servidor'], ['wait', 500],
     ['fill', 'Servidor web', 'Servidor de la tienda'], ['fill', '203.0.113.10', '203.0.113.20'], ['fill', 'ubuntu', 'root']] },
   { name: 'proyectos', view: 'projects' },
-  { name: 'proyecto', view: 'projects', act: [['click', 'button.proj', 'Coolify producción'], ['wait', 900]] },
+  { name: 'proyecto', view: 'projects', act: [['click', 'button.main', 'Coolify producción'], ['wait', 900]] },
+  { name: 'servidor', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1800]] },
+  { name: 'despliegue', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Coolify producción'], ['wait', 1200]] },
   { name: 'catalogo', view: 'catalog', act: [['wait', 1200], ['click', 'button.mod', 'Coolify'], ['wait', 700]] },
   { name: 'pruebas', view: 'lab', act: [['wait', 600], ['click', 'button', 'Crear y arrancar'], ['wait', 4500]] },
   { name: 'docker', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900]] },
@@ -56,29 +58,29 @@ const ALL_SHOTS = [
     ['click', 'button', 'Siguiente'], ['wait', 300], ['click', 'label.check', 'Poner nginx delante'], ['wait', 300], ['type', 'input[placeholder="tienda.ejemplo.com"]', 'tienda.ejemplo.com'], ['wait', 300]] },
   { name: 'docker-vista', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900], ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'],
     ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'], ['wait', 500], ['click', 'button', 'Guardar en la carpeta'], ['wait', 600], ['click', 'button', 'Probar en el servidor de pruebas'], ['wait', 3600]] },
-  { name: 'destino-copias', view: 'projects', seed: (d) => {
+  { name: 'destino-copias', view: 'servers', seed: (d) => {
       d.servers.push({ id: 'demo2', name: 'Servidor de copias', host: '203.0.113.40', port: 22, user: 'ubuntu', authMethod: 'key', keyPath: '/home/demo/.ssh/id_ed25519', keyEncrypted: true, secretStore: 'keyring', hasSecret: true, notes: '', createdAt: ago(100) })
       d.projects.push({ id: 'p4', name: 'Tienda', serverId: 'demo1', slug: 'tienda', modules: [{ id: 'base', values: {} }, { id: 'backups', values: { backups_time: '03:30', backups_remote_type: 'no' } }],
         installedModules: ['base', 'backups'], installedValues: { base: {}, backups: { backups_time: '03:30', backups_remote_type: 'no' } }, appliedAt: ago(60) })
     },
-    act: [['click', 'button.proj', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600]] },
-  { name: 'destino-copias-aplicar', view: 'projects', seed: 'destino-copias',
-    act: [['click', 'button.proj', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600],
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600]] },
+  { name: 'destino-copias-aplicar', view: 'servers', seed: 'destino-copias',
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600],
       ['click', 'button', 'Preparar'], ['wait', 1000], ['click', 'button', 'Aplicar los dos ahora'], ['wait', 30000]] },
-  { name: 'vpn', view: 'projects', seed: (d) => {
+  { name: 'vpn', view: 'servers', seed: (d) => {
       d.vault = { exists: true, master: 'demo-demo-demo' }
       d.servers[0].lastCheck.facts.cloud = 'oracle'
       d.projects.push({ id: 'p5', name: 'VPN', serverId: 'demo1', slug: 'vpn', modules: [{ id: 'base', values: {} }, { id: 'wireguard', values: { wireguard_peers: ['portatil', 'movil'] } }],
         installedModules: ['base', 'wireguard'], appliedAt: ago(30) })
     },
-    act: [['click', 'button.proj', 'VPN'], ['wait', 700], ['click', 'button', 'WireGuard'], ['wait', 700], ['click', 'button', 'Ver configuraciones'], ['wait', 400],
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'VPN'], ['wait', 700], ['click', 'button', 'WireGuard'], ['wait', 700], ['click', 'button', 'Ver configuraciones'], ['wait', 400],
       ['type', '.modal input', 'demo-demo-demo'], ['click', 'button', 'Continuar'], ['wait', 900]] },
-  { name: 'alertas', view: 'projects', seed: (d) => {
+  { name: 'alertas', view: 'servers', seed: (d) => {
       d.vault = { exists: true, master: 'demo-demo-demo' }
       d.projects.push({ id: 'p6', name: 'Alertas', serverId: 'demo1', slug: 'alertas', modules: [{ id: 'base', values: {} }, { id: 'alerts', values: {} }],
         installedModules: ['base', 'alerts'], appliedAt: ago(30) })
     },
-    act: [['click', 'button.proj', 'Alertas'], ['wait', 700], ['click', 'button', 'Alertas al móvil'], ['wait', 700], ['click', 'button', 'Qué ve ahora'], ['wait', 1000],
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Alertas'], ['wait', 700], ['click', 'button', 'Alertas al móvil'], ['wait', 700], ['click', 'button', 'Qué ve ahora'], ['wait', 1000],
       ['click', 'button', 'Suscribirse en el móvil'], ['wait', 400], ['type', '.modal input', 'demo-demo-demo'], ['click', 'button', 'Continuar'], ['wait', 900]] },
   { name: 'copias-aviso', view: 'dashboard', seed: (d) => {
       d.projects.push({ id: 'p7', name: 'Tienda', serverId: 'demo1', slug: 'tienda', modules: [{ id: 'base', values: {} }, { id: 'backups', values: {} }],
@@ -107,7 +109,7 @@ async function waitFor(fn, what, tries = 60) {
     try { const v = await fn(); if (v) return v } catch {}
     await sleep(250)
   }
-  throw new Error('No arranca: ' + what)
+  throw new Error('No arranca: ' + what + (typeof jsErrors !== 'undefined' && jsErrors.length ? '\nErrores de JavaScript:\n' + jsErrors.join('\n') : ''))
 }
 
 const base = `http://localhost:${VITE_PORT}/`
@@ -158,7 +160,12 @@ async function open(view, extra) {
   await evaluate(seedFor(d))
   const q = '?c' + ++loads
   await send('Page.navigate', { url: base + q + '#' + view })
-  await waitFor(() => evaluate(`location.search === '${q}' && document.readyState === 'complete' && !!document.querySelector('footer.status') && !document.body.innerText.includes('Comprobando…')`), 'la página ' + view, 40)
+  try {
+    await waitFor(() => evaluate(`location.search === '${q}' && document.readyState === 'complete' && !!document.querySelector('footer.status') && !document.body.innerText.includes('Comprobando…')`), 'la página ' + view, 40)
+  } catch (e) {
+    console.error('Texto de la página:', (await evaluate('document.body.innerText')).slice(0, 600))
+    throw e
+  }
   await sleep(500)
 }
 

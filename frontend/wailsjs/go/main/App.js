@@ -62,6 +62,10 @@ export function CheckProject(arg1) {
   return window['go']['main']['App']['CheckProject'](arg1);
 }
 
+export function CheckRecipe(arg1) {
+  return window['go']['main']['App']['CheckRecipe'](arg1);
+}
+
 export function CheckUninstall(arg1, arg2) {
   return window['go']['main']['App']['CheckUninstall'](arg1, arg2);
 }
@@ -94,8 +98,16 @@ export function DeleteProject(arg1) {
   return window['go']['main']['App']['DeleteProject'](arg1);
 }
 
+export function DeleteRecipe(arg1) {
+  return window['go']['main']['App']['DeleteRecipe'](arg1);
+}
+
 export function DeleteServer(arg1) {
   return window['go']['main']['App']['DeleteServer'](arg1);
+}
+
+export function DeployRecipe(arg1, arg2) {
+  return window['go']['main']['App']['DeployRecipe'](arg1, arg2);
 }
 
 export function DockerInfo() {
@@ -154,6 +166,10 @@ export function ListProjects() {
   return window['go']['main']['App']['ListProjects']();
 }
 
+export function ListRecipes() {
+  return window['go']['main']['App']['ListRecipes']();
+}
+
 export function ListServers() {
   return window['go']['main']['App']['ListServers']();
 }
@@ -190,6 +206,10 @@ export function PickKeyFile() {
   return window['go']['main']['App']['PickKeyFile']();
 }
 
+export function ProjectRecipeDiff(arg1) {
+  return window['go']['main']['App']['ProjectRecipeDiff'](arg1);
+}
+
 export function ProjectSecrets(arg1, arg2) {
   return window['go']['main']['App']['ProjectSecrets'](arg1, arg2);
 }
@@ -198,12 +218,20 @@ export function ProjectSecretsInfo(arg1) {
   return window['go']['main']['App']['ProjectSecretsInfo'](arg1);
 }
 
+export function PushToRecipe(arg1) {
+  return window['go']['main']['App']['PushToRecipe'](arg1);
+}
+
 export function ReadRunLog(arg1, arg2) {
   return window['go']['main']['App']['ReadRunLog'](arg1, arg2);
 }
 
 export function ReloadModules() {
   return window['go']['main']['App']['ReloadModules']();
+}
+
+export function ResetToRecipe(arg1) {
+  return window['go']['main']['App']['ResetToRecipe'](arg1);
 }
 
 export function RunLogs(arg1) {
@@ -220,6 +248,10 @@ export function SSHConfigHosts() {
 
 export function SaveProject(arg1) {
   return window['go']['main']['App']['SaveProject'](arg1);
+}
+
+export function SaveRecipe(arg1) {
+  return window['go']['main']['App']['SaveRecipe'](arg1);
 }
 
 export function SaveServer(arg1, arg2, arg3, arg4) {
@@ -240,6 +272,14 @@ export function SecretsInfo() {
 
 export function ServerLive(arg1) {
   return window['go']['main']['App']['ServerLive'](arg1);
+}
+
+export function ServerLogs(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['ServerLogs'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+export function ServerOverview(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ServerOverview'](arg1, arg2, arg3, arg4);
 }
 
 export function SetBackupsAuto(arg1, arg2, arg3) {

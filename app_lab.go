@@ -26,7 +26,7 @@ type LabStatus struct {
 	User        string           `json:"user"`
 	Password    string           `json:"password"`
 	CoolifyURL  string           `json:"coolifyUrl"`
-	CoolifyUp   bool             `json:"coolifyUp"` // su panel responde (está instalado)
+	CoolifyUp   bool             `json:"coolifyUp"`          // su panel responde (está instalado)
 	ServerID    string           `json:"serverId,omitempty"` // dado de alta en Draupnode
 	Busy        string           `json:"busy,omitempty"`     // acción en curso
 }

@@ -188,6 +188,8 @@ export interface Project {
   installedValues?: Record<string, Record<string, unknown>> | null
   backupsFetched?: FetchInfo | null
   backupsAuto?: { mode: 'off' | 'warn' | 'fetch'; days: number } | null
+  recipeId?: string
+  overrides?: { added?: string[]; removed?: string[]; values?: Record<string, Record<string, unknown>> } | null
 }
 
 export interface FetchInfo {
@@ -421,6 +423,58 @@ export interface DockerInfo {
   docker: boolean
 }
 
+export interface Recipe {
+  id: string
+  name: string
+  notes?: string
+  modules: ProjectModule[]
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface Deployment {
+  projectId: string
+  serverId: string
+  serverName: string
+  applied: boolean
+  pending: boolean
+  sameRecipe: boolean
+}
+
+export interface RecipeView extends Recipe {
+  deployments: Deployment[]
+}
+
+export interface RecipeDiff {
+  recipeId: string
+  recipeName: string
+  added: string[]
+  removed: string[]
+  changed: Record<string, string[]>
+}
+
+export interface ServerOverviewResult extends RunStart {
+  overview?: ServerOverview
+}
+
+export interface ServerOverview {
+  at: number
+  errors: string[]
+  docker: boolean
+  system?: { hostname: string; os: string; kernel: string; uptime: number; load: number[]; cpus: number; cpu: number; memTotal: number; memAvailable: number; swapTotal: number; swapFree: number }
+  disks?: { mount: string; size: number; used: number; free: number }[]
+  containers?: { id: string; name: string; image: string; state: string; health: string; started: string; restarts: number; compose: string; draupnode: string; coolify: string; ports: string[]; cpu?: string; mem?: string }[]
+  databases?: { container: string; engine: string; image: string; databases: { name: string; size: number }[] }[]
+  coolify?: { apps: { kind: string; name: string; urls: string[]; status: string }[]; panel: string } | null
+  sites?: { server: string; domain: string; target: string; https: boolean; file: string }[]
+  failed?: string[]
+  ports?: { proto: string; addr: string; port: number; process: string; public: boolean }[]
+}
+
+export interface ServerLogsResult extends RunStart {
+  text?: string
+}
+
 export interface BackupDue {
   projectId: string
   name: string
@@ -504,6 +558,16 @@ interface Backend {
   ServerLive(id: string): Promise<ServerLive>
   DockerInfo(): Promise<DockerInfo>
   SetBackupsAuto(projectId: string, mode: string, days: number): Promise<void>
+  ListRecipes(): Promise<RecipeView[]>
+  CheckRecipe(r: Recipe): Promise<ProjectCheck>
+  SaveRecipe(r: Recipe): Promise<Recipe>
+  DeleteRecipe(id: string): Promise<void>
+  DeployRecipe(recipeId: string, serverId: string): Promise<Project>
+  ProjectRecipeDiff(projectId: string): Promise<RecipeDiff>
+  PushToRecipe(projectId: string): Promise<Recipe>
+  ResetToRecipe(projectId: string): Promise<Project>
+  ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
+  ServerLogs(serverId: string, kind: string, name: string, lines: number, secret: string, accept: string, sudoPassword: string): Promise<ServerLogsResult>
   BackupsDue(): Promise<BackupDue[]>
   SaveTextFile(defaultName: string, content: string): Promise<string>
   AlertsRun(projectId: string, what: string, secret: string, accept: string, sudoPassword: string): Promise<AlertsResult>
@@ -582,6 +646,30 @@ function mockBackend(): Backend {
       (p.installedModules ?? []).map((id) => [id, { ...defaults(id), ...(p.modules.find((m) => m.id === id)?.values ?? {}) }])),
     // (la demo también rellena con valores por defecto lo que traigan los datos de ejemplo)
   }))
+  // Recetas: si los datos de ejemplo no traen, cada proyecto pasa a ser una receta (como hace la app).
+  let recipes: Recipe[] = load<Recipe[]>('recipes', [])
+  for (const p of projects) {
+    if (p.recipeId && recipes.some((r) => r.id === p.recipeId)) continue
+    const same = recipes.find((r) => r.name === p.name)
+    if (same) { p.recipeId = same.id; continue }
+    const r: Recipe = { id: 'r' + p.id, name: p.name, modules: JSON.parse(JSON.stringify(p.modules)) }
+    recipes.push(r)
+    p.recipeId = r.id
+  }
+  const sameMods = (a: ProjectModule[], b: ProjectModule[]) => JSON.stringify(a.map((m) => [m.id, m.values])) === JSON.stringify(b.map((m) => [m.id, m.values]))
+  function mockDiff(p: Project): RecipeDiff {
+    const r = recipes.find((x) => x.id === p.recipeId)
+    const d: RecipeDiff = { recipeId: r?.id ?? '', recipeName: r?.name ?? '', added: [], removed: [], changed: {} }
+    if (!r) return d
+    for (const m of p.modules) {
+      const rm = r.modules.find((x) => x.id === m.id)
+      if (!rm) { d.added.push(m.id); continue }
+      const keys = Object.keys(m.values).filter((k) => JSON.stringify(m.values[k]) !== JSON.stringify(rm.values?.[k]))
+      if (keys.length) d.changed[m.id] = keys
+    }
+    for (const m of r.modules) if (!p.modules.some((x) => x.id === m.id)) d.removed.push(m.id)
+    return d
+  }
   const cancelled = new Set<string>()
   // ?sindocker en la URL simula un equipo sin Docker.
   const lab: LabStatus = {
@@ -960,7 +1048,13 @@ function mockBackend(): Backend {
       let tgt = projects.find((p) => p.serverId === tgtServerId && p.modules.some((m) => m.id === 'backup-target'))
       const isNew = !tgt
       if (!tgt) {
-        tgt = { id: 'p' + Date.now(), name: 'Destino de copias · ' + srv.name, serverId: tgtServerId, modules: [{ id: 'docker', values: {} }, { id: 'firewall', values: { firewall_tcp_ports: ['22', String(port)] } }, { id: 'backup-target', values: { backup_target_port: port } }] } as Project
+        let rec = recipes.find((r) => r.modules.some((m) => m.id === 'backup-target'))
+        if (!rec) {
+          rec = { id: 'r' + Date.now(), name: 'Servidor de copias', notes: 'Recibe las copias de otros servidores (solo añadir) y borra las viejas.', modules: [{ id: 'base', values: defaults('base') }, { id: 'docker', values: defaults('docker') }, { id: 'firewall', values: defaults('firewall') }, { id: 'backup-target', values: defaults('backup-target') }] }
+          recipes.push(rec)
+          save('recipes', recipes)
+        }
+        tgt = { id: 'p' + Date.now(), name: rec.name, recipeId: rec.id, serverId: tgtServerId, modules: [{ id: 'docker', values: {} }, { id: 'firewall', values: { firewall_tcp_ports: ['22', String(port)] } }, { id: 'backup-target', values: { backup_target_port: port } }] } as Project
         projects.push(tgt)
       }
       const slug = src.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -985,6 +1079,90 @@ function mockBackend(): Backend {
         out.push({ projectId: p.id, name: p.name, mode: auto.mode, days: auto.days, age, dest: '/home/demo/Draupnode-copias/' + p.id })
       }
       return out
+    },
+    async ListRecipes() {
+      await wait(80)
+      return recipes.map((r) => ({ ...r, deployments: projects.filter((p) => p.recipeId === r.id).map((p) => ({
+        projectId: p.id, serverId: p.serverId, serverName: servers.find((s) => s.id === p.serverId)?.name ?? '',
+        applied: !!p.appliedAt, pending: !p.appliedAt, sameRecipe: sameMods(p.modules, r.modules),
+      })) }))
+    },
+    async CheckRecipe(r) {
+      return mockCheck({ id: '', name: r.name, serverId: '', modules: r.modules } as Project)
+    },
+    async SaveRecipe(r) {
+      await wait()
+      const saved = { ...r, id: r.id || 'r' + Date.now(), modules: r.modules.map((m) => ({ ...m, values: { ...defaults(m.id), ...m.values } })) }
+      const old = recipes.find((x) => x.id === saved.id)
+      recipes = old ? recipes.map((x) => (x.id === saved.id ? saved : x)) : [...recipes, saved]
+      // Los despliegues reciben los cambios y conservan sus valores propios.
+      for (const p of projects.filter((x) => x.recipeId === saved.id)) {
+        const own = mockDiff(p)
+        p.modules = saved.modules.filter((m) => !own.removed.includes(m.id)).map((m) => {
+          const mine = p.modules.find((x) => x.id === m.id)
+          const vals = { ...m.values }
+          for (const k of own.changed[m.id] ?? []) vals[k] = mine!.values[k]
+          return { id: m.id, values: vals }
+        }).concat(p.modules.filter((m) => own.added.includes(m.id)))
+      }
+      save('recipes', recipes)
+      save('projects', projects)
+      return saved
+    },
+    async DeleteRecipe(id) {
+      if (projects.some((p) => p.recipeId === id)) throw new Error('está en algún servidor: quítalo de ahí antes')
+      recipes = recipes.filter((r) => r.id !== id)
+      save('recipes', recipes)
+    },
+    async DeployRecipe(rid, sid) {
+      await wait()
+      const r = recipes.find((x) => x.id === rid)!
+      if (projects.some((p) => p.recipeId === rid && p.serverId === sid)) throw new Error('este servidor ya tiene ese proyecto')
+      const p: Project = { id: 'p' + Date.now(), name: r.name, serverId: sid, recipeId: rid, modules: JSON.parse(JSON.stringify(r.modules)) }
+      projects.push(p)
+      save('projects', projects)
+      return p
+    },
+    async ProjectRecipeDiff(id) {
+      return mockDiff(projects.find((p) => p.id === id)!)
+    },
+    async PushToRecipe(id) {
+      const p = projects.find((x) => x.id === id)!
+      const r = recipes.find((x) => x.id === p.recipeId)!
+      return this.SaveRecipe({ ...r, modules: JSON.parse(JSON.stringify(p.modules)) })
+    },
+    async ResetToRecipe(id) {
+      const p = projects.find((x) => x.id === id)!
+      p.modules = JSON.parse(JSON.stringify(recipes.find((x) => x.id === p.recipeId)!.modules))
+      save('projects', projects)
+      return p
+    },
+    async ServerOverview(id) {
+      await wait(900)
+      const gb = 1024 ** 3
+      const lab = servers.find((s) => s.id === id)?.port === 2222
+      return { status: 'ok', overview: {
+        at: Math.floor(Date.now() / 1000), errors: [], docker: true,
+        system: { hostname: lab ? 'servidor-prueba' : 'srv-web', os: 'Ubuntu 24.04.1 LTS', kernel: '6.8.0-49-generic', uptime: 3 * 86400 + 5 * 3600, load: [0.42, 0.38, 0.31], cpus: 4, cpu: 12.5, memTotal: 24 * gb, memAvailable: 15.2 * gb, swapTotal: 2 * gb, swapFree: 1.9 * gb },
+        disks: [{ mount: '/', size: 194 * gb, used: 61 * gb, free: 133 * gb }],
+        containers: [
+          { id: 'a1', name: 'coolify', image: 'ghcr.io/coollabsio/coolify:4', state: 'running', health: 'healthy', started: '', restarts: 0, compose: 'source', draupnode: '', coolify: '', ports: ['0.0.0.0:8000->8080/tcp'], cpu: '1.20%', mem: '412MiB' },
+          { id: 'a2', name: 'coolify-proxy', image: 'traefik:v3.1', state: 'running', health: '', started: '', restarts: 0, compose: 'coolify-proxy', draupnode: '', coolify: '', ports: ['0.0.0.0:80->80/tcp', '0.0.0.0:443->443/tcp'], cpu: '0.30%', mem: '58MiB' },
+          { id: 'a3', name: 'tienda-web-x8k2', image: 'tienda:latest', state: 'running', health: 'healthy', started: '', restarts: 0, compose: '', draupnode: '', coolify: 'tienda', ports: [], cpu: '2.10%', mem: '186MiB' },
+          { id: 'a4', name: 'blog-web-p3m1', image: 'blog:latest', state: 'restarting', health: '', started: '', restarts: 14, compose: '', draupnode: '', coolify: 'blog', ports: [], cpu: '0.00%', mem: '0B' },
+          { id: 'a5', name: 'pg-compartido', image: 'postgres:16-alpine', state: 'running', health: 'healthy', started: '', restarts: 0, compose: 'draupnode-postgres', draupnode: 'coolify-produccion', coolify: '', ports: [], cpu: '0.80%', mem: '96MiB' },
+        ],
+        databases: [{ container: 'pg-compartido', engine: 'PostgreSQL', image: 'postgres:16-alpine', databases: [{ name: 'tienda', size: 184 * 1024 ** 2 }, { name: 'blog', size: 23 * 1024 ** 2 }, { name: 'postgres', size: 7.5 * 1024 ** 2 }] }],
+        coolify: { panel: 'https://panel.ejemplo.com', apps: [{ kind: 'app', name: 'tienda', urls: ['https://tienda.ejemplo.com'], status: 'running:healthy' }, { kind: 'app', name: 'blog', urls: ['https://blog.ejemplo.com'], status: 'restarting' }] },
+        sites: [{ server: 'nginx', domain: 'estado.ejemplo.com', target: 'http://127.0.0.1:3001', https: true, file: '/etc/nginx/sites-enabled/draupnode-estado.ejemplo.com.conf' }],
+        failed: ['certbot.service'],
+        ports: [{ proto: 'tcp', addr: '0.0.0.0', port: 22, process: 'sshd', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 80, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 443, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '0.0.0.0', port: 8000, process: 'docker-proxy', public: true }, { proto: 'tcp', addr: '127.0.0.1', port: 3000, process: 'docker-proxy', public: false }],
+      } }
+    },
+    async ServerLogs(_id, kind, name) {
+      await wait(400)
+      const now = new Date().toISOString()
+      return { status: 'ok', text: Array.from({ length: 12 }, (_, i) => `${now} ${kind === 'container' ? name : 'srv-web ' + (name || 'systemd')}[${100 + i}]: línea de ejemplo ${i + 1} del registro`).join('\n') }
     },
     async DockerInfo() {
       return { versions: MOCK_VERSIONS, docker: true }

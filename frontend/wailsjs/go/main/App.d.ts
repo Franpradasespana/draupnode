@@ -35,6 +35,8 @@ export function CancelRun(arg1:string):Promise<boolean>;
 
 export function CheckProject(arg1:store.Project):Promise<main.ProjectCheck>;
 
+export function CheckRecipe(arg1:store.Recipe):Promise<main.ProjectCheck>;
+
 export function CheckUninstall(arg1:string,arg2:Array<string>):Promise<main.UninstallCheck>;
 
 export function ChooseBackupFolder(arg1:string):Promise<string>;
@@ -51,7 +53,11 @@ export function DefaultDockerSpec(arg1:string,arg2:string):Promise<dockerize.Spe
 
 export function DeleteProject(arg1:string):Promise<void>;
 
+export function DeleteRecipe(arg1:string):Promise<void>;
+
 export function DeleteServer(arg1:string):Promise<void>;
+
+export function DeployRecipe(arg1:string,arg2:string):Promise<store.Project>;
 
 export function DockerInfo():Promise<main.DockerInfo>;
 
@@ -81,6 +87,8 @@ export function ListModules():Promise<main.ModulesInfo>;
 
 export function ListProjects():Promise<Array<store.Project>>;
 
+export function ListRecipes():Promise<Array<main.RecipeView>>;
+
 export function ListServers():Promise<Array<main.ServerView>>;
 
 export function ModuleFile(arg1:string,arg2:string):Promise<string>;
@@ -99,13 +107,19 @@ export function OpenURL(arg1:string):Promise<void>;
 
 export function PickKeyFile():Promise<string>;
 
+export function ProjectRecipeDiff(arg1:string):Promise<main.RecipeDiff>;
+
 export function ProjectSecrets(arg1:string,arg2:string):Promise<Array<main.ProjectSecret>>;
 
 export function ProjectSecretsInfo(arg1:string):Promise<main.ProjectSecretsSummary>;
 
+export function PushToRecipe(arg1:string):Promise<store.Recipe>;
+
 export function ReadRunLog(arg1:string,arg2:string):Promise<string>;
 
 export function ReloadModules():Promise<main.ModulesInfo>;
+
+export function ResetToRecipe(arg1:string):Promise<store.Project>;
 
 export function RunLogs(arg1:string):Promise<Array<string>>;
 
@@ -114,6 +128,8 @@ export function RunProject(arg1:string,arg2:boolean,arg3:string,arg4:string,arg5
 export function SSHConfigHosts():Promise<Array<sshx.ConfigHost>>;
 
 export function SaveProject(arg1:store.Project):Promise<store.Project>;
+
+export function SaveRecipe(arg1:store.Recipe):Promise<store.Recipe>;
 
 export function SaveServer(arg1:store.Server,arg2:string,arg3:boolean,arg4:string):Promise<main.ServerView>;
 
@@ -124,6 +140,10 @@ export function SaveTextFile(arg1:string,arg2:string):Promise<string>;
 export function SecretsInfo():Promise<main.SecretsInfo>;
 
 export function ServerLive(arg1:string):Promise<main.ServerLive>;
+
+export function ServerLogs(arg1:string,arg2:string,arg3:string,arg4:number,arg5:string,arg6:string,arg7:string):Promise<main.ServerLogsResult>;
+
+export function ServerOverview(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.ServerOverviewResult>;
 
 export function SetBackupsAuto(arg1:string,arg2:string,arg3:number):Promise<void>;
 
