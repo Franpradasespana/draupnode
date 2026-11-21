@@ -594,3 +594,14 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
   (`User-Agent: draupnode`, sin datos del usuario, 8 s de límite) y, si hay una más nueva, sale en Avisos con
   «Descargar». Se puede desactivar en Ajustes → Datos de la aplicación. Test con un servidor HTTP falso.
 - **README** reescrito: descargas por sistema, qué hace hoy la app, cómo publicar una versión, dónde guarda cada cosa.
+
+## 2026-11-21 · 0.44.0 · Ficha que se actualiza sola y aviso de servidores caídos
+
+- **Ficha del servidor → «Actualizar sola»** (No / 30 s / 1 min / 5 min, 1 min por defecto; se recuerda en este
+  equipo): vuelve a leer el servidor sin pedir nada mientras la ficha está a la vista. Si hace falta una contraseña
+  que no está guardada (o la bóveda está cerrada), lo dice junto a «Leído hace…» y espera a «Actualizar».
+- **Servidores que no responden**: mientras Draupnode está abierto, cada 2 minutos comprueba (sin entrar, solo
+  conectando al puerto SSH, `PingServers` en paralelo) todos los servidores. Tras 2 fallos seguidos sale en Avisos
+  («no responde por SSH desde…», con «Ficha»); cuando vuelve, se quita solo y avisa. El servidor de pruebas no
+  cuenta. Para enterarse con la app cerrada sigue estando el módulo Alertas («Vigilar otros servidores»).
+- Test de `PingServers` (uno escuchando y otro cerrado) y captura `avisos-caido`.

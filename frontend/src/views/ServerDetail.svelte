@@ -45,6 +45,33 @@
   }
   onMount(load)
 
+  // Actualizar sola: cada cierto tiempo, sin pedir nada (si hace falta una
+  // contraseña que no está guardada, lo dice y espera a «Actualizar»).
+  const AUTO_OPTS = [[0, 'No'], [30, '30 s'], [60, '1 min'], [300, '5 min']] as const
+  let auto = $state(readAuto())
+  let autoNote = $state('')
+  function readAuto(): number {
+    try { return Number(localStorage.getItem('dn-ficha-auto') ?? 60) || 0 } catch { return 60 }
+  }
+  function setAuto(v: number) {
+    auto = v
+    autoNote = ''
+    try { localStorage.setItem('dn-ficha-auto', String(v)) } catch { /* sin almacenamiento */ }
+  }
+  async function silent() {
+    if (loading || !ov || document.hidden || ui.view !== 'servers' || ui.serverId !== id) return
+    try {
+      const r = await api.ServerOverview(id, '', '', '')
+      if (r.status === 'ok' && r.overview) { ov = r.overview; autoNote = '' }
+      else if (['needs_secret', 'vault_locked', 'needs_sudo'].includes(r.status)) autoNote = 'para actualizar sola necesita la contraseña guardada (o la bóveda abierta)'
+    } catch { /* siguiente vuelta */ }
+  }
+  $effect(() => {
+    if (!auto) return
+    const t = setInterval(silent, auto * 1000)
+    return () => clearInterval(t)
+  })
+
   async function showLogs(kind: string, name: string, title: string) {
     logs = { title, kind, name, text: '', loading: true }
     const r = await withConnection<ServerLogsResult>(server, (s, a, u) => api.ServerLogs(id, kind, name, 400, s, a, u))
@@ -113,7 +140,12 @@
   <div class="bar">
     <button class="btn ghost sm" onclick={() => (ui.serverId = null)}><ArrowLeft size={15} /> Servidores</button>
     <div class="spacer"></div>
-    {#if ov}<span class="muted small">Leído {timeAgo(new Date(ov.at * 1000).toISOString())}</span>{/if}
+    {#if ov}<span class="muted small" title={autoNote}>Leído {timeAgo(new Date(ov.at * 1000).toISOString())}{autoNote ? ' · ' + autoNote : ''}</span>{/if}
+    <label class="auto muted small" title="Volver a leer el servidor solo">Actualizar sola
+      <select class="input" value={auto} onchange={(e) => setAuto(Number((e.currentTarget as HTMLSelectElement).value))}>
+        {#each AUTO_OPTS as [v, l]}<option value={v}>{l}</option>{/each}
+      </select>
+    </label>
     <button class="btn sm" onclick={() => server && openTerminal(server.id)}><SquareTerminal size={14} /> Terminal</button>
     <button class="btn sm" onclick={load} disabled={loading}>{#if loading}<LoaderCircle size={14} class="spin" />{:else}<RefreshCw size={14} />{/if} Actualizar</button>
     <button class="btn sm" onclick={() => (editing = true)}><Pencil size={14} /> Editar conexión</button>
@@ -340,6 +372,8 @@
 <style>
   .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
   .spacer { flex: 1; }
+  .auto { display: inline-flex; gap: 6px; align-items: center; }
+  .auto .input { height: 28px; padding: 0 6px; width: auto; font-size: 12.5px; }
   .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
   .head h1 { margin: 0; }
   .notes { margin: 0 0 12px; }

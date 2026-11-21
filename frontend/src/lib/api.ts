@@ -604,6 +604,7 @@ interface Backend {
   ProjectSecretsInfo(projectId: string): Promise<ProjectSecretsSummary>
   ProjectSecrets(projectId: string, master: string): Promise<ProjectSecret[]>
   BackupStatus(): Promise<{ lastExport?: string | null }>
+  PingServers(): Promise<{ id: string; reachable: boolean; latencyMs: number; lab: boolean }[]>
   CheckUpdate(): Promise<{ current: string; latest: string; newer: boolean; url: string; notes?: string; enabled: boolean }>
   SetUpdateCheck(enabled: boolean): Promise<void>
   TerminalOpen(serverId: string, secret: string, accept: string, cols: number, rows: number): Promise<RunStart & { id?: string }>
@@ -1096,6 +1097,9 @@ function mockBackend(): Backend {
     async TerminalResize() {},
     async TerminalClose(id) {
       if (mockTerms[id]) { delete mockTerms[id]; mockEmit('term', { id, closed: true, reason: 'Sesión terminada.' }) }
+    },
+    async PingServers() {
+      return servers.map((x) => ({ id: x.id, reachable: !load<string[]>('caidos', []).includes(x.id), latencyMs: 38, lab: x.id === 'lab' }))
     },
     async CheckUpdate() {
       const enabled = !load('noUpdateCheck', false)

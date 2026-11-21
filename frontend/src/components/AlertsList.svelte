@@ -1,8 +1,8 @@
 <script lang="ts">
   // La lista de avisos (pantalla «Avisos» y, si hay, arriba del Panel).
-  import { DatabaseBackup, Download, LoaderCircle, X, CircleX, ArrowRight, HardDriveDownload, Sparkles } from '@lucide/svelte'
+  import { DatabaseBackup, Download, LoaderCircle, X, CircleX, ArrowRight, HardDriveDownload, Sparkles, ServerCrash } from '@lucide/svelte'
   import { alerts, alertItems, hideAlert, fetchBackups } from '../lib/alerts.svelte'
-  import { openDeployment, timeAgo, ui } from '../lib/state.svelte'
+  import { openDeployment, openServer, timeAgo, ui } from '../lib/state.svelte'
   import { api } from '../lib/api'
 
   let { compact = false }: { compact?: boolean } = $props()
@@ -12,8 +12,8 @@
 
 <div class="alerts" class:compact>
   {#each items as a (a.key)}
-    <div class="card alert" class:bad={a.kind === 'failed'}>
-      {#if a.kind === 'backups'}<DatabaseBackup size={17} />{:else if a.kind === 'export'}<HardDriveDownload size={17} />{:else if a.kind === 'update'}<Sparkles size={17} />{:else}<CircleX size={17} />{/if}
+    <div class="card alert" class:bad={a.kind === 'failed' || a.kind === 'down'}>
+      {#if a.kind === 'backups'}<DatabaseBackup size={17} />{:else if a.kind === 'export'}<HardDriveDownload size={17} />{:else if a.kind === 'update'}<Sparkles size={17} />{:else if a.kind === 'down'}<ServerCrash size={17} />{:else}<CircleX size={17} />{/if}
       <div class="txt">
         {#if a.kind === 'backups'}
           {#if alerts.busy === a.projectId}
@@ -22,6 +22,9 @@
             <span>Copias de <strong>{a.name}</strong>{#if a.server}{' '}({a.server}){/if}: {a.due.age < 0 ? 'nunca las has traído a este equipo' : `las de este equipo son de hace ${a.due.age} días`}.</span>
             {#if !compact}<span class="muted small">Puedes hacer que se traigan solas, o cambiar cada cuántos días avisa, en la plantilla del servidor → Copias.</span>{/if}
           {/if}
+        {:else if a.kind === 'down'}
+          <span><strong>{a.name}</strong> no responde por SSH desde {timeAgo(a.since)}.</span>
+          {#if !compact}<span class="muted small">Puede estar apagado, sin red o con el puerto SSH cerrado. Si vuelve, este aviso se quita solo.</span>{/if}
         {:else if a.kind === 'update'}
           <span>Hay una versión nueva de Draupnode: <strong>{a.latest}</strong> (tienes la {ui.info?.version}).</span>
         {:else if a.kind === 'export'}
@@ -35,7 +38,9 @@
         {#if a.kind === 'backups'}
           <button class="btn sm" onclick={() => fetchBackups(a.due)} disabled={!!alerts.busy}><Download size={13} /> Traer ahora</button>
         {/if}
-        {#if a.kind === 'update'}
+        {#if a.kind === 'down'}
+          <button class="btn sm ghost" onclick={() => openServer(a.serverId)}>Ficha <ArrowRight size={13} /></button>
+        {:else if a.kind === 'update'}
           <button class="btn sm" onclick={() => api.OpenURL(a.url)}><Download size={13} /> Descargar</button>
         {:else if a.kind === 'export'}
           <button class="btn sm" onclick={() => (ui.view = 'settings')}><HardDriveDownload size={13} /> Hacer la copia</button>

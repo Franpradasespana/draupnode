@@ -1278,6 +1278,24 @@ export namespace main {
 	        this.overview = source["overview"];
 	    }
 	}
+	export class ServerPing {
+	    id: string;
+	    reachable: boolean;
+	    latencyMs: number;
+	    lab: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerPing(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.reachable = source["reachable"];
+	        this.latencyMs = source["latencyMs"];
+	        this.lab = source["lab"];
+	    }
+	}
 	export class ServerView {
 	    id: string;
 	    name: string;

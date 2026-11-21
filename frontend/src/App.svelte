@@ -19,7 +19,7 @@
   import Alerts from './views/Alerts.svelte'
   import TerminalView from './views/Terminal.svelte'
   import ModuleEditor from './views/ModuleEditor.svelte'
-  import { alertItems, loadAlerts } from './lib/alerts.svelte'
+  import { alertItems, loadAlerts, watchServers } from './lib/alerts.svelte'
   import { ui, boot, toast, openServer, openRecipe, type View } from './lib/state.svelte'
   import { errorText, isDesktop } from './lib/api'
 
@@ -83,6 +83,7 @@
     }
     ready = true
     loadAlerts()
+    watchServers()
   })
   const alertCount = $derived(alertItems().length)
   // La terminal se monta la primera vez que se abre y ya no se desmonta.

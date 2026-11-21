@@ -90,6 +90,7 @@ const ALL_SHOTS = [
         installedModules: ['base', 'backups'], appliedAt: ago(3000), backupsAuto: { mode: 'fetch', days: 3 }, backupsFetched: { at: ago(5 * 1440), dir: '/home/demo/Draupnode-copias/blog', bytes: 9000000, files: 0 } })
     }, act: [['wait', 1500]] },
   { name: 'avisos', view: 'alerts', seed: 'copias-aviso', act: [['wait', 900]] },
+  { name: 'avisos-caido', view: 'alerts', seed: (d) => { d.caidos = ['demo1'] }, act: [['wait', 1200]] },
   { name: 'avisos-campana', view: 'catalog', seed: 'copias-aviso', act: [['wait', 900]] },
   { name: 'terminal', view: 'terminal', act: [['click', 'button', 'Abrir terminal'], ['wait', 1200],
     ['js', `(() => { const t = document.querySelector('.xterm-helper-textarea'); t.dispatchEvent(new InputEvent('input', { data: 'uptime', inputType: 'insertText', bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true })) })()`], ['wait', 800]] },

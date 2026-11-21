@@ -126,3 +126,36 @@ func coolifyURLFor(srv store.Server) string {
 }
 
 func isLabServer(srv store.Server) bool { return srv.Host == lab.Host && srv.Port == lab.SSHPort }
+
+// ServerPing: si el SSH de un servidor responde (para los avisos).
+type ServerPing struct {
+	ID        string `json:"id"`
+	Reachable bool   `json:"reachable"`
+	LatencyMs int    `json:"latencyMs"`
+	Lab       bool   `json:"lab"` // el servidor de pruebas de este equipo (puede estar parado a propósito)
+}
+
+// PingServers comprueba a la vez (sin autenticarse) todos los servidores.
+func (a *App) PingServers() []ServerPing {
+	srvs := a.store.Servers()
+	out := make([]ServerPing, len(srvs))
+	var wg sync.WaitGroup
+	for i, s := range srvs {
+		wg.Add(1)
+		go func(i int, s store.Server) {
+			defer wg.Done()
+			out[i] = ServerPing{ID: s.ID, Lab: isLabServer(s)}
+			ctx, cancel := context.WithTimeout(a.context(), 6*time.Second)
+			defer cancel()
+			start := time.Now()
+			var d net.Dialer
+			if c, err := d.DialContext(ctx, "tcp", net.JoinHostPort(s.Host, strconv.Itoa(s.Port))); err == nil {
+				c.Close()
+				out[i].Reachable = true
+				out[i].LatencyMs = int(time.Since(start).Milliseconds())
+			}
+		}(i, s)
+	}
+	wg.Wait()
+	return out
+}

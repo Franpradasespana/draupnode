@@ -134,6 +134,8 @@ export function OpenUserModuleDir(arg1:string):Promise<void>;
 
 export function PickKeyFile():Promise<string>;
 
+export function PingServers():Promise<Array<main.ServerPing>>;
+
 export function ProjectRecipeDiff(arg1:string):Promise<main.RecipeDiff>;
 
 export function ProjectSecrets(arg1:string,arg2:string):Promise<Array<main.ProjectSecret>>;

@@ -258,6 +258,10 @@ export function PickKeyFile() {
   return window['go']['main']['App']['PickKeyFile']();
 }
 
+export function PingServers() {
+  return window['go']['main']['App']['PingServers']();
+}
+
 export function ProjectRecipeDiff(arg1) {
   return window['go']['main']['App']['ProjectRecipeDiff'](arg1);
 }
