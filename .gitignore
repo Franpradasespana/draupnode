@@ -7,3 +7,4 @@ frontend/dist/*
 
 # binario de «go build» en la raíz
 /draupnode
+__pycache__/
