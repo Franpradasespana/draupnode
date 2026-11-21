@@ -1,0 +1,43 @@
+id: syncthing
+name: "Syncthing (sincronizar carpetas)"
+version: 1.0.0
+category: 7 · Apps
+description: "Sincroniza carpetas entre tus equipos y el servidor, sin nube de nadie. Por ejemplo, para subir tu música o tus fotos."
+details: |
+  Syncthing en Docker. Su panel solo se ve desde el servidor («Abrir»
+  o la VPN): ponle usuario y contraseña la primera vez (Acciones →
+  Ajustes → GUI). Para sincronizar con tus equipos usa el puerto 22000
+  (TCP y UDP), que se abre en el Cortafuegos; en la nube, ábrelo también
+  en el cortafuegos del proveedor.
+  Las carpetas sincronizadas quedan en /srv/draupnode/apps/syncthing/data.
+  Sus datos están en /srv/draupnode/apps/syncthing (entran en las copias del
+  módulo Copias). Licencia: MPL-2.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+proxy_site:
+  domain: syncthing_domain
+  port: syncthing_port
+firewall_ports: [22000]
+uninstall_warning: "Para y quita los contenedores de Syncthing."
+uninstall_data: "Borrar también sus datos (las carpetas sincronizadas en el servidor y la identidad de este Syncthing). No se puede deshacer."
+variables:
+  - name: syncthing_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8384
+    min: 1024
+    max: 65535
+  - name: syncthing_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: syncthing_update
+    label: Actualizar Syncthing al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true

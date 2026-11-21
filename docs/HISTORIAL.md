@@ -382,3 +382,7 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 ## 2026-11-21 · 0.27.0 · Jellyfin (películas y series)
 
 - **Jellyfin** (GPL-2.0): configuración y caché en su carpeta, vídeos de la carpeta elegida (por defecto `/srv/media`, solo lectura), `JellyfinPublishedServerUrl` con el dominio. Pide 1,5 GB de RAM. Probado (ver 0.25.0).
+
+## 2026-11-21 · 0.28.0 · Syncthing (sincronizar carpetas)
+
+- **Syncthing** (MPL-2.0): panel solo local (`Abrir` o VPN), sincronización por 22000/TCP y UDP (TCP al Cortafuegos; recuerda la nube), datos con el usuario 1000. Probado (ver 0.25.0).

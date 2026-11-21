@@ -1,0 +1,21 @@
+# Generado por Draupnode (módulo syncthing). No lo edites a mano: se reescribe al aplicar.
+name: dn-syncthing
+
+services:
+  syncthing:
+    image: syncthing/syncthing:latest
+    {% if syncthing_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-syncthing
+    hostname: "{{ draupnode_project }}-syncthing"
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+    volumes:
+      - ./data:/var/syncthing
+    ports:
+      - "127.0.0.1:{{ syncthing_port }}:8384"
+      - "22000:22000/tcp"
+      - "22000:22000/udp"
