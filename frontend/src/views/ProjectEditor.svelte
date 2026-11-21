@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, ChevronRight, Server as ServerIcon, ArrowDownUp } from '@lucide/svelte'
+  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, ArrowDownUp } from '@lucide/svelte'
   import RunPanel from '../components/RunPanel.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
   import UninstallDialog from '../components/UninstallDialog.svelte'
@@ -44,6 +44,16 @@
   // nueva aparezca ya en su sitio sin esperar al backend.
   const ordered = $derived(orderModules(selected, byId).filter((mid) => selected.has(mid)))
   const errorCount = $derived(Object.values(check?.errors ?? {}).reduce((n, e) => n + Object.keys(e).length, 0))
+  // Lista legible de los errores: módulo, opción y qué le pasa.
+  const errorList = $derived(
+    Object.entries(check?.errors ?? {}).flatMap(([mid, errs]) =>
+      Object.entries(errs).map(([v, msg]) => ({
+        mid, module: moduleName(mid),
+        label: byId(mid)?.variables?.find((x) => x.name === v)?.label ?? v,
+        msg: String(msg),
+      })),
+    ),
+  )
 
 
 
@@ -503,10 +513,10 @@
       </div>
       <div class="act-btns">
         <button class="btn" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount}><Download size={15} /> Exportar instalar.sh</button>
-        <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length}><Eye size={15} /> Previsualizar</button>
+        <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount}><Eye size={15} /> Previsualizar</button>
         {#if needsApply && ordered.length}
           {#if pending.length}
-            <button class="btn primary" onclick={openWizard} disabled={saving || running}><Hammer size={15} /> Configurar y aplicar…</button>
+            <button class="btn primary" onclick={openWizard} disabled={saving || running || !!errorCount}><Hammer size={15} /> Configurar y aplicar…</button>
           {:else}
             <button class="btn primary" onclick={() => start(false)} disabled={saving || running || !!errorCount}><Hammer size={15} /> Aplicar cambios</button>
           {/if}
@@ -514,6 +524,15 @@
       </div>
     </div>
 
+    {#if errorList.length}
+      <div class="card errs">
+        <p><strong>Corrige esto para poder previsualizar y aplicar:</strong></p>
+        {#each errorList as e}
+          <p><CircleX size={15} /> <span><strong>{e.module}</strong> · {e.label}: {e.msg}</span>
+            <button class="btn sm" onclick={() => (openMod = e.mid)}>Corregir</button></p>
+        {/each}
+      </div>
+    {/if}
     {#if check?.warnings?.length && !wizard}
       <div class="card warns">
         {#each check.warnings as w}<p><TriangleAlert size={15} /> {w}</p>{/each}
@@ -596,6 +615,10 @@
   .act-btns { display: flex; gap: 8px; flex-wrap: wrap; }
   .applied { display: inline-flex; align-items: center; gap: 7px; color: var(--success); }
   .warns { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); padding: 12px 16px; }
+  .errs { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); padding: 12px 16px; }
+  .errs p { display: flex; gap: 8px; align-items: center; font-size: 13px; margin: 0; }
+  .errs p span { flex: 1; }
+  .errs :global(svg) { color: var(--danger); flex: none; }
   .warns p { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 0; }
   .warns :global(svg) { color: var(--warning); flex: none; margin-top: 2px; }
   .sec { margin-top: 22px; }

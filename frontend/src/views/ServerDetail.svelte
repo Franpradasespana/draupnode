@@ -100,7 +100,9 @@
   }
   const listening = (proto: string, spec: string) => publicPorts.some((p) => p.proto === proto && inRange(spec, p.port))
   const idlePorts = $derived(ov?.firewall?.active ? [...ov.firewall.tcp.filter((p) => !listening('tcp', p)).map((p) => p + '/tcp'), ...ov.firewall.udp.filter((p) => !listening('udp', p)).map((p) => p + '/udp')] : [])
-  const blockedPorts = $derived(publicPorts.filter((p) => !(p.proto === 'tcp' ? ov?.firewall?.tcp : ov?.firewall?.udp)?.some((s) => inRange(s, p.port))).map((p) => `${p.port}/${p.proto}`))
+  // Lo que publica Docker no pasa por la cadena INPUT: se salta el cortafuegos.
+  const dockerPorts = $derived(publicPorts.filter((p) => p.process === 'docker-proxy').map((p) => `${p.port}/${p.proto}`))
+  const blockedPorts = $derived(publicPorts.filter((p) => p.process !== 'docker-proxy' && !(p.proto === 'tcp' ? ov?.firewall?.tcp : ov?.firewall?.udp)?.some((s) => inRange(s, p.port))).map((p) => `${p.port}/${p.proto}`))
   const badContainers = $derived((ov?.containers ?? []).filter((c) => c.state !== 'running' || c.health === 'unhealthy'))
   const others = $derived(ui.recipes.filter((r) => !deployments.some((d) => d.recipeId === r.id)))
 </script>
@@ -297,6 +299,7 @@
       {#if publicPorts.length}
         <div class="ports">{#each publicPorts as p}<span class="pill mono">{p.port}/{p.proto} · {p.process || '?'}</span>{/each}</div>
       {:else}<p class="muted">Ninguno aparte de los locales.</p>{/if}
+      {#if ov.firewall?.active && dockerPorts.length}<p class="muted small">{dockerPorts.join(', ')}: {dockerPorts.length > 1 ? 'los publica' : 'lo publica'} Docker, que se salta este cortafuegos: se llega desde fuera aunque no esté en la lista de arriba.</p>{/if}
       {#if ov.firewall?.active && blockedPorts.length}<p class="muted small">{blockedPorts.join(', ')}: escucha{blockedPorts.length > 1 ? 'n' : ''}, pero el cortafuegos no {blockedPorts.length > 1 ? 'los' : 'lo'} deja pasar desde fuera.</p>{/if}
       <div class="row">
         <button class="btn sm" onclick={() => showLogs('system', '', 'Registro del sistema')}><ScrollText size={14} /> Registro del sistema</button>

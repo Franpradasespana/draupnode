@@ -462,3 +462,13 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
   - **Programas escuchando hacia fuera**: lo de antes, con aviso si algo escucha pero el cortafuegos no lo deja pasar.
   - Si no hay cortafuegos activo (política ACCEPT y sin DROP/REJECT), lo dice.
 - Probado con reglas falsas de iptables (las del módulo Cortafuegos, una de la VPN y un rango multiport de ufw).
+
+## 2026-11-21 · 0.36.2 · Errores a la vista en el proyecto; puertos de Docker
+
+- El editor del proyecto solo decía «1 error» en la tarjeta del módulo y desactivaba los botones sin decir por qué
+  (p. ej. «App desde Git» sin la dirección del repositorio, que es obligatoria). Ahora, bajo los botones, sale la
+  lista: módulo · opción: qué le pasa, con «Corregir» que abre el módulo. «Previsualizar» y «Configurar y aplicar…»
+  se desactivan igual que «Aplicar» mientras haya errores (antes fallaban al guardar).
+- Ficha del servidor: los puertos que publica Docker (docker-proxy) no pasan por la cadena INPUT, así que se llega
+  a ellos aunque el cortafuegos no los liste. Ya no se avisa de que «el cortafuegos no los deja pasar»: se avisa
+  de que Docker se lo salta.
