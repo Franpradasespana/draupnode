@@ -16,6 +16,7 @@ details: |
   del servidor (útil en una wifi pública); si no, solo va por la VPN lo que
   es para el servidor.
 depends: [base]
+udp_ports_from: [wireguard_port]
 requires:
   os: [ubuntu, debian]
 secrets:

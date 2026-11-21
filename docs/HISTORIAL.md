@@ -326,3 +326,10 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 
 - Petición del usuario: dar la opción de aplicar los dos proyectos a la vez. Al terminar «Preparar», la ventana ofrece «Lo haré yo» (va al proyecto destino) o **«Aplicar los dos ahora»**: aplica el destino, después el origen y, si la rotación está activada, otra vez el destino (para darle la contraseña de las copias que acaba de traer el origen). Enseña cada paso con lo que está haciendo; si uno falla, se para y ofrece ir al proyecto. Pide lo que haga falta de cada servidor (frase de la clave, huella…) como al aplicar a mano.
 - Probado en la demo (los tres pasos y el aviso final, sin errores de JavaScript); captura nueva en la ayuda.
+
+## 2026-11-21 · 0.19.2 · Aviso del cortafuegos del proveedor de nube
+
+- Petición del usuario: lo que no puede hacer Draupnode (abrir puertos en el cortafuegos de la nube), que lo avise para que lo haga el usuario.
+- Al probar la conexión se detecta el proveedor por los datos DMI (`cloud=` en los datos del servidor: Oracle, AWS, Google, Azure, Hetzner, DigitalOcean, OVH, Scaleway, Linode, Vultr).
+- Al revisar o aplicar un proyecto en una nube conocida, un aviso dice qué puertos abrir allí (los TCP del Cortafuegos y de los módulos, sin el 22, y los UDP de los módulos con `udp_ports_from` nuevo en module.yaml, como WireGuard) y **dónde** se hace en ese proveedor (p. ej. Oracle: Security List de la VCN, con la ruta de menús).
+- La página de WireGuard y la ventana del Destino de copias lo dicen siempre (con el proveedor si se conoce); también las notas al aplicar de los dos módulos.

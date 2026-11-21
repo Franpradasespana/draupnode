@@ -155,4 +155,5 @@
       VPN WireGuard en {{ wireguard_host }}:{{ wireguard_port }}/udp, red {{ wireguard_network }} (el servidor es {{ wireguard_prefix }}.1).
       Dispositivos: {% for p in wireguard_peers %}{{ p }} ({{ wireguard_prefix }}.{{ loop.index + 1 }}){{ ', ' if not loop.last else '' }}{% endfor %}.
       Sus configuraciones (con QR) están en la página de este módulo.
+      Si el servidor está en la nube (Oracle, AWS, Google, Azure…), abre también el {{ wireguard_port }}/UDP en el cortafuegos del proveedor: es aparte y Draupnode no puede tocarlo.
       {%- if wireguard_fw.stdout is defined and 'sin-iptables' in wireguard_fw.stdout %} No hay iptables: si el servidor tiene otro cortafuegos, abre el {{ wireguard_port }}/udp.{% endif %}

@@ -65,6 +65,7 @@ const ALL_SHOTS = [
       ['click', 'button', 'Preparar'], ['wait', 1000], ['click', 'button', 'Aplicar los dos ahora'], ['wait', 30000]] },
   { name: 'vpn', view: 'projects', seed: (d) => {
       d.vault = { exists: true, master: 'demo-demo-demo' }
+      d.servers[0].lastCheck.facts.cloud = 'oracle'
       d.projects.push({ id: 'p5', name: 'VPN', serverId: 'demo1', slug: 'vpn', modules: [{ id: 'base', values: {} }, { id: 'wireguard', values: { wireguard_peers: ['portatil', 'movil'] } }],
         installedModules: ['base', 'wireguard'], appliedAt: ago(30) })
     },

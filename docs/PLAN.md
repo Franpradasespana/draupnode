@@ -68,7 +68,7 @@
 - Aviso / descarga automática de copias al abrir la app (idea aprobada, sin hacer).
 - Probar en un servidor con dominio real: certificados de Let's Encrypt con Caddy y con nginx/certbot.
 - ~~Destino de copias: rotación~~ hecho en la 0.19.0 (la hace el propio destino, con la contraseña que le da Draupnode).
-- WireGuard: el puerto UDP lo abre el propio módulo; el Cortafuegos solo sabe TCP. En Oracle Cloud hay que abrir también el UDP en la Security List.
+- ~~Avisar del cortafuegos del proveedor de nube~~ hecho en la 0.19.2.
 - Alertas: el servidor no puede avisar de que él mismo se ha caído (se cubre con «Vigilar otros servidores» desde otro servidor o con el aviso diario).
 - Módulo genérico «App con Docker Compose» (desplegar lo que genera la pantalla Docker o apps de la lista de abajo).
 

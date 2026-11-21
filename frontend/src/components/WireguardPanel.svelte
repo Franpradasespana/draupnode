@@ -3,15 +3,17 @@
   // app del móvil) y para guardarla como .conf. Está en la bóveda: hay que
   // escribir su contraseña cada vez y se oculta sola.
   import { onDestroy } from 'svelte'
-  import { Shield, Download, Copy, Lock, QrCode } from '@lucide/svelte'
+  import { Shield, Download, Copy, Lock, QrCode, TriangleAlert } from '@lucide/svelte'
   import qrcode from 'qrcode-generator'
   import { api, errorText, type Project, type ProjectSecret } from '../lib/api'
-  import { ask, toast } from '../lib/state.svelte'
+  import { ask, toast, ui } from '../lib/state.svelte'
+  import { cloudHint } from '../lib/modules'
 
   let { project }: { project: Project } = $props()
   const HIDE_AFTER_MS = 3 * 60 * 1000
 
   const vals = $derived(project.installedValues?.wireguard ?? {})
+  const cloud = $derived(ui.servers.find((s) => s.id === project.serverId)?.lastCheck?.facts?.cloud)
   let list = $state<ProjectSecret[] | null>(null)
   let busy = $state(false)
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -77,6 +79,7 @@
       <button class="btn sm" onclick={open} disabled={busy}><QrCode size={14} /> Ver configuraciones</button>
     {/if}
   </div>
+  <p class="hint"><TriangleAlert size={15} /> {cloudHint(cloud, `el puerto ${vals.wireguard_port ?? 51820}/UDP`)}</p>
   {#if list}
     <p class="muted small">En el móvil: app WireGuard → «+» → «Escanear código QR». En el ordenador: guarda el .conf e impórtalo en WireGuard. No lo compartas: quien lo tenga entra en tu VPN.</p>
     <div class="peers">
@@ -102,6 +105,8 @@
   .head > :global(svg) { color: var(--accent); flex: none; }
   .txt { display: flex; flex-direction: column; gap: 2px; font-size: 13px; flex: 1; min-width: 0; }
   .small { font-size: 12.5px; margin: 0; }
+  .hint { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: 12.5px; color: var(--muted); }
+  .hint :global(svg) { color: var(--warning); flex: none; margin-top: 1px; }
   .peers { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
   .peer { display: flex; gap: 12px; align-items: center; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 10px; }
   /* El QR siempre negro sobre blanco (en tema oscuro también), para que lo lea la cámara. */

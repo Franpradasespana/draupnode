@@ -84,6 +84,10 @@ type Module struct {
 	// FirewallPortsFrom: variables del módulo (tipo int) cuyo valor es un
 	// puerto que también hay que abrir (p. ej. el puerto de SSH elegido).
 	FirewallPortsFrom []string `yaml:"firewall_ports_from" json:"firewallPortsFrom,omitempty"`
+	// UDPPortsFrom: variables (int) con puertos UDP que abre el propio módulo
+	// (el Cortafuegos solo maneja TCP). Sirven para avisar del cortafuegos del
+	// proveedor de nube.
+	UDPPortsFrom []string `yaml:"udp_ports_from" json:"udpPortsFrom,omitempty"`
 	// Conflicts: módulos que no pueden ir en el mismo proyecto (en los dos sentidos).
 	Conflicts []string `yaml:"conflicts" json:"conflicts,omitempty"`
 	// After: si estos módulos están en el proyecto, este va detrás (sin obligar a marcarlos).
@@ -200,6 +204,11 @@ func (m *Module) validate() error {
 	for _, name := range m.FirewallPortsFrom {
 		if v := vars[name]; v == nil || v.Type != TypeInt {
 			return fmt.Errorf("firewall_ports_from: %q no es una variable numérica del módulo", name)
+		}
+	}
+	for _, name := range m.UDPPortsFrom {
+		if v := vars[name]; v == nil || v.Type != TypeInt {
+			return fmt.Errorf("udp_ports_from: %q no es una variable numérica del módulo", name)
 		}
 	}
 	for _, c := range m.Checks {

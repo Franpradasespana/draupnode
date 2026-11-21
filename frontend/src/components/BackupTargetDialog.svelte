@@ -6,6 +6,7 @@
   import { api, errorText, type BackupTargetResult, type Project } from '../lib/api'
   import { ui, toast, withVault, refreshProjects, startRun } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
+  import { cloudHint } from '../lib/modules'
 
   let { project, onclose, onchanged }: { project: Project; onclose: () => void; onchanged: () => void } = $props()
 
@@ -131,6 +132,7 @@
             <small>Un puerto poco común para que no sea fácil de encontrar. Puedes poner el que quieras (1024-65535). Por él se conectará {source?.name ?? 'este servidor'}; se abre en el Cortafuegos del destino.</small>
           </label>
         {/if}
+        <p class="warn"><TriangleAlert size={16} /> {cloudHint(ui.servers.find((s) => s.id === serverId)?.lastCheck?.facts?.cloud, `el puerto ${target ? target.modules.find((m) => m.id === 'backup-target')?.values.backup_target_port : port}/TCP`)}</p>
         {#if local}<p class="warn"><TriangleAlert size={16} /> Ese servidor se conecta por 127.0.0.1: el servidor de origen no podrá llegar a él.</p>{/if}
         <div class="note">
           <strong>Qué se hará</strong>

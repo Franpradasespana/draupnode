@@ -173,6 +173,9 @@ func (a *App) resolveProject(p store.Project) (ProjectCheck, []bundle.Selection)
 	}
 	if srvErr == nil && srv.LastCheck != nil && srv.LastCheck.OK {
 		res.Warnings = append(res.Warnings, requirementWarnings(sel, srv.LastCheck.Facts)...)
+		if w := cloudPortWarning(sel, srv.LastCheck.Facts["cloud"]); w != "" {
+			res.Warnings = append(res.Warnings, w)
+		}
 	}
 	if res.Warnings == nil {
 		res.Warnings = []string{} // la interfaz espera una lista, nunca null

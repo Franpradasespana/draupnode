@@ -24,6 +24,15 @@ echo "disk_free_kb=$(df -Pk / 2>/dev/null | awk 'NR==2 {print $4}')"
 echo "disk_total_kb=$(df -Pk / 2>/dev/null | awk 'NR==2 {print $2}')"
 echo "uptime=$(uptime -p 2>/dev/null)"
 if [ "$(id -u)" = 0 ]; then echo "sudo=root"; elif sudo -n true 2>/dev/null; then echo "sudo=yes"; else echo "sudo=no"; fi
+# Proveedor de nube (los datos DMI se leen sin ser root).
+v="$(cat /sys/class/dmi/id/sys_vendor /sys/class/dmi/id/product_name /sys/class/dmi/id/chassis_asset_tag /sys/class/dmi/id/bios_vendor 2>/dev/null | tr '\n' ' ')"
+case "$v" in
+  *OracleCloud*) c=oracle ;; *Amazon*|*amazon*) c=aws ;; *Google*) c=gcp ;;
+  *Microsoft*) c=azure ;; *Hetzner*) c=hetzner ;; *DigitalOcean*) c=digitalocean ;;
+  *OVH*) c=ovh ;; *Scaleway*) c=scaleway ;; *Linode*|*Akamai*) c=linode ;; *Vultr*) c=vultr ;;
+  *) c= ;;
+esac
+echo "cloud=$c"
 for b in python3 docker git curl ansible; do
   if command -v "$b" >/dev/null 2>&1; then echo "has_$b=yes"; else echo "has_$b=no"; fi
 done

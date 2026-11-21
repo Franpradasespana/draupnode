@@ -195,6 +195,7 @@
       Destino de copias en https://{{ draupnode_host }}:{{ backup_target_port }}/ (solo añadir)
       para {{ backup_target_clients | length }} proyecto(s): {{ backup_target_clients | map('regex_replace', ':.*$', '') | join(', ') or 'ninguno todavía' }}.
       Copias en {{ backup_target_dir }}/datos.
+      Si este servidor está en la nube (Oracle, AWS, Google, Azure…), abre también el {{ backup_target_port }}/TCP en el cortafuegos del proveedor.
       {%- if backup_target_prune | bool %} Rotación cada día a las {{ backup_target_prune_time }}: se conservan {{ backup_target_keep_days }} días{{ (' y una al mes durante ' ~ backup_target_keep_monthly ~ ' meses') if backup_target_keep_monthly | int > 0 else '' }}.
       {%- set sin = backup_target_clientes | reject('in', backup_target_con_clave) | list %}
       {%- if sin %} Todavía sin rotación para {{ sin | join(', ') }}: aplica su proyecto y después vuelve a aplicar este.{% endif %}
