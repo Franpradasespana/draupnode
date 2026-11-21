@@ -32,6 +32,10 @@
   args:
     chdir: "{{ jellyfin_dir }}"
   register: jellyfin_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: jellyfin_up.rc == 0
+  retries: 3
+  delay: 30
   changed_when: "'Started' in jellyfin_up.stderr or 'Created' in jellyfin_up.stderr or 'Recreated' in jellyfin_up.stderr"
   when: not ansible_check_mode
 

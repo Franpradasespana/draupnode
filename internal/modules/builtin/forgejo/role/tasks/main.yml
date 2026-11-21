@@ -39,6 +39,10 @@
   args:
     chdir: "{{ forgejo_dir }}"
   register: forgejo_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: forgejo_up.rc == 0
+  retries: 3
+  delay: 30
   changed_when: "'Started' in forgejo_up.stderr or 'Created' in forgejo_up.stderr or 'Recreated' in forgejo_up.stderr"
   when: not ansible_check_mode
 

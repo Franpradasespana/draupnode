@@ -1,0 +1,19 @@
+---
+- name: ¿Está Immich?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/immich/docker-compose.yml
+  register: immich_cf
+
+- name: Parar y quitar Immich
+  ansible.builtin.command: docker compose -p dn-immich down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/immich
+  when: immich_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/immich 
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Immich {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/immich: si lo reinstalas, vuelve todo.' }}"

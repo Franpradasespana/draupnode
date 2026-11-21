@@ -33,6 +33,10 @@
   args:
     chdir: "{{ syncthing_dir }}"
   register: syncthing_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: syncthing_up.rc == 0
+  retries: 3
+  delay: 30
   changed_when: "'Started' in syncthing_up.stderr or 'Created' in syncthing_up.stderr or 'Recreated' in syncthing_up.stderr"
   when: not ansible_check_mode
 

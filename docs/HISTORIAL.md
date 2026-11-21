@@ -414,3 +414,10 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 - Con AdGuard en el proyecto, **la VPN lo usa como DNS** (`wireguard_dns` se pone solo a la .1 si estaba vacío). El DNS de WireGuard ahora se aplica también sin «Todo el tráfico».
 - Salió al probar: la API de AdGuard rechaza el puerto como texto (se manda el JSON ya formado).
 - **Probado**: DNS en 10.8.0.1:53 y en ningún otro sitio; doubleclick.net → 0.0.0.0, example.com se resuelve; el panel deja entrar con el usuario generado; la configuración del dispositivo lleva `DNS = 10.8.0.1`.
+
+## 2026-11-21 · 0.34.0 · Immich (fotos y vídeos) y generador de módulos de apps
+
+- **Immich v3** (AGPL-3.0) como su compose oficial: servidor, aprendizaje automático, Valkey 9 y su PostgreSQL con vectores (contraseña generada en el servidor); fotos en `/srv/draupnode/apps/immich/library`. Pide 4 GB de RAM y la primera vez descarga unos 3 GB. El primero que entra es el administrador.
+- Los módulos de apps en Docker se generan con `herramientas/apps/gen.py` desde sus fichas (`apps.py`), ahora en el repositorio (LEEME en esa carpeta). Todos reintentan la descarga de imágenes (3 veces, cada 30 s): al probar, el registro de GitHub contestó «demasiadas peticiones».
+- PLAN.md: tabla de programas al día (hechos y los que se dejan fuera a propósito: Pi-hole, ufw, Borg).
+- **Probado** en un Ubuntu desechable (con las imágenes cargadas desde este equipo, por el límite de descargas de ghcr.io en el contenedor): `/api/server/ping` → pong, alta del administrador e inicio de sesión con token; desinstalar con datos no deja nada.

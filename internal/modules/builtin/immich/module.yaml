@@ -1,0 +1,54 @@
+id: immich
+name: "Immich (fotos y vídeos)"
+version: 1.0.0
+category: 7 · Apps
+description: "Tu propio Google Fotos: copia automática de las fotos del móvil, álbumes, búsqueda por lo que sale en la foto y por caras."
+details: |
+  Immich (versión 3) en Docker, como su compose oficial: servidor,
+  aprendizaje automático (búsqueda y caras), Valkey y su PostgreSQL con
+  vectores. Es pesado: pide 4 GB de RAM y la primera vez descarga unos
+  3 GB. El primer usuario que entra se queda de administrador: entra
+  enseguida después de aplicar.
+  En el móvil, la app de Immich con la dirección del servidor (mejor con
+  dominio y HTTPS, o por la VPN).
+  Las fotos están en /srv/draupnode/apps/immich/library (entran en las
+  copias: pueden ocupar mucho).
+  Sus datos están en /srv/draupnode/apps/immich (entran en las copias del
+  módulo Copias). Licencia: AGPL-3.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 4000
+firewall_ports_from: [immich_public_port]
+proxy_site:
+  domain: immich_domain
+  port: immich_port
+uninstall_warning: "Para y quita los contenedores de Immich."
+uninstall_data: "Borrar también sus datos (todas las fotos y vídeos subidos y su base de datos). No se puede deshacer."
+variables:
+  - name: immich_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 2283
+    min: 1024
+    max: 65535
+  - name: immich_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: immich_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: immich_update
+    label: Actualizar Immich al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true

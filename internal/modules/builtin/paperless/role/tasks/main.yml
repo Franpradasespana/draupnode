@@ -47,6 +47,10 @@
   args:
     chdir: "{{ paperless_dir }}"
   register: paperless_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: paperless_up.rc == 0
+  retries: 3
+  delay: 30
   changed_when: "'Started' in paperless_up.stderr or 'Created' in paperless_up.stderr or 'Recreated' in paperless_up.stderr"
   when: not ansible_check_mode
 

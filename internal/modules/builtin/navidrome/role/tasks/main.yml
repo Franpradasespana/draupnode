@@ -31,6 +31,10 @@
   args:
     chdir: "{{ navidrome_dir }}"
   register: navidrome_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: navidrome_up.rc == 0
+  retries: 3
+  delay: 30
   changed_when: "'Started' in navidrome_up.stderr or 'Created' in navidrome_up.stderr or 'Recreated' in navidrome_up.stderr"
   when: not ansible_check_mode
 
