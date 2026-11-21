@@ -1,0 +1,26 @@
+# Generado por Draupnode (módulo forgejo). No lo edites a mano: se reescribe al aplicar.
+name: dn-forgejo
+
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:15
+    {% if forgejo_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-forgejo
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      FORGEJO__database__DB_TYPE: sqlite3
+      FORGEJO__security__INSTALL_LOCK: "true"
+      FORGEJO__service__DISABLE_REGISTRATION: "{{ 'false' if forgejo_registration | bool else 'true' }}"
+      FORGEJO__server__ROOT_URL: "{{ ('https://' ~ forgejo_domain ~ '/') if forgejo_domain else ('http://127.0.0.1:' ~ forgejo_port ~ '/') }}"
+      FORGEJO__server__SSH_DOMAIN: "{{ forgejo_domain if forgejo_domain else draupnode_host }}"
+      FORGEJO__server__SSH_PORT: "{{ forgejo_ssh_port }}"
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:{{ forgejo_port }}:3000"
+{% if (forgejo_public_port | default(0) | int) > 0 %}      - "{{ forgejo_public_port }}:3000"
+{% endif %}      - "{{ forgejo_ssh_port }}:22"

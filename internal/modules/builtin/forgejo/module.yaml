@@ -1,0 +1,66 @@
+id: forgejo
+name: "Forgejo (tu GitHub)"
+version: 1.0.0
+category: 7 · Apps
+description: "Tu propio GitHub: repositorios Git, incidencias, revisiones de código y paquetes, en tu servidor."
+details: |
+  Forgejo 15 en Docker, con su base SQLite (sin servidor de base de
+  datos aparte). Draupnode crea el usuario «administrador» con una contraseña
+  generada en el servidor (en «Contraseñas del proyecto»).
+  Git por SSH en el puerto indicado (se abre en el Cortafuegos):
+  git clone ssh://git@servidor:PUERTO/usuario/repo.git
+  El registro de usuarios nuevos está cerrado salvo que lo abras.
+  Sus datos están en /srv/draupnode/apps/forgejo (entran en las copias del
+  módulo Copias). Licencia: GPL-3.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 700
+firewall_ports_from: [forgejo_public_port, forgejo_ssh_port]
+proxy_site:
+  domain: forgejo_domain
+  port: forgejo_port
+secrets:
+  - file: forgejo_admin
+    label: Administrador de Forgejo
+uninstall_warning: "Para y quita los contenedores de Forgejo."
+uninstall_data: "Borrar también sus datos (todos los repositorios, usuarios e incidencias). No se puede deshacer."
+variables:
+  - name: forgejo_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 3000
+    min: 1024
+    max: 65535
+  - name: forgejo_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: forgejo_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: forgejo_ssh_port
+    label: Puerto SSH de Git
+    help: Para clonar y subir por SSH. No puede ser el del SSH del servidor.
+    type: int
+    default: 2222
+    min: 1024
+    max: 65535
+  - name: forgejo_registration
+    label: Permitir registrarse
+    help: Si no, solo el administrador crea usuarios.
+    type: bool
+    default: false
+  - name: forgejo_update
+    label: Actualizar Forgejo al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true

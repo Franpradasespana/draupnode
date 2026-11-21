@@ -386,3 +386,8 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 ## 2026-11-21 · 0.28.0 · Syncthing (sincronizar carpetas)
 
 - **Syncthing** (MPL-2.0): panel solo local (`Abrir` o VPN), sincronización por 22000/TCP y UDP (TCP al Cortafuegos; recuerda la nube), datos con el usuario 1000. Probado (ver 0.25.0).
+
+## 2026-11-21 · 0.29.0 · Forgejo (tu GitHub)
+
+- **Forgejo 15** (GPL-3.0) con SQLite, instalación cerrada (`INSTALL_LOCK`), registro cerrado salvo que se abra, `ROOT_URL` con el dominio, Git por SSH en su propio puerto (2222 por defecto, al Cortafuegos). Draupnode crea el usuario **«administrador»** («admin» es un nombre reservado en Forgejo: salió al probar) con contraseña generada en el servidor (→ bóveda, con el usuario).
+- **Probado** en un Ubuntu desechable: la API responde 200 con el administrador generado; desinstalar con datos no deja nada.

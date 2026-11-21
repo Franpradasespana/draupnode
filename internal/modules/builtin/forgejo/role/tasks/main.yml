@@ -1,0 +1,82 @@
+---
+- name: Carpeta de Forgejo
+  ansible.builtin.set_fact:
+    forgejo_dir: /srv/draupnode/apps/forgejo
+    forgejo_url: "{{ ('https://' ~ forgejo_domain) if forgejo_domain else ('http://127.0.0.1:' ~ forgejo_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: La carpeta de datos es del usuario 1000 (el de Forgejo)
+  ansible.builtin.file:
+    path: /srv/draupnode/apps/forgejo/data
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0750"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ forgejo_dir }}"
+    - "{{ forgejo_dir }}/data"
+
+- name: Contraseña «.forgejo_admin_pass» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    forgejo_admin_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.forgejo_admin_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ forgejo_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Forgejo
+  ansible.builtin.command: docker compose -p dn-forgejo up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ forgejo_dir }}"
+  register: forgejo_up
+  changed_when: "'Started' in forgejo_up.stderr or 'Created' in forgejo_up.stderr or 'Recreated' in forgejo_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ forgejo_port }}/api/healthz"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: forgejo_http
+  until: forgejo_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 60
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Usuario «admin» (la primera vez)
+  ansible.builtin.shell: |
+    # («admin» es un nombre reservado en Forgejo)
+    for i in $(seq 30); do docker exec -u git dn-forgejo forgejo admin user list >/dev/null 2>&1 && break; sleep 2; done
+    docker exec -u git dn-forgejo forgejo admin user list 2>/dev/null | awk '{print $2}' | grep -qx administrador && exit 0
+    docker exec -u git dn-forgejo forgejo admin user create --admin --username administrador --email administrador@{{ forgejo_domain if forgejo_domain else 'localhost' }} --password "$P" --must-change-password=false >/dev/null && echo creado
+  environment:
+    P: "{{ forgejo_admin_pass }}"
+  register: forgejo_admin_user
+  changed_when: "'creado' in forgejo_admin_user.stdout"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/forgejo_admin"
+    mode: "0600"
+    content: "Usuario: administrador\nContraseña: {{ forgejo_admin_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Forgejo {{ 'responde' if (forgejo_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-forgejo logs, en ' ~ forgejo_dir ~ ')' }} en {{ forgejo_url }}.
+      Entra con «administrador» (contraseña en «Contraseñas del proyecto»). Git por SSH en el puerto {{ forgejo_ssh_port }}.
