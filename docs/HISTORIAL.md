@@ -374,3 +374,7 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 - **«Abrir (túnel SSH)»** en la página de cualquier app instalada (`OpenAppTunnel`): la abre en el navegador de este equipo sin publicarla; y «https://dominio» si tiene.
 - **Vaultwarden** (AGPL-3.0, compatible con Bitwarden): registro abierto/cerrado, token de /admin generado en el servidor (→ bóveda), `DOMAIN` con el dominio.
 - **Probado** (junto con Navidrome, Jellyfin y Syncthing) en un Ubuntu desechable: las cuatro responden por el túnel; Vaultwarden también por https con Caddy (sitio añadido solo); desinstalar con datos no deja contenedores ni carpetas.
+
+## 2026-11-21 · 0.26.0 · Navidrome (música)
+
+- **Navidrome** (GPL-3.0): tu música desde el navegador o apps Subsonic; lee la carpeta elegida (por defecto `/srv/musica`, solo lectura) y la revisa cada hora. El primero que entra es el administrador. Probado (ver 0.25.0).

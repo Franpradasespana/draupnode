@@ -1,0 +1,55 @@
+id: navidrome
+name: "Navidrome (música)"
+version: 1.0.0
+category: 7 · Apps
+description: "Tu propio Spotify: escucha tu colección de música desde el navegador o el móvil (apps compatibles con Subsonic)."
+details: |
+  Navidrome en Docker. Lee la música de la carpeta indicada (solo
+  lectura) y la vuelve a mirar sola cada hora. El primer usuario que
+  entra se queda de administrador: entra enseguida después de aplicar.
+  Apps de móvil compatibles (Subsonic): Symfonium, Tempo, Substreamer, play:Sub…
+  Sus datos están en /srv/draupnode/apps/navidrome (entran en las copias del
+  módulo Copias). Licencia: GPL-3.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [navidrome_public_port]
+proxy_site:
+  domain: navidrome_domain
+  port: navidrome_port
+uninstall_warning: "Para y quita los contenedores de Navidrome."
+uninstall_data: "Borrar también sus datos (la base de datos de Navidrome (usuarios, listas, favoritos; tu música no se toca)). No se puede deshacer."
+variables:
+  - name: navidrome_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 4533
+    min: 1024
+    max: 65535
+  - name: navidrome_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: navidrome_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: navidrome_music
+    label: Carpeta de la música
+    help: Donde está tu música en el servidor (súbela con SFTP, Syncthing…).
+    type: string
+    default: /srv/musica
+    pattern: '^/[A-Za-z0-9._/ -]+$'
+    pattern_help: Ruta absoluta
+  - name: navidrome_update
+    label: Actualizar Navidrome al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true

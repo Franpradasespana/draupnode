@@ -1,0 +1,19 @@
+---
+- name: ¿Está Navidrome?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/navidrome/docker-compose.yml
+  register: navidrome_cf
+
+- name: Parar y quitar Navidrome
+  ansible.builtin.command: docker compose -p dn-navidrome down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/navidrome
+  when: navidrome_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/navidrome 
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Navidrome {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/navidrome: si lo reinstalas, vuelve todo.' }}"

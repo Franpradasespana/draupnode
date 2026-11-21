@@ -1,0 +1,53 @@
+---
+- name: Carpeta de Navidrome
+  ansible.builtin.set_fact:
+    navidrome_dir: /srv/draupnode/apps/navidrome
+    navidrome_url: "{{ ('https://' ~ navidrome_domain) if navidrome_domain else ('http://127.0.0.1:' ~ navidrome_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpeta de la música
+  ansible.builtin.file:
+    path: "{{ navidrome_music }}"
+    state: directory
+    mode: "0755"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ navidrome_dir }}"
+    - "{{ navidrome_dir }}/data"
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ navidrome_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: false
+
+- name: Arrancar Navidrome
+  ansible.builtin.command: docker compose -p dn-navidrome up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ navidrome_dir }}"
+  register: navidrome_up
+  changed_when: "'Started' in navidrome_up.stderr or 'Created' in navidrome_up.stderr or 'Recreated' in navidrome_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ navidrome_port }}/ping"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: navidrome_http
+  until: navidrome_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 40
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Navidrome {{ 'responde' if (navidrome_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-navidrome logs, en ' ~ navidrome_dir ~ ')' }} en {{ navidrome_url }}.
+      Entra enseguida y crea el usuario administrador (el primero que entra lo es). Música en {{ navidrome_music }}.

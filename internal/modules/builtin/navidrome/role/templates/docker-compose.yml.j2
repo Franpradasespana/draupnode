@@ -1,0 +1,22 @@
+# Generado por Draupnode (módulo navidrome). No lo edites a mano: se reescribe al aplicar.
+name: dn-navidrome
+
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    {% if navidrome_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-navidrome
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      ND_SCANSCHEDULE: 1h
+      ND_LOGLEVEL: info
+      ND_BASEURL: ""
+    volumes:
+      - ./data:/data
+      - "{{ navidrome_music }}:/music:ro"
+    ports:
+      - "127.0.0.1:{{ navidrome_port }}:4533"
+{% if (navidrome_public_port | default(0) | int) > 0 %}      - "{{ navidrome_public_port }}:4533"
+{% endif %}
