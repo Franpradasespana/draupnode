@@ -1,0 +1,21 @@
+# Generado por Draupnode (módulo jellyfin). No lo edites a mano: se reescribe al aplicar.
+name: dn-jellyfin
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    {% if jellyfin_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-jellyfin
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      JELLYFIN_PublishedServerUrl: "{{ ('https://' ~ jellyfin_domain) if jellyfin_domain else '' }}"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - "{{ jellyfin_media }}:/media:ro"
+    ports:
+      - "127.0.0.1:{{ jellyfin_port }}:8096"
+{% if (jellyfin_public_port | default(0) | int) > 0 %}      - "{{ jellyfin_public_port }}:8096"
+{% endif %}
