@@ -96,7 +96,7 @@ func genFiles(spec dockerize.Spec) (map[string]string, []string) {
 // orderFiles: Dockerfile, compose, entrypoint, .dockerignore.
 func orderFiles(dir string, spec dockerize.Spec, files map[string]string) []DockerFile {
 	n := spec.Names()
-	rank := map[string]int{n.Dockerfile: 0, n.Compose: 1, n.Entrypoint: 2, n.Ignore: 3}
+	rank := map[string]int{n.Dockerfile: 0, n.Compose: 1, n.Nginx: 2, n.Entrypoint: 3, n.Ignore: 4}
 	names := make([]string, 0, len(files))
 	for k := range files {
 		names = append(names, k)

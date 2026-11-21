@@ -1,12 +1,13 @@
 // Pruebas de integración: construyen y arrancan imágenes de verdad con Docker.
 // Solo con DZ_DOCKER=1 (descargan imágenes y tardan unos minutos):
-//   DZ_DOCKER=1 go test ./internal/dockerize -run Integracion -v
+//
+//	DZ_DOCKER=1 go test ./internal/dockerize -run Integracion -v
 package dockerize
 
 import (
 	"fmt"
-	"net/http"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,7 +41,7 @@ func TestIntegracionConstruir(t *testing.T) {
 		t.Skip()
 	}
 	djangoFiles := map[string]string{
-		"manage.py": "import os,sys\nos.environ.setdefault('DJANGO_SETTINGS_MODULE','web.settings')\nfrom django.core.management import execute_from_command_line\nexecute_from_command_line(sys.argv)\n",
+		"manage.py":       "import os,sys\nos.environ.setdefault('DJANGO_SETTINGS_MODULE','web.settings')\nfrom django.core.management import execute_from_command_line\nexecute_from_command_line(sys.argv)\n",
 		"web/__init__.py": "",
 		"web/settings.py": `import os
 from pathlib import Path
@@ -57,8 +58,8 @@ if os.environ.get("DB_HOST"):
 else:
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": "/tmp/db.sqlite3"}}
 `,
-		"web/urls.py":  "from django.http import HttpResponse\nfrom django.db import connection\nfrom django.urls import path\nurlpatterns=[path('', lambda r: HttpResponse('hola django ' + connection.vendor))]\n",
-		"web/wsgi.py":  "import os\nos.environ.setdefault('DJANGO_SETTINGS_MODULE','web.settings')\nfrom django.core.wsgi import get_wsgi_application\napplication=get_wsgi_application()\n",
+		"web/urls.py":      "from django.http import HttpResponse\nfrom django.db import connection\nfrom django.urls import path\nurlpatterns=[path('', lambda r: HttpResponse('hola django ' + connection.vendor))]\n",
+		"web/wsgi.py":      "import os\nos.environ.setdefault('DJANGO_SETTINGS_MODULE','web.settings')\nfrom django.core.wsgi import get_wsgi_application\napplication=get_wsgi_application()\n",
 		"requirements.txt": "Django==5.1.4\n",
 	}
 	cases := []struct {
@@ -196,5 +197,42 @@ func TestIntegracionJavaVite(t *testing.T) {
 		size, _ := sh(t, dir, "docker image inspect -f '{{.Size}}' "+img)
 		t.Logf("%-7s construida en %v · HTTP %d contiene=%v · usuario %s · imagen %s bytes", c.name, time.Since(t0).Round(time.Second), code, strings.Contains(body, c.want), strings.TrimSpace(user), strings.TrimSpace(size))
 		sh(t, dir, "docker rm -f "+strings.TrimSpace(cid)+" >/dev/null; docker rmi -f "+img+" >/dev/null")
+	}
+}
+
+// nginx delante de la app, con el compose generado: entra por el dominio y
+// el puerto de nginx; la app no se publica.
+func TestIntegracionNginxDelante(t *testing.T) {
+	if os.Getenv("DZ_DOCKER") == "" {
+		t.Skip()
+	}
+	dir := proyecto(t, map[string]string{"requirements.txt": "flask==3.1.0\n", "app.py": "from flask import Flask, request\napp=Flask(__name__)\n@app.get('/')\ndef i(): return 'hola por nginx ' + request.headers.get('X-Forwarded-For', '-')\n"})
+	a, _ := Analyze(dir)
+	a.Spec.Name = "dzproxy"
+	a.Spec.Proxy, a.Spec.ProxyDomain, a.Spec.ProxyPort = true, "tienda.ejemplo.com", 18990
+	files, err := Generate(a.Spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for n, body := range files {
+		os.WriteFile(filepath.Join(dir, n), []byte(body), 0o644)
+	}
+	defer sh(t, dir, "docker compose down -v --rmi local >/dev/null 2>&1")
+	if out, err := sh(t, dir, "docker compose up -d --build --quiet-pull 2>&1"); err != nil {
+		t.Fatalf("compose: %v\n%s", err, lastLines(out, 20))
+	}
+	var body, otro string
+	for i := 0; i < 60; i++ {
+		body, _ = sh(t, dir, "curl -s -H 'Host: tienda.ejemplo.com' http://127.0.0.1:18990/")
+		if strings.Contains(body, "hola por nginx") {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	otro, _ = sh(t, dir, "curl -s -o /dev/null -w '%{http_code}' -H 'Host: otro.ejemplo.com' http://127.0.0.1:18990/")
+	ps, _ := sh(t, dir, "docker compose ps --format '{{.Service}} {{.Ports}}'")
+	t.Logf("por el dominio: %q · otro dominio: %s\n%s", body, otro, ps)
+	if !strings.Contains(body, "hola por nginx") || otro != "000" || strings.Contains(ps, ":8000->") {
+		t.Fatal("nginx delante no funciona como debe")
 	}
 }

@@ -372,6 +372,10 @@ export interface DockerSpec {
   sharedNetwork: string
   sharedHost: string
   sideBySide: boolean
+  proxy: boolean
+  proxyDomain: string
+  proxyPort: number
+  maxBodyMb: number
 }
 
 export interface DockerAnalysis {
@@ -963,6 +967,7 @@ function mockBackend(): Backend {
         { name: 'Dockerfile', content: `# Generado por Draupnode (demo)\nFROM ${spec.stack}:${spec.version}-slim\nWORKDIR /app\nCOPY . .\nEXPOSE ${spec.port}\nCMD ${JSON.stringify(spec.start.split(' '))}\n`, exists: false },
         { name: 'docker-compose.yml', content: `services:\n  ${spec.name}:\n    build: .\n    ports:\n      - "${spec.hostPort || spec.port}:${spec.port}"\n`, exists: false },
         { name: '.dockerignore', content: '.git\n.env\n__pycache__\n', exists: false },
+        ...(spec.proxy ? [{ name: 'nginx.conf', content: `server {\n    listen 80;\n    server_name ${spec.proxyDomain || '_'};\n    location / {\n        proxy_pass http://${spec.name}:${spec.port};\n    }\n}\n`, exists: false }] : []),
       ]
       return { files, errors: [] }
     },
@@ -1115,6 +1120,7 @@ function mockSpec(stack: string, name: string): DockerSpec {
     djangoMigrate: false, djangoCollectstatic: false, djangoSuperuser: false, nodePm: 'npm', nodeBuild: false, nodeLock: true, staticDir: 'dist',
     javaBuild: 'maven', javaWrapper: false, docRoot: '', laravelMigrate: false, goMain: '.', systemPackages: [], volumes: [], envKeys: [],
     nonRoot: true, healthPath: '', postgres: false, mariadb: false, redis: false, dbMode: 'own', sharedNetwork: 'apps', sharedHost: 'pg-compartido', sideBySide: false,
+    proxy: false, proxyDomain: '', proxyPort: 80, maxBodyMb: 50,
   }
 }
 

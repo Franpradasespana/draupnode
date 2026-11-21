@@ -25,13 +25,13 @@
     { id: 'projects', label: 'Proyectos', icon: FolderGit2 },
     { id: 'catalog', label: 'Catálogo', icon: Boxes },
     { id: 'lab', label: 'Pruebas', icon: FlaskConical },
-    { id: 'docker', label: 'Docker', icon: Container },
+    { id: 'docker', label: 'Docker Creator', icon: Container },
     { id: 'terminal', label: 'Terminal', icon: SquareTerminal, soon: true },
   ]
 
   const titles: Record<View, string> = {
     dashboard: 'Panel', servers: 'Servidores', catalog: 'Catálogo', projects: 'Proyectos',
-    docker: 'Docker', terminal: 'Terminal', settings: 'Ajustes', lab: 'Pruebas',
+    docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Pruebas',
   }
 
   let ready = $state(false)

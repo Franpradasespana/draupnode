@@ -333,3 +333,9 @@ Dos módulos que hacen lo mismo, para elegir (categoría 3 · Plataformas). No p
 - Al probar la conexión se detecta el proveedor por los datos DMI (`cloud=` en los datos del servidor: Oracle, AWS, Google, Azure, Hetzner, DigitalOcean, OVH, Scaleway, Linode, Vultr).
 - Al revisar o aplicar un proyecto en una nube conocida, un aviso dice qué puertos abrir allí (los TCP del Cortafuegos y de los módulos, sin el 22, y los UDP de los módulos con `udp_ports_from` nuevo en module.yaml, como WireGuard) y **dónde** se hace en ese proveedor (p. ej. Oracle: Security List de la VCN, con la ruta de menús).
 - La página de WireGuard y la ventana del Destino de copias lo dicen siempre (con el proveedor si se conoce); también las notas al aplicar de los dos módulos.
+
+## 2026-11-21 · 0.20.0 · «Docker Creator» y nginx delante de la app
+
+- Petición del usuario: el menú «Docker» se llama ahora **Docker Creator** (menú, título y ayuda).
+- Petición del usuario: en el paso «Servicios», **«Poner nginx delante»** (dominio y puerto normal). Añade al compose un servicio `web` con `nginx:1.27-alpine` que escucha en el puerto 80 (o el elegido) para el dominio indicado y reenvía por dentro al puerto de la app, que deja de publicarse (`expose`). Genera `nginx.conf` (o `nginx.draupnode.conf` si se guarda al lado): cabeceras `X-Forwarded-*`, WebSockets, tamaño máximo de subida, `server_tokens off` y, con dominio, un servidor por defecto que rechaza otros nombres (444). Sin dominio responde a cualquiera. Para HTTPS se recomienda el módulo Caddy/nginx de Draupnode o Coolify.
+- **Probado** con Docker de verdad (`DZ_DOCKER=1`): una app Flask con nginx delante responde por el dominio en el puerto de nginx (con la IP del cliente en `X-Forwarded-For`), otro dominio se rechaza y la app no tiene puerto publicado. Tests unitarios del compose y del nginx.conf. Pantalla comprobada en la demo.

@@ -197,13 +197,14 @@
   const versions = $derived(spec && info ? info.versions[spec.stack] ?? [] : [])
   const servesStatic = $derived(!!spec && (spec.stack === 'static' || spec.stack === 'php' || (spec.stack === 'node' && spec.framework === 'spa')))
   const composeName = $derived(spec?.sideBySide ? 'docker-compose.draupnode.yml' : 'docker-compose.yml')
+  const openUrl = $derived(spec?.proxy ? `http://${spec.proxyDomain || 'localhost'}${(spec.proxyPort || 80) === 80 ? '' : ':' + spec.proxyPort}` : '')
   const upCmd = $derived('docker compose' + (spec?.sideBySide ? ' -f ' + composeName : '') + ' up -d --build')
   const canNext = $derived(step === 0 ? !!spec && !analyzing : !!spec?.stack)
 </script>
 
 <div class="head">
   <div>
-    <h1>Docker</h1>
+    <h1>Docker Creator</h1>
     <p class="muted">Crea el Dockerfile y el docker-compose.yml de cualquier proyecto sin saber Docker. Mira la carpeta, te propone lo que ha visto y tú lo cambias si hace falta.</p>
   </div>
   {#if dir}<button class="btn" onclick={restart}><RefreshCw size={15} /> Otro proyecto</button>{/if}
@@ -323,7 +324,9 @@
       {:else}
         <p class="muted small wide">Se sirve con {spec.stack === 'php' ? 'Apache' : 'nginx'} en el puerto 80 dentro del contenedor.</p>
       {/if}
-      <label class="field"><span>Puerto en tu equipo / servidor</span><input class="input" type="number" min="0" max="65535" bind:value={spec.hostPort} /><small>0 = el mismo{servesStatic ? ' (8080)' : ''}.</small></label>
+      {#if !spec.proxy}
+        <label class="field"><span>Puerto en tu equipo / servidor</span><input class="input" type="number" min="0" max="65535" bind:value={spec.hostPort} /><small>0 = el mismo{servesStatic ? ' (8080)' : ''}.</small></label>
+      {/if}
       <label class="field"><span>Comprobación de salud</span><input class="input" bind:value={spec.healthPath} placeholder="(ninguna)" spellcheck="false" /><small>Una ruta que responda, p. ej. /health. Docker sabrá si la app está viva.</small></label>
     </div>
     {#if spec.framework === 'django'}
@@ -358,6 +361,18 @@
         {/if}
       </div>
     {/if}
+    <div class="proxy">
+      <label class="check"><input type="checkbox" bind:checked={spec.proxy} /> <strong>Poner nginx delante</strong> (dominio y puerto normal)</label>
+      <p class="muted small">Un nginx en el compose recibe las visitas a tu dominio en el puerto 80 (o el que digas) y las pasa por dentro al puerto {servesStatic ? '80' : spec.port} de la app, que ya no se publica.</p>
+      {#if spec.proxy}
+        <div class="grid">
+          <label class="field"><span>Dominio</span><input class="input mono" bind:value={spec.proxyDomain} placeholder="tienda.ejemplo.com" spellcheck="false" /><small>Vacío = responde a cualquiera. Tiene que apuntar a este equipo o servidor.</small></label>
+          <label class="field"><span>Puerto de nginx</span><input class="input" type="number" min="1" max="65535" bind:value={spec.proxyPort} /><small>80 = el normal (http://dominio sin puerto).</small></label>
+          <label class="field"><span>Tamaño máximo de subida (MB)</span><input class="input" type="number" min="1" max="10240" bind:value={spec.maxBodyMb} /></label>
+        </div>
+        <p class="muted small">Para HTTPS (candado), pon delante el módulo Caddy o nginx de Draupnode en el servidor, o despliégalo con Coolify.</p>
+      {/if}
+    </div>
     <div class="grid">
       <label class="field wide"><span>Variables de entorno que usa la app</span>
         <input class="input mono" bind:value={envText} placeholder="SECRET_KEY, API_TOKEN" spellcheck="false" />
@@ -408,6 +423,7 @@
         <div class="note">
           <p><strong>Para arrancarlo</strong>, en una terminal dentro de la carpeta del proyecto:</p>
           <div class="cmd"><code class="selectable">{upCmd}</code><button class="btn icon sm ghost" title="Copiar" onclick={() => copy(upCmd)}><Copy size={14} /></button></div>
+          {#if openUrl}<p>Después ábrela en <code>{openUrl}</code>{spec?.proxyDomain ? ' (el dominio tiene que apuntar a donde la arranques)' : ''}.</p>{/if}
           <p>Si tu app usa variables (contraseñas…), crea antes un fichero <code>.env</code> con ellas. Coolify también puede desplegarlo con este {composeName}.</p>
         </div>
       {/if}
@@ -474,5 +490,7 @@
   .progress { border: 1px solid var(--border-soft); border-radius: var(--radius-sm); overflow: hidden; }
   .p-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--panel-2); font-size: 13px; font-weight: 500; border-bottom: 1px solid var(--border-soft); }
   .log { margin: 0; padding: 10px 12px; max-height: 260px; overflow-y: auto; font-family: var(--mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+  .proxy { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
+  .proxy p { margin: 0; }
   .nav { display: flex; justify-content: space-between; border-top: 1px solid var(--border-soft); padding-top: 14px; }
 </style>

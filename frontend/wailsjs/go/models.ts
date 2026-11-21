@@ -35,6 +35,10 @@ export namespace dockerize {
 	    sharedNetwork: string;
 	    sharedHost: string;
 	    sideBySide: boolean;
+	    proxy: boolean;
+	    proxyDomain: string;
+	    proxyPort: number;
+	    maxBodyMb: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Spec(source);
@@ -76,6 +80,10 @@ export namespace dockerize {
 	        this.sharedNetwork = source["sharedNetwork"];
 	        this.sharedHost = source["sharedHost"];
 	        this.sideBySide = source["sideBySide"];
+	        this.proxy = source["proxy"];
+	        this.proxyDomain = source["proxyDomain"];
+	        this.proxyPort = source["proxyPort"];
+	        this.maxBodyMb = source["maxBodyMb"];
 	    }
 	}
 	export class Analysis {
@@ -1072,6 +1080,7 @@ export namespace modules {
 	    min?: number;
 	    max?: number;
 	    placeholder?: string;
+	    managed?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Variable(source);
@@ -1091,6 +1100,7 @@ export namespace modules {
 	        this.min = source["min"];
 	        this.max = source["max"];
 	        this.placeholder = source["placeholder"];
+	        this.managed = source["managed"];
 	    }
 	}
 	export class Requires {
@@ -1121,6 +1131,7 @@ export namespace modules {
 	    variables: Variable[];
 	    firewallPorts?: number[];
 	    firewallPortsFrom?: string[];
+	    udpPortsFrom?: string[];
 	    conflicts?: string[];
 	    after?: string[];
 	    checks?: Check[];
@@ -1149,6 +1160,7 @@ export namespace modules {
 	        this.variables = this.convertValues(source["variables"], Variable);
 	        this.firewallPorts = source["firewallPorts"];
 	        this.firewallPortsFrom = source["firewallPortsFrom"];
+	        this.udpPortsFrom = source["udpPortsFrom"];
 	        this.conflicts = source["conflicts"];
 	        this.after = source["after"];
 	        this.checks = this.convertValues(source["checks"], Check);

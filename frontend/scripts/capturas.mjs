@@ -52,6 +52,8 @@ const ALL_SHOTS = [
   { name: 'catalogo', view: 'catalog', act: [['wait', 1200], ['click', 'button.mod', 'Coolify'], ['wait', 700]] },
   { name: 'pruebas', view: 'lab', act: [['wait', 600], ['click', 'button', 'Crear y arrancar'], ['wait', 4500]] },
   { name: 'docker', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900]] },
+  { name: 'docker-nginx', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900], ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'],
+    ['click', 'button', 'Siguiente'], ['wait', 300], ['click', 'label.check', 'Poner nginx delante'], ['wait', 300], ['type', 'input[placeholder="tienda.ejemplo.com"]', 'tienda.ejemplo.com'], ['wait', 300]] },
   { name: 'docker-vista', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900], ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'],
     ['click', 'button', 'Siguiente'], ['click', 'button', 'Siguiente'], ['wait', 500], ['click', 'button', 'Guardar en la carpeta'], ['wait', 600], ['click', 'button', 'Probar a construir'], ['wait', 2600]] },
   { name: 'destino-copias', view: 'projects', seed: (d) => {

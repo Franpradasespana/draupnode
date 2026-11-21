@@ -27,7 +27,7 @@ type Spec struct {
 	// Node
 	NodePM    string `json:"nodePm"` // npm | yarn | pnpm
 	NodeBuild bool   `json:"nodeBuild"`
-	NodeLock  bool   `json:"nodeLock"` // hay fichero de bloqueo (package-lock.json…)
+	NodeLock  bool   `json:"nodeLock"`  // hay fichero de bloqueo (package-lock.json…)
 	StaticDir string `json:"staticDir"` // salida de la compilación (spa)
 	// Java
 	JavaBuild   string `json:"javaBuild"` // maven | gradle
@@ -56,19 +56,28 @@ type Spec struct {
 	// SideBySide: el proyecto ya tiene sus ficheros de Docker; los nuevos se
 	// guardan al lado con «.draupnode» en el nombre y se refieren entre sí.
 	SideBySide bool `json:"sideBySide"`
+
+	// Proxy: un nginx delante de la app, en el compose. Escucha en ProxyPort
+	// (80 por defecto) para el dominio ProxyDomain ("" = cualquiera) y reenvía
+	// por dentro al puerto de la app, que ya no se publica.
+	Proxy       bool   `json:"proxy"`
+	ProxyDomain string `json:"proxyDomain"`
+	ProxyPort   int    `json:"proxyPort"`
+	// MaxBodyMB: tamaño máximo de subida a través de nginx.
+	MaxBodyMB int `json:"maxBodyMb"`
 }
 
 // FileNames son los nombres de los ficheros generados.
 type FileNames struct {
-	Dockerfile, Ignore, Compose, Entrypoint string
+	Dockerfile, Ignore, Compose, Entrypoint, Nginx string
 }
 
 // Names devuelve los nombres con los que se guardan los ficheros.
 func (s Spec) Names() FileNames {
 	if s.SideBySide {
-		return FileNames{"Dockerfile.draupnode", "Dockerfile.draupnode.dockerignore", "docker-compose.draupnode.yml", "docker-entrypoint.draupnode.sh"}
+		return FileNames{"Dockerfile.draupnode", "Dockerfile.draupnode.dockerignore", "docker-compose.draupnode.yml", "docker-entrypoint.draupnode.sh", "nginx.draupnode.conf"}
 	}
-	return FileNames{"Dockerfile", ".dockerignore", "docker-compose.yml", "docker-entrypoint.sh"}
+	return FileNames{"Dockerfile", ".dockerignore", "docker-compose.yml", "docker-entrypoint.sh", "nginx.conf"}
 }
 
 // Versions son las versiones que ofrece el asistente para cada lenguaje.
@@ -83,7 +92,7 @@ var Versions = map[string][]string{
 
 // Default es la configuración de partida de cada lenguaje.
 func Default(stack, name string) Spec {
-	s := Spec{Stack: stack, Name: name, NonRoot: true, DBMode: "own", SharedNetwork: "apps", SharedHost: "pg-compartido",
+	s := Spec{Stack: stack, Name: name, NonRoot: true, DBMode: "own", SharedNetwork: "apps", SharedHost: "pg-compartido", ProxyPort: 80, MaxBodyMB: 50,
 		ExtraPip: []string{}, SystemPackages: []string{}, Volumes: []string{}, EnvKeys: []string{}}
 	switch stack {
 	case StackPython:
@@ -111,6 +120,7 @@ var (
 	dirRe    = regexp.MustCompile(`^[A-Za-z0-9._/-]*$`)
 	moduleRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.]*$`)
 	envRe    = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	domainRe = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`)
 )
 
 // Validate comprueba lo que va a acabar dentro de los ficheros.
@@ -160,6 +170,17 @@ func (s *Spec) Validate() []string {
 	if !dirRe.MatchString(s.StaticDir) || !dirRe.MatchString(s.DocRoot) || !dirRe.MatchString(s.GoMain) || !dirRe.MatchString(s.HealthPath) {
 		e = append(e, "alguna carpeta tiene caracteres no válidos")
 	}
+	if s.Proxy {
+		if s.ProxyDomain != "" && !domainRe.MatchString(s.ProxyDomain) {
+			e = append(e, "dominio no válido (p. ej. tienda.ejemplo.com)")
+		}
+		if s.ProxyPort != 0 && (s.ProxyPort < 1 || s.ProxyPort > 65535) {
+			e = append(e, "puerto de nginx no válido")
+		}
+		if s.MaxBodyMB < 0 || s.MaxBodyMB > 10240 {
+			e = append(e, "tamaño máximo de subida no válido")
+		}
+	}
 	if s.DBMode == "shared" && (!envRe.MatchString(strings.ReplaceAll(s.SharedNetwork, "-", "_")) || !envRe.MatchString(strings.ReplaceAll(s.SharedHost, "-", "_"))) {
 		e = append(e, "red o contenedor del PostgreSQL compartido no válidos")
 	}
@@ -200,6 +221,16 @@ func Generate(s Spec) (map[string]string, error) {
 	}
 	if ep := entrypoint(s); ep != "" {
 		files[n.Entrypoint] = ep
+	}
+	if s.Proxy {
+		if s.ProxyPort == 0 {
+			s.ProxyPort = 80
+		}
+		if s.MaxBodyMB == 0 {
+			s.MaxBodyMB = 50
+		}
+		files[n.Compose] = compose(s)
+		files[n.Nginx] = nginxConf(s)
 	}
 	return files, nil
 }
@@ -521,7 +552,11 @@ func compose(s Spec) string {
 		b.WriteString("    build: .\n")
 	}
 	b.WriteString("    image: " + s.Name + ":latest\n    restart: unless-stopped\n")
-	b.WriteString(fmt.Sprintf("    # «puerto del equipo:puerto de la app». Abre http://localhost:%d\n    ports:\n      - \"%d:%d\"\n", s.HostPort, s.HostPort, s.Port))
+	if s.Proxy {
+		b.WriteString(fmt.Sprintf("    # No se publica: le llega todo a través de nginx (servicio «web»), por el puerto %d de dentro.\n    expose:\n      - \"%d\"\n", s.Port, s.Port))
+	} else {
+		b.WriteString(fmt.Sprintf("    # «puerto del equipo:puerto de la app». Abre http://localhost:%d\n    ports:\n      - \"%d:%d\"\n", s.HostPort, s.HostPort, s.Port))
+	}
 	if s.Stack != StackStatic && !(s.Stack == StackNode && s.Framework == "spa") {
 		b.WriteString("    # Variables de entorno (contraseñas, claves…) desde .env, que NO va en la imagen.\n")
 		if len(s.EnvKeys) > 0 {
@@ -598,6 +633,22 @@ func compose(s Spec) string {
 		}
 		vols = append(vols, "db_data")
 	}
+	if s.Proxy {
+		site := s.ProxyDomain
+		if site == "" {
+			site = "localhost"
+		}
+		b.WriteString("\n  # nginx delante de la app: recibe en el puerto " + strconv.Itoa(s.ProxyPort) + " y reenvía por dentro a «" + s.Name + "».\n")
+		b.WriteString("  # Abre http://" + site + portSuffix(s.ProxyPort) + "  (el dominio tiene que apuntar a este equipo/servidor).\n")
+		b.WriteString("  # Para HTTPS, pon delante Caddy o nginx de Draupnode, o despliégalo con Coolify.\n")
+		b.WriteString("  web:\n    image: nginx:1.27-alpine\n    restart: unless-stopped\n")
+		b.WriteString(fmt.Sprintf("    ports:\n      - \"%d:80\"\n", s.ProxyPort))
+		b.WriteString("    volumes:\n      - ./" + s.Names().Nginx + ":/etc/nginx/conf.d/default.conf:ro\n")
+		b.WriteString("    depends_on:\n      - " + s.Name + "\n")
+		if shared {
+			b.WriteString("    networks: [default]\n")
+		}
+	}
 	if s.Redis {
 		b.WriteString("\n  redis:\n    image: redis:7-alpine\n    restart: unless-stopped\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 12\n")
 	}
@@ -609,6 +660,36 @@ func compose(s Spec) string {
 	}
 	if shared {
 		b.WriteString("\n# La red del PostgreSQL compartido que instala Draupnode (módulo PostgreSQL).\nnetworks:\n  " + s.SharedNetwork + ":\n    external: true\n")
+	}
+	return b.String()
+}
+
+func portSuffix(p int) string {
+	if p == 80 {
+		return ""
+	}
+	return ":" + strconv.Itoa(p)
+}
+
+// nginxConf: el nginx que va delante de la app en el compose.
+func nginxConf(s Spec) string {
+	name := s.ProxyDomain
+	if name == "" {
+		name = "_"
+	}
+	var b strings.Builder
+	b.WriteString(header("nginx.conf"))
+	b.WriteString("# nginx delante de la app: recibe las visitas y las pasa por dentro a «" + s.Name + "».\n\n")
+	b.WriteString("# WebSockets: «upgrade» solo si el navegador lo pide.\nmap $http_upgrade $connection_upgrade {\n    default upgrade;\n    ''      close;\n}\n\n")
+	b.WriteString("server {\n    listen 80;\n    server_name " + name + ";\n\n")
+	b.WriteString(fmt.Sprintf("    # Lo máximo que se puede subir de una vez.\n    client_max_body_size %dm;\n    server_tokens off;\n\n", s.MaxBodyMB))
+	b.WriteString("    location / {\n")
+	b.WriteString(fmt.Sprintf("        proxy_pass http://%s:%d;\n", s.Name, s.Port))
+	b.WriteString("        proxy_http_version 1.1;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n")
+	b.WriteString("        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n")
+	b.WriteString("        # WebSockets\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection $connection_upgrade;\n        proxy_read_timeout 300s;\n    }\n}\n")
+	if s.ProxyDomain != "" {
+		b.WriteString("\n# Cualquier otro nombre (o la IP a pelo) no recibe nada.\nserver {\n    listen 80 default_server;\n    server_name _;\n    return 444;\n}\n")
 	}
 	return b.String()
 }
