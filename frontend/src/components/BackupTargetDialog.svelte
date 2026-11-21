@@ -4,7 +4,8 @@
   import { ServerCog, ShieldCheck, LoaderCircle, CircleCheck, ArrowRight, TriangleAlert, Dices } from '@lucide/svelte'
   import Modal from './Modal.svelte'
   import { api, errorText, type BackupTargetResult, type Project } from '../lib/api'
-  import { ui, toast, withVault, refreshProjects } from '../lib/state.svelte'
+  import { ui, toast, withVault, refreshProjects, startRun } from '../lib/state.svelte'
+  import { withConnection } from '../lib/connect'
 
   let { project, onclose, onchanged }: { project: Project; onclose: () => void; onchanged: () => void } = $props()
 
@@ -36,6 +37,67 @@
       busy = false
     }
   }
+
+  // «Aplicar los dos ahora»: destino → origen → destino otra vez (con la
+  // contraseña de las copias del origen, que llega al aplicarlo: activa la rotación).
+  type Step = { label: string; projectId: string; state: 'wait' | 'run' | 'ok' | 'fail'; detail?: string }
+  let steps = $state<Step[]>([])
+  let chaining = $state(false)
+  const chainDone = $derived(steps.length > 0 && steps.every((x) => x.state === 'ok'))
+  const chainFailed = $derived(steps.some((x) => x.state === 'fail'))
+
+  function waitRun(projectId: string, runId: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const t = setInterval(() => {
+        const r = ui.runs[projectId]
+        if (r && r.runId === runId && r.done) {
+          clearInterval(t)
+          resolve(!!r.summary?.ok)
+        }
+      }, 500)
+    })
+  }
+
+  async function applyBoth() {
+    if (!result) return
+    const tgt = ui.projects.find((p) => p.id === result!.targetProjectId)
+    const prune = tgt?.modules.find((m) => m.id === 'backup-target')?.values.backup_target_prune !== false
+    steps = [
+      { label: `Destino: «${result.targetProjectName}»`, projectId: result.targetProjectId, state: 'wait' },
+      { label: `Origen: «${project.name}»`, projectId: project.id, state: 'wait' },
+      ...(prune ? [{ label: 'Destino otra vez, para activar la rotación', projectId: result.targetProjectId, state: 'wait' as const }] : []),
+    ]
+    chaining = true
+    for (const st of steps) {
+      st.state = 'run'
+      const p = ui.projects.find((x) => x.id === st.projectId)
+      const srv = ui.servers.find((x) => x.id === p?.serverId)
+      try {
+        const r = await withConnection(srv, (s, a, u) => api.RunProject(st.projectId, false, s, a, u))
+        if (!r || r.status !== 'started') {
+          st.state = 'fail'
+          st.detail = r?.message || 'Cancelado'
+          break
+        }
+        startRun(st.projectId, r.runId!, false)
+        const ok = await waitRun(st.projectId, r.runId!)
+        st.state = ok ? 'ok' : 'fail'
+        if (!ok) {
+          st.detail = 'Ha fallado: abre el proyecto para ver qué pasó.'
+          break
+        }
+      } catch (e) {
+        st.state = 'fail'
+        st.detail = errorText(e)
+        break
+      }
+    }
+    chaining = false
+    await refreshProjects()
+    onchanged()
+    if (chainDone) toast('Los dos proyectos aplicados: las copias ya van también al otro servidor')
+  }
+  const stepNow = (st: Step) => (st.state === 'run' ? ui.runs[st.projectId]?.stage ?? 'Conectando…' : '')
 
   function openTarget() {
     if (!result) return
@@ -85,9 +147,21 @@
   {:else}
     <div class="col">
       <p class="ok"><CircleCheck size={18} /> Listo. Destino: <code class="selectable">{result.url}</code></p>
-      <ol>
-        {#each result.notes as n}<li>{n}</li>{/each}
-      </ol>
+      {#if !steps.length}
+        <ol>
+          {#each result.notes as n}<li>{n}</li>{/each}
+        </ol>
+        <p class="muted small">Puedes aplicarlos ahora los dos seguidos (primero el destino, luego este proyecto y otra vez el destino para activar la rotación) o hacerlo tú más tarde.</p>
+      {:else}
+        <ul class="chain">
+          {#each steps as st}
+            <li class="st-{st.state}">
+              {#if st.state === 'run'}<LoaderCircle size={15} class="spin" />{:else if st.state === 'ok'}<CircleCheck size={15} />{:else if st.state === 'fail'}<TriangleAlert size={15} />{:else}<span class="dot"></span>{/if}
+              <span>{st.label}{#if st.state === 'run'} <em class="muted">· {stepNow(st)}</em>{/if}{#if st.detail} <em>· {st.detail}</em>{/if}</span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
       <p class="muted small">En el destino, las copias viejas se borran solas cada día (por defecto se guardan 30 días y una al mes durante 12 meses). Lo cambias en la página de su módulo «Destino de copias».</p>
     </div>
   {/if}
@@ -98,9 +172,12 @@
       <button class="btn primary" onclick={create} disabled={busy || !serverId || !candidates.length}>
         {#if busy}<LoaderCircle size={15} class="spin" />{/if} Preparar
       </button>
+    {:else if !steps.length}
+      <button class="btn" onclick={openTarget}>Lo haré yo: ir a «{result.targetProjectName}»</button>
+      <button class="btn primary" onclick={applyBoth}>Aplicar los dos ahora</button>
     {:else}
-      <button class="btn" onclick={onclose}>Cerrar</button>
-      <button class="btn primary" onclick={openTarget}>Ir a «{result.targetProjectName}» <ArrowRight size={15} /></button>
+      <button class="btn" onclick={onclose} disabled={chaining}>Cerrar</button>
+      {#if chainFailed}<button class="btn primary" onclick={openTarget}>Ir a «{result.targetProjectName}» <ArrowRight size={15} /></button>{/if}
     {/if}
   {/snippet}
 </Modal>
@@ -116,6 +193,14 @@
   .note ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
   .note li { display: flex; gap: 8px; align-items: flex-start; }
   .note li :global(svg) { color: var(--accent); flex: none; margin-top: 3px; }
+  .chain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .chain li { display: flex; gap: 8px; align-items: flex-start; }
+  .chain li :global(svg) { flex: none; margin-top: 2px; }
+  .chain .st-ok :global(svg) { color: var(--success); }
+  .chain .st-fail :global(svg) { color: var(--danger); }
+  .chain .st-wait { color: var(--muted); }
+  .chain .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); margin: 5px 4px 0; flex: none; }
+  .chain em { font-style: normal; }
   ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
   .port { display: flex; gap: 8px; }
   .port .input { width: 140px; }

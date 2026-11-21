@@ -60,6 +60,9 @@ const ALL_SHOTS = [
         installedModules: ['base', 'backups'], installedValues: { base: {}, backups: { backups_time: '03:30', backups_remote_type: 'no' } }, appliedAt: ago(60) })
     },
     act: [['click', 'button.proj', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600]] },
+  { name: 'destino-copias-aplicar', view: 'projects', seed: 'destino-copias',
+    act: [['click', 'button.proj', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600],
+      ['click', 'button', 'Preparar'], ['wait', 1000], ['click', 'button', 'Aplicar los dos ahora'], ['wait', 30000]] },
   { name: 'vpn', view: 'projects', seed: (d) => {
       d.vault = { exists: true, master: 'demo-demo-demo' }
       d.projects.push({ id: 'p5', name: 'VPN', serverId: 'demo1', slug: 'vpn', modules: [{ id: 'base', values: {} }, { id: 'wireguard', values: { wireguard_peers: ['portatil', 'movil'] } }],
