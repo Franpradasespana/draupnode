@@ -107,6 +107,8 @@ export function SaveServer(arg1:store.Server,arg2:string,arg3:boolean,arg4:strin
 
 export function SaveSettings(arg1:store.Settings):Promise<void>;
 
+export function SaveTextFile(arg1:string,arg2:string):Promise<string>;
+
 export function SecretsInfo():Promise<main.SecretsInfo>;
 
 export function ServerLive(arg1:string):Promise<main.ServerLive>;

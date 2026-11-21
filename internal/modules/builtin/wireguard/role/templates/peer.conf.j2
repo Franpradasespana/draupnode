@@ -1,0 +1,14 @@
+# WireGuard · {{ peer }} · proyecto {{ draupnode_project }} (generado por Draupnode)
+[Interface]
+PrivateKey = {{ wireguard_k[peer].priv }}
+Address = {{ wireguard_prefix }}.{{ peer_i + 2 }}/32
+{% if wireguard_route_all | bool and wireguard_dns | length > 0 %}
+DNS = {{ wireguard_dns }}
+{% endif %}
+
+[Peer]
+PublicKey = {{ wireguard_k['servidor'].pub }}
+PresharedKey = {{ wireguard_k[peer].psk }}
+Endpoint = {{ ('[' ~ wireguard_host ~ ']') if ':' in wireguard_host else wireguard_host }}:{{ wireguard_port }}
+AllowedIPs = {{ '0.0.0.0/0, ::/0' if wireguard_route_all | bool else wireguard_prefix ~ '.0/24' }}
+PersistentKeepalive = 25

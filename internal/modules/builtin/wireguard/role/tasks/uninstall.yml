@@ -1,0 +1,35 @@
+---
+- name: Parar la VPN
+  ansible.builtin.systemd:
+    name: wg-quick@wg0
+    enabled: false
+    state: stopped
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Cerrar el puerto UDP
+  ansible.builtin.shell: |
+    command -v iptables >/dev/null || exit 0
+    iptables -S INPUT | grep -- 'draupnode-wireguard' | sed 's/^-A /-D /' | while read -r r; do iptables $r; done
+    command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1 || true
+  args:
+    executable: /bin/bash
+  when: not ansible_check_mode
+
+- name: Quitar la configuración
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/wireguard/wg0.conf, /etc/sysctl.d/90-draupnode-wireguard.conf]
+  when: not ansible_check_mode
+
+- name: Borrar las claves
+  ansible.builtin.shell: rm -rf {{ (draupnode_secrets_dir ~ '/.wireguard') | quote }} {{ draupnode_secrets_dir | quote }}/wireguard_*.conf
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      VPN {{ 'se quitará' if ansible_check_mode else 'quitada' }}.
+      {{ 'También las claves: si la reinstalas, configura de nuevo los dispositivos.' if draupnode_uninstall_purge | bool
+         else 'Las claves se conservan: si la reinstalas, los dispositivos siguen valiendo.' }}

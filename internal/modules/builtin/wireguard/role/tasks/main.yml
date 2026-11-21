@@ -1,0 +1,158 @@
+---
+- name: Datos de la VPN
+  ansible.builtin.set_fact:
+    wireguard_dir: /etc/wireguard
+    wireguard_keys: "{{ draupnode_secrets_dir }}/.wireguard"
+    wireguard_prefix: "{{ wireguard_network | regex_replace('\\.0/24$', '') }}"
+    wireguard_host: "{{ wireguard_endpoint if wireguard_endpoint | length > 0 else draupnode_host }}"
+
+- name: La red de la VPN no puede ser la del servidor
+  ansible.builtin.assert:
+    that: (ansible_all_ipv4_addresses | select('match', '^' ~ (wireguard_prefix | regex_escape) ~ '\\.') | reject('equalto', wireguard_prefix ~ '.1') | list | length) == 0
+    fail_msg: "El servidor ya usa una dirección de {{ wireguard_network }}: elige otra «Red de la VPN»."
+    quiet: true
+
+- name: Instalar WireGuard
+  ansible.builtin.apt:
+    name: [wireguard-tools, qrencode]
+    state: present
+    lock_timeout: 600
+
+- name: Carpeta de claves
+  ansible.builtin.file:
+    path: "{{ wireguard_keys }}"
+    state: directory
+    mode: "0700"
+  when: not ansible_check_mode
+
+- name: Claves del servidor y de cada dispositivo (se generan la primera vez)
+  ansible.builtin.shell: |
+    set -e
+    umask 077
+    cd {{ wireguard_keys | quote }}
+    n=0
+    for k in servidor {{ wireguard_peers | map('quote') | join(' ') }}; do
+      [ -s "$k.key" ] && continue
+      wg genkey > "$k.key"; wg pubkey < "$k.key" > "$k.pub"
+      [ "$k" = servidor ] || wg genpsk > "$k.psk"
+      n=$((n+1))
+    done
+    echo "creadas=$n"
+  register: wireguard_claves
+  changed_when: "'creadas=0' not in wireguard_claves.stdout"
+  when: not ansible_check_mode
+
+- name: Leer las claves
+  ansible.builtin.shell: |
+    cd {{ wireguard_keys | quote }}
+    for k in servidor {{ wireguard_peers | map('quote') | join(' ') }}; do
+      printf '%s %s %s %s\n' "$k" "$(cat $k.key)" "$(cat $k.pub)" "$(cat $k.psk 2>/dev/null || echo -)"
+    done
+  register: wireguard_leidas
+  changed_when: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Claves en memoria
+  ansible.builtin.set_fact:
+    wireguard_k: "{{ wireguard_k | default({}) | combine({item.split()[0]: {'priv': item.split()[1], 'pub': item.split()[2], 'psk': item.split()[3]}}) }}"
+  loop: "{{ wireguard_leidas.stdout_lines }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Reenvío de paquetes (para «Todo el tráfico»)
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/90-draupnode-wireguard.conf
+    content: "net.ipv4.ip_forward = 1\n"
+    mode: "0644"
+  register: wireguard_sysctl
+  when: wireguard_route_all | bool
+
+- name: Activar el reenvío ya
+  ansible.builtin.command: sysctl -q -p /etc/sysctl.d/90-draupnode-wireguard.conf
+  when: wireguard_route_all | bool and wireguard_sysctl is changed and not ansible_check_mode
+  failed_when: false
+
+- name: Sin «Todo el tráfico», el reenvío de Draupnode se quita
+  ansible.builtin.file:
+    path: /etc/sysctl.d/90-draupnode-wireguard.conf
+    state: absent
+  when: not (wireguard_route_all | bool)
+
+- name: Interfaz de salida a internet
+  ansible.builtin.shell: ip route show default | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}'
+  register: wireguard_salida
+  changed_when: false
+  check_mode: false
+
+- name: wg0.conf
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: "{{ wireguard_dir }}/wg0.conf"
+    mode: "0600"
+  register: wireguard_conf
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Configuración de cada dispositivo (va a tu bóveda)
+  ansible.builtin.template:
+    src: peer.conf.j2
+    dest: "{{ draupnode_secrets_dir }}/wireguard_{{ peer }}.conf"
+    mode: "0600"
+  loop: "{{ wireguard_peers }}"
+  loop_control:
+    loop_var: peer
+    index_var: peer_i
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Quitar los dispositivos que ya no están en la lista
+  ansible.builtin.shell: |
+    n=0
+    for f in {{ draupnode_secrets_dir | quote }}/wireguard_*.conf; do
+      [ -e "$f" ] || continue
+      d=$(basename "$f" .conf); d=${d#wireguard_}
+      case " {{ wireguard_peers | join(' ') }} " in *" $d "*) continue ;; esac
+      rm -f "$f" {{ wireguard_keys | quote }}/"$d".key {{ wireguard_keys | quote }}/"$d".pub {{ wireguard_keys | quote }}/"$d".psk; n=$((n+1))
+    done
+    echo "quitados=$n"
+  register: wireguard_quitados
+  changed_when: "'quitados=0' not in wireguard_quitados.stdout"
+  when: not ansible_check_mode
+
+- name: Abrir el puerto UDP {{ wireguard_port }} (iptables)
+  ansible.builtin.shell: |
+    command -v iptables >/dev/null || { echo sin-iptables; exit 0; }
+    # Quita las reglas de otro puerto de antes
+    iptables -S INPUT | grep -- '--comment "\?draupnode-wireguard' | grep -v -- "--dport {{ wireguard_port }} " | sed 's/^-A /-D /' | while read -r r; do iptables $r; done
+    iptables -C INPUT -p udp --dport {{ wireguard_port }} -m comment --comment draupnode-wireguard -j ACCEPT 2>/dev/null && exit 0
+    iptables -I INPUT -p udp --dport {{ wireguard_port }} -m comment --comment draupnode-wireguard -j ACCEPT
+    command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1 || true
+    echo abierto
+  args:
+    executable: /bin/bash
+  register: wireguard_fw
+  changed_when: "'abierto' in wireguard_fw.stdout"
+  when: not ansible_check_mode
+
+- name: VPN en marcha
+  ansible.builtin.systemd:
+    name: wg-quick@wg0
+    enabled: true
+    state: started
+  register: wireguard_srv
+  when: not ansible_check_mode
+
+- name: Aplicar los cambios sin cortar a los conectados
+  ansible.builtin.shell: wg syncconf wg0 <(wg-quick strip wg0)
+  args:
+    executable: /bin/bash
+  when: not ansible_check_mode and wireguard_conf is changed and wireguard_srv is not changed
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      VPN WireGuard en {{ wireguard_host }}:{{ wireguard_port }}/udp, red {{ wireguard_network }} (el servidor es {{ wireguard_prefix }}.1).
+      Dispositivos: {% for p in wireguard_peers %}{{ p }} ({{ wireguard_prefix }}.{{ loop.index + 1 }}){{ ', ' if not loop.last else '' }}{% endfor %}.
+      Sus configuraciones (con QR) están en la página de este módulo.
+      {%- if wireguard_fw.stdout is defined and 'sin-iptables' in wireguard_fw.stdout %} No hay iptables: si el servidor tiene otro cortafuegos, abre el {{ wireguard_port }}/udp.{% endif %}

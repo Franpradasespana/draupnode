@@ -1,0 +1,17 @@
+# Generado por Draupnode (módulo wireguard, proyecto {{ draupnode_project }}). Se reescribe al aplicar.
+[Interface]
+Address = {{ wireguard_prefix }}.1/24
+ListenPort = {{ wireguard_port }}
+PrivateKey = {{ wireguard_k['servidor'].priv }}
+{% if wireguard_route_all | bool and wireguard_salida.stdout | length > 0 %}
+PostUp = iptables -t nat -A POSTROUTING -s {{ wireguard_network }} -o {{ wireguard_salida.stdout }} -j MASQUERADE; iptables -I FORWARD -i wg0 -j ACCEPT; iptables -I FORWARD -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+PostDown = iptables -t nat -D POSTROUTING -s {{ wireguard_network }} -o {{ wireguard_salida.stdout }} -j MASQUERADE; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+{% endif %}
+{% for p in wireguard_peers %}
+
+# {{ p }}
+[Peer]
+PublicKey = {{ wireguard_k[p].pub }}
+PresharedKey = {{ wireguard_k[p].psk }}
+AllowedIPs = {{ wireguard_prefix }}.{{ loop.index + 1 }}/32
+{% endfor %}

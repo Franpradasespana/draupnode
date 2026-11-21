@@ -60,6 +60,13 @@ const ALL_SHOTS = [
         installedModules: ['base', 'backups'], installedValues: { base: {}, backups: { backups_time: '03:30', backups_remote_type: 'no' } }, appliedAt: ago(60) })
     },
     act: [['click', 'button.proj', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600]] },
+  { name: 'vpn', view: 'projects', seed: (d) => {
+      d.vault = { exists: true, master: 'demo-demo-demo' }
+      d.projects.push({ id: 'p5', name: 'VPN', serverId: 'demo1', slug: 'vpn', modules: [{ id: 'base', values: {} }, { id: 'wireguard', values: { wireguard_peers: ['portatil', 'movil'] } }],
+        installedModules: ['base', 'wireguard'], appliedAt: ago(30) })
+    },
+    act: [['click', 'button.proj', 'VPN'], ['wait', 700], ['click', 'button', 'WireGuard'], ['wait', 700], ['click', 'button', 'Ver configuraciones'], ['wait', 400],
+      ['type', '.modal input', 'demo-demo-demo'], ['click', 'button', 'Continuar'], ['wait', 900]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]

@@ -1,0 +1,65 @@
+id: wireguard
+name: WireGuard (VPN)
+version: 1.0.0
+category: 1 · Sistema
+description: Tu propia VPN. Con ella entras al servidor como si estuvieras en su red, para ver paneles (Grafana, Cockpit…) sin abrirlos a internet.
+details: |
+  WireGuard (GPL-2) del sistema, con la interfaz wg0. Cada nombre de
+  «Dispositivos» (portátil, móvil…) tiene su configuración: se genera EN el
+  servidor la primera vez, con su propia clave, y Draupnode la trae a tu
+  bóveda. En la página de este módulo la ves con su código QR (para la app
+  de WireGuard del móvil) o la guardas como .conf (para el ordenador).
+  Quitar un nombre de la lista le quita el acceso.
+  Abre el puerto UDP elegido en iptables (si lo hay). En Oracle Cloud ábrelo
+  también en la Security List, como UDP.
+  Con «Todo el tráfico por la VPN», el dispositivo sale a internet a través
+  del servidor (útil en una wifi pública); si no, solo va por la VPN lo que
+  es para el servidor.
+depends: [base]
+requires:
+  os: [ubuntu, debian]
+secrets:
+  - file: wireguard_*.conf
+    label: Configuración WireGuard del dispositivo
+uninstall_warning: Para la VPN y quita la interfaz wg0. Los dispositivos dejan de poder conectarse.
+uninstall_data: Borrar también las claves del servidor y de los dispositivos (si lo reinstalas, habrá que volver a configurarlos todos).
+variables:
+  - name: wireguard_peers
+    label: Dispositivos
+    help: Uno por línea (portatil, movil…). Cada uno tiene su clave y su dirección en la VPN.
+    type: list
+    default: [portatil, movil]
+    pattern: '^[a-z0-9][a-z0-9-]{0,30}$'
+    pattern_help: Minúsculas, números y guiones
+  - name: wireguard_port
+    label: Puerto UDP
+    type: int
+    default: 51820
+    min: 1024
+    max: 65535
+  - name: wireguard_network
+    label: Red de la VPN
+    help: Una red privada /24 que no use tu casa ni el servidor. El servidor es la .1.
+    type: string
+    default: 10.8.0.0/24
+    pattern: '^(10|172|192)\.[0-9]{1,3}\.[0-9]{1,3}\.0/24$'
+    pattern_help: Una red /24 privada, p. ej. 10.8.0.0/24
+  - name: wireguard_endpoint
+    label: Dirección pública del servidor
+    help: Por la que se conectan los dispositivos. Vacío = la misma con la que entra Draupnode.
+    type: string
+    default: ""
+    pattern: '^[A-Za-z0-9.:-]*$'
+    pattern_help: IP o nombre, sin puerto
+  - name: wireguard_route_all
+    label: Todo el tráfico por la VPN
+    help: El dispositivo sale a internet a través del servidor.
+    type: bool
+    default: false
+  - name: wireguard_dns
+    label: DNS para los dispositivos
+    help: Solo con «Todo el tráfico». Vacío = el suyo de siempre. Ejemplo 9.9.9.9.
+    type: string
+    default: ""
+    pattern: '^([0-9.]+(, *[0-9.]+)*)?$'
+    pattern_help: IPs separadas por comas

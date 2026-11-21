@@ -307,3 +307,18 @@ func (a *App) OpenProjectDir(dir string) error {
 	runtime.BrowserOpenURL(a.ctx, "file://"+dir)
 	return nil
 }
+
+// SaveTextFile pregunta dónde guardar un texto (p. ej. la configuración
+// WireGuard de un dispositivo) y lo guarda con permisos 600. "" = cancelado.
+func (a *App) SaveTextFile(defaultName, content string) (string, error) {
+	home, _ := os.UserHomeDir()
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:            "Guardar",
+		DefaultDirectory: home,
+		DefaultFilename:  filepath.Base(defaultName),
+	})
+	if err != nil || path == "" {
+		return "", err
+	}
+	return path, writeFileAtomic(path, []byte(content), 0o600)
+}
