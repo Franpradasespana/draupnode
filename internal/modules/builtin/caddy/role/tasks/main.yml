@@ -1,0 +1,55 @@
+---
+- name: ¿Hay otro programa en el puerto 80 o 443?
+  ansible.builtin.shell: ss -Hltnp '( sport = :80 or sport = :443 )' | grep -v caddy || true
+  register: caddy_puertos
+  changed_when: false
+  check_mode: false
+
+- name: Los puertos 80 y 443 tienen que estar libres
+  ansible.builtin.assert:
+    that: caddy_puertos.stdout | length == 0
+    fail_msg: "Hay otro programa usando el puerto 80 o 443 (¿nginx, Apache, Coolify?): {{ caddy_puertos.stdout | truncate(200) }}"
+    quiet: true
+
+- name: Instalar Caddy
+  ansible.builtin.apt:
+    name: caddy
+    state: present
+    lock_timeout: 600
+
+- name: Carpeta de registros
+  ansible.builtin.file:
+    path: /var/log/caddy
+    state: directory
+    owner: caddy
+    group: caddy
+    mode: "0755"
+  when: not ansible_check_mode
+
+- name: Caddyfile (se comprueba antes de ponerlo)
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+    mode: "0644"
+    validate: caddy validate --adapter caddyfile --config %s
+  register: caddy_conf
+
+- name: Caddy en marcha
+  ansible.builtin.systemd:
+    name: caddy
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Recargar Caddy (sin cortar las conexiones)
+  ansible.builtin.systemd:
+    name: caddy
+    state: reloaded
+  when: caddy_conf is changed and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {% if caddy_sites | length == 0 %}Caddy instalado, todavía sin sitios: añádelos en «Sitios» (dominio destino).
+      {% else %}Caddy sirve {{ caddy_sites | length }} sitio(s): {{ caddy_sites | map('regex_replace', '\s.*$', '') | map('regex_replace', '^', 'https://') | join(', ') }}.
+      Si un dominio aún no apunta a este servidor, ese no tendrá HTTPS hasta que apunte (Caddy lo reintenta solo).{% endif %}

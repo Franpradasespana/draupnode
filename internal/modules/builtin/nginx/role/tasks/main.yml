@@ -1,0 +1,186 @@
+---
+- name: Lista de sitios
+  ansible.builtin.set_fact:
+    nginx_site_list: []
+
+- name: Sitios (dominio y destino)
+  ansible.builtin.set_fact:
+    nginx_site_list: "{{ nginx_site_list + [{'domain': item.split()[0], 'target': item.split()[1]}] }}"
+  loop: "{{ nginx_sites }}"
+
+- name: HTTPS necesita un correo
+  ansible.builtin.assert:
+    that: not (nginx_https | bool) or nginx_sites | length == 0 or nginx_email | length > 0
+    fail_msg: "Para HTTPS con Let's Encrypt hace falta el «Correo para Let's Encrypt» (o desmarca HTTPS)."
+    quiet: true
+
+- name: ¿Hay otro programa en el puerto 80 o 443?
+  ansible.builtin.shell: ss -Hltnp '( sport = :80 or sport = :443 )' | grep -v nginx || true
+  register: nginx_puertos
+  changed_when: false
+  check_mode: false
+
+- name: Los puertos 80 y 443 tienen que estar libres
+  ansible.builtin.assert:
+    that: nginx_puertos.stdout | length == 0
+    fail_msg: "Hay otro programa usando el puerto 80 o 443 (¿Caddy, Apache, Coolify?): {{ nginx_puertos.stdout | truncate(200) }}"
+    quiet: true
+
+- name: Instalar nginx{{ ' y certbot' if nginx_https | bool else '' }}
+  ansible.builtin.apt:
+    name: "{{ ['nginx'] + (['certbot', 'python3-certbot-nginx'] if nginx_https | bool else []) }}"
+    state: present
+    lock_timeout: 600
+
+- name: Ajustes generales (WebSockets, sin versión)
+  ansible.builtin.copy:
+    dest: /etc/nginx/conf.d/draupnode.conf
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo nginx).
+      map $http_upgrade $connection_upgrade {
+          default upgrade;
+          ''      close;
+      }
+      server_tokens {{ 'off' if nginx_security_headers | bool else 'on' }};
+      {% if nginx_remove_default | bool %}
+      # Un dominio que no es de ningún sitio (o la IP a pelo) no recibe nada.
+      server {
+          listen 80 default_server;
+          listen [::]:80 default_server;
+          server_name _;
+          return 444;
+      }
+      {% endif %}
+  register: nginx_general
+
+- name: Quitar el sitio de bienvenida
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  when: nginx_remove_default | bool
+  register: nginx_default
+
+# Si certbot ya puso HTTPS en un sitio, no se le reescribe el fichero (se
+# perdería su bloque 443); solo se reescribe si cambian sus datos.
+- name: ¿Qué sitios tienen ya certificado?
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ item.domain }}/fullchain.pem"
+  loop: "{{ nginx_site_list }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  register: nginx_certs
+
+- name: ¿Qué destino tenía cada sitio?
+  ansible.builtin.shell: grep -h -m1 '^# destino:' /etc/nginx/sites-available/draupnode-{{ item.domain }}.conf 2>/dev/null | cut -d' ' -f3- || true
+  loop: "{{ nginx_site_list }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  register: nginx_destinos
+  changed_when: false
+  check_mode: false
+
+- name: Fichero de cada sitio
+  ansible.builtin.template:
+    src: site.conf.j2
+    dest: "/etc/nginx/sites-available/draupnode-{{ site.domain }}.conf.nuevo"
+    mode: "0644"
+  loop: "{{ nginx_site_list }}"
+  loop_control:
+    loop_var: site
+    label: "{{ site.domain }}"
+  when: not ansible_check_mode
+
+- name: Poner cada sitio (salvo los que ya tienen HTTPS y no han cambiado)
+  ansible.builtin.shell: |
+    f=/etc/nginx/sites-available/draupnode-{{ item.0.domain }}.conf
+    if [ -f "$f" ] && [ "{{ item.1.stat.exists }}" = True ] && [ "{{ item.2.stdout }}" = "{{ item.0.target }}" ]; then
+      rm -f "$f.nuevo"; echo igual; exit 0
+    fi
+    { echo "# destino: {{ item.0.target }}"; cat "$f.nuevo"; } > "$f.tmp" && rm -f "$f.nuevo"
+    if [ -f "$f" ] && cmp -s "$f" "$f.tmp"; then rm -f "$f.tmp"; echo igual; exit 0; fi
+    [ -f "$f" ] && cp "$f" "$f.anterior"
+    mv "$f.tmp" "$f"
+    ln -sf "$f" /etc/nginx/sites-enabled/
+    echo cambiado
+  loop: "{{ nginx_site_list | zip(nginx_certs.results, nginx_destinos.results) | list }}"
+  loop_control:
+    label: "{{ item.0.domain }}"
+  register: nginx_ficheros
+  changed_when: "'cambiado' in nginx_ficheros.stdout"
+  when: not ansible_check_mode
+
+- name: Quitar los sitios de Draupnode que ya no están en la lista
+  ansible.builtin.shell: |
+    n=0
+    for f in /etc/nginx/sites-available/draupnode-*.conf; do
+      [ -e "$f" ] || continue
+      d=$(basename "$f" .conf); d=${d#draupnode-}
+      case " {{ nginx_site_list | map(attribute='domain') | join(' ') }} " in *" $d "*) continue ;; esac
+      rm -f "$f" "$f.anterior" "/etc/nginx/sites-enabled/draupnode-$d.conf"; n=$((n+1))
+    done
+    echo "quitados=$n"
+  register: nginx_quitados
+  changed_when: "'quitados=0' not in nginx_quitados.stdout"
+  when: not ansible_check_mode
+
+- name: Comprobar la configuración (nginx -t)
+  ansible.builtin.command: nginx -t
+  register: nginx_test
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Si está mal, volver a la anterior
+  ansible.builtin.shell: |
+    for f in /etc/nginx/sites-available/draupnode-*.conf.anterior; do
+      [ -e "$f" ] && mv "$f" "${f%.anterior}"
+    done
+  when: not ansible_check_mode and nginx_test.rc != 0
+
+- name: La configuración tiene un error
+  ansible.builtin.fail:
+    msg: "nginx -t: {{ nginx_test.stderr | truncate(400) }}. Se ha dejado la configuración anterior."
+  when: not ansible_check_mode and nginx_test.rc != 0
+
+- name: nginx en marcha
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Recargar nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  when: not ansible_check_mode and (nginx_general is changed or nginx_default is changed or nginx_ficheros is changed or nginx_quitados is changed)
+
+- name: Certificado HTTPS de cada sitio (certbot)
+  ansible.builtin.command: >-
+    certbot --nginx --non-interactive --agree-tos --redirect --keep-until-expiring
+    -m {{ nginx_email | quote }} -d {{ item.domain | quote }}
+  loop: "{{ nginx_site_list }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  register: nginx_certbot
+  changed_when: "'Successfully deployed' in nginx_certbot.stdout or 'Congratulations' in nginx_certbot.stdout"
+  failed_when: false
+  when: nginx_https | bool and not ansible_check_mode
+
+- name: Renovación automática (certbot.timer)
+  ansible.builtin.systemd:
+    name: certbot.timer
+    enabled: true
+    state: started
+  when: nginx_https | bool and not ansible_check_mode
+  failed_when: false
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {% if nginx_sites | length == 0 %}nginx instalado, todavía sin sitios: añádelos en «Sitios» (dominio destino).
+      {% else %}nginx sirve {{ nginx_sites | length }} sitio(s).
+      {%- if nginx_certbot.results is defined %}
+      {%- for r in nginx_certbot.results if r.rc is defined and r.rc != 0 %} SIN HTTPS {{ r.item.domain }}: {{ ((r.stderr | default('')) ~ '\n' ~ (r.stdout | default(''))).splitlines() | select('search', 'Detail|Error|error') | list | last | default('no se pudo pedir el certificado', true) | truncate(200) }} (¿apunta ya a este servidor?).{% endfor %}
+      {%- endif %}{% endif %}

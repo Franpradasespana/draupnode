@@ -1,0 +1,37 @@
+# Generado por Draupnode (módulo nginx, proyecto {{ draupnode_project }}). Se reescribe al aplicar.
+# certbot añade aquí debajo el bloque HTTPS (también se conserva al reescribir: ver tareas).
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ site.domain }};
+
+    client_max_body_size {{ nginx_max_body_mb }}m;
+{% if nginx_security_headers | bool %}
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+{% endif %}
+    access_log /var/log/nginx/{{ site.domain }}.access.log;
+    error_log /var/log/nginx/{{ site.domain }}.error.log;
+
+{% if site.target.startswith('/') %}
+    root {{ site.target }};
+    index index.html index.htm;
+    location / {
+        try_files $uri $uri/ =404;
+    }
+{% else %}
+    location / {
+        proxy_pass {{ site.target if '://' in site.target else 'http://' ~ site.target }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # WebSockets
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 300s;
+    }
+{% endif %}
+}

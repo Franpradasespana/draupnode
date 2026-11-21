@@ -1,0 +1,38 @@
+# Generado por Draupnode (módulo caddy, proyecto {{ draupnode_project }}). Se reescribe al aplicar.
+{
+{% if caddy_email %}
+	email {{ caddy_email }}
+{% endif %}
+	admin localhost:2019
+}
+
+{% for line in caddy_sites %}
+{% set parts = line.split() %}
+{{ parts[0] }} {
+{% if caddy_compress | bool %}
+	encode zstd gzip
+{% endif %}
+{% if caddy_security_headers | bool %}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+{% endif %}
+{% if parts[1].startswith('/') %}
+	root * {{ parts[1] }}
+	file_server
+{% else %}
+	reverse_proxy {{ parts[1] }}
+{% endif %}
+	log {
+		output file /var/log/caddy/{{ parts[0] }}.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
+
+{% endfor %}

@@ -1,0 +1,62 @@
+id: nginx
+name: nginx (web y proxy)
+version: 1.0.0
+category: 3 · Plataformas
+description: Publica tus apps en tu dominio con nginx, el servidor web más usado. HTTPS con certbot (Let's Encrypt), que se renueva solo.
+details: |
+  nginx (BSD-2) y certbot (Apache-2) de los repositorios de Ubuntu/Debian.
+  Cada línea de «Sitios» es «dominio destino»:
+    fotos.ejemplo.com 127.0.0.1:2283      → reenvía a la app de ese puerto
+    blog.ejemplo.com /srv/www/blog        → sirve esa carpeta (web estática)
+  Cada sitio va en su fichero /etc/nginx/sites-available/draupnode-<dominio>.conf;
+  los tuyos (los que no empiezan por draupnode-) no se tocan.
+  Con HTTPS, certbot pide el certificado de cada dominio y redirige http→https.
+  El dominio tiene que apuntar ya a la IP de este servidor: si no, ese sitio
+  se queda en http y se avisa (al volver a aplicar lo reintenta).
+  Antes de recargar se comprueba la configuración (nginx -t): si falla, se
+  vuelve a la anterior.
+  Si no sabes cuál elegir, Caddy es más sencillo; nginx es el más conocido.
+  No puede ir con Coolify ni con Caddy: los tres quieren los puertos 80 y 443.
+depends: [base]
+conflicts: [coolify, caddy]
+requires:
+  os: [ubuntu, debian]
+firewall_ports: [80, 443]
+uninstall_warning: Desinstala nginx y certbot. Tus sitios dejan de verse por su dominio; las apps de detrás siguen en marcha.
+uninstall_data: Borrar también los certificados de Let's Encrypt (/etc/letsencrypt) y la configuración de nginx.
+variables:
+  - name: nginx_sites
+    label: Sitios
+    help: "Una línea por sitio: «dominio destino». Destino = 127.0.0.1:PUERTO (una app) o /carpeta (web estática)."
+    type: list
+    default: []
+    pattern: '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}[ ]+(((https?://)?[A-Za-z0-9.-]+:[0-9]{1,5})|(/[A-Za-z0-9._/-]+))$'
+    pattern_help: "Ejemplo: fotos.ejemplo.com 127.0.0.1:2283"
+    placeholder: "fotos.ejemplo.com 127.0.0.1:2283"
+  - name: nginx_https
+    label: HTTPS con Let's Encrypt (certbot)
+    type: bool
+    default: true
+  - name: nginx_email
+    label: Correo para Let's Encrypt
+    help: Obligatorio con HTTPS. Te avisan si un certificado no se puede renovar.
+    type: string
+    default: ""
+    pattern: '^([^@\s]+@[^@\s]+\.[^@\s]+)?$'
+    pattern_help: Un correo válido o vacío
+  - name: nginx_max_body_mb
+    label: Tamaño máximo de subida (MB)
+    help: Lo que se puede subir de una vez (fotos, documentos…).
+    type: int
+    default: 50
+    min: 1
+    max: 10240
+  - name: nginx_remove_default
+    label: Quitar la página «Welcome to nginx»
+    type: bool
+    default: true
+  - name: nginx_security_headers
+    label: Cabeceras de seguridad
+    help: No dejar meter la web en un marco de otra, no adivinar tipos de fichero, no decir la versión de nginx…
+    type: bool
+    default: true

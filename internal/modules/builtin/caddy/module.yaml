@@ -1,0 +1,50 @@
+id: caddy
+name: Caddy (web y HTTPS automático)
+version: 1.0.0
+category: 3 · Plataformas
+description: Publica tus apps en tu dominio con HTTPS. Caddy pide y renueva solo los certificados de Let's Encrypt.
+details: |
+  Caddy (Apache-2) del repositorio de Ubuntu/Debian, como servicio del sistema.
+  Cada línea de «Sitios» es «dominio destino»:
+    fotos.ejemplo.com 127.0.0.1:2283      → reenvía a la app de ese puerto
+    blog.ejemplo.com /srv/www/blog        → sirve esa carpeta (web estática)
+  El dominio tiene que apuntar ya a la IP de este servidor (registro A/AAAA)
+  y los puertos 80 y 443 tienen que estar abiertos (se añaden al Cortafuegos):
+  así Caddy consigue el certificado él solo. Mientras el DNS no apunte, ese
+  sitio no tendrá HTTPS (los demás sí). Un dominio terminado en .localhost
+  usa un certificado propio de Caddy (para pruebas).
+  Antes de recargar se comprueba la configuración: si tiene un error, se
+  queda la anterior funcionando.
+  No puede ir con Coolify ni con nginx: los tres quieren los puertos 80 y 443.
+depends: [base]
+conflicts: [coolify, nginx]
+requires:
+  os: [ubuntu, debian]
+firewall_ports: [80, 443]
+uninstall_warning: Desinstala Caddy. Tus sitios dejan de verse por su dominio; las apps de detrás siguen en marcha.
+uninstall_data: Borrar también los certificados que había conseguido Caddy (/var/lib/caddy). Si lo reinstalas, los vuelve a pedir.
+variables:
+  - name: caddy_sites
+    label: Sitios
+    help: "Una línea por sitio: «dominio destino». Destino = 127.0.0.1:PUERTO (una app) o /carpeta (web estática)."
+    type: list
+    default: []
+    pattern: '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}[ ]+(((https?://)?[A-Za-z0-9.-]+:[0-9]{1,5})|(/[A-Za-z0-9._/-]+))$'
+    pattern_help: "Ejemplo: fotos.ejemplo.com 127.0.0.1:2283"
+    placeholder: "fotos.ejemplo.com 127.0.0.1:2283"
+  - name: caddy_email
+    label: Correo para Let's Encrypt
+    help: Opcional. Te avisan si un certificado no se puede renovar.
+    type: string
+    default: ""
+    pattern: '^([^@\s]+@[^@\s]+\.[^@\s]+)?$'
+    pattern_help: Un correo válido o vacío
+  - name: caddy_compress
+    label: Comprimir las respuestas (gzip/zstd)
+    type: bool
+    default: true
+  - name: caddy_security_headers
+    label: Cabeceras de seguridad
+    help: HSTS, no dejar meter la web en un marco de otra, no adivinar tipos de fichero…
+    type: bool
+    default: true

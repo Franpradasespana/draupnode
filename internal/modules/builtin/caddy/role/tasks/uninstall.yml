@@ -1,0 +1,20 @@
+---
+- name: Desinstalar Caddy
+  ansible.builtin.apt:
+    name: caddy
+    state: absent
+    purge: "{{ draupnode_uninstall_purge | bool }}"
+    lock_timeout: 600
+
+- name: Borrar los certificados
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/var/lib/caddy, /etc/caddy, /var/log/caddy]
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Caddy {{ 'se desinstalará' if ansible_check_mode else 'desinstalado' }}.
+      {{ 'También sus certificados y su configuración.' if draupnode_uninstall_purge | bool else 'Sus certificados siguen en /var/lib/caddy.' }}

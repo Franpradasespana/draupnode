@@ -16,7 +16,7 @@ func TestCatalogoIncluido(t *testing.T) {
 	if len(c.Errors) > 0 {
 		t.Fatalf("errores: %v", c.Errors)
 	}
-	for _, id := range []string{"base", "firewall", "docker", "coolify", "postgres", "backups", "backup-target"} {
+	for _, id := range []string{"base", "firewall", "docker", "coolify", "postgres", "backups", "backup-target", "caddy", "nginx"} {
 		m, ok := c.Get(id)
 		if !ok || m.Source != "builtin" || len(m.Files) == 0 {
 			t.Fatalf("falta %s: %+v", id, m)

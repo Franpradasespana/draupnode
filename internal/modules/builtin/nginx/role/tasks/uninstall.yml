@@ -1,0 +1,24 @@
+---
+- name: Desinstalar nginx y certbot
+  ansible.builtin.apt:
+    name: [nginx, nginx-common, nginx-core, certbot, python3-certbot-nginx]
+    state: absent
+    purge: "{{ draupnode_uninstall_purge | bool }}"
+    lock_timeout: 600
+
+- name: Quitar los sitios de Draupnode
+  ansible.builtin.shell: rm -f /etc/nginx/sites-available/draupnode-* /etc/nginx/sites-enabled/draupnode-* /etc/nginx/conf.d/draupnode.conf
+  when: not ansible_check_mode
+
+- name: Borrar los certificados y la configuración
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/letsencrypt, /etc/nginx]
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      nginx {{ 'se desinstalará' if ansible_check_mode else 'desinstalado' }}.
+      {{ 'También sus certificados y su configuración.' if draupnode_uninstall_purge | bool else 'Los certificados siguen en /etc/letsencrypt.' }}
