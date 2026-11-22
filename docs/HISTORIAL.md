@@ -674,3 +674,25 @@ al final con el mismo párrafo, Disco descuadrado, barra de arriba con demasiado
 - Petición del usuario: «Editar conexión» y «Actualizar sola» vuelven a estar a la vista, como antes; quitado el
   menú «⋯». Todos los botones van en la barra de arriba, junto a «← Servidores» (al lado del nombre no cabían y
   bajaban a otra línea).
+
+## 2026-11-22 · 0.47.0 · La plantilla en el servidor, más clara
+
+El usuario no entendía la pantalla: mezclaba los módulos de la plantilla con todo el catálogo (25 tarjetas, los
+suyos solo se distinguían por el color), dos filas de botones arriba, no decía qué haría Aplicar y el botón
+«Instalados / Por categoría» confundía. Ahora, de arriba abajo:
+
+- **Cabecera**: nombre, estado en palabras (Sin aplicar · Cambios sin aplicar · Aplicada hace… · Falló la última
+  vez), «en Servidor · usuario@IP · plantilla «…»» y solo **Previsualizar** y **Aplicar** / **Configurar y aplicar…**.
+- **Qué pasará al aplicar**: Instalar (en orden), Cambiar la configuración de…, Volver a aplicar (si cambió la
+  plantilla), Se quedan como están (sin gestionar); o «Todo aplicado». Errores con «Corregir», avisos y el fallo
+  de la última aplicación.
+- **Módulos de esta plantilla**: solo los suyos, en filas numeradas en orden de instalación, con icono y estado en
+  palabras (Instalado · Se instalará · lo necesita X · Cambios sin aplicar · Falta un dato · Instalado, sin
+  gestionar); pulsar abre su página; ✕ quita uno aún no instalado.
+- **Añadir módulos**: el catálogo en una ventana, con buscador (sin acentos) y por categorías. En las tarjetas
+  «La necesita otro» (ámbar) pasa a «Añadido» (azul, igual que los elegidos); la nota dice quién lo necesita.
+  También en el editor de plantillas.
+- Debajo: **Respecto a la plantilla** (igual / distinto con Llevar y Volver), **Contraseñas** en corto,
+  **Historial** y **Otras acciones** (Exportar instalar.sh, Editar plantilla, Desasociar del servidor).
+- Iconos de módulos en `lib/icons.ts` (compartidos). Quitado el orden «Instalados / Por categoría».
+- Ayuda reescrita («La plantilla en el servidor, de arriba abajo», «Añadir módulos»); capturas rehechas.

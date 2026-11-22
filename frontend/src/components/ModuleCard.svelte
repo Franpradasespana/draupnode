@@ -1,6 +1,7 @@
 <script lang="ts">
   // Tarjeta de un módulo en la página del proyecto.
-  import { Shield, KeyRound, Container, Rocket, Database, DatabaseBackup, ServerCog, Package, Check, Plus, Lock, CircleAlert } from '@lucide/svelte'
+  import { Check, Plus, Lock, CircleAlert } from '@lucide/svelte'
+  import { moduleIcon } from '../lib/icons'
   import type { Module } from '../lib/api'
   import type { CardState } from '../lib/modules'
 
@@ -8,10 +9,9 @@
     m: Module; state: CardState; note?: string; errors?: number; onclick: () => void; disabled?: boolean
   } = $props()
 
-  const ICONS: Record<string, typeof Package> = { base: ServerCog, firewall: Shield, ssh: KeyRound, docker: Container, coolify: Rocket, postgres: Database, backups: DatabaseBackup }
-  const Icon = $derived(ICONS[m.id] ?? Package)
+  const Icon = $derived(moduleIcon(m.id))
   const label: Record<CardState, string> = {
-    installed: 'Instalado', left: 'Sin gestionar', pending: 'Se instalará', required: 'La necesita otro', clash: 'No compatible', none: '',
+    installed: 'Instalado', left: 'Sin gestionar', pending: 'Añadido', required: 'Añadido', clash: 'No compatible', none: '',
   }
 </script>
 
@@ -46,14 +46,16 @@
   .body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .body strong { font-size: 14px; }
   .desc { font-size: 12px; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .note { font-size: 11.5px; color: var(--warning); }
+  .note { font-size: 11.5px; color: var(--info); }
+  .st-clash .note, .st-left .note { color: var(--warning); }
   .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--muted); justify-self: start; padding: 3px 8px; border-radius: 999px; background: var(--panel-2); }
   .st-installed { border-color: color-mix(in srgb, var(--success) 55%, transparent); background: var(--success-soft); }
   .st-installed .ic, .st-installed .badge { color: var(--success); }
   .st-pending { border-color: color-mix(in srgb, var(--info) 60%, transparent); background: var(--info-soft); }
   .st-pending .ic, .st-pending .badge { color: var(--info); }
-  .st-required { border-color: color-mix(in srgb, var(--warning) 60%, transparent); background: var(--warning-soft); }
-  .st-required .ic, .st-required .badge { color: var(--warning); }
+  /* Añadido porque lo necesita otro: igual que añadido (la nota dice quién lo necesita). */
+  .st-required { border-color: color-mix(in srgb, var(--info) 60%, transparent); background: var(--info-soft); }
+  .st-required .ic, .st-required .badge { color: var(--info); }
   .st-left { border-style: dashed; border-color: color-mix(in srgb, var(--success) 50%, transparent); }
   .st-left .badge { color: var(--success); }
   .badge.err { color: var(--danger); background: var(--danger-soft); }
