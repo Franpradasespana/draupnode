@@ -347,11 +347,16 @@
 
   {#if current === 'modulos'}
     {#if project}
-      {#key project.id}<ProjectEditor id={project.id} embedded bind:moduleOpen />{/key}
+      {#key project.id}
+        <ProjectEditor id={project.id} embedded bind:moduleOpen>
+          {#snippet after()}
+            {#if ov}<div class="adopt-gap"><AdoptSection serverId={id} {ov} {deployments} /></div>{/if}
+          {/snippet}
+        </ProjectEditor>
+      {/key}
     {:else}
       <p class="muted"><LoaderCircle size={14} class="spin" /> Preparando los módulos del servidor…</p>
     {/if}
-    {#if ov && !moduleOpen}<div class="adopt-gap"><AdoptSection serverId={id} {ov} {deployments} /></div>{/if}
   {/if}
 
   {#if current === 'apps'}

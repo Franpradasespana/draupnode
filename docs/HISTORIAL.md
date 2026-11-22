@@ -892,3 +892,9 @@ como root encima de la app, falta de migrate) y que la Simulación decía «todo
 - Fallo encontrado y corregido: «Leer el repositorio» cogía variables de líneas **comentadas** del compose
   (`# POSTGRES_DB: "${POSTGRES_DB}"`), y esa variable (con otro valor que el de la base que se crea) rompía el
   migrate. Ahora se ignoran los comentarios.
+
+## 2026-11-22 · 0.53.3 · La barra fija ya no tapa «Lo que ya hay en este servidor»
+
+- La barra «Cambios sin aplicar» se quedaba fija dentro del editor de módulos y, al bajar del todo, se montaba
+  sobre «Lo que ya hay en este servidor» (que iba después, fuera del editor). Ahora esa sección se pinta dentro del
+  editor (`after`), antes de la barra: al final de la página la barra queda debajo de todo.

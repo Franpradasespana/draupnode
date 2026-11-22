@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack, tick } from 'svelte'
+  import { untrack, tick, type Snippet } from 'svelte'
   import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, Unlink, Pencil, Plus, Search, X, Upload, Undo2 } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import { moduleIcon } from '../lib/icons'
@@ -19,7 +19,9 @@
 
   // embedded: dentro de la ficha del servidor (pestaña Módulos), sin su propia barra de volver.
   // moduleOpen: avisa a la ficha de que hay un módulo abierto (para no enseñar debajo lo que no es de él).
-  let { id, embedded = false, moduleOpen = $bindable(false) }: { id: string; embedded?: boolean; moduleOpen?: boolean } = $props()
+  // after: lo que la ficha quiere debajo de los módulos (p. ej. «Lo que ya hay en este servidor»), antes de
+  // la barra fija de abajo, para que la barra no se le monte encima.
+  let { id, embedded = false, moduleOpen = $bindable(false), after }: { id: string; embedded?: boolean; moduleOpen?: boolean; after?: Snippet } = $props()
 
   const initial = untrack(() => ui.projects.find((p) => p.id === id))
   let draft = $state<Project>(
@@ -699,6 +701,8 @@
 {#if uninstallPrompt}
   <UninstallDialog check={uninstallPrompt.check} allowRemove={uninstallPrompt.allowRemove} done={uninstallPrompt.resolve} />
 {/if}
+  {#if after && !openModule}{@render after()}{/if}
+
   {#if !isNew && needsApply && ordered.length && !running}
     <div class="apply-bar" role="region" aria-label="Cambios sin aplicar">
       <div class="ab-text">
