@@ -818,3 +818,27 @@ módulos de una vez; editarla no cambia los servidores. Desde un servidor se pue
   abajo aparece una barra fija (sticky) con «Cambios sin aplicar · instalar … · configuración de …» y Simular /
   Aplicar (o «Configurar y aplicar…»); si falta algún dato, lo dice en rojo. También en la página de un módulo.
 - Al empezar una simulación o una aplicación, la pantalla se desplaza sola al recuadro «… en curso».
+
+## 2026-11-22 · 0.52.0 · App desde Git: construcción en directo y vigilada, orden después de arrancar, varias apps
+
+Tras probar `nickjj/docker-django-example`: la construcción se quedó 12 min colgada sin que se viera nada
+(`NODE_ENV=produccion` dejaba esbuild vigilando ficheros) y después la app no arrancó por permisos (código bajado
+como root, la app corre con el usuario 1000).
+
+- **Construcción en directo**: el módulo construye aparte (`docker compose build --progress=plain`) escribiendo en
+  `/var/lib/draupnode/progreso/<servidor>.log`; durante la ejecución, `followProgress` lo lee cada 3 s por otra
+  sesión SSH y lo manda como evento `progress` (se ve bajo la tarea en curso, últimas 8 líneas, y va al registro con
+  «  | »). Sirve para cualquier módulo que escriba ahí.
+- **Vigilancia**: se para si pasa «Tiempo máximo para construir» (30 min por defecto, `git_app_build_minutes`) o 10
+  min sin escribir nada, y dice en qué paso se quedó y qué suele ser (modo desarrollo/watch). Probado en el servidor
+  de pruebas con un `RUN sleep` (umbral rebajado).
+- **Orden después de arrancar** (`git_app_post_command` + `git_app_post_service`, «web» por defecto): se ejecuta en
+  cada aplicación con `docker compose exec -T`, ya en marcha (migrate…); si falla, sale su salida.
+- **Dueño de la carpeta de la app** (`git_app_owner`, UID:GID): `chown -R` tras bajar el código.
+- **Varias apps de Git en un servidor**: módulos `repeatable` (de momento App desde Git). Otra copia es
+  `git-app@nombre` (nombre: minúsculas y números); `Catalog.Get` entiende el sufijo (y Resolve/Clashes); `Selection`
+  lleva `ID`/`Instance`; cada copia recibe `draupnode_instance`; sus datos secretos van en secretos.yml como
+  `<var>__<nombre>` y en la bóveda como `<var>@<nombre>`, y el rol los recibe con su nombre de siempre (expresión
+  Jinja sin !unsafe; probado con Ansible real). Sus valores generados: `git_app_<nombre>_env_*`. Dos copias con el
+  mismo nombre de app → error en ese campo. En la interfaz: «Añadir módulos» → pulsar otra vez «App desde Git» pide
+  el nombre; se ve como «App desde Git · blog» con su página, su asistente y sus contraseñas. Test `TestDosAppsDeGit`.

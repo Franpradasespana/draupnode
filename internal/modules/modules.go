@@ -106,7 +106,10 @@ type Module struct {
 	// Desinstalación: el rol trae tasks/uninstall.yml. UninstallWarning explica
 	// qué se pierde; UninstallData (si no está vacío) describe los datos que
 	// se borran solo si el usuario marca «borrar también los datos».
-	Uninstallable    bool   `yaml:"-" json:"uninstallable"`
+	Uninstallable bool `yaml:"-" json:"uninstallable"`
+	// Repeatable: puede estar varias veces en un servidor (otra copia = «id@nombre»,
+	// p. ej. dos apps de Git). Cada copia tiene sus valores y sus datos secretos.
+	Repeatable       bool   `yaml:"repeatable" json:"repeatable,omitempty"`
 	UninstallWarning string `yaml:"uninstall_warning" json:"uninstallWarning,omitempty"`
 	UninstallData    string `yaml:"uninstall_data" json:"uninstallData,omitempty"`
 	// NoUninstall explica por qué un módulo no se puede desinstalar.
@@ -347,8 +350,23 @@ func Load(userDir string) (*Catalog, error) {
 
 // Get devuelve un módulo por id.
 func (c *Catalog) Get(id string) (*Module, bool) {
-	m, ok := c.mods[id]
-	return m, ok
+	base, inst := SplitID(id)
+	m, ok := c.mods[base]
+	if !ok || (inst != "" && (!m.Repeatable || !InstanceRe.MatchString(inst))) {
+		return nil, false
+	}
+	return m, true
+}
+
+// InstanceRe: nombre de otra copia de un módulo repetible («git-app@blog»).
+var InstanceRe = regexp.MustCompile(`^[a-z][a-z0-9]{1,20}$`)
+
+// SplitID separa «git-app@blog» en el módulo y el nombre de la copia ("" = la principal).
+func SplitID(id string) (base, inst string) {
+	if i := strings.Index(id, "@"); i > 0 {
+		return id[:i], id[i+1:]
+	}
+	return id, ""
 }
 
 // All devuelve los módulos ordenados por categoría y nombre.
@@ -379,7 +397,7 @@ func (c *Catalog) Resolve(ids []string) (ordered []string, added []string, err e
 	all := map[string]bool{}
 	var collect func(id string) error
 	collect = func(id string) error {
-		m, ok := c.mods[id]
+		m, ok := c.Get(id)
 		if !ok {
 			return fmt.Errorf("el módulo %q no existe", id)
 		}
@@ -410,7 +428,7 @@ func (c *Catalog) Resolve(ids []string) (ordered []string, added []string, err e
 			return nil
 		}
 		state[id] = 1
-		m := c.mods[id]
+		m, _ := c.Get(id)
 		prev := append([]string(nil), m.Depends...)
 		for _, a := range m.After {
 			if all[a] {
@@ -450,7 +468,7 @@ func (c *Catalog) Clashes(ids []string) []string {
 	var out []string
 	seen := map[string]bool{}
 	for _, id := range ids {
-		m := c.mods[id]
+		m, _ := c.Get(id)
 		if m == nil {
 			continue
 		}
@@ -466,7 +484,9 @@ func (c *Catalog) Clashes(ids []string) []string {
 				continue
 			}
 			seen[a+"|"+b] = true
-			out = append(out, fmt.Sprintf("%s y %s no pueden ir juntos", c.mods[a].Name, c.mods[b].Name))
+			ma, _ := c.Get(a)
+			mb, _ := c.Get(b)
+			out = append(out, fmt.Sprintf("%s y %s no pueden ir juntos", ma.Name, mb.Name))
 		}
 	}
 	sort.Strings(out)

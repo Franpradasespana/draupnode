@@ -5,6 +5,9 @@
     git_app_key: "{{ draupnode_secrets_dir }}/.git_app_{{ git_app_name }}_key"
     git_app_ssh: "{{ git_app_repo is match('^[A-Za-z0-9._-]+@') }}"
     git_app_project: "dn-{{ git_app_name }}"
+    # Otra app de Git en el mismo servidor (instancia): sus valores generados llevan su nombre.
+    git_app_gen_prefix: "{{ 'git_app_env_' if (draupnode_instance | default('')) == '' else 'git_app_' ~ draupnode_instance ~ '_env_' }}"
+    git_app_progress: "/var/lib/draupnode/progreso/{{ draupnode_project }}.log"
 
 - name: Instalar git
   ansible.builtin.apt:
@@ -66,6 +69,11 @@
       {%- else %}Si el repositorio es privado, pon un «Token de acceso» de solo lectura en las opciones del módulo (o usa la dirección git@… con deploy key) y vuelve a aplicar.{% endif %}
   when: not ansible_check_mode and git_app_git.rc != 0
 
+- name: Dueño de la carpeta de la app
+  ansible.builtin.command: chown -R {{ git_app_owner | quote }} {{ git_app_dir | quote }}
+  changed_when: false
+  when: not ansible_check_mode and git_app_owner | default('') != ''
+
 - name: El compose existe
   ansible.builtin.stat:
     path: "{{ git_app_dir }}/{{ git_app_compose }}"
@@ -79,7 +87,7 @@
 
 - name: Valores generados (una vez)
   ansible.builtin.set_fact:
-    git_app_gen: "{{ git_app_gen | default({}) | combine({item: lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/git_app_env_' ~ item, chars=['ascii_letters', 'digits'], length=40)}) }}"
+    git_app_gen: "{{ git_app_gen | default({}) | combine({item: lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/' ~ git_app_gen_prefix ~ item, chars=['ascii_letters', 'digits'], length=40)}) }}"
   loop: "{{ git_app_env_generate }}"
   no_log: true
   when: not ansible_check_mode
@@ -123,12 +131,57 @@
       («Leer el repositorio», en las opciones, las encuentra solas.)
   when: not ansible_check_mode and (git_app_unset.stdout_lines | default([]) | length) > 0
 
-- name: Construir y arrancar
-  ansible.builtin.command: docker compose -p {{ git_app_project }} -f {{ git_app_compose }} up -d --build --quiet-pull --remove-orphans
+- name: Construir la app (se ve en directo)
+  # La salida va a un fichero que Draupnode enseña mientras tanto. Se para si pasa
+  # git_app_build_minutes en total o 10 minutos sin escribir nada (atascada).
+  ansible.builtin.shell: |
+    set -u
+    log={{ git_app_progress | quote }}
+    mkdir -p "$(dirname "$log")"; : > "$log"; chmod 600 "$log"
+    docker compose -p {{ git_app_project }} -f {{ git_app_compose | quote }} build --progress=plain >>"$log" 2>&1 &
+    pid=$!
+    start=$(date +%s); last=$start; size=0
+    while kill -0 "$pid" 2>/dev/null; do
+      sleep 5
+      now=$(date +%s); s=$(stat -c %s "$log" 2>/dev/null || echo 0)
+      [ "$s" != "$size" ] && { size=$s; last=$now; }
+      if [ $((now - start)) -gt $(( {{ git_app_build_minutes | int }} * 60 )) ]; then why=tiempo; break; fi
+      if [ $((now - last)) -gt 600 ]; then why=atascada; break; fi
+    done
+    if [ -n "${why:-}" ]; then
+      kill "$pid" 2>/dev/null; sleep 3; kill -9 "$pid" 2>/dev/null
+      echo "@@PARADA $why"
+      grep -E '^#[0-9]+ \[' "$log" | tail -n 1
+      exit 3
+    fi
+    wait "$pid"; rc=$?
+    [ "$rc" = 0 ] || tail -n 40 "$log"
+    exit $rc
+  args:
+    chdir: "{{ git_app_dir }}"
+  register: git_app_build
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: La construcción no ha terminado bien
+  ansible.builtin.fail:
+    msg: >-
+      {% if '@@PARADA tiempo' in git_app_build.stdout %}La construcción ha tardado más de {{ git_app_build_minutes }} minutos y se ha parado
+      (último paso: {{ git_app_build.stdout_lines[-1] | default('') }}). Si tu app tarda tanto de verdad, sube «Tiempo máximo para construir».
+      {%- elif '@@PARADA atascada' in git_app_build.stdout %}La construcción llevaba 10 minutos sin avanzar y se ha parado. Se quedó en:
+      {{ git_app_build.stdout_lines[-1] | default('') }}. Suele ser una orden que espera algo que no llega (un modo «desarrollo»/«watch»,
+      una pregunta…): revisa las variables (NODE_ENV=production, DEBUG=false…).
+      {%- else %}Falló la construcción de la imagen (docker compose build). Últimas líneas:
+      {{ git_app_build.stdout | default('') }}{% endif %}
+  when: not ansible_check_mode and git_app_build.rc != 0
+
+- name: Arrancar
+  ansible.builtin.command: docker compose -p {{ git_app_project }} -f {{ git_app_compose }} up -d --quiet-pull --remove-orphans
   args:
     chdir: "{{ git_app_dir }}"
   register: git_app_up
-  changed_when: "'Started' in git_app_up.stderr or 'Recreated' in git_app_up.stderr or 'Created' in git_app_up.stderr or 'Built' in git_app_up.stderr"
+  changed_when: "'Started' in git_app_up.stderr or 'Recreated' in git_app_up.stderr or 'Created' in git_app_up.stderr"
   when: not ansible_check_mode
 
 - name: Esperar a que arranquen los contenedores
@@ -168,6 +221,23 @@
       Últimas líneas de su registro:
       {{ git_app_badlogs.stdout | default('') }}
   when: not ansible_check_mode and git_app_bad | length > 0
+
+- name: Orden después de arrancar
+  ansible.builtin.command:
+    argv: [docker, compose, -p, "{{ git_app_project }}", -f, "{{ git_app_compose }}", exec, -T, "{{ git_app_post_service }}", sh, -c, "{{ git_app_post_command }}"]
+  args:
+    chdir: "{{ git_app_dir }}"
+  register: git_app_post
+  changed_when: true
+  failed_when: false
+  when: not ansible_check_mode and (git_app_post_command | default('') | trim) != ''
+
+- name: La orden después de arrancar falló
+  ansible.builtin.fail:
+    msg: |
+      «{{ git_app_post_command }}» en el servicio {{ git_app_post_service }} terminó con error (código {{ git_app_post.rc }}). Últimas líneas:
+      {{ (((git_app_post.stdout | default('')) ~ '\n' ~ (git_app_post.stderr | default(''))) | trim)[-3000:] }}
+  when: not ansible_check_mode and git_app_post.rc is defined and git_app_post.rc != 0
 
 - name: Comprobar que responde
   ansible.builtin.uri:

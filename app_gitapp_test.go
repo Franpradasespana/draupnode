@@ -52,14 +52,14 @@ func TestImportarEnvALaBoveda(t *testing.T) {
 	p, _ := a.SaveProject(store.Project{Name: "App", ServerID: srv.ID})
 	f := filepath.Join(t.TempDir(), ".env")
 	os.WriteFile(f, []byte("DEBUG=False\nSECRET_KEY=abc\nSTRIPE_API_KEY=sk_1\nRARO=\"x\ny\"\nDB_PASSWORD=con;punto\n"), 0o600)
-	if r := a.GitAppImportEnv(p.ID, f); r.Status != "vault_missing" {
+	if r := a.GitAppImportEnv(p.ID, "git-app", f); r.Status != "vault_missing" {
 		t.Fatalf("sin bóveda: %+v", r)
 	}
 	if err := a.VaultCreate("una maestra larga"); err != nil {
 		t.Fatal(err)
 	}
 	a.vault.Set(varName(p.ID, "git_app_env_secret"), "OTRA=1; SECRET_KEY=vieja")
-	r := a.GitAppImportEnv(p.ID, f)
+	r := a.GitAppImportEnv(p.ID, "git-app", f)
 	if r.Status != "ok" || strings.Join(r.Env, ",") != "DEBUG=False" || strings.Join(r.SecretKeys, ",") != "SECRET_KEY,STRIPE_API_KEY" || len(r.Skipped) != 2 {
 		t.Fatalf("%+v", r)
 	}

@@ -129,7 +129,7 @@ PY
 // GitAppInspect lee el repositorio (en el servidor del proyecto) y devuelve
 // las variables que usa la app. repo/branch/compose son los del formulario
 // (aún sin guardar); el token, si hace falta, se toma de la bóveda.
-func (a *App) GitAppInspect(projectID, repo, branch, compose, appName, secret, accept, sudoPassword string) GitInspectResult {
+func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName, secret, accept, sudoPassword string) GitInspectResult {
 	fail := func(msg string) GitInspectResult {
 		return GitInspectResult{RunStart: RunStart{Status: "error", Message: msg}}
 	}
@@ -159,7 +159,7 @@ func (a *App) GitAppInspect(projectID, repo, branch, compose, appName, secret, a
 	isSSH := !strings.HasPrefix(repo, "https://")
 	token := ""
 	if !isSSH {
-		t, err := a.vault.Get(varName(projectID, "git_app_token"))
+		t, err := a.vault.Get(varName(projectID, secretKey(moduleID, "git_app_token")))
 		switch {
 		case errors.Is(err, secrets.ErrLocked):
 			return GitInspectResult{RunStart: RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: ahí está el token del repositorio."}}
@@ -309,7 +309,7 @@ func (a *App) ChooseEnvFile() (string, error) {
 // las variables que parecen contraseñas o claves se guardan cifradas en la
 // bóveda (junto a las que ya hubiera); el resto vuelve como CLAVE=valor.
 // El fichero no se copia a ningún sitio.
-func (a *App) GitAppImportEnv(projectID, path string) EnvImportResult {
+func (a *App) GitAppImportEnv(projectID, moduleID, path string) EnvImportResult {
 	res := EnvImportResult{Env: []string{}, SecretKeys: []string{}, Skipped: []string{}}
 	fail := func(msg string) EnvImportResult { res.RunStart = RunStart{Status: "error", Message: msg}; return res }
 	if _, err := a.store.Project(projectID); err != nil {
@@ -346,7 +346,7 @@ func (a *App) GitAppImportEnv(projectID, path string) EnvImportResult {
 		secretVals[kv.Key] = kv.Value
 	}
 	if len(secretVals) > 0 {
-		key := varName(projectID, "git_app_env_secret")
+		key := varName(projectID, secretKey(moduleID, "git_app_env_secret"))
 		old, err := a.vault.Get(key)
 		switch {
 		case errors.Is(err, secrets.ErrLocked):

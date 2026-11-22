@@ -63,7 +63,17 @@ func (a *App) SetProjectSecret(projectID, variable, value string) error {
 	return vaultErr(a.vault.Set(varName(projectID, variable), value))
 }
 
+// secretKey: el nombre en la bóveda de una variable secreta de un módulo del
+// servidor («git_app_token», o «git_app_token@blog» en otra copia).
+func secretKey(moduleID, variable string) string {
+	if _, inst := modules.SplitID(moduleID); inst != "" {
+		return variable + "@" + inst
+	}
+	return variable
+}
+
 func (a *App) isSecretVar(name string) bool {
+	name, _ = modules.SplitID(name)
 	for _, m := range a.cat().All() {
 		for _, v := range m.SecretVars() {
 			if v.Name == name && !v.Managed {
@@ -155,10 +165,14 @@ func (a *App) ProjectSecrets(projectID, master string) ([]ProjectSecret, error) 
 		case strings.HasPrefix(rest, "var:"):
 			v := strings.TrimPrefix(rest, "var:")
 			ps := ProjectSecret{Kind: "typed", Name: v, Label: v, Value: val}
+			base, inst := modules.SplitID(v) // «variable@copia» en otra copia de un módulo
 			for _, m := range c.All() {
 				for _, sv := range m.SecretVars() {
-					if sv.Name == v {
+					if sv.Name == base {
 						ps.Module, ps.Label = m.Name, sv.Label
+						if inst != "" {
+							ps.Module += " · " + inst
+						}
 					}
 				}
 			}
@@ -240,17 +254,17 @@ func (a *App) secretValues(projectID string, sel []bundle.Selection) (map[string
 	for _, s := range sel {
 		for _, v := range s.Module.SecretVars() {
 			if v.Managed {
-				out[v.Name] = a.managedSecret(v.Name, s.Values)
+				out[s.SecretName(v.Name)] = a.managedSecret(v.Name, s.Values)
 				continue
 			}
-			val, err := a.vault.Get(varName(projectID, v.Name))
+			val, err := a.vault.Get(varName(projectID, secretKey(s.Key(), v.Name)))
 			switch {
 			case errors.Is(err, secrets.ErrNotFound):
 				val = ""
 			case err != nil:
 				return nil, err
 			}
-			out[v.Name] = val
+			out[s.SecretName(v.Name)] = val
 		}
 	}
 	return out, nil

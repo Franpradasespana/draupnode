@@ -14,7 +14,7 @@
   import { withConnection } from '../lib/connect'
   import { api, errorText, type Module, type Project, type ProjectCheck, type RunStart, type UninstallCheck, type UninstallChoice } from '../lib/api'
   import {
-    ui, toast, refreshProjects, moduleName, timeAgo, startRun, confirmDialog, openRecipe,
+    ui, toast, refreshProjects, moduleName, timeAgo, startRun, confirmDialog, openRecipe, ask, splitModuleId,
   } from '../lib/state.svelte'
 
   // embedded: dentro de la ficha del servidor (pestaña Módulos), sin su propia barra de volver.
@@ -42,7 +42,13 @@
   let check = $state<ProjectCheck | null>(null)
   let saving = $state(false)
   const mods = $derived(ui.modules?.modules ?? [])
-  const byId = (mid: string) => mods.find((m) => m.id === mid)
+  // Un id puede ser otra copia de un módulo repetible («git-app@blog»): se busca su módulo.
+  const byId = (mid: string) => mods.find((m) => m.id === splitModuleId(mid)[0])
+  // El módulo visto como esa copia: mismo módulo, con su id y su nombre («… · blog»).
+  const modView = (mid: string): Module | undefined => {
+    const m = byId(mid)
+    return m && mid !== m.id ? { ...m, id: mid, name: moduleName(mid) } : m
+  }
   const selected = $derived(new Set(draft.modules.map((m) => m.id)))
   const dirty = $derived(contentKey(draft) !== savedKey)
   const isNew = $derived(!draft.id)
@@ -113,7 +119,10 @@
     if (!m || selected.has(mid)) return added
     for (const d of m.depends ?? []) add(d, added)
     if (!draft.modules.some((x) => x.id === mid)) {
-      draft.modules.push({ id: mid, values: defaults(m) })
+      const values: Record<string, unknown> = defaults(m)
+      const inst = splitModuleId(mid)[1]
+      if (inst && 'git_app_name' in values) values.git_app_name = inst // cada app, su carpeta
+      draft.modules.push({ id: mid, values })
       added.push(mid)
     }
     return added
@@ -155,6 +164,7 @@
     if (st === 'required') return `La necesita ${requiredBy(m.id).join(', ')}`
     if (st === 'clash') return `No puede ir con ${clashesWith(m.id, selected, byId).map(moduleName).join(', ')}`
     if (st === 'left') return 'Instalado, pero Draupnode ya no lo gestiona'
+    if (m.repeatable && (st === 'installed' || st === 'pending')) return 'Pulsa para añadir otra'
     return ''
   }
   // ---- catálogo «Añadir módulos» (ventana aparte, con buscador) ----
@@ -172,7 +182,21 @@
     return Object.entries(by).sort(([x], [y]) => x.localeCompare(y))
       .map(([cat, list]) => ({ title: cat.replace(/^\d+\s*·\s*/, ''), list: list.sort(byName) }))
   })
+  // Repetible (la app de Git) que ya está: se añade otra copia con su nombre.
+  async function addAnother(m: Module) {
+    const name = await ask(`Otra: ${m.name}`, 'Nombre corto para la nueva (minúsculas y números, p. ej. blog). Será también el nombre de su carpeta y de sus contenedores.', 'Nombre', false)
+    if (name === null) return
+    const n = name.trim().toLowerCase()
+    if (!/^[a-z][a-z0-9]{1,20}$/.test(n)) return toast('El nombre: de 2 a 21 letras minúsculas o números, empezando por letra', 'error')
+    if (draft.modules.some((x) => x.id === `${m.id}@${n}`) || n === 'app') return toast(`Ya hay una con el nombre «${n}»`, 'error')
+    touched = true
+    add(`${m.id}@${n}`)
+    catalogOpen = false
+    openMod = `${m.id}@${n}`
+    toast(`Añadida «${n}». Rellena sus opciones y pulsa Aplicar.`)
+  }
   function catalogClick(m: Module) {
+    if (m.repeatable && (selected.has(m.id) || installed.has(m.id) || draft.modules.some((x) => x.id.startsWith(m.id + '@')))) return addAnother(m)
     if (installed.has(m.id)) {
       catalogOpen = false
       openMod = m.id
@@ -210,7 +234,7 @@
 
   // ---- página de un módulo ----
   let openMod = $state<string | null>(null)
-  const openModule = $derived(openMod ? byId(openMod) : undefined)
+  const openModule = $derived(openMod ? modView(openMod) : undefined)
   $effect(() => { moduleOpen = !!openModule })
 
   // ---- asistente ----
@@ -585,7 +609,7 @@
               <button class="mmain" onclick={() => (openMod = mid)} title="Ver y configurar {m?.name ?? mid}">
                 <span class="num">{selected.has(mid) ? i + 1 : '–'}</span>
                 <span class="ic"><Icon size={18} /></span>
-                <span class="txt"><strong>{m?.name ?? mid}</strong><span class="muted desc">{#if originOf(mid)}<span class="from">de «{originOf(mid)}»</span> · {/if}{m?.description ?? ''}</span></span>
+                <span class="txt"><strong>{moduleName(mid)}</strong><span class="muted desc">{#if originOf(mid)}<span class="from">de «{originOf(mid)}»</span> · {/if}{m?.description ?? ''}</span></span>
                 <span class="tag {st.kind}">{st.text}</span>
                 <ChevronRight size={16} class="chev" />
               </button>
@@ -664,9 +688,9 @@
 
 {#if wizard && draft.id}
   <ApplyWizard bind:modules={draft.modules}
-    steps={pending.map(byId).filter((m): m is Module => !!m?.variables?.some((v) => !v.managed))}
-    install={pending.map(byId).filter((m): m is Module => !!m)}
-    changed={changedInstalled.map(byId).filter((m): m is Module => !!m)}
+    steps={pending.map(modView).filter((m): m is Module => !!m?.variables?.some((v) => !v.managed))}
+    install={pending.map(modView).filter((m): m is Module => !!m)}
+    changed={changedInstalled.map(modView).filter((m): m is Module => !!m)}
     errors={check?.errors ?? {}} warnings={[...(check?.general ?? []), ...(check?.warnings ?? [])]}
     projectId={draft.id} where={`${server?.name ?? ''} › ${draft.name}`} busy={saving || running}
     onsecret={() => recheck++} onpreview={() => wizardRun(true)} onapply={() => wizardRun(false)} onclose={() => (wizard = false)} />

@@ -31,6 +31,54 @@ var staticFS embed.FS
 type Selection struct {
 	Module *modules.Module
 	Values map[string]any
+	// ID en el servidor: el del módulo, o «módulo@nombre» si es otra copia de
+	// un módulo repetible (Instance = nombre). Vacío = Module.ID.
+	ID       string
+	Instance string
+}
+
+// Key: cómo se llama esta selección en el servidor («git-app» o «git-app@blog»).
+func (s Selection) Key() string {
+	if s.ID != "" {
+		return s.ID
+	}
+	return s.Module.ID
+}
+
+// SecretName: nombre de una variable secreta de esta selección en el fichero
+// de secretos (las de otra copia llevan «__nombre» para no pisarse).
+func (s Selection) SecretName(v string) string {
+	if s.Instance == "" {
+		return v
+	}
+	return v + "__" + s.Instance
+}
+
+// roleVars: los valores de la selección más draupnode_instance y, en otra
+// copia, sus datos secretos con su nombre de siempre (sacados de los suyos).
+func roleVars(s Selection, extra map[string]any) *yaml.Node {
+	keys := make([]string, 0, len(s.Values)+4)
+	vals := map[string]*yaml.Node{}
+	for k, v := range s.Values {
+		keys = append(keys, k)
+		vals[k] = valueNode(v)
+	}
+	for k, v := range extra {
+		keys = append(keys, k)
+		vals[k] = valueNode(v)
+	}
+	keys = append(keys, "draupnode_instance")
+	vals["draupnode_instance"] = str(s.Instance)
+	if s.Instance != "" {
+		for _, v := range s.Module.SecretVars() {
+			keys = append(keys, v.Name)
+			// Expresión de Jinja (sin !unsafe, para que Ansible la sustituya): el valor
+			// viene de secretos.yml, donde sí es !unsafe.
+			vals[v.Name] = &yaml.Node{Kind: yaml.ScalarNode, Style: yaml.DoubleQuotedStyle, Value: "{{ " + s.SecretName(v.Name) + " }}"}
+		}
+	}
+	sort.Strings(keys)
+	return mapNode(keys, vals)
 }
 
 // Options describe el proyecto que se empaqueta.
@@ -63,7 +111,6 @@ type Options struct {
 
 // MarkersDir es donde queda la ficha de cada plantilla aplicada.
 const MarkersDir = "/etc/draupnode/plantillas"
-
 
 func (o Options) coolifyURL() string {
 	if o.CoolifyURL != "" {
@@ -196,16 +243,7 @@ func SiteYAML(o Options, sel []Selection) ([]byte, error) {
 		}),
 	}))
 	for _, s := range sel {
-		keys := make([]string, 0, len(s.Values))
-		for k := range s.Values {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		vals := map[string]*yaml.Node{}
-		for _, k := range keys {
-			vals[k] = valueNode(s.Values[k])
-		}
-		entry := map[string]*yaml.Node{"role": plain(s.Module.ID), "vars": mapNode(keys, vals)}
+		entry := map[string]*yaml.Node{"role": plain(s.Module.ID), "vars": roleVars(s, nil)}
 		roles.Content = append(roles.Content, mapNode([]string{"role", "vars"}, entry))
 	}
 	keys := []string{"name", "hosts", "connection", "gather_facts", "vars"}
@@ -237,7 +275,12 @@ func SiteYAML(o Options, sel []Selection) ([]byte, error) {
 func secretVars(sel []Selection) []modules.Variable {
 	var out []modules.Variable
 	for _, s := range sel {
-		out = append(out, s.Module.SecretVars()...)
+		for _, v := range s.Module.SecretVars() {
+			if s.Instance != "" {
+				v.Name, v.Label = s.SecretName(v.Name), v.Label+" ("+s.Instance+")"
+			}
+			out = append(out, v)
+		}
 	}
 	return out
 }
@@ -279,21 +322,14 @@ func uninstallYAML(o Options, sel []Selection) ([]byte, error) {
 		if !s.Module.Uninstallable {
 			return nil, fmt.Errorf("%s no se puede desinstalar", s.Module.Name)
 		}
-		keys := make([]string, 0, len(s.Values)+1)
-		for k := range s.Values {
-			keys = append(keys, k)
+		name := "Desinstalar " + s.Module.Name
+		if s.Instance != "" {
+			name += " (" + s.Instance + ")"
 		}
-		sort.Strings(keys)
-		vals := map[string]*yaml.Node{}
-		for _, k := range keys {
-			vals[k] = valueNode(s.Values[k])
-		}
-		keys = append(keys, "draupnode_uninstall_purge")
-		vals["draupnode_uninstall_purge"] = valueNode(o.Purge)
 		tasks.Content = append(tasks.Content, mapNode([]string{"name", "ansible.builtin.include_role", "vars"}, map[string]*yaml.Node{
-			"name":                         str("Desinstalar " + s.Module.Name),
+			"name":                         str(name),
 			"ansible.builtin.include_role": mapNode([]string{"name", "tasks_from"}, map[string]*yaml.Node{"name": plain(s.Module.ID), "tasks_from": plain("uninstall")}),
-			"vars":                         mapNode(keys, vals),
+			"vars":                         roleVars(s, map[string]any{"draupnode_uninstall_purge": o.Purge}),
 		}))
 	}
 	play := mapNode([]string{"name", "hosts", "connection", "gather_facts", "vars", "tasks"}, map[string]*yaml.Node{
@@ -368,7 +404,12 @@ func Payload(o Options, sel []Selection) ([]byte, error) {
 			return nil, err
 		}
 	}
+	copied := map[string]bool{}
 	for _, s := range sel {
+		if copied[s.Module.ID] {
+			continue
+		}
+		copied[s.Module.ID] = true
 		if err := t.addFS(s.Module.Role(), "roles/"+s.Module.ID); err != nil {
 			return nil, fmt.Errorf("módulo %s: %w", s.Module.ID, err)
 		}
@@ -531,7 +572,7 @@ func Script(o Options, sel []Selection) ([]byte, error) {
 	}
 	ids := make([]string, len(sel))
 	for i, s := range sel {
-		ids[i] = s.Module.ID
+		ids[i] = s.Key()
 	}
 	var prompts strings.Builder
 	for _, v := range secretVars(sel) {

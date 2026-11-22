@@ -20,6 +20,8 @@ details: |
   Dominio: con Caddy o nginx en el servidor, se añade solo a sus sitios.
   Una app por plantilla: para otra, asocia otra plantilla al mismo servidor.
 depends: [docker]
+# Varias apps en un servidor: «Añadir otra app» crea otra copia (git-app@nombre).
+repeatable: true
 requires:
   os: [ubuntu, debian]
 firewall_ports_from: [git_app_public_port]
@@ -31,6 +33,8 @@ secrets:
     label: Deploy key (añádela al repositorio, solo lectura)
   - file: git_app_env_*
     label: Valor generado para el .env
+  - file: git_app_*_env_*
+    label: Valor generado para el .env (otra app)
 uninstall_warning: Para y quita los contenedores de la app.
 uninstall_data: Borrar también su carpeta, sus volúmenes de Docker (datos de la app y su base de datos) y sus valores generados.
 variables:
@@ -83,6 +87,32 @@ variables:
     label: Variables secretas con valor tuyo
     help: "Tokens o claves que ya tienes: «CLAVE=valor; OTRA=valor». Se guardan cifradas en tu bóveda."
     type: secret
+  - name: git_app_post_command
+    label: Orden después de arrancar
+    help: "Se ejecuta cada vez que aplicas, dentro del servicio de abajo, con la app ya en marcha. Para preparar la base de datos: «./manage.py migrate» (Django), «php artisan migrate --force» (Laravel), «npx prisma migrate deploy»… Vacío = nada."
+    type: string
+    default: ""
+  - name: git_app_post_service
+    label: Servicio donde se ejecuta la orden
+    help: El nombre del servicio en el docker-compose (p. ej. web, app).
+    type: string
+    default: web
+    pattern: '^[A-Za-z0-9][A-Za-z0-9_.-]*$'
+    pattern_help: Nombre de un servicio del compose
+  - name: git_app_owner
+    label: Dueño de la carpeta de la app
+    help: "Si la app corre en el contenedor con un usuario que no es root y necesita escribir en su carpeta (error «Permission denied»), pon aquí su UID:GID, p. ej. 1000:1000. Vacío = la deja como está (de root)."
+    type: string
+    default: ""
+    pattern: '^([0-9]{1,6}(:[0-9]{1,6})?)?$'
+    pattern_help: UID o UID:GID (números), o vacío
+  - name: git_app_build_minutes
+    label: Tiempo máximo para construir (minutos)
+    help: Si la construcción tarda más, se para. También se para si pasa 10 minutos sin avanzar (sin escribir nada).
+    type: int
+    default: 30
+    min: 5
+    max: 240
   - name: git_app_port
     label: Puerto de la app en el servidor
     help: El que publica tu compose (para el dominio y la comprobación). 0 = no comprobar.

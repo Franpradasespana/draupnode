@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"draupnode/internal/bundle"
@@ -163,14 +164,30 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 		v, errs := m.Values(vals[id])
 		// Datos secretos obligatorios: tienen que estar en la bóveda.
 		for _, sv := range m.SecretVars() {
-			if sv.Required && !sv.Managed && !recipe && (p.ID == "" || !a.vault.Has(varName(p.ID, sv.Name))) {
+			if sv.Required && !sv.Managed && !recipe && (p.ID == "" || !a.vault.Has(varName(p.ID, secretKey(id, sv.Name)))) {
 				errs[sv.Name] = "falta: escríbelo (se guarda cifrado en la bóveda)"
 			}
 		}
 		if len(errs) > 0 {
 			res.Errors[id] = errs
 		}
-		sel = append(sel, bundle.Selection{Module: m, Values: v})
+		_, inst := modules.SplitID(id)
+		sel = append(sel, bundle.Selection{Module: m, Values: v, ID: id, Instance: inst})
+	}
+	// Copias de un módulo repetible: cada una con su nombre de app (su carpeta).
+	names := map[string]string{}
+	for _, s := range sel {
+		if s.Module.ID != "git-app" {
+			continue
+		}
+		n, _ := s.Values["git_app_name"].(string)
+		if other, dup := names[n]; dup {
+			if res.Errors[s.Key()] == nil {
+				res.Errors[s.Key()] = map[string]string{}
+			}
+			res.Errors[s.Key()]["git_app_name"] = "ya lo usa " + a.moduleName(other) + ": cada app necesita su nombre"
+		}
+		names[n] = s.Key()
 	}
 	res.Warnings = append(res.Warnings, missingPorts(sel)...)
 	res.Warnings = append(res.Warnings, syncProxySites(sel)...)
@@ -292,7 +309,7 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 	}
 	mods := make([]store.ProjectModule, 0, len(sel))
 	for _, s := range sel {
-		mods = append(mods, store.ProjectModule{ID: s.Module.ID, Values: s.Values, From: from[s.Module.ID]})
+		mods = append(mods, store.ProjectModule{ID: s.Key(), Values: s.Values, From: from[s.Key()]})
 	}
 	p.Modules = mods
 	p.RecipeID, p.Overrides = "", nil
@@ -546,6 +563,24 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		a.emit("run", e)
 	}
 	var secretsMsg string
+	// El registro lo escriben el runner y el lector de progreso a la vez.
+	var lmu sync.Mutex
+	// Progreso en directo de tareas largas (la construcción de una app): los
+	// módulos escriben en /var/lib/draupnode/progreso/<slug>.log y aquí se va
+	// leyendo por otra sesión SSH mientras dura la ejecución.
+	progCtx, stopProg := context.WithCancel(ctx)
+	progDone := make(chan struct{})
+	go func() {
+		defer close(progDone)
+		a.followProgress(progCtx, c, su, slugOf(p), func(line string) {
+			lmu.Lock()
+			if lw != nil {
+				fmt.Fprintf(lw, "  | %s\n", line)
+			}
+			lmu.Unlock()
+			send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "progress", "text": line}})
+		})
+	}()
 	// Módulos por los que va pasando la ejecución (por el nombre de sus tareas, «módulo : tarea»).
 	var roles []string
 	code, err := runner.RunOpts(ctx, c, script, runner.Opts{Check: check, SecretsBack: len(rm.uninstall) == 0 || a.vault.Status().Unlocked}, su, func(e runner.Event) {
@@ -560,9 +595,11 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			}
 			return
 		}
+		lmu.Lock()
 		if lw != nil {
 			writeLog(lw, e)
 		}
+		lmu.Unlock()
 		if e.Kind == "ev" {
 			switch e.Ev["ev"] {
 			case "task":
@@ -579,6 +616,8 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		}
 		send(RunEvent{Kind: e.Kind, Text: e.Text, Ev: e.Ev})
 	})
+	stopProg()
+	<-progDone
 	sum.Duration = time.Since(start).Milliseconds()
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -707,14 +746,14 @@ func (a *App) ReadRunLog(projectID, name string) (string, error) {
 // instalarse enteros (todos por los que pasó menos el último, donde se paró),
 // en cuál se paró y a cuáles no llegó. Rellena sum.Completed.
 func partialApply(sum *store.RunSummary, p store.Project, roles []string, name func(string) string) string {
-	inProject := map[string]bool{}
-	for _, m := range p.Modules {
-		inProject[m.ID] = true
-	}
+	// El rol se llama como el módulo; las copias de un módulo repetible
+	// («git-app@blog») comparten rol, así que cuentan todas a la vez.
 	var seen []string
 	for _, r := range roles {
-		if inProject[r] {
-			seen = append(seen, r)
+		for _, m := range p.Modules {
+			if base, _ := modules.SplitID(m.ID); base == r && !contains(seen, m.ID) {
+				seen = append(seen, m.ID)
+			}
 		}
 	}
 	if len(seen) == 0 {
@@ -757,7 +796,61 @@ func partialApply(sum *store.RunSummary, p store.Project, roles []string, name f
 // moduleName: el nombre visible de un módulo (o su id si no está en el catálogo).
 func (a *App) moduleName(id string) string {
 	if m, ok := a.cat().Get(id); ok {
+		if _, inst := modules.SplitID(id); inst != "" {
+			return m.Name + " · " + inst
+		}
 		return m.Name
 	}
 	return id
+}
+
+// followProgress lee cada pocos segundos lo nuevo de
+// /var/lib/draupnode/progreso/<slug>.log y lo pasa línea a línea. Empieza
+// desde lo que ya hubiera (de otra vez) y vuelve al principio si el fichero
+// se vacía (lo hace el módulo al empezar).
+func (a *App) followProgress(ctx context.Context, c *ssh.Client, su runner.Sudo, slug string, line func(string)) {
+	path := "/var/lib/draupnode/progreso/" + slug + ".log"
+	size := func() int64 {
+		out, _, err := execOut(c, su, "stat -c %s "+bundle.ShellQuote(path)+" 2>/dev/null || echo 0")
+		if err != nil {
+			return -1
+		}
+		n, _ := strconv.ParseInt(strings.TrimSpace(out), 10, 64)
+		return n
+	}
+	off := size()
+	if off < 0 {
+		off = 0
+	}
+	var partial string
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(3 * time.Second):
+		}
+		n := size()
+		if n < 0 {
+			continue
+		}
+		if n < off {
+			off, partial = 0, ""
+		}
+		if n == off {
+			continue
+		}
+		out, _, err := execOut(c, su, fmt.Sprintf("tail -c +%d %s | head -c 262144", off+1, bundle.ShellQuote(path)))
+		if err != nil {
+			continue
+		}
+		off += int64(len(out))
+		text := partial + out
+		parts := strings.Split(text, "\n")
+		partial = parts[len(parts)-1]
+		for _, l := range parts[:len(parts)-1] {
+			if l = strings.TrimRight(l, "\r"); strings.TrimSpace(l) != "" {
+				line(l)
+			}
+		}
+	}
 }

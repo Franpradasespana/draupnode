@@ -63,7 +63,7 @@ func (a *App) markerJSON(p store.Project, mods []markerModule) []byte {
 func (a *App) markerForApply(p store.Project, sel []bundle.Selection) []byte {
 	mods := make([]markerModule, 0, len(sel))
 	for _, s := range sel {
-		mods = append(mods, markerModule{ID: s.Module.ID, Values: publicValues(s.Module, s.Values)})
+		mods = append(mods, markerModule{ID: s.Key(), Values: publicValues(s.Module, s.Values)})
 	}
 	return a.markerJSON(p, mods)
 }

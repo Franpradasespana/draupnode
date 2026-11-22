@@ -9,6 +9,8 @@
   let { m, values = $bindable(), errors = {}, projectId, onsecret }: {
     m: Module; values: Record<string, unknown>; errors?: Record<string, string>; projectId: string; onsecret?: () => void
   } = $props()
+  // Otra copia de un módulo repetible («git-app@blog»): sus datos secretos llevan «@blog».
+  const inst = $derived(m.id.includes('@') ? m.id.slice(m.id.indexOf('@') + 1) : '')
 </script>
 
 {#if !m.variables?.some((v) => !v.managed)}
@@ -16,7 +18,7 @@
 {:else}
   <div class="rows">
     {#each m.variables.filter((v) => !v.managed) as v (v.name)}
-      {#if m.id === 'git-app' && v.name === 'git_app_env'}<GitRepoReader bind:values {projectId} />{/if}
+      {#if m.id.split('@')[0] === 'git-app' && v.name === 'git_app_env'}<GitRepoReader bind:values {projectId} moduleId={m.id} />{/if}
       <div class="row" class:bad={!!errors[v.name]}>
         <div class="lbl">
           <strong>{v.label}{#if v.required} <span class="req">*</span>{/if}</strong>
@@ -25,7 +27,7 @@
         </div>
         <div class="ctl">
           {#if v.type === 'secret'}
-            <SecretField {v} {projectId} error={errors[v.name]} onchange={onsecret} bare />
+            <SecretField v={inst ? { ...v, name: `${v.name}@${inst}` } : v} {projectId} error={errors[v.name]} onchange={onsecret} bare />
           {:else}
             <VarField {v} bind:value={values[v.name]} error={errors[v.name]} bare />
           {/if}

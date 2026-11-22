@@ -72,7 +72,7 @@ func (a *App) SaveRecipe(r store.Recipe) (store.Recipe, error) {
 		}
 		r.Modules = make([]store.ProjectModule, 0, len(sel))
 		for _, s := range sel {
-			r.Modules = append(r.Modules, store.ProjectModule{ID: s.Module.ID, Values: s.Values})
+			r.Modules = append(r.Modules, store.ProjectModule{ID: s.Key(), Values: s.Values})
 		}
 	}
 	return a.store.SaveRecipe(r)

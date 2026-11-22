@@ -98,9 +98,9 @@ export function GenerateDocker(arg1:string,arg2:dockerize.Spec):Promise<main.Doc
 
 export function GetSettings():Promise<store.Settings>;
 
-export function GitAppImportEnv(arg1:string,arg2:string):Promise<main.EnvImportResult>;
+export function GitAppImportEnv(arg1:string,arg2:string,arg3:string):Promise<main.EnvImportResult>;
 
-export function GitAppInspect(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string):Promise<main.GitInspectResult>;
+export function GitAppInspect(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<main.GitInspectResult>;
 
 export function ImportBackup(arg1:string,arg2:string):Promise<main.ImportResult>;
 

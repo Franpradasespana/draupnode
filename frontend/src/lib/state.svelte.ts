@@ -4,8 +4,15 @@ import { applyPalette, BUILTIN_PALETTES, DEFAULT_PALETTE_ID, isHex, COLOR_KEYS, 
 
 export type View = 'dashboard' | 'servers' | 'catalog' | 'projects' | 'lab' | 'docker' | 'terminal' | 'settings' | 'alerts' | 'modules'
 
+/** «git-app@blog» → ['git-app', 'blog'] (otra copia de un módulo repetible). */
+export function splitModuleId(id: string): [string, string] {
+  const i = id.indexOf('@')
+  return i > 0 ? [id.slice(0, i), id.slice(i + 1)] : [id, '']
+}
 export function moduleName(id: string): string {
-  return ui.modules?.modules.find((m) => m.id === id)?.name ?? id
+  const [base, inst] = splitModuleId(id)
+  const name = ui.modules?.modules.find((m) => m.id === base)?.name ?? base
+  return inst ? `${name} · ${inst}` : name
 }
 
 export interface TaskRow {
@@ -16,6 +23,8 @@ export interface TaskRow {
   msg?: string
   note?: string
   diffs: string[]
+  /** Últimas líneas de lo que va haciendo (p. ej. la construcción de una app). */
+  progress?: string[]
 }
 
 export interface RunState {
@@ -260,6 +269,10 @@ function handleRunEvent(e: RunEvent) {
         last.status = 'failed'
         last.msg = [last.msg, ev.item ? `[${ev.item}] ${ev.msg}` : ev.msg].filter(Boolean).join('\n')
       }
+      break
+    case 'progress':
+      r.lines.push('  | ' + ev.text)
+      if (last && last.status === 'running') last.progress = [...(last.progress ?? []), String(ev.text)].slice(-8)
       break
     case 'diff':
       last?.diffs.push(ev.text)

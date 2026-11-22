@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"draupnode/internal/bundle"
+	"draupnode/internal/modules"
 	"draupnode/internal/store"
 )
 
@@ -43,7 +44,7 @@ func (a *App) CheckUninstall(projectID string, mods []string) UninstallCheck {
 	}
 	sel, err := a.uninstallSelection(p, mods)
 	for _, s := range sel {
-		res.Modules = append(res.Modules, UninstallInfo{ID: s.Module.ID, Name: s.Module.Name, Warning: s.Module.UninstallWarning, Data: s.Module.UninstallData})
+		res.Modules = append(res.Modules, UninstallInfo{ID: s.Key(), Name: a.moduleName(s.Key()), Warning: s.Module.UninstallWarning, Data: s.Module.UninstallData})
 		if s.Module.UninstallData != "" {
 			res.HasData = true
 		}
@@ -94,7 +95,8 @@ func (a *App) uninstallSelection(p store.Project, mods []string) ([]bundle.Selec
 			}
 		}
 		v, _ := m.Values(vals)
-		sel = append(sel, bundle.Selection{Module: m, Values: v})
+		_, inst := modules.SplitID(id)
+		sel = append(sel, bundle.Selection{Module: m, Values: v, ID: id, Instance: inst})
 		switch {
 		case !contains(p.InstalledModules, id):
 			problems = append(problems, fmt.Sprintf("%s no está instalado con esta plantilla en este servidor: no hay nada que desinstalar", m.Name))
@@ -145,7 +147,7 @@ func (a *App) UninstallModules(projectID string, mods []string, purge bool, secr
 	}
 	ids0 := make([]string, len(sel))
 	for i, s := range sel {
-		ids0[i] = s.Module.ID
+		ids0[i] = s.Key()
 	}
 	marker := a.markerAfterUninstall(p, ids0)
 	script, err := bundle.Script(bundle.Options{
@@ -158,7 +160,7 @@ func (a *App) UninstallModules(projectID string, mods []string, purge bool, secr
 	}
 	ids := make([]string, len(sel))
 	for i, s := range sel {
-		ids[i] = s.Module.ID
+		ids[i] = s.Key()
 	}
 	return a.launch(p, srv, script, runMode{uninstall: ids}, secret, accept, sudoPassword)
 }

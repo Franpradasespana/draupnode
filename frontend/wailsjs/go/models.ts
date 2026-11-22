@@ -1750,6 +1750,7 @@ export namespace modules {
 	    checks?: Check[];
 	    secrets?: SecretFile[];
 	    uninstallable: boolean;
+	    repeatable?: boolean;
 	    uninstallWarning?: string;
 	    uninstallData?: string;
 	    noUninstall?: string;
@@ -1781,6 +1782,7 @@ export namespace modules {
 	        this.checks = this.convertValues(source["checks"], Check);
 	        this.secrets = this.convertValues(source["secrets"], SecretFile);
 	        this.uninstallable = source["uninstallable"];
+	        this.repeatable = source["repeatable"];
 	        this.uninstallWarning = source["uninstallWarning"];
 	        this.uninstallData = source["uninstallData"];
 	        this.noUninstall = source["noUninstall"];

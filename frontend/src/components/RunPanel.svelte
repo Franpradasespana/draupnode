@@ -165,6 +165,7 @@
               {stLabel(t.status)}
             </span>
           </div>
+          {#if t.status === 'running' && t.progress?.length}<pre class="prog selectable">{t.progress.join('\n')}</pre>{/if}
           {#if t.msg}<pre class="msg selectable"><Linkify text={t.msg} /></pre>{/if}
           {#each t.diffs as d}<pre class="diff selectable">{d}</pre>{/each}
         {/each}
@@ -219,4 +220,5 @@
   .msg { padding: 8px 12px 10px 42px; color: var(--danger); background: var(--danger-soft); }
   .diff { padding: 8px 12px 10px 42px; color: var(--text); background: var(--accent-soft); }
   .log { padding: 12px; line-height: 1.5; }
+  .prog { margin: 2px 0 6px 30px; padding: 8px 10px; max-height: 170px; overflow: hidden; background: var(--panel-2); border-radius: var(--radius-sm); font-family: var(--mono); font-size: 11.5px; line-height: 1.45; color: var(--muted); white-space: pre-wrap; word-break: break-all; }
 </style>

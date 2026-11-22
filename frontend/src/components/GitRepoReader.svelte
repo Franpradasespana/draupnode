@@ -9,7 +9,7 @@
   import { ui, toast } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
 
-  let { values = $bindable(), projectId }: { values: Record<string, unknown>; projectId: string } = $props()
+  let { values = $bindable(), projectId, moduleId = 'git-app' }: { values: Record<string, unknown>; projectId: string; moduleId?: string } = $props()
 
   type Row = { key: string; what: string; kind: 'gen' | 'example' | 'empty' | 'external' | 'optional' | 'had'; hint?: string }
   let busy = $state(false)
@@ -24,7 +24,7 @@
     busy = true
     try {
       const r = await withConnection<GitInspectResult>(server, (s, a, u) =>
-        api.GitAppInspect(projectId, String(values.git_app_repo ?? ''), String(values.git_app_branch ?? ''), String(values.git_app_compose ?? ''), String(values.git_app_name ?? ''), s, a, u))
+        api.GitAppInspect(projectId, moduleId, String(values.git_app_repo ?? ''), String(values.git_app_branch ?? ''), String(values.git_app_compose ?? ''), String(values.git_app_name ?? ''), s, a, u))
       if (!r) return
       if (r.status !== 'ok') { toast(r.message || 'No se pudo leer el repositorio', 'error'); return }
       result = r
@@ -48,7 +48,7 @@
     if (!path) return
     importing = true
     try {
-      const r = await withConnection<EnvImportResult>(server, () => api.GitAppImportEnv(projectId, path))
+      const r = await withConnection<EnvImportResult>(server, () => api.GitAppImportEnv(projectId, moduleId, path))
       if (!r) return
       if (r.status !== 'ok') { toast(r.message || 'No se pudo leer el .env', 'error'); return }
       const keys = new Set([...r.env.map(keyOf), ...r.secretKeys])
