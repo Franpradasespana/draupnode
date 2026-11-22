@@ -784,3 +784,8 @@ módulos de una vez; editarla no cambia los servidores. Desde un servidor se pue
 - Petición del usuario: en botones, asistente, barra de estado, recuadro de la ejecución («Simulación»), historial
   y ayuda. Por dentro (nombre de los ficheros de registro y `check`) sigue siendo «previsualizar», para no romper
   los registros que ya hay; el historial lo enseña como «simular».
+
+## 2026-11-22 · 0.50.3 · «Cambios guardados» solo después de guardar
+
+- En los módulos del servidor salía «Cambios guardados» nada más abrir, sin haber cambiado nada. Ahora solo
+  aparece después de que se guarde algo en esa pantalla. (Y el último «previsualizar» de la ayuda → «simular».)

@@ -30,6 +30,8 @@
   const contentKey = (p: Project) => JSON.stringify([p.name.trim(), p.serverId, p.modules])
   let savedKey = $state(initial ? contentKey(initial) : '')
   let saveError = $state('')
+  // Solo se dice «Cambios guardados» después de haber guardado algo en esta pantalla.
+  let savedAt = $state(0)
   let check = $state<ProjectCheck | null>(null)
   let saving = $state(false)
   const mods = $derived(ui.modules?.modules ?? [])
@@ -263,6 +265,7 @@
       draft.id = saved.id
       savedKey = contentKey(snap)
       saveError = ''
+      savedAt = Date.now()
       await refreshProjects()
       if (wasNew) {
         draft.modules = saved.modules
@@ -422,7 +425,7 @@
       {#if saving}<LoaderCircle size={13} class="spin" /> Guardando…
       {:else if dirty && errorCount}<span class="warn"><TriangleAlert size={13} /> No se guarda hasta corregir las opciones en rojo</span>
       {:else if saveError}<span class="bad">{saveError}</span>
-      {:else if !dirty}<CircleCheck size={13} /> Cambios guardados{/if}
+      {:else if !dirty && savedAt}<CircleCheck size={13} /> Cambios guardados{/if}
     </span>
   {/if}
 </div>
