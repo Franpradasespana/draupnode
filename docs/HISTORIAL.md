@@ -668,3 +668,9 @@ al final con el mismo párrafo, Disco descuadrado, barra de arriba con demasiado
   - **Red y seguridad**: cortafuegos, lo que escucha hacia fuera y, nuevo, lo que solo escucha dentro.
   - **Registros**: sistema, SSH, servicios caídos e historial completo.
 - Ayuda de Servidores reescrita; capturas rehechas (las que entran en la ficha pulsan antes «Resumen»).
+
+## 2026-11-22 · 0.46.1 · Botones de la ficha fuera del menú
+
+- Petición del usuario: «Editar conexión» y «Actualizar sola» vuelven a estar a la vista, como antes; quitado el
+  menú «⋯». Todos los botones van en la barra de arriba, junto a «← Servidores» (al lado del nombre no cabían y
+  bajaban a otra línea).

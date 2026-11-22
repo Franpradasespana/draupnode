@@ -7,7 +7,7 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
-    LayoutDashboard, DatabaseBackup, Ellipsis, ArrowRight, History,
+    LayoutDashboard, DatabaseBackup, ArrowRight, History,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
@@ -173,14 +173,23 @@
   // Si la pestaña recordada no existe en este servidor (Copias), al Resumen.
   const current = $derived(tabs.some((t) => t.id === tab) ? tab : 'resumen')
   let onlySick = $state(false)
-  let menu = $state(false)
 </script>
 
-<svelte:window onclick={(e) => { if (menu && !(e.target as HTMLElement).closest('.menu-wrap')) menu = false }} />
 
 {#if server}
   <div class="bar">
     <button class="btn ghost sm" onclick={() => (ui.serverId = null)}><ArrowLeft size={15} /> Servidores</button>
+    <div class="actions">
+      {#if ov}<span class="muted small" title={autoNote}>Leído {timeAgo(new Date(ov.at * 1000).toISOString())}{autoNote ? ' · ' + autoNote : ''}</span>{/if}
+      <label class="auto muted small" title="Volver a leer el servidor solo mientras la ficha está a la vista">Actualizar sola
+        <select class="input" value={auto} onchange={(e) => setAuto(Number((e.currentTarget as HTMLSelectElement).value))}>
+          {#each AUTO_OPTS as [v, l]}<option value={v}>{l}</option>{/each}
+        </select>
+      </label>
+      <button class="btn sm" onclick={load} disabled={loading}>{#if loading}<LoaderCircle size={14} class="spin" />{:else}<RefreshCw size={14} />{/if} Actualizar</button>
+      <button class="btn sm" onclick={() => (editing = true)}><Pencil size={14} /> Editar conexión</button>
+      <button class="btn sm primary" onclick={() => server && openTerminal(server.id)}><SquareTerminal size={14} /> Terminal</button>
+    </div>
   </div>
 
   <header class="top">
@@ -197,24 +206,6 @@
         {#if sys}<span>· {sys.os}</span><span>· {sys.hostname}</span><span>· encendido {uptime(sys.uptime)}</span>{/if}
       </div>
       {#if server.notes}<p class="muted notes">{server.notes}</p>{/if}
-    </div>
-    <div class="actions">
-      {#if ov}<span class="muted small" title={autoNote}>Leído {timeAgo(new Date(ov.at * 1000).toISOString())}{autoNote ? ' · ' + autoNote : ''}</span>{/if}
-      <button class="btn sm" onclick={load} disabled={loading}>{#if loading}<LoaderCircle size={14} class="spin" />{:else}<RefreshCw size={14} />{/if} Actualizar</button>
-      <button class="btn sm primary" onclick={() => server && openTerminal(server.id)}><SquareTerminal size={14} /> Terminal</button>
-      <div class="menu-wrap">
-        <button class="btn sm icon" title="Más opciones" aria-label="Más opciones" onclick={() => (menu = !menu)}><Ellipsis size={16} /></button>
-        {#if menu}
-          <div class="menu card">
-            <button class="mi" onclick={() => { menu = false; editing = true }}><Pencil size={14} /> Editar conexión</button>
-            <label class="mi auto" title="Volver a leer el servidor solo mientras la ficha está a la vista">Actualizar sola
-              <select class="input" value={auto} onchange={(e) => setAuto(Number((e.currentTarget as HTMLSelectElement).value))}>
-                {#each AUTO_OPTS as [v, l]}<option value={v}>{l}</option>{/each}
-              </select>
-            </label>
-          </div>
-        {/if}
-      </div>
     </div>
   </header>
 
@@ -543,7 +534,7 @@
 {/if}
 
 <style>
-  .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
   .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
   .ident { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -551,11 +542,7 @@
   .sub { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13px; }
   .notes { margin: 2px 0 0; font-size: 13px; }
   .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .menu-wrap { position: relative; }
-  .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: flex; flex-direction: column; gap: 2px; padding: 6px; min-width: 230px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
-  .mi { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 0; border-radius: var(--radius-sm); background: none; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; text-align: left; }
-  .mi:hover { background: var(--sidebar-hover); }
-  .auto { justify-content: space-between; }
+  .auto { display: inline-flex; gap: 6px; align-items: center; }
   .auto .input { height: 28px; padding: 0 6px; width: auto; font-size: 12.5px; }
   .small { font-size: 12px; }
   .bad-t { color: var(--danger); }
