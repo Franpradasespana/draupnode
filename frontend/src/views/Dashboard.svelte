@@ -86,7 +86,7 @@
     { done: total > 0, text: 'Añade un servidor con su clave SSH', go: 'servers' as const },
     { done: ui.recipes.length > 0, text: 'Crea una plantilla (módulos y opciones)', go: 'projects' as const },
     { done: ui.projects.some((p) => p.modules.length > 0), text: 'Aplícala a un servidor (o añade módulos en su ficha → Módulos)', go: 'servers' as const },
-    { done: ui.projects.some((p) => p.lastRun?.ok && !p.lastRun.check), text: 'Previsualiza y aplica, o exporta un único instalar.sh', go: 'servers' as const },
+    { done: ui.projects.some((p) => p.lastRun?.ok && !p.lastRun.check), text: 'Simula y aplica, o exporta un único instalar.sh', go: 'servers' as const },
   ])
   const pad = (n: number) => String(n).padStart(2, '0')
 </script>

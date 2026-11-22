@@ -778,3 +778,9 @@ módulos de una vez; editarla no cambia los servidores. Desde un servidor se pue
   (rama …) · último cambio: …» y, si en esa rama no está el fichero compose, un aviso de que con ese repositorio
   no se puede arrancar la app (revisar dirección, rama y fichero; o crearlo con Docker Creator) sin tocar las
   opciones. «No usa variables» solo sale si hay compose.
+
+## 2026-11-22 · 0.50.2 · «Previsualizar» pasa a llamarse «Simular»
+
+- Petición del usuario: en botones, asistente, barra de estado, recuadro de la ejecución («Simulación»), historial
+  y ayuda. Por dentro (nombre de los ficheros de registro y `check`) sigue siendo «previsualizar», para no romper
+  los registros que ya hay; el historial lo enseña como «simular».

@@ -302,7 +302,7 @@
     return () => clearTimeout(t)
   })
 
-  // Previsualizar, Aplicar y Exportar guardan antes lo pendiente.
+  // Simular, Aplicar y Exportar guardan antes lo pendiente.
   async function ensureSaved(): Promise<boolean> {
     if (!dirty) return true
     return save(true)
@@ -473,7 +473,7 @@
           <div class="sub muted">Lo que Draupnode instala y gestiona en {server?.name ?? 'este servidor'}. Las plantillas solo sirven para añadir varios de una vez.</div>
         </div>
         <div class="act-btns">
-          <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount} title="Muestra qué cambiaría en el servidor sin tocar nada"><Eye size={15} /> Previsualizar</button>
+          <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount} title="Muestra qué cambiaría en el servidor sin tocar nada"><Eye size={15} /> Simular</button>
           {#if pending.length}
             <button class="btn primary" onclick={openWizard} disabled={saving || running || !!errorCount || !needsApply}><Hammer size={15} /> Configurar y aplicar…</button>
           {:else}

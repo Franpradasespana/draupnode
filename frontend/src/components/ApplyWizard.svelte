@@ -66,7 +66,7 @@
     {#if allErrors}
       <p class="bad"><TriangleAlert size={14} /> Hay {allErrors} opción(es) con errores: vuelve al paso marcado en rojo.</p>
     {:else}
-      <p class="muted">Lo que ya esté bien en el servidor no se toca. «Previsualizar» enseña lo que cambiaría sin tocar nada.</p>
+      <p class="muted">Lo que ya esté bien en el servidor no se toca. «Simular» enseña lo que cambiaría sin tocar nada.</p>
     {/if}
   {/if}
 
@@ -77,7 +77,7 @@
     {#if step}
       <button class="btn primary" onclick={() => i++} disabled={stepErrors > 0}>Siguiente <ArrowRight size={15} /></button>
     {:else}
-      <button class="btn" onclick={onpreview} disabled={busy || allErrors > 0}><Eye size={15} /> Previsualizar</button>
+      <button class="btn" onclick={onpreview} disabled={busy || allErrors > 0}><Eye size={15} /> Simular</button>
       <button class="btn primary" onclick={onapply} disabled={busy || allErrors > 0}><Hammer size={15} /> Finalizar y aplicar</button>
     {/if}
   {/snippet}

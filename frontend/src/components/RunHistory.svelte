@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Historial de ejecuciones (Previsualizar / Aplicar / Desinstalar) de las
+  // Historial de ejecuciones (Simular / Aplicar / Desinstalar) de las
   // plantillas de un servidor, de una sola o (serverId vacío) de todos los
   // servidores, como en el Panel. Pulsando una se ve su registro.
   import { History, CircleCheck, CircleX, CircleSlash, Circle, ScrollText, LoaderCircle } from '@lucide/svelte'
@@ -28,13 +28,15 @@
     }
   }
   const when = (iso: string) => new Date(iso).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+  // En los ficheros de registro el modo sigue llamándose «previsualizar» (registros de antes).
+  const modeLabel = (m: string) => (m === 'previsualizar' ? 'simular' : m)
   const dur = (ms: number) => (ms >= 60000 ? `${Math.round(ms / 60000)} min` : `${Math.max(1, Math.round(ms / 1000))} s`)
 </script>
 
 <section class="card hist">
   <h2><History size={17} /> {title}</h2>
   {#if !list.length}
-    <p class="muted">Todavía no se ha previsualizado ni aplicado nada{projectId || !serverId ? '' : ' en este servidor'}.</p>
+    <p class="muted">Todavía no se ha simulado ni aplicado nada{projectId || !serverId ? '' : ' en este servidor'}.</p>
   {:else}
     <div class="rows">
       {#each shown as e (e.projectId + e.name)}
@@ -43,7 +45,7 @@
             {#if !e.known}<Circle size={15} class="unk" />{:else if e.canceled}<CircleSlash size={15} class="unk" />{:else if e.ok}<CircleCheck size={15} class="ok" />{:else}<CircleX size={15} class="bad" />{/if}
           </span>
           <span class="when mono">{when(e.at)}</span>
-          <span class="mode m-{e.mode}">{e.mode}</span>
+          <span class="mode m-{e.mode}">{modeLabel(e.mode)}</span>
           {#if !serverId}<strong class="proj">{e.server}</strong><span class="proj muted">{e.project}</span>{:else if !projectId}<strong class="proj">{e.project}</strong>{/if}
           <span class="res muted">
             {#if !e.known}—{:else if e.canceled}cancelada{:else if e.ok}{e.changed ? `${e.changed} cambio(s)` : 'sin cambios'}{:else}{e.error || `${e.failed} fallo(s)`}{/if}
@@ -58,7 +60,7 @@
 </section>
 
 {#if open}
-  <Modal title={`Registro · ${open.e.project} · ${open.e.mode} · ${when(open.e.at)}`} width={980} onclose={() => (open = null)}>
+  <Modal title={`Registro · ${open.e.project} · ${modeLabel(open.e.mode)} · ${when(open.e.at)}`} width={980} onclose={() => (open = null)}>
     {#if open.loading}<p class="muted"><LoaderCircle size={15} class="spin" /> Leyendo…</p>
     {:else}<pre class="log selectable">{open.text}</pre>{/if}
   </Modal>

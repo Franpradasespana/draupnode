@@ -81,7 +81,7 @@
       <span class="sep"></span>
       {#each running as r (r.runId)}
         <button class="lnk run" onclick={() => openDeployment(r.projectId)}>
-          <LoaderCircle size={12} class="spin" /> {r.check ? 'Previsualizando' : 'Aplicando'} «{projName(r.projectId)}»: {r.stage}
+          <LoaderCircle size={12} class="spin" /> {r.check ? 'Simulando' : 'Aplicando'} «{projName(r.projectId)}»: {r.stage}
         </button>
       {/each}
     {/if}

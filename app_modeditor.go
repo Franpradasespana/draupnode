@@ -306,7 +306,7 @@ uninstall_warning: "Quita los paquetes y el mensaje del día."
 		"role/tasks/main.yml": []byte(`---
 # Tareas de Ansible que se ejecutan en el servidor (como root) al Aplicar.
 # Las opciones del formulario llegan como variables: {{ ` + v + `paquetes }}…
-# Al Previsualizar se ejecuta en modo simulación (ansible_check_mode).
+# Al Simular se ejecuta en modo simulación (ansible_check_mode).
 
 - name: Instalar paquetes
   ansible.builtin.apt:

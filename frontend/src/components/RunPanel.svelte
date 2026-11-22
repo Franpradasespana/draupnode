@@ -71,7 +71,7 @@
       {/if}
       <div>
         <strong>
-          {#if run.uninstall?.length}<Trash2 size={14} /> Desinstalación{:else if run.check}<Eye size={14} /> Previsualización{:else}<Hammer size={14} /> Aplicación{/if}
+          {#if run.uninstall?.length}<Trash2 size={14} /> Desinstalación{:else if run.check}<Eye size={14} /> Simulación{:else}<Hammer size={14} /> Aplicación{/if}
           {#if !run.done} en curso{:else if run.summary?.canceled} cancelada{:else if run.summary?.ok} terminada{:else} con errores{/if}
         </strong>
         <span class="muted">

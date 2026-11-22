@@ -113,7 +113,7 @@
         {:else if title}
           <span class="muted">Todavía ninguna.</span>
         {:else}
-          <span class="muted">Todavía no hay ninguna: los módulos las generan en el servidor la primera vez que pulsas <strong>Aplicar</strong> (al previsualizar no se crean). Draupnode las trae y las guarda cifradas en la bóveda.</span>
+          <span class="muted">Todavía no hay ninguna: los módulos las generan en el servidor la primera vez que pulsas <strong>Aplicar</strong> (al simular no se crean). Draupnode las trae y las guarda cifradas en la bóveda.</span>
         {/if}
       </div>
       {#if !module}
