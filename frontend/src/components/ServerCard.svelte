@@ -69,16 +69,26 @@
       busy = ''
     }
   }
+  // Toda la tarjeta abre la ficha, salvo sus propios botones (apps, plantillas, Terminal…).
+  function cardClick(e: MouseEvent) {
+    if ((e.target as HTMLElement).closest('button, a')) return
+    openServer(server.id)
+  }
+  function cardKey(e: KeyboardEvent) {
+    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+    e.preventDefault()
+    openServer(server.id)
+  }
   const hours = (s: number) => (s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : s < 172800 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} días`)
 </script>
 
-<article class="card srv" class:bad={isDown} class:warn={findings.length > 0}>
+<div class="card srv" class:bad={isDown} class:warn={findings.length > 0} role="button" tabindex="0" title="Abrir la ficha de {server.name}" onclick={cardClick} onkeydown={cardKey}>
   <header>
-    <button class="title" onclick={() => openServer(server.id)} title="Abrir la ficha">
+    <span class="title">
       <span class="dot" class:ok={ping?.reachable} class:err={isDown}></span>
       <strong>{server.name}</strong>
       <span class="muted mono small">{server.host}</span>
-    </button>
+    </span>
     <span class="small" class:muted={!isDown} class:bad-t={isDown}>
       {#if !ping}comprobando…{:else if ping.reachable}responde · {ping.latencyMs} ms{:else if ping.lab}parado (servidor de pruebas){:else}no responde{/if}
     </span>
@@ -131,16 +141,19 @@
       <button class="btn sm" onclick={() => openServer(server.id)}>Ficha <ArrowRight size={13} /></button>
     </div>
   </footer>
-</article>
+</div>
 
 <style>
   .srv { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; }
   .srv.warn { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
   .srv.bad { border-color: color-mix(in srgb, var(--danger) 55%, var(--border)); }
   header { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .title { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; min-width: 0; }
+  .srv { cursor: pointer; transition: border-color .15s, transform .05s; }
+  .srv:hover { border-color: var(--muted); }
+  .srv:active { transform: translateY(1px); }
+  .srv :global(button) { cursor: pointer; }
+  .title { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .title strong { font-size: 15px; }
-  .title:hover strong { text-decoration: underline; }
   .small { font-size: 12.5px; }
   .meters { display: flex; flex-direction: column; gap: 6px; }
   .meters > div { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }

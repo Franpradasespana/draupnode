@@ -641,3 +641,8 @@ El usuario no le veía utilidad al Panel (solo contaba cosas y repetía la lista
   = todos; ahora lleva el nombre del servidor).
 - Fuera: la barra de «%», «Última comprobación» y «Primeros pasos» (solo sale si no hay ningún servidor).
 - Tests: `TestFichaGuardada` y el historial de todos los servidores. Capturas `panel` y `copias-aviso` rehechas.
+
+## 2026-11-22 · 0.45.1 · Tarjetas de servidor clicables enteras
+
+- Panel: toda la tarjeta de un servidor abre su ficha (como los contadores), no solo el nombre. Sus botones
+  (apps, plantillas, Grafana, Terminal, ↻) siguen haciendo lo suyo. También con el teclado (Tab + Intro).
