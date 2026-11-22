@@ -1,7 +1,8 @@
 # Estado de un servidor para Draupnode (se ejecuta como root, sin escribir nada).
 # Saca un JSON con: sistema, CPU, memoria, discos, contenedores (con su uso),
 # bases de datos y su tamaño, apps de Coolify, sitios de nginx/Caddy,
-# servicios caídos, copias de Draupnode, puertos escuchando y lo que deja pasar el cortafuegos. Cada parte es independiente: si una
+# servicios caídos, copias de Draupnode, actualizaciones, hora, intentos de SSH,
+# caducidad de los certificados, puertos escuchando y lo que deja pasar el cortafuegos. Cada parte es independiente: si una
 # falla, las demás siguen.
 import glob, json, os, re, shutil, socket, subprocess, time
 
@@ -263,6 +264,78 @@ def _():
                     "ok": info.get("Result") in (None, "", "success"),
                     "running": info.get("ActiveState") == "activating",
                     "ago": max(0, round(time.time() - int(ts))) if ts.isdigit() else None})
+    return res
+
+@part("updates")
+def _():
+    # Actualizaciones pendientes (cuántas de seguridad) y si hace falta reiniciar.
+    out = {"total": 0, "security": 0, "reboot": os.path.exists("/var/run/reboot-required"), "packages": []}
+    if shutil.which("apt-get"):
+        sim = run("apt-get", "-s", "-o", "Debug::NoLocking=1", "upgrade", timeout=60)
+        for l in sim.splitlines():
+            if l.startswith("Inst "):
+                out["total"] += 1
+                if "-security" in l:
+                    out["security"] += 1
+                if len(out["packages"]) < 15:
+                    out["packages"].append(l.split()[1])
+    if out["reboot"]:
+        try:
+            out["rebootFor"] = sorted(set(open("/var/run/reboot-required.pkgs").read().split()))[:10]
+        except Exception:
+            pass
+    return out
+
+@part("clock")
+def _():
+    # ¿Está la hora sincronizada? (si no, fallan certificados, copias y registros)
+    v = run("timedatectl", "show", "-p", "NTPSynchronized", "--value").strip()
+    return {"synced": v == "yes", "known": v in ("yes", "no"), "timezone": run("timedatectl", "show", "-p", "Timezone", "--value").strip()}
+
+@part("security")
+def _():
+    # Intentos de entrar por SSH que fallaron en 24 h, de cuántas IPs, y lo que tiene bloqueado fail2ban.
+    log = run("journalctl", "-u", "ssh", "-u", "sshd", "--since", "24 hours ago", "--no-pager", "-q", "-o", "cat", timeout=30)
+    failed, ips = 0, {}
+    for l in log.splitlines():
+        if "Failed password" in l or "Invalid user" in l or "authentication failure" in l:
+            failed += 1
+            m = re.search(r"from (\S+)", l)
+            if m:
+                ips[m.group(1)] = ips.get(m.group(1), 0) + 1
+    top = sorted(ips.items(), key=lambda x: -x[1])[:5]
+    f2b = None
+    if shutil.which("fail2ban-client"):
+        st = run("fail2ban-client", "status", "sshd")
+        cur = re.search(r"Currently banned:\s*(\d+)", st)
+        tot = re.search(r"Total banned:\s*(\d+)", st)
+        if cur:
+            f2b = {"banned": int(cur.group(1)), "total": int(tot.group(1)) if tot else 0}
+    return {"failed24h": failed, "ips": len(ips), "top": [{"ip": i, "count": c} for i, c in top], "fail2ban": f2b}
+
+@part("certs")
+def _():
+    # Caducidad de los certificados HTTPS de los dominios de nginx/Caddy (los 10 primeros).
+    res = []
+    if not shutil.which("openssl"):
+        return res
+    doms = []
+    for st in (out.get("sites") or []):
+        d = st.get("domain") or ""
+        if st.get("https") and d and "*" not in d and d not in doms:
+            doms.append(d)
+    for d in doms[:10]:
+        txt = run("sh", "-c", "echo | timeout 6 openssl s_client -connect 127.0.0.1:443 -servername \"$1\" 2>/dev/null | openssl x509 -noout -enddate -issuer 2>/dev/null", "_", d, timeout=10)
+        m = re.search(r"notAfter=(.+)", txt)
+        if not m:
+            res.append({"domain": d, "error": "no responde por HTTPS o sin certificado"})
+            continue
+        try:
+            end = time.mktime(time.strptime(m.group(1).strip().replace(" GMT", ""), "%b %d %H:%M:%S %Y"))
+            iss = re.search(r"issuer=.*?O ?= ?([^,/]+)", txt)
+            res.append({"domain": d, "days": int((end - time.time()) // 86400), "issuer": iss.group(1).strip() if iss else ""})
+        except Exception as e:
+            res.append({"domain": d, "error": str(e)})
     return res
 
 @part("software")

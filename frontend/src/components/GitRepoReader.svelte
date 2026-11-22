@@ -73,13 +73,15 @@
     const fw: Record<string, string> = { django: 'Django', laravel: 'Laravel', rails: 'Rails', node: 'Node' }
     for (const v of r.vars) {
       if (have.has(v.key)) out.push({ key: v.key, what: 'ya estaba en las opciones', kind: 'had' })
-      else if (v.generate) { gen.push(v.format ? `${v.key}:${v.format}` : v.key); out.push({ key: v.key, what: `se generará al azar en el servidor${v.format ? ' (formato ' + v.format + ')' : ''}: lo normal en ${fw[r.framework ?? ''] ?? 'esta app'}`, kind: 'gen' }) }
+      else if (v.generate || (v.secret && v.format)) { gen.push(v.format ? `${v.key}:${v.format}` : v.key); out.push({ key: v.key, what: `se generará al azar en el servidor${v.format ? ' (formato ' + v.format + ')' : ''}: lo normal en ${fw[r.framework ?? ''] ?? 'esta app'}`, kind: 'gen' }) }
       else if (v.suggest) { env.push(`${v.key}=${v.suggest}`); out.push({ key: v.key, what: `puesta a «${v.suggest}»: el valor de servidor en ${fw[r.framework ?? ''] ?? 'esta app'}`, kind: 'example' }) }
       else if (v.hasDefault && !v.inExample) out.push({ key: v.key, what: 'opcional: el compose ya le da un valor por defecto', kind: 'optional' })
-      else if (v.secret) { gen.push(v.key); out.push({ key: v.key, what: 'se generará al azar en el servidor (una vez)', kind: 'gen' }) }
+      else if (v.secret && !(v.inCode && !v.inExample && !v.inCompose && /(PASSWORD|PASSWD|_PASS|_PWD)$/.test(v.key))) { gen.push(v.key); out.push({ key: v.key, what: 'se generará al azar en el servidor (una vez)', kind: 'gen' }) }
       else if (v.external) out.push({ key: v.key, what: 'clave de otro servicio: ponla en «Variables secretas con valor tuyo» como ' + v.key + '=valor', kind: 'external' })
       else if (v.example) { env.push(`${v.key}=${v.example}`); out.push({ key: v.key, what: `puesta con el valor de ejemplo «${v.example}»: revísalo`, kind: 'example', hint: v.hint }) }
-      else { env.push(`${v.key}=`); out.push({ key: v.key, what: 'sin valor: escríbelo en «Variables (.env)»', kind: 'empty', hint: v.hint }) }
+      else if (v.inCompose) { env.push(`${v.key}=`); out.push({ key: v.key, what: 'el compose la necesita y no tiene valor: escríbelo en «Variables (.env)»', kind: 'empty', hint: v.hint }) }
+      // Sin valor y sin que el compose la exija: no se pone (vacía pisaría el valor por defecto de la app).
+      else out.push({ key: v.key, what: `no se pone: ${v.inCode && !v.inExample ? 'la lee tu código' : 'viene sin valor'} y la app usará su valor por defecto (añádela si la necesitas)`, kind: 'optional' })
     }
     values.git_app_env = env
     values.git_app_env_generate = gen

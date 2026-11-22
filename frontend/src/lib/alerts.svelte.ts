@@ -175,6 +175,16 @@ export function serverFindings(ov: ServerOverview): { id: string; text: string; 
   const sick = (ov.containers ?? []).filter((c) => ['restarting', 'dead'].includes(c.state) || c.health === 'unhealthy')
   if (sick.length) out.push({ id: 'ctr:' + sick.map((c) => c.name).sort().join(','), text: `${sick.length === 1 ? 'Contenedor con problemas' : sick.length + ' contenedores con problemas'}: ${sick.map((c) => c.name).join(', ')}`, bad: true })
   if (ov.failed?.length) out.push({ id: 'svc:' + [...ov.failed].sort().join(','), text: `${ov.failed.length === 1 ? 'Servicio caído' : 'Servicios caídos'}: ${ov.failed.join(', ')}`, bad: true })
+  const up = ov.updates
+  if (up?.reboot) out.push({ id: 'reboot', text: `Necesita reiniciarse${up.rebootFor?.length ? ` (${up.rebootFor.slice(0, 2).join(', ')})` : ''} para terminar de aplicar actualizaciones`, bad: false })
+  if (up && up.security > 0) out.push({ id: 'secupd:' + up.security, text: `${up.security} ${up.security === 1 ? 'actualización de seguridad pendiente' : 'actualizaciones de seguridad pendientes'}`, bad: false })
+  for (const c of ov.certs ?? []) {
+    if (c.error) out.push({ id: 'cert:' + c.domain, text: `HTTPS de ${c.domain}: ${c.error}`, bad: false })
+    else if (c.days !== undefined && c.days < 21) out.push({ id: 'cert:' + c.domain, text: c.days < 0 ? `El certificado de ${c.domain} ha caducado` : `El certificado de ${c.domain} caduca en ${c.days} días`, bad: c.days < 7 })
+  }
+  if (ov.clock?.known && !ov.clock.synced) out.push({ id: 'clock', text: 'La hora del servidor no está sincronizada (fallan certificados, copias y registros)', bad: false })
+  const sec = ov.security
+  if (sec && sec.failed24h >= 50 && !sec.fail2ban) out.push({ id: 'ssh', text: `${sec.failed24h} intentos de entrar por SSH en 24 h (${sec.ips} IPs) y sin fail2ban: añade el módulo «SSH seguro»`, bad: false })
   for (const b of ov.backups ?? []) {
     if (b.running) continue
     if (!b.ok) out.push({ id: 'bk:' + b.slug, text: `La última copia de «${b.slug}» falló`, bad: true })

@@ -751,6 +751,7 @@ export namespace main {
 	    example?: string;
 	    inExample: boolean;
 	    inCompose: boolean;
+	    inCode: boolean;
 	    hasDefault: boolean;
 	    secret: boolean;
 	    external: boolean;
@@ -769,6 +770,7 @@ export namespace main {
 	        this.example = source["example"];
 	        this.inExample = source["inExample"];
 	        this.inCompose = source["inCompose"];
+	        this.inCode = source["inCode"];
 	        this.hasDefault = source["hasDefault"];
 	        this.secret = source["secret"];
 	        this.external = source["external"];

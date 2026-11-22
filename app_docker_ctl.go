@@ -123,3 +123,16 @@ func (a *App) RemoveOrphanApp(serverID, name string, purge bool, secret, accept,
 	cmd := "echo '== Contenedores'; " + down + " 2>&1; echo '== Carpeta'; rm -rf " + dir + " && echo borrada " + dir
 	return a.dockerExec(serverID, cmd, secret, accept, sudoPassword)
 }
+
+// ServerUpgrade instala las actualizaciones pendientes del sistema (apt).
+func (a *App) ServerUpgrade(serverID, secret, accept, sudoPassword string) DockerResult {
+	cmd := "export DEBIAN_FRONTEND=noninteractive; apt-get update -q >/dev/null 2>&1; " +
+		"apt-get -y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade 2>&1 | tail -n 25; " +
+		"[ -f /var/run/reboot-required ] && echo '== Hace falta reiniciar el servidor para terminar.' || true"
+	return a.dockerExec(serverID, cmd, secret, accept, sudoPassword)
+}
+
+// ServerReboot reinicia el servidor (vuelve en un par de minutos).
+func (a *App) ServerReboot(serverID, secret, accept, sudoPassword string) DockerResult {
+	return a.dockerExec(serverID, "nohup sh -c 'sleep 2; systemctl reboot' >/dev/null 2>&1 & echo reiniciando", secret, accept, sudoPassword)
+}

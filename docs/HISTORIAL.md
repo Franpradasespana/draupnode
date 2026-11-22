@@ -970,3 +970,21 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
     el servidor (última ficha) — el 3000 era de Grafana.
   - Las apps de Node y Go reciben `PORT` en el compose (si no, «App started on port undefined»).
 - Tests: `TestPerfilesPorTipoDeApp`, `TestErroresTraducidos`, `TestPostgresCompartido`, `TestLaravelNoEsNode`.
+
+## 2026-11-22 · 0.56.0 · Leer el repositorio mira el código, simular apps de una carpeta y el estado del sistema en la ficha
+
+- **«Leer el repositorio» mira también el código** (como Docker Creator con una carpeta): encuentra las variables
+  que el código lee y no salen en .env.example ni en el compose (`inCode`), y el formato de las claves por lo que hay
+  cerca de donde se leen (Fernet, base64 de 32 bytes, hex). Probado con un proyecto Django real: FIELD_ENCRYPTION_KEY
+  → fernet y FILES_ENCRYPTION_KEY → base64-32. Las variables sin valor que el compose no exige ya no se ponen vacías
+  (pisarían el valor por defecto de la app): salen como «no se pone».
+- **Simular una app con «carpeta» antes de subirla**: la simulación sube el código a una carpeta temporal
+  (`/var/lib/draupnode/simulacion/<plantilla>/<app>`), revisa ahí el compose, las variables y los puertos, y la borra al
+  terminar; la app de verdad no se toca. Antes solo decía «se subirá».
+- **Estado del sistema en la ficha** (overview.py: `updates`, `clock`, `security`, `certs`):
+  - Resumen: actualizaciones pendientes (y de seguridad), si hace falta reiniciar, intentos fallidos de SSH en 24 h
+    (de cuántas IPs, y fail2ban), si la hora está sincronizada y el certificado HTTPS que antes caduca.
+  - «Necesita atención» y los avisos: reinicio pendiente, actualizaciones de seguridad, certificado a menos de 21 días
+    (o sin HTTPS), hora sin sincronizar, y muchos intentos de SSH sin fail2ban.
+  - Red y seguridad: intentos de SSH con las IPs que más insisten, caducidad de cada certificado, y las
+    actualizaciones con «Instalar actualizaciones…» (`ServerUpgrade`) y «Reiniciar el servidor…» (`ServerReboot`).

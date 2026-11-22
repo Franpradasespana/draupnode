@@ -390,6 +390,14 @@ export function ServerOverview(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ServerOverview'](arg1, arg2, arg3, arg4);
 }
 
+export function ServerReboot(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ServerReboot'](arg1, arg2, arg3, arg4);
+}
+
+export function ServerUpgrade(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ServerUpgrade'](arg1, arg2, arg3, arg4);
+}
+
 export function SetBackupsAuto(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetBackupsAuto'](arg1, arg2, arg3);
 }

@@ -200,6 +200,10 @@ export function ServerModules(arg1:string):Promise<store.Project>;
 
 export function ServerOverview(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.ServerOverviewResult>;
 
+export function ServerReboot(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.DockerResult>;
+
+export function ServerUpgrade(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.DockerResult>;
+
 export function SetBackupsAuto(arg1:string,arg2:string,arg3:number):Promise<void>;
 
 export function SetProjectCollapsed(arg1:string,arg2:Array<string>):Promise<void>;

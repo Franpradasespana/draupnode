@@ -620,10 +620,18 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "progress", "text": line}})
 		})
 	}()
-	// App desde Git con «carpeta»: subir el código antes (no en la simulación).
-	if !check && len(rm.uninstall) == 0 && len(localApps(p)) > 0 {
-		send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "stage", "name": "Subiendo el código de este equipo"}})
-		if err := a.uploadLocalApps(ctx, c, su, p, func(msg string) {
+	// App desde Git con «carpeta»: subir el código antes. En la simulación, a una
+	// carpeta aparte (simDir) para revisarlo sin tocar la app; se borra al terminar.
+	if len(rm.uninstall) == 0 && len(localApps(p)) > 0 {
+		dest, stage := "/srv/draupnode/apps", "Subiendo el código de este equipo"
+		if check {
+			dest, stage = simDir(slugOf(p)), "Subiendo el código a una carpeta temporal para revisarlo"
+			defer func() {
+				_, _, _ = execOut(c, su, "rm -rf "+bundle.ShellQuote(simDir(slugOf(p))))
+			}()
+		}
+		send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "stage", "name": stage}})
+		if err := a.uploadLocalAppsTo(ctx, c, su, p, dest, func(msg string) {
 			lmu.Lock()
 			if lw != nil {
 				fmt.Fprintf(lw, "NOTA DE DRAUPNODE: %s\n", msg)

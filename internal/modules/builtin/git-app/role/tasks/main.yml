@@ -10,6 +10,8 @@
     # Otra app de Git en el mismo servidor (instancia): sus valores generados llevan su nombre.
     git_app_gen_prefix: "{{ 'git_app_env_' if (draupnode_instance | default('')) == '' else 'git_app_' ~ draupnode_instance ~ '_env_' }}"
     git_app_progress: "/var/lib/draupnode/progreso/{{ draupnode_project }}.log"
+    # En la simulación, una app con «carpeta» se revisa en la copia temporal que subió Draupnode.
+    git_app_review_dir: "{{ ('/var/lib/draupnode/simulacion/' ~ draupnode_project ~ '/' ~ git_app_name) if (ansible_check_mode and (git_app_source | default('git')) == 'carpeta') else ('/srv/draupnode/apps/' ~ git_app_name) }}"
 
 - name: Instalar git
   ansible.builtin.apt:
@@ -178,15 +180,28 @@
 # ---- Simulación: sin tocar la app, qué cambiaría y qué fallaría
 - name: ¿Está ya la app en el servidor?
   ansible.builtin.stat:
-    path: "{{ git_app_dir }}{{ '/.git' if git_app_from_git | bool else '' }}"
+    path: "{{ git_app_review_dir }}{{ '/.git' if git_app_from_git | bool else '' }}"
   register: git_app_cloned
   check_mode: false
 
+- name: ¿Está la app instalada? (para ver sus contenedores)
+  ansible.builtin.stat:
+    path: "{{ git_app_dir }}"
+  register: git_app_real
+  check_mode: false
+  when: ansible_check_mode
+
 - name: Simulación · primera vez
   ansible.builtin.debug:
-    msg: "{{ git_app_name }}: {{ ('se bajará ' ~ git_app_repo) if git_app_from_git | bool else ('se subirá desde ' ~ git_app_local_dir) }} y se construirá por primera vez (sin el código en el servidor no se puede revisar más)."
+    msg: "{{ git_app_name }}: se bajará {{ git_app_repo }} y se construirá por primera vez (sin el código en el servidor no se puede revisar más)."
   changed_when: true
-  when: ansible_check_mode and not git_app_cloned.stat.exists
+  when: ansible_check_mode and not git_app_cloned.stat.exists and git_app_from_git | bool
+
+- name: Simulación · código de la carpeta
+  ansible.builtin.debug:
+    msg: "{{ git_app_name }}: {{ 'se instalará por primera vez' if not (git_app_real.stat.exists | default(false)) else 'se subirá y reconstruirá' }} con el código de {{ git_app_local_dir }} (revisado en una copia temporal)."
+  changed_when: true
+  when: ansible_check_mode and not git_app_from_git | bool and git_app_cloned.stat.exists
 
 - name: Simulación · ¿hay cambios en el repositorio?
   ansible.builtin.shell: |
@@ -226,7 +241,7 @@
 # ---- Revisar el compose (simulación y aplicar): variables, puertos, código montado
 - name: Revisar el compose
   ansible.builtin.command:
-    argv: [python3, "{{ role_path }}/files/revisar.py", compose, "{{ git_app_dir }}", "{{ git_app_project }}", "{{ git_app_compose }}", "{{ ('/tmp/draupnode-env-' ~ git_app_project) if ansible_check_mode else (git_app_dir ~ '/.env') }}"]
+    argv: [python3, "{{ role_path }}/files/revisar.py", compose, "{{ git_app_review_dir }}", "{{ git_app_project }}", "{{ git_app_compose }}", "{{ ('/tmp/draupnode-env-' ~ git_app_project) if ansible_check_mode else (git_app_dir ~ '/.env') }}"]
   register: git_app_review
   check_mode: false
   changed_when: false
@@ -281,7 +296,7 @@
   register: git_app_state
   check_mode: false
   changed_when: (git_app_state.stdout | from_json).stopped | length > 0
-  when: ansible_check_mode and git_app_cloned.stat.exists
+  when: ansible_check_mode and git_app_real.stat.exists
 
 - name: Simulación · parados
   ansible.builtin.debug:

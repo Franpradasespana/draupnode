@@ -148,7 +148,15 @@ func localApps(p store.Project) []store.ProjectModule {
 }
 
 // uploadLocalApps sube al servidor el código de cada App desde Git con «carpeta».
+// simDir: dónde se sube la carpeta en una simulación (no toca la app; se borra al terminar).
+func simDir(slug string) string { return "/var/lib/draupnode/simulacion/" + slug }
+
 func (a *App) uploadLocalApps(ctx context.Context, c *ssh.Client, su runner.Sudo, p store.Project, note func(string)) error {
+	return a.uploadLocalAppsTo(ctx, c, su, p, "/srv/draupnode/apps", note)
+}
+
+// uploadLocalAppsTo sube cada app con «carpeta» a <base>/<nombre>.
+func (a *App) uploadLocalAppsTo(ctx context.Context, c *ssh.Client, su runner.Sudo, p store.Project, base string, note func(string)) error {
 	for _, m := range localApps(p) {
 		dir, _ := m.Values["git_app_local_dir"].(string)
 		name, _ := m.Values["git_app_name"].(string)
@@ -158,7 +166,7 @@ func (a *App) uploadLocalApps(ctx context.Context, c *ssh.Client, su runner.Sudo
 		if !gitNameRe.MatchString(name) {
 			return fmt.Errorf("%s: nombre de app no válido", a.moduleName(m.ID))
 		}
-		dest := "/srv/draupnode/apps/" + name
+		dest := base + "/" + name
 		pr, pw := io.Pipe()
 		var files int
 		var size int64

@@ -29,10 +29,11 @@ type GitEnvVar struct {
 	Key        string `json:"key"`
 	Example    string `json:"example,omitempty"` // valor de .env.example (si lo trae)
 	InExample  bool   `json:"inExample"`         // sale en .env.example
-	InCompose  bool   `json:"inCompose"`         // el compose la usa como ${KEY}
-	HasDefault bool   `json:"hasDefault"`        // el compose le da valor por defecto (${KEY:-x})
-	Secret     bool   `json:"secret"`            // por su nombre, parece una contraseña o clave
-	External   bool   `json:"external"`          // clave o token de otro servicio (Stripe, correo…): solo la tiene el usuario
+	InCompose  bool   `json:"inCompose"`
+	InCode     bool   `json:"inCode"`     // la lee el código
+	HasDefault bool   `json:"hasDefault"` // el compose le da valor por defecto (${KEY:-x})
+	Secret     bool   `json:"secret"`     // por su nombre, parece una contraseña o clave
+	External   bool   `json:"external"`   // clave o token de otro servicio (Stripe, correo…): solo la tiene el usuario
 	Hint       string `json:"hint,omitempty"`
 	// Perfil del tipo de app: valor de servidor típico, o generarla (con su formato).
 	Suggest  string `json:"suggest,omitempty"`
@@ -136,6 +137,47 @@ if os.path.isfile(cp):
         v = var(m.group(1)); v["inCompose"] = True
         if m.group(2) and m.group(2).lstrip(":").startswith("-"):
             v["hasDefault"] = True
+# Lo que lee el código (como Docker Creator): variables que no están en .env.example ni
+# en el compose, y el formato de las claves cerca de donde se leen.
+envre = re.compile(r"""(?:os\.environ\.get|os\.getenv|os\.environ\[|\benv(?:\.\w+)?|process\.env\[?|getenv|Getenv|LookupEnv)\(?\s*\.?\s*["'\x60]?([A-Z][A-Z0-9_]{2,})["'\x60]?""")
+fernet = re.compile(r"Fernet\(\s*[A-Za-z_][A-Za-z0-9_.]*\s*\)")
+skipd = {".git", ".venv", "venv", "env", "node_modules", "__pycache__", "migrations", "vendor", "dist", "build", "staticfiles", "static", "media", "tests", "test", "docs"}
+ignore = {"PATH", "HOME", "USER", "PWD", "HOSTNAME", "TERM", "LANG", "TZ", "DJANGO_SETTINGS_MODULE", "PYTHONPATH", "PORT"}
+texts, n = [], 0
+for dp, dns, fns in os.walk(root):
+    dns[:] = [d for d in dns if d not in skipd and not d.startswith(".")]
+    for fn in fns:
+        if n >= 3000 or os.path.splitext(fn)[1] not in (".py", ".js", ".ts", ".mjs", ".php", ".go", ".rb"):
+            continue
+        fp = os.path.join(dp, fn)
+        try:
+            if os.path.getsize(fp) > 512 * 1024:
+                continue
+            texts.append(open(fp, errors="replace").read()); n += 1
+        except Exception:
+            pass
+for t in texts:
+    for m in envre.finditer(t):
+        k = m.group(1)
+        if k not in ignore:
+            var(k)["inCode"] = True
+for k, v in out["vars"].items():
+    for t in texts:
+        if v.get("format") or k not in t:
+            continue
+        lines = t.split("\n")
+        for i, l in enumerate(lines):
+            if k not in l:
+                continue
+            win = "\n".join(lines[i:i + 16])
+            if fernet.search(win):
+                v["format"] = "fernet"
+            elif "b64decode" in win and "32" in win:
+                v["format"] = "base64-32"
+            elif "bytes.fromhex" in win or "hex.DecodeString" in win:
+                v["format"] = "hex-32"
+            if v.get("format"):
+                break
 c = subprocess.run(["git", "-C", root, "log", "-1", "--format=%h %s"], capture_output=True, text=True).stdout.strip()
 known = []
 for f in ("manage.py", "artisan", "bin/rails", "prisma/schema.prisma", "alembic.ini", "package.json"):
@@ -243,7 +285,12 @@ func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName,
 		for i := range raw.Vars {
 			v := &raw.Vars[i]
 			classifyGitVar(v)
+			codeFormat := v.Format // el que se ha visto en el código
 			v.Suggest, v.Generate, v.Format = profileValue(fw, v.Key, v.Example, "")
+			if v.Format == "" && codeFormat != "" {
+				v.Format = codeFormat
+				v.Secret, v.External = true, false // una clave con formato es de la app: se genera
+			}
 		}
 		sort.Slice(raw.Vars, func(i, j int) bool { return raw.Vars[i].Key < raw.Vars[j].Key })
 		res.Vars = raw.Vars

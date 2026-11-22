@@ -515,6 +515,10 @@ export interface ServerOverview {
   draupnode?: { markers: ServerMarker[]; secretDirs: string[]; appDirs: string[] }
   software?: { module: string; active: boolean }[]
   backups?: { slug: string; ok: boolean; running: boolean; ago: number | null }[]
+  updates?: { total: number; security: number; reboot: boolean; packages: string[]; rebootFor?: string[] }
+  clock?: { synced: boolean; known: boolean; timezone: string }
+  security?: { failed24h: number; ips: number; top: { ip: string; count: number }[]; fail2ban: { banned: number; total: number } | null }
+  certs?: { domain: string; days?: number; issuer?: string; error?: string }[]
 }
 
 export interface GitEnvVar {
@@ -522,6 +526,8 @@ export interface GitEnvVar {
   example?: string
   inExample: boolean
   inCompose: boolean
+  /** La lee el código del proyecto. */
+  inCode?: boolean
   hasDefault: boolean
   secret: boolean
   external: boolean
@@ -704,6 +710,8 @@ interface Backend {
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
   LastOverviews(): Promise<Record<string, CachedOverview>>
   PublishDockerApp(dir: string, spec: DockerSpec, serverId: string): Promise<PublishResult>
+  ServerUpgrade(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
+  ServerReboot(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   RemoveOrphanApp(serverId: string, name: string, purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   ContainerAction(serverId: string, name: string, action: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   DockerDiskUsage(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
@@ -1474,6 +1482,14 @@ function mockBackend(): Backend {
       await wait(900)
       return { status: 'ok', output: what.map((w: string) => (w === 'images' ? '== Imágenes sin usar\nTotal reclaimed space: 1.66GB' : w === 'build' ? '== Caché de construcción\nTotal reclaimed space: 888.4MB' : '== Contenedores parados\nTotal reclaimed space: 0B')).join('\n') }
     },
+    async ServerUpgrade() {
+      await wait(1500)
+      return { status: 'ok', output: '12 actualizados, 0 nuevos se instalarán, 0 para eliminar y 0 no actualizados.\n== Hace falta reiniciar el servidor para terminar.' }
+    },
+    async ServerReboot() {
+      await wait(400)
+      return { status: 'ok', output: 'reiniciando' }
+    },
     async RemoveOrphanApp(_s, name, purge) {
       await wait(700)
       return { status: 'ok', output: `== Contenedores\nContainer dn-${name}-1 Removed${purge ? '\nVolume dn-' + name + '_db_data Removed' : ''}\n== Carpeta\nborrada /srv/draupnode/apps/${name}` }
@@ -1519,6 +1535,10 @@ function mockBackend(): Backend {
         draupnode: { markers: [{ draupnode: '0.41.0', at: new Date(Date.now() - 40 * 86400000).toISOString(), nombre: 'Copias', plantilla: 'Copias diarias', slug: 'copias', modulos: [{ id: 'docker', values: {} }, { id: 'backups', values: {} }] }], secretDirs: ['copias'], appDirs: [] },
         software: [{ module: 'docker', active: true }, { module: 'nginx', active: true }, { module: 'coolify', active: true }, { module: 'backups', active: true }],
         backups: [{ slug: 'copias', ok: true, running: false, ago: lab ? 3 * 3600 : 30 * 3600 }],
+        updates: lab ? { total: 0, security: 0, reboot: false, packages: [] } : { total: 12, security: 3, reboot: true, packages: ['openssl', 'libssl3', 'linux-image-generic', 'curl'], rebootFor: ['linux-image-6.8.0-52-generic'] },
+        clock: { synced: true, known: true, timezone: 'Europe/Madrid' },
+        security: lab ? { failed24h: 0, ips: 0, top: [], fail2ban: null } : { failed24h: 412, ips: 37, top: [{ ip: '198.51.100.23', count: 96 }, { ip: '203.0.113.77', count: 41 }], fail2ban: { banned: 6, total: 58 } },
+        certs: lab ? [] : [{ domain: 'estado.ejemplo.com', days: 12, issuer: "Let's Encrypt" }],
       } }
     },
     async ServerLogs(_id, kind, name) {

@@ -7,7 +7,7 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
-    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser,
+    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectEditor from './ProjectEditor.svelte'
@@ -156,7 +156,9 @@
   const appCount = $derived(draupnodeApps.length + grafanaDeps.length + (ov?.coolify ? 1 + ov.coolify.apps.length : 0) + (ov?.sites?.length ?? 0))
   const rootDisk = $derived(ov?.disks?.find((d) => d.mount === '/') ?? ov?.disks?.[0])
   // Lo mismo que lista «Necesita atención» en el Resumen.
-  const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + (pendingMods ? 1 : 0))
+  // Avisos del sistema (reinicio, actualizaciones de seguridad, certificados, hora, SSH).
+  const sysFindings = $derived(findings.filter((f) => /^(reboot|secupd|cert|clock|ssh)/.test(f.id)))
+  const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + sysFindings.length + (pendingMods ? 1 : 0))
   const tabs = $derived([
     { id: 'resumen' as Tab, label: 'Resumen', icon: LayoutDashboard, badge: attention, bad: isDown || findings.some((f) => f.bad) },
     { id: 'modulos' as Tab, label: 'Módulos', icon: Blocks, count: project?.modules.length ?? 0, badge: pendingMods, bad: false },
@@ -185,6 +187,35 @@
   // Si la pestaña recordada no existe en este servidor (Copias), al Resumen.
   const current = $derived(tabs.some((t) => t.id === tab) ? tab : 'resumen')
   let onlySick = $state(false)
+
+  // ---- Utilidades del sistema: instalar actualizaciones y reiniciar
+  let sysBusy = $state<'' | 'upgrade' | 'reboot'>('')
+  let sysOutput = $state('')
+  async function upgrade() {
+    const ok = await confirmDialog({ title: `Instalar actualizaciones en ${server?.name}`, message: 'Se instalan ahora los paquetes pendientes del sistema (apt upgrade). Tarda unos minutos; las apps siguen funcionando.', confirmLabel: 'Instalar' })
+    if (!ok) return
+    sysBusy = 'upgrade'
+    sysOutput = ''
+    try {
+      const r = await withConnection<DockerResult>(server, (s, a, u) => api.ServerUpgrade(id, s, a, u))
+      if (r?.status === 'ok') { sysOutput = r.output || 'Hecho.'; toast('Actualizaciones instaladas'); await load() }
+      else if (r) toast(r.message || 'No se pudo', 'error')
+    } finally {
+      sysBusy = ''
+    }
+  }
+  async function reboot() {
+    const ok = await confirmDialog({ title: `Reiniciar ${server?.name}`, message: 'El servidor se reinicia ahora: durante uno o dos minutos no responderá y sus apps estarán paradas. Las que tengan reinicio «unless-stopped» vuelven solas.', confirmLabel: 'Reiniciar', danger: true })
+    if (!ok) return
+    sysBusy = 'reboot'
+    try {
+      const r = await withConnection<DockerResult>(server, (s, a, u) => api.ServerReboot(id, s, a, u))
+      if (r?.status === 'ok') toast(`${server?.name} se está reiniciando: vuelve en un par de minutos (pulsa «Actualizar» entonces)`)
+      else if (r) toast(r.message || 'No se pudo', 'error')
+    } finally {
+      sysBusy = ''
+    }
+  }
 
   // ---- Controles de Docker: parar / arrancar / reiniciar y limpiar
   let ctrBusy = $state('')
@@ -294,6 +325,44 @@
       </button>
     </section>
 
+    {#if ov?.updates || ov?.security || ov?.clock}
+      <section class="card sysrow">
+        <div class="si">
+          <PackageCheck size={16} />
+          <div><span class="muted small">Actualizaciones</span>
+            <strong>{#if !ov.updates}—{:else if !ov.updates.total}al día{:else}{ov.updates.total} pendientes{#if ov.updates.security}{' · '}<span class="warn-t">{ov.updates.security} de seguridad</span>{/if}{/if}</strong>
+            {#if ov.updates?.total}<button class="lnk small" onclick={upgrade} disabled={!!sysBusy}>{sysBusy === 'upgrade' ? 'instalando…' : 'Instalar…'}</button>{/if}</div>
+        </div>
+        <div class="si">
+          <Power size={16} />
+          <div><span class="muted small">Reinicio</span>
+            <strong class:warn-t={ov.updates?.reboot}>{ov.updates?.reboot ? 'pendiente' : 'no hace falta'}</strong>
+            <button class="lnk small" onclick={reboot} disabled={!!sysBusy}>{sysBusy === 'reboot' ? 'reiniciando…' : 'Reiniciar…'}</button></div>
+        </div>
+        <div class="si">
+          <LockKeyhole size={16} />
+          <div><span class="muted small">Intentos de SSH (24 h)</span>
+            <strong class:warn-t={(ov.security?.failed24h ?? 0) >= 50 && !ov.security?.fail2ban}>{ov.security ? ov.security.failed24h : '—'}{#if ov.security?.ips}<span class="muted small">{' '}de {ov.security.ips} IP{ov.security.ips === 1 ? '' : 's'}</span>{/if}</strong>
+            <span class="muted small">{ov.security?.fail2ban ? `fail2ban: ${ov.security.fail2ban.banned} bloqueadas ahora` : 'sin fail2ban'}</span></div>
+        </div>
+        <div class="si">
+          <ClockExclamationPoint size={16} />
+          <div><span class="muted small">Hora</span>
+            <strong class:warn-t={ov.clock?.known && !ov.clock.synced}>{!ov.clock?.known ? '—' : ov.clock.synced ? 'sincronizada' : 'sin sincronizar'}</strong>
+            <span class="muted small">{ov.clock?.timezone ?? ''}</span></div>
+        </div>
+        {#if ov.certs?.length}
+          {@const next = [...ov.certs].filter((c) => c.days !== undefined).sort((a, b) => a.days! - b.days!)[0]}
+          <div class="si">
+            <ShieldExclamationPoint size={16} />
+            <div><span class="muted small">Certificados HTTPS</span>
+              <strong class:warn-t={next && next.days! < 21} class:bad-t={next && next.days! < 7}>{next ? `${next.days} días` : 'con problemas'}</strong>
+              <span class="muted small">{next ? next.domain : ''}</span></div>
+          </div>
+        {/if}
+      </section>
+    {/if}
+
     {#if attention}
     <section class="card block">
       <h2><TriangleAlert size={17} /> Necesita atención</h2>
@@ -303,6 +372,7 @@
           {#each ov?.failed ?? [] as u}<li class="bad-t">Servicio <strong>{u}</strong> ha fallado <button class="lnk" onclick={() => showLogs('unit', u, u)}>ver registro</button></li>{/each}
           {#each findings.filter((f) => f.id.startsWith('disk')) as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}</li>{/each}
           {#each backupFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text} <button class="lnk" onclick={() => setTab('copias')}>ver copias</button></li>{/each}
+          {#each sysFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}{' '}{#if f.id === 'reboot'}<button class="lnk" onclick={reboot}>reiniciar…</button>{:else if f.id.startsWith('secupd')}<button class="lnk" onclick={upgrade}>instalar…</button>{:else}<button class="lnk" onclick={() => setTab('red')}>ver</button>{/if}</li>{/each}
           {#if pendingMods}<li class="info-t">{pendingMods === 1 ? 'Hay 1 módulo' : `Hay ${pendingMods} módulos`} sin aplicar <button class="lnk" onclick={() => setTab('modulos')}>ver módulos</button></li>{/if}
         </ul>
     </section>
@@ -533,6 +603,42 @@
     </section>
   {/if}
 
+  {#if current === 'red' && ov}
+    <section class="card block">
+      <h2><LockKeyhole size={17} /> Intentos de entrar por SSH (últimas 24 h)</h2>
+      {#if !ov.security}<p class="muted">No se pudo leer.</p>
+      {:else}
+        <p class="small"><strong>{ov.security.failed24h}</strong> intentos fallidos desde <strong>{ov.security.ips}</strong> IP{ov.security.ips === 1 ? '' : 's'}.
+          {#if ov.security.fail2ban}fail2ban tiene <strong>{ov.security.fail2ban.banned}</strong> bloqueadas ahora ({ov.security.fail2ban.total} en total).{:else}<span class="warn-t">Sin fail2ban: el módulo «SSH seguro» bloquea a quien insiste y quita la entrada con contraseña.</span>{/if}</p>
+        {#if ov.security.top.length}<div class="ports">{#each ov.security.top as t}<span class="pill mono">{t.ip} · {t.count}</span>{/each}</div>{/if}
+        <p class="muted small">Es normal ver intentos en un servidor con el SSH abierto a internet: son robots probando contraseñas. Lo que importa es que no puedan entrar (solo con clave) y que se les bloquee.</p>
+      {/if}
+    </section>
+    <section class="card block">
+      <h2><ShieldExclamationPoint size={17} /> Certificados HTTPS</h2>
+      {#each ov.certs ?? [] as c}
+        <p class="small"><span class="mono">{c.domain}</span> · {#if c.error}<span class="warn-t">{c.error}</span>{:else}<span class:warn-t={c.days! < 21} class:bad-t={c.days! < 7}>caduca en {c.days} días</span>{c.issuer ? ` · ${c.issuer}` : ''}{/if}</p>
+      {:else}
+        <p class="muted small">Ningún dominio con HTTPS en nginx o Caddy en este servidor.</p>
+      {/each}
+      <p class="muted small">Caddy y certbot (nginx) los renuevan solos unos 30 días antes; si uno baja de 21 días, algo falla en la renovación (el dominio ya no apunta aquí, el puerto 80 cerrado…).</p>
+    </section>
+    <section class="card block">
+      <h2><PackageCheck size={17} /> Actualizaciones del sistema</h2>
+      {#if !ov.updates}<p class="muted">No se pudo leer.</p>
+      {:else if !ov.updates.total}<p class="small">Al día.{ov.updates.reboot ? ' Pero falta reiniciar para terminar las últimas.' : ''}</p>
+      {:else}
+        <p class="small"><strong>{ov.updates.total}</strong> paquetes por actualizar{#if ov.updates.security}, <span class="warn-t">{ov.updates.security} de seguridad</span>{/if}: <span class="mono">{ov.updates.packages.join(', ')}{ov.updates.total > ov.updates.packages.length ? '…' : ''}</span></p>
+      {/if}
+      <div class="row">
+        <button class="btn sm" onclick={upgrade} disabled={!!sysBusy || !ov.updates?.total}>{#if sysBusy === 'upgrade'}<LoaderCircle size={14} class="spin" />{:else}<PackageCheck size={14} />{/if} Instalar actualizaciones…</button>
+        <button class="btn sm danger" onclick={reboot} disabled={!!sysBusy}><Power size={14} /> Reiniciar el servidor…</button>
+      </div>
+      <p class="muted small">El módulo «Sistema base» ya instala solo las de seguridad cada día; esto es para hacerlo ahora. Si hace falta reiniciar, tus apps vuelven solas (si su reinicio es «unless-stopped»).</p>
+      {#if sysOutput}<pre class="log selectable">{sysOutput}</pre>{/if}
+    </section>
+  {/if}
+
   {#if current === 'registros'}
     <section class="card block">
       <h2><ScrollText size={17} /> Registros del servidor</h2>
@@ -635,6 +741,11 @@
   .applist li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--border-soft); font-size: 13px; }
   .applist li > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .adopt-gap { margin-top: 16px; }
+  .sysrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; padding: 12px 16px; }
+  .si { display: flex; gap: 10px; align-items: flex-start; }
+  .si > :global(svg) { color: var(--accent); flex: none; margin-top: 2px; }
+  .si > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .si strong { font-size: 14px; }
   .tpl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
   .chip:hover { border-color: var(--muted); }
