@@ -8,7 +8,7 @@
   import ModuleCard from '../components/ModuleCard.svelte'
   import VarField from '../components/VarField.svelte'
   import { api, errorText, type Module, type ProjectCheck, type Recipe } from '../lib/api'
-  import { ui, toast, refreshProjects, moduleName, confirmDialog, openDeployment } from '../lib/state.svelte'
+  import { ui, toast, refreshProjects, moduleName, confirmDialog, openServerModules } from '../lib/state.svelte'
   import { clashesWith, type CardState } from '../lib/modules'
 
   let { id }: { id: string } = $props()
@@ -98,7 +98,7 @@
       toReview = []
       await refreshProjects()
       if (!id) ui.recipeId = r.id
-      toast(stored?.deployments.length ? 'Guardado. Los servidores que lo usan tienen «cambios sin aplicar».' : 'Plantilla guardada')
+      toast(stored?.servers.length ? 'Plantilla guardada. Los servidores en los que ya se aplicó no cambian (para llevarles lo nuevo, vuelve a aplicarla).' : 'Plantilla guardada')
       return true
     } catch (e) {
       toast(errorText(e), 'error')
@@ -109,7 +109,7 @@
   }
 
   async function remove() {
-    const ok = await confirmDialog({ title: 'Eliminar plantilla', message: `¿Eliminar «${draft.name}»? Solo se puede si no está en ningún servidor.`, confirmLabel: 'Eliminar', danger: true })
+    const ok = await confirmDialog({ title: 'Eliminar plantilla', message: `¿Eliminar «${draft.name}»? Los servidores en los que se aplicó conservan sus módulos.`, confirmLabel: 'Eliminar', danger: true })
     if (!ok) return
     try {
       await api.DeleteRecipe(draft.id)
@@ -125,15 +125,15 @@
     if (!deployTo) return
     if (dirty && !(await save())) return
     try {
-      const p = await api.DeployRecipe(draft.id, deployTo)
+      const r = await api.ApplyTemplate(deployTo, draft.id)
       await refreshProjects()
-      toast('Asociado. Revísalo y pulsa Aplicar cuando quieras.')
-      openDeployment(p.id)
+      toast(`Aplicada en ${ui.servers.find((s) => s.id === deployTo)?.name}. ${r.notes.join(' ')}`)
+      openServerModules(deployTo)
     } catch (e) {
       toast(errorText(e), 'error')
     }
   }
-  const freeServers = $derived(ui.servers.filter((s) => !stored?.deployments.some((d) => d.serverId === s.id)))
+  const freeServers = $derived(ui.servers)
   const secretCount = (m: Module) => (m.variables ?? []).filter((v) => v.type === 'secret' && !v.managed).length
 </script>
 
@@ -146,16 +146,16 @@
   <textarea class="input notes" rows="2" bind:value={draft.notes} placeholder="Para qué es (opcional)"></textarea>
   {#if draft.id}
     <div class="deps">
-      <span class="muted small">Está en:</span>
-      {#each stored?.deployments ?? [] as d}
-        <button class="dep" onclick={() => openDeployment(d.projectId)}><ServerIcon size={13} /> {d.serverName}{#if !d.sameRecipe} <em>(con datos propios)</em>{/if}</button>
+      <span class="muted small">Aplicada en:</span>
+      {#each stored?.servers ?? [] as d (d.serverId)}
+        <button class="dep" onclick={() => openServerModules(d.serverId)}><ServerIcon size={13} /> {d.serverName}</button>
       {:else}<span class="muted small">ningún servidor todavía.</span>{/each}
       {#if freeServers.length}
         <select class="input" bind:value={deployTo}>
-          <option value="">Asociar a un servidor…</option>
+          <option value="">Aplicar en un servidor…</option>
           {#each freeServers as s}<option value={s.id}>{s.name}</option>{/each}
         </select>
-        <button class="btn sm" onclick={deploy} disabled={!deployTo}><Plus size={14} /> Asociar</button>
+        <button class="btn sm" onclick={deploy} disabled={!deployTo} title="Añade sus módulos a ese servidor (no instala nada hasta que pulses Aplicar allí)"><Plus size={14} /> Aplicar</button>
       {/if}
     </div>
   {:else}
@@ -254,7 +254,6 @@
   .deps .input { width: auto; min-width: 200px; height: 32px; }
   .dep { display: inline-flex; gap: 5px; align-items: center; background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12.5px; color: var(--text); cursor: pointer; }
   .dep:hover { border-color: var(--accent); }
-  .dep em { font-style: normal; color: var(--muted); }
   .small { font-size: 12.5px; }
   .warns p { display: flex; gap: 8px; margin: 2px 0; }
   .sec { font-size: 15px; margin: 18px 0 10px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }

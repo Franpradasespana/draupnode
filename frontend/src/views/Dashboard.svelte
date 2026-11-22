@@ -10,7 +10,7 @@
   import RunHistory from '../components/RunHistory.svelte'
   import { api } from '../lib/api'
   import { ui, openServer } from '../lib/state.svelte'
-  import { alerts, alertItems, rememberOverview } from '../lib/alerts.svelte'
+  import { alerts, alertItems, rememberOverview, pendingModules } from '../lib/alerts.svelte'
 
   const servers = $derived(ui.servers)
   const total = $derived(servers.length)
@@ -20,10 +20,9 @@
   const down = $derived(pinged.filter((s) => !alerts.ping[s.id].reachable && !alerts.ping[s.id].lab).length)
   const labOff = $derived(pinged.length - up - down)
 
-  const deps = $derived(ui.recipes.flatMap((r) => r.deployments))
-  const usedRecipes = $derived(ui.recipes.filter((r) => r.deployments.length).length)
-  const usedServers = $derived(new Set(deps.map((d) => d.serverId)).size)
-  const pendingDeps = $derived(deps.filter((d) => !d.applied || d.pending).length)
+  const usedRecipes = $derived(ui.recipes.filter((r) => r.servers.length).length)
+  const usedServers = $derived(new Set(ui.recipes.flatMap((r) => r.servers.map((x) => x.serverId))).size)
+  const pendingDeps = $derived(ui.projects.filter((p) => pendingModules(p) > 0).length)
 
   const ctrs = $derived(servers.flatMap((s) => alerts.fichas[s.id]?.overview.containers ?? []))
   const running = $derived(ctrs.filter((c) => c.state === 'running').length)
@@ -86,7 +85,7 @@
   const steps = $derived([
     { done: total > 0, text: 'Añade un servidor con su clave SSH', go: 'servers' as const },
     { done: ui.recipes.length > 0, text: 'Crea una plantilla (módulos y opciones)', go: 'projects' as const },
-    { done: ui.projects.length > 0, text: 'Asóciala a un servidor desde su ficha', go: 'servers' as const },
+    { done: ui.projects.some((p) => p.modules.length > 0), text: 'Aplícala a un servidor (o añade módulos en su ficha → Módulos)', go: 'servers' as const },
     { done: ui.projects.some((p) => p.lastRun?.ok && !p.lastRun.check), text: 'Previsualiza y aplica, o exporta un único instalar.sh', go: 'servers' as const },
   ])
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -126,7 +125,7 @@
       <span class="ti"><LayoutTemplate size={15} /> Plantillas</span>
       <strong>{pad(ui.recipes.length)}</strong>
       <span class="sub">
-        {#if !ui.recipes.length}ninguna aún{:else}{usedRecipes} en uso en {usedServers} {usedServers === 1 ? 'servidor' : 'servidores'}{/if}{#if pendingDeps}{' · '}<span class="info-t">{pendingDeps} sin aplicar</span>{/if}
+        {#if !ui.recipes.length}ninguna aún{:else}{usedRecipes} aplicada{usedRecipes === 1 ? '' : 's'} en {usedServers} {usedServers === 1 ? 'servidor' : 'servidores'}{/if}{#if pendingDeps}{' · '}<span class="info-t">{pendingDeps} {pendingDeps === 1 ? 'servidor' : 'servidores'} con módulos sin aplicar</span>{/if}
       </span>
     </button>
     <button class="card tile" onclick={goContainers} title="Ver los servidores">

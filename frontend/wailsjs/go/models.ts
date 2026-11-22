@@ -567,28 +567,6 @@ export namespace main {
 	        this.notes = source["notes"];
 	    }
 	}
-	export class Deployment {
-	    projectId: string;
-	    serverId: string;
-	    serverName: string;
-	    applied: boolean;
-	    pending: boolean;
-	    sameRecipe: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new Deployment(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.projectId = source["projectId"];
-	        this.serverId = source["serverId"];
-	        this.serverName = source["serverName"];
-	        this.applied = source["applied"];
-	        this.pending = source["pending"];
-	        this.sameRecipe = source["sameRecipe"];
-	    }
-	}
 	export class DockerFile {
 	    name: string;
 	    content: string;
@@ -1077,24 +1055,20 @@ export namespace main {
 	        this.at = source["at"];
 	    }
 	}
-	export class RecipeDiff {
-	    recipeId: string;
-	    recipeName: string;
-	    added: string[];
-	    removed: string[];
-	    changed: Record<string, Array<string>>;
+	export class RecipeServer {
+	    serverId: string;
+	    serverName: string;
+	    projectId: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new RecipeDiff(source);
+	        return new RecipeServer(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.recipeId = source["recipeId"];
-	        this.recipeName = source["recipeName"];
-	        this.added = source["added"];
-	        this.removed = source["removed"];
-	        this.changed = source["changed"];
+	        this.serverId = source["serverId"];
+	        this.serverName = source["serverName"];
+	        this.projectId = source["projectId"];
 	    }
 	}
 	export class RecipeView {
@@ -1106,7 +1080,7 @@ export namespace main {
 	    createdAt: any;
 	    // Go type: time
 	    updatedAt: any;
-	    deployments: Deployment[];
+	    servers: RecipeServer[];
 	
 	    static createFrom(source: any = {}) {
 	        return new RecipeView(source);
@@ -1120,7 +1094,7 @@ export namespace main {
 	        this.modules = this.convertValues(source["modules"], store.ProjectModule);
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
-	        this.deployments = this.convertValues(source["deployments"], Deployment);
+	        this.servers = this.convertValues(source["servers"], RecipeServer);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1432,6 +1406,40 @@ export namespace main {
 	
 	
 	
+	export class TemplateResult {
+	    project: store.Project;
+	    recipe: store.Recipe;
+	    notes: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new TemplateResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.project = this.convertValues(source["project"], store.Project);
+	        this.recipe = this.convertValues(source["recipe"], store.Recipe);
+	        this.notes = source["notes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class TermStart {
 	    status: string;
 	    runId?: string;
@@ -2028,6 +2036,7 @@ export namespace store {
 	export class ProjectModule {
 	    id: string;
 	    values: Record<string, any>;
+	    from?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectModule(source);
@@ -2037,6 +2046,7 @@ export namespace store {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.values = source["values"];
+	        this.from = source["from"];
 	    }
 	}
 	export class Project {
@@ -2057,6 +2067,7 @@ export namespace store {
 	    installedValues?: Record<string, any>;
 	    backupsFetched?: FetchInfo;
 	    backupsAuto?: BackupsAuto;
+	    templates?: string[];
 	    recipeId?: string;
 	    overrides?: Overrides;
 	
@@ -2080,6 +2091,7 @@ export namespace store {
 	        this.installedValues = source["installedValues"];
 	        this.backupsFetched = this.convertValues(source["backupsFetched"], FetchInfo);
 	        this.backupsAuto = this.convertValues(source["backupsAuto"], BackupsAuto);
+	        this.templates = source["templates"];
 	        this.recipeId = source["recipeId"];
 	        this.overrides = this.convertValues(source["overrides"], Overrides);
 	    }

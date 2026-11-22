@@ -4,7 +4,7 @@
 
 <div class="head">
   <h1>Avisos</h1>
-  <p class="muted">Lo que conviene mirar: servidores que no responden, disco casi lleno, contenedores o servicios que fallan, copias atrasadas o que fallaron, plantillas con cambios sin aplicar, aplicaciones que fallaron, la copia de Draupnode y versiones nuevas.</p>
+  <p class="muted">Lo que conviene mirar: servidores que no responden, disco casi lleno, contenedores o servicios que fallan, copias atrasadas o que fallaron, módulos sin aplicar, aplicaciones que fallaron, la copia de Draupnode y versiones nuevas.</p>
 </div>
 <AlertsList />
 

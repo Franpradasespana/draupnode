@@ -76,6 +76,9 @@ type Settings struct {
 type ProjectModule struct {
 	ID     string         `json:"id"`
 	Values map[string]any `json:"values"`
+	// From: la plantilla (receta) de la que vino el módulo al servidor; vacío
+	// si se añadió en el propio servidor. Solo informa: no ata el módulo a ella.
+	From string `json:"from,omitempty"`
 }
 
 // RunSummary resume la última ejecución de un proyecto.
@@ -127,8 +130,12 @@ type Project struct {
 	// BackupsAuto: qué hacer al abrir la app si las copias traídas a este
 	// equipo son viejas. Solo lo cambia SetBackupsAuto.
 	BackupsAuto *BackupsAuto `json:"backupsAuto,omitempty"`
-	// RecipeID: la receta de la que sale este despliegue. Overrides: lo que
-	// tiene distinto de ella (lo calcula la app).
+	// Templates: plantillas aplicadas a este servidor (en el orden en que se
+	// aplicaron). Desde la 0.50 los módulos son del servidor: una plantilla
+	// solo sirve para añadirle módulos de una vez.
+	Templates []string `json:"templates,omitempty"`
+	// RecipeID y Overrides: modelo de antes de la 0.50 (un despliegue por
+	// plantilla). Solo se leen para convertir los datos; ya no se guardan.
 	RecipeID  string     `json:"recipeId,omitempty"`
 	Overrides *Overrides `json:"overrides,omitempty"`
 }
@@ -208,7 +215,7 @@ func Open(dir string) (*Store, error) {
 		return nil, fmt.Errorf("no se pudo crear %s: %w", dir, err)
 	}
 	s := &Store{dir: dir, path: filepath.Join(dir, "draupnode.json")}
-	s.d = data{Version: 2, Settings: Settings{Theme: "draupnir-gold", SecretBackend: "auto"}}
+	s.d = data{Version: 3, Settings: Settings{Theme: "draupnir-gold", SecretBackend: "auto"}}
 	raw, err := os.ReadFile(s.path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -257,7 +264,101 @@ func Open(dir string) (*Store, error) {
 			return nil, err
 		}
 	}
+	// Desde la 0.50 los módulos son del servidor: un solo conjunto de módulos
+	// (store.Project) por servidor, y las plantillas solo se aplican para
+	// añadirlos. Antes de tocar nada se guarda una copia del fichero.
+	if s.d.Version < 3 {
+		_ = os.WriteFile(s.path+".antes-0.50", raw, 0o600)
+		s.migrateToServerModules()
+		s.d.Version = 3
+		if err := s.saveLocked(); err != nil {
+			return nil, err
+		}
+	}
 	return s, nil
+}
+
+// migrateToServerModules junta los despliegues de cada servidor en uno solo
+// (el más antiguo, que conserva su id, su carpeta en el servidor, sus
+// contraseñas y su historial). Cada módulo recuerda de qué plantilla venía.
+func (s *Store) migrateToServerModules() {
+	names := map[string]string{}
+	for _, sv := range s.d.Servers {
+		names[sv.ID] = sv.Name
+	}
+	byServer := map[string][]int{}
+	var order []string
+	for i, p := range s.d.Projects {
+		if _, ok := byServer[p.ServerID]; !ok {
+			order = append(order, p.ServerID)
+		}
+		byServer[p.ServerID] = append(byServer[p.ServerID], i)
+	}
+	var out []Project
+	for _, sid := range order {
+		idx := byServer[sid]
+		sort.SliceStable(idx, func(a, b int) bool { return s.d.Projects[idx[a]].CreatedAt.Before(s.d.Projects[idx[b]].CreatedAt) })
+		main := s.d.Projects[idx[0]]
+		for n, i := range idx {
+			p := s.d.Projects[i]
+			if p.RecipeID != "" && !containsStr(main.Templates, p.RecipeID) {
+				main.Templates = append(main.Templates, p.RecipeID)
+			}
+			for _, m := range p.Modules {
+				if p.RecipeID != "" && m.From == "" {
+					m.From = p.RecipeID
+				}
+				if n == 0 {
+					continue
+				}
+				found := false
+				for k := range main.Modules {
+					if main.Modules[k].ID == m.ID {
+						found = true
+					}
+				}
+				if !found {
+					main.Modules = append(main.Modules, m)
+				}
+			}
+			if n == 0 {
+				for k := range main.Modules {
+					if p.RecipeID != "" && main.Modules[k].From == "" {
+						main.Modules[k].From = p.RecipeID
+					}
+				}
+				continue
+			}
+			for _, id := range p.InstalledModules {
+				if !containsStr(main.InstalledModules, id) {
+					main.InstalledModules = append(main.InstalledModules, id)
+					if main.InstalledValues == nil {
+						main.InstalledValues = map[string]map[string]any{}
+					}
+					main.InstalledValues[id] = p.InstalledValues[id]
+				}
+			}
+		}
+		sort.Strings(main.InstalledModules)
+		if n := names[sid]; n != "" {
+			main.Name = n
+		}
+		main.RecipeID, main.Overrides = "", nil
+		out = append(out, main)
+	}
+	s.d.Projects = out
+}
+
+// ServerProject: los módulos de un servidor (su único store.Project), si ya existe.
+func (s *Store) ServerProject(serverID string) (Project, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, p := range s.d.Projects {
+		if p.ServerID == serverID {
+			return p, true
+		}
+	}
+	return Project{}, false
 }
 
 // Dir es el directorio donde vive la configuración.
@@ -710,9 +811,20 @@ func (s *Store) SaveRecipe(r Recipe) (Recipe, error) {
 func (s *Store) DeleteRecipe(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, p := range s.d.Projects {
-		if p.RecipeID == id {
-			return errors.New("está en algún servidor: quítalo de ahí antes")
+	// Los servidores en los que se aplicó conservan sus módulos: solo se olvida de dónde venían.
+	for i := range s.d.Projects {
+		p := &s.d.Projects[i]
+		var keep []string
+		for _, t := range p.Templates {
+			if t != id {
+				keep = append(keep, t)
+			}
+		}
+		p.Templates = keep
+		for k := range p.Modules {
+			if p.Modules[k].From == id {
+				p.Modules[k].From = ""
+			}
 		}
 	}
 	for i, r := range s.d.Recipes {

@@ -146,6 +146,8 @@ export interface ModulesInfo {
 export interface ProjectModule {
   id: string
   values: Record<string, unknown>
+  /** Plantilla de la que vino al servidor ('' = añadido en el propio servidor). */
+  from?: string
 }
 
 export interface RunSummary {
@@ -189,8 +191,10 @@ export interface Project {
   installedValues?: Record<string, Record<string, unknown>> | null
   backupsFetched?: FetchInfo | null
   backupsAuto?: { mode: 'off' | 'warn' | 'fetch'; days: number } | null
+  /** Plantillas aplicadas a este servidor (los módulos son del servidor; la plantilla solo los añade). */
+  templates?: string[] | null
+  /** Solo en datos de antes de la 0.50 (la demo los convierte al cargar). */
   recipeId?: string
-  overrides?: { added?: string[]; removed?: string[]; values?: Record<string, Record<string, unknown>> } | null
 }
 
 export interface FetchInfo {
@@ -472,25 +476,21 @@ export interface Recipe {
   updatedAt?: string
 }
 
-export interface Deployment {
-  projectId: string
+export interface RecipeServer {
   serverId: string
   serverName: string
-  applied: boolean
-  pending: boolean
-  sameRecipe: boolean
+  projectId: string
 }
 
 export interface RecipeView extends Recipe {
-  deployments: Deployment[]
+  /** Servidores en los que se ha aplicado. */
+  servers: RecipeServer[]
 }
 
-export interface RecipeDiff {
-  recipeId: string
-  recipeName: string
-  added: string[]
-  removed: string[]
-  changed: Record<string, string[]>
+export interface TemplateResult {
+  project: Project
+  recipe: Recipe
+  notes: string[]
 }
 
 export interface ServerOverviewResult extends RunStart {
@@ -660,10 +660,10 @@ interface Backend {
   CheckRecipe(r: Recipe): Promise<ProjectCheck>
   SaveRecipe(r: Recipe): Promise<Recipe>
   DeleteRecipe(id: string): Promise<void>
-  DeployRecipe(recipeId: string, serverId: string): Promise<Project>
-  ProjectRecipeDiff(projectId: string): Promise<RecipeDiff>
-  PushToRecipe(projectId: string): Promise<Recipe>
-  ResetToRecipe(projectId: string): Promise<Project>
+  ServerModules(serverId: string): Promise<Project>
+  ApplyTemplate(serverId: string, recipeId: string): Promise<TemplateResult>
+  ModulesToTemplate(serverId: string, moduleIds: string[], recipeId: string, newName: string): Promise<TemplateResult>
+  ForgetTemplate(serverId: string, recipeId: string): Promise<Project>
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
   LastOverviews(): Promise<Record<string, CachedOverview>>
   GitAppInspect(projectId: string, repo: string, branch: string, compose: string, appName: string, secret: string, accept: string, sudoPassword: string): Promise<GitInspectResult>
@@ -751,6 +751,7 @@ function mockBackend(): Backend {
   // Recetas: si los datos de ejemplo no traen, cada proyecto pasa a ser una receta (como hace la app).
   let recipes: Recipe[] = load<Recipe[]>('recipes', [])
   for (const p of projects) {
+    if (p.templates) continue // ya en el modelo de la 0.50 (módulos del servidor)
     if (p.recipeId && recipes.some((r) => r.id === p.recipeId)) continue
     const same = recipes.find((r) => r.name === p.name)
     if (same) { p.recipeId = same.id; continue }
@@ -758,19 +759,31 @@ function mockBackend(): Backend {
     recipes.push(r)
     p.recipeId = r.id
   }
-  const sameMods = (a: ProjectModule[], b: ProjectModule[]) => JSON.stringify(a.map((m) => [m.id, m.values])) === JSON.stringify(b.map((m) => [m.id, m.values]))
-  function mockDiff(p: Project): RecipeDiff {
-    const r = recipes.find((x) => x.id === p.recipeId)
-    const d: RecipeDiff = { recipeId: r?.id ?? '', recipeName: r?.name ?? '', added: [], removed: [], changed: {} }
-    if (!r) return d
-    for (const m of p.modules) {
-      const rm = r.modules.find((x) => x.id === m.id)
-      if (!rm) { d.added.push(m.id); continue }
-      const keys = Object.keys(m.values).filter((k) => JSON.stringify(m.values[k]) !== JSON.stringify(rm.values?.[k]))
-      if (keys.length) d.changed[m.id] = keys
+  // Desde la 0.50 cada servidor tiene un solo conjunto de módulos (como hace la app al convertir los datos).
+  {
+    const merged: Project[] = []
+    for (const p of projects) {
+      const main = merged.find((x) => x.serverId === p.serverId)
+      const mods = p.modules.map((m) => ({ ...m, from: m.from ?? p.recipeId }))
+      if (!main) {
+        merged.push({ ...p, name: servers.find((sv) => sv.id === p.serverId)?.name ?? p.name, modules: mods, templates: [...(p.templates ?? []), ...(p.recipeId ? [p.recipeId] : [])], recipeId: undefined })
+        continue
+      }
+      for (const m of mods) if (!main.modules.some((x) => x.id === m.id)) main.modules.push(m)
+      if (p.recipeId && !main.templates!.includes(p.recipeId)) main.templates!.push(p.recipeId)
+      main.installedModules = [...new Set([...(main.installedModules ?? []), ...(p.installedModules ?? [])])]
+      main.installedValues = { ...(p.installedValues ?? {}), ...(main.installedValues ?? {}) }
+      if (!main.appliedAt || (p.appliedAt && p.appliedAt < main.appliedAt)) main.appliedAt = p.appliedAt ?? main.appliedAt
     }
-    for (const m of r.modules) if (!p.modules.some((x) => x.id === m.id)) d.removed.push(m.id)
-    return d
+    projects = merged
+  }
+  function serverProject(sid: string): Project {
+    let p = projects.find((x) => x.serverId === sid)
+    if (!p) {
+      p = { id: 'p' + Date.now(), name: servers.find((s) => s.id === sid)?.name ?? '', serverId: sid, slug: 'srv' + Date.now(), modules: [], templates: [] }
+      projects.push(p)
+    }
+    return p
   }
   const cancelled = new Set<string>()
   // ?sindocker en la URL simula un equipo sin Docker.
@@ -1208,8 +1221,8 @@ function mockBackend(): Backend {
       const mods = m.modulos.map((x: { id: string }) => ({ id: x.id, values: {} }))
       recipes.push({ id: rid, name: m.plantilla || m.nombre || m.slug, notes: '', modules: mods, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Recipe)
       save('recipes', recipes)
-      const p = { id: 'p' + Date.now(), name: m.nombre || m.slug, slug: m.slug, serverId: sid, recipeId: rid, modules: mods, installedModules: mods.map((x: { id: string }) => x.id), appliedAt: m.at, updatedAt: m.at } as Project
-      projects.push(p)
+      const p = serverProject(sid)
+      Object.assign(p, { slug: m.slug, templates: [rid], modules: mods.map((x: ProjectModule) => ({ ...x, from: rid })), installedModules: mods.map((x: { id: string }) => x.id), appliedAt: m.at, updatedAt: m.at })
       save('projects', projects)
       return { project: p, notes: ['Se ha creado la plantilla «' + (m.plantilla || m.nombre) + '».'] }
     },
@@ -1278,8 +1291,11 @@ function mockBackend(): Backend {
           recipes.push(rec)
           save('recipes', recipes)
         }
-        tgt = { id: 'p' + Date.now(), name: rec.name, recipeId: rec.id, serverId: tgtServerId, modules: [{ id: 'docker', values: {} }, { id: 'firewall', values: { firewall_tcp_ports: ['22', String(port)] } }, { id: 'backup-target', values: { backup_target_port: port } }] } as Project
-        projects.push(tgt)
+        tgt = serverProject(tgtServerId)
+        for (const m of [{ id: 'docker', values: {} }, { id: 'firewall', values: { firewall_tcp_ports: ['22', String(port)] } }, { id: 'backup-target', values: { backup_target_port: port } }]) {
+          if (!tgt.modules.some((x) => x.id === m.id)) tgt.modules.push({ ...m, from: rec.id })
+        }
+        tgt.templates = [...new Set([...(tgt.templates ?? []), rec.id])]
       }
       const slug = src.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
       const url = `https://${srv.host}:${port}/${slug}`
@@ -1306,9 +1322,8 @@ function mockBackend(): Backend {
     },
     async ListRecipes() {
       await wait(80)
-      return recipes.map((r) => ({ ...r, deployments: projects.filter((p) => p.recipeId === r.id).map((p) => ({
+      return recipes.map((r) => ({ ...r, servers: projects.filter((p) => p.templates?.includes(r.id)).map((p) => ({
         projectId: p.id, serverId: p.serverId, serverName: servers.find((s) => s.id === p.serverId)?.name ?? '',
-        applied: !!p.appliedAt, pending: !p.appliedAt, sameRecipe: sameMods(p.modules, r.modules),
       })) }))
     },
     async CheckRecipe(r) {
@@ -1316,48 +1331,65 @@ function mockBackend(): Backend {
     },
     async SaveRecipe(r) {
       await wait()
-      const saved = { ...r, id: r.id || 'r' + Date.now(), modules: r.modules.map((m) => ({ ...m, values: { ...defaults(m.id), ...m.values } })) }
+      const saved = { ...r, id: r.id || 'r' + Date.now(), modules: r.modules.map((m) => ({ id: m.id, values: { ...defaults(m.id), ...m.values } })) }
       const old = recipes.find((x) => x.id === saved.id)
       recipes = old ? recipes.map((x) => (x.id === saved.id ? saved : x)) : [...recipes, saved]
-      // Los despliegues reciben los cambios y conservan sus valores propios.
-      for (const p of projects.filter((x) => x.recipeId === saved.id)) {
-        const own = mockDiff(p)
-        p.modules = saved.modules.filter((m) => !own.removed.includes(m.id)).map((m) => {
-          const mine = p.modules.find((x) => x.id === m.id)
-          const vals = { ...m.values }
-          for (const k of own.changed[m.id] ?? []) vals[k] = mine!.values[k]
-          return { id: m.id, values: vals }
-        }).concat(p.modules.filter((m) => own.added.includes(m.id)))
-      }
       save('recipes', recipes)
-      save('projects', projects)
       return saved
     },
     async DeleteRecipe(id) {
-      if (projects.some((p) => p.recipeId === id)) throw new Error('está en algún servidor: quítalo de ahí antes')
       recipes = recipes.filter((r) => r.id !== id)
+      for (const p of projects) {
+        p.templates = (p.templates ?? []).filter((t) => t !== id)
+        for (const m of p.modules) if (m.from === id) m.from = ''
+      }
       save('recipes', recipes)
+      save('projects', projects)
     },
-    async DeployRecipe(rid, sid) {
-      await wait()
-      const r = recipes.find((x) => x.id === rid)!
-      if (projects.some((p) => p.recipeId === rid && p.serverId === sid)) throw new Error('este servidor ya tiene esa plantilla')
-      const p: Project = { id: 'p' + Date.now(), name: r.name, serverId: sid, recipeId: rid, modules: JSON.parse(JSON.stringify(r.modules)) }
-      projects.push(p)
+    async ServerModules(sid) {
+      const p = serverProject(sid)
       save('projects', projects)
       return p
     },
-    async ProjectRecipeDiff(id) {
-      return mockDiff(projects.find((p) => p.id === id)!)
+    async ApplyTemplate(sid, rid) {
+      await wait()
+      const r = recipes.find((x) => x.id === rid)!
+      const p = serverProject(sid)
+      const added: string[] = [], kept: string[] = []
+      for (const m of r.modules) {
+        if (p.modules.some((x) => x.id === m.id)) { kept.push(m.id); continue }
+        p.modules.push({ id: m.id, values: JSON.parse(JSON.stringify(m.values ?? {})), from: rid })
+        added.push(m.id)
+      }
+      p.templates = [...new Set([...(p.templates ?? []), rid])]
+      p.updatedAt = new Date().toISOString()
+      save('projects', projects)
+      const notes = [added.length ? `Añadidos: ${added.length} módulo(s). Se instalan al pulsar Aplicar.` : 'El servidor ya tenía todos sus módulos: no se ha añadido ninguno.']
+      if (kept.length) notes.push(`Ya estaban (se mantiene su configuración): ${kept.length} módulo(s).`)
+      return { project: p, recipe: r, notes }
     },
-    async PushToRecipe(id) {
-      const p = projects.find((x) => x.id === id)!
-      const r = recipes.find((x) => x.id === p.recipeId)!
-      return this.SaveRecipe({ ...r, modules: JSON.parse(JSON.stringify(p.modules)) })
+    async ModulesToTemplate(sid, ids, rid, name) {
+      await wait()
+      const p = serverProject(sid)
+      let r: Recipe
+      if (rid) r = recipes.find((x) => x.id === rid)!
+      else {
+        if (!name.trim()) throw new Error('ponle un nombre a la plantilla nueva')
+        if (recipes.some((x) => x.name.toLowerCase() === name.trim().toLowerCase())) throw new Error(`ya hay una plantilla «${name.trim()}»: elígela en «añadir a una existente»`)
+        r = { id: 'r' + Date.now(), name: name.trim(), modules: [] }
+      }
+      r = { ...r, modules: [...r.modules.filter((m) => !ids.includes(m.id)), ...p.modules.filter((m) => ids.includes(m.id)).map((m) => ({ id: m.id, values: JSON.parse(JSON.stringify(m.values)) }))] }
+      recipes = recipes.some((x) => x.id === r.id) ? recipes.map((x) => (x.id === r.id ? r : x)) : [...recipes, r]
+      for (const m of p.modules) if (ids.includes(m.id)) m.from = r.id
+      p.templates = [...new Set([...(p.templates ?? []), r.id])]
+      save('recipes', recipes)
+      save('projects', projects)
+      return { project: p, recipe: r, notes: [rid ? `Plantilla «${r.name}» actualizada. Los demás servidores en los que se aplicó no cambian.` : `Plantilla «${r.name}» creada con ${ids.length} módulo(s).`] }
     },
-    async ResetToRecipe(id) {
-      const p = projects.find((x) => x.id === id)!
-      p.modules = JSON.parse(JSON.stringify(recipes.find((x) => x.id === p.recipeId)!.modules))
+    async ForgetTemplate(sid, rid) {
+      const p = serverProject(sid)
+      p.templates = (p.templates ?? []).filter((t) => t !== rid)
+      for (const m of p.modules) if (m.from === rid) m.from = ''
       save('projects', projects)
       return p
     },

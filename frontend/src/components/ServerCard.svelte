@@ -5,7 +5,7 @@
   import { RefreshCw, SquareTerminal, ArrowRight, ExternalLink, ChartLine, LoaderCircle, FilePen } from '@lucide/svelte'
   import { api, type CachedOverview, type MonitorResult, type Server, type ServerOverviewResult } from '../lib/api'
   import { ui, toast, timeAgo, openServer, openTerminal, openDeployment } from '../lib/state.svelte'
-  import { alerts, rememberOverview, serverFindings } from '../lib/alerts.svelte'
+  import { alerts, rememberOverview, serverFindings, pendingModules } from '../lib/alerts.svelte'
   import { withConnection } from '../lib/connect'
 
   let { server, ficha, note = '' }: { server: Server; ficha?: CachedOverview; note?: string } = $props()
@@ -30,7 +30,9 @@
   const findings = $derived(ov ? serverFindings(ov) : [])
 
   const deployments = $derived(ui.projects.filter((p) => p.serverId === server.id))
-  const pending = (projectId: string) => ui.recipes.flatMap((r) => r.deployments).find((d) => d.projectId === projectId)
+  const project = $derived(deployments[0])
+  const nPending = $derived(project ? pendingModules(project) : 0)
+  const templates = $derived((project?.templates ?? []).map((t) => ui.recipes.find((r) => r.id === t)?.name).filter(Boolean) as string[])
   const monitoring = $derived(deployments.find((p) => p.installedModules?.includes('monitoring')))
 
   // Apps con dirección: las de Draupnode (por túnel SSH) y las de Coolify (su URL).
@@ -115,15 +117,12 @@
     <p class="muted small">{busy === 'ficha' ? 'Leyendo el servidor…' : 'Aún no se ha leído su estado.'}</p>
   {/if}
 
-  {#if deployments.length}
+  {#if project?.modules.length}
     <div class="deps">
-      {#each deployments as p (p.id)}
-        {@const d = pending(p.id)}
-        <button class="chip" onclick={() => openDeployment(p.id)} title="Abrir la plantilla en este servidor">
-          {#if d && (!d.applied || d.pending)}<FilePen size={12} class="pend" />{/if}{p.name}
-          {#if d && !d.applied}<span class="muted"> · sin aplicar</span>{:else if d?.pending}<span class="muted"> · cambios sin aplicar</span>{/if}
-        </button>
-      {/each}
+      <button class="chip" onclick={() => openDeployment(project.id)} title="Ver los módulos del servidor">
+        {#if nPending}<FilePen size={12} class="pend" />{/if}{project.modules.length} {project.modules.length === 1 ? 'módulo' : 'módulos'}{#if nPending}<span class="muted"> · {nPending} sin aplicar</span>{/if}
+      </button>
+      {#each templates as t}<span class="tchip muted">{t}</span>{/each}
     </div>
   {/if}
 
@@ -171,6 +170,7 @@
   .chip { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
   .chip:hover { border-color: var(--muted); }
   .chip :global(.pend) { color: var(--info); }
+  .tchip { font-size: 11.5px; padding: 3px 8px; border-radius: 999px; border: 1px dashed var(--border); }
   footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border-soft); padding-top: 10px; margin-top: auto; }
   .read { display: inline-flex; align-items: center; gap: 2px; }
   .btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }

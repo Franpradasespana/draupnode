@@ -739,3 +739,34 @@ suyos solo se distinguían por el color), dos filas de botones arriba, no decía
 - **Ficha → Apps**: sale **Grafana** cuando la plantilla tiene Monitorización (se abre por túnel SSH; antes no
   salía porque solo se listaban los módulos con dominio).
 - **Ficha → Resumen**: «Necesita atención» no se muestra si no hay nada.
+
+## 2026-11-22 · 0.50.0 · Los módulos son del servidor; las plantillas solo los añaden
+
+Decisión del usuario: un servidor tiene módulos, no plantillas. La plantilla es un atajo para añadir varios
+módulos de una vez; editarla no cambia los servidores. Desde un servidor se pueden llevar módulos a una plantilla
+(existente o nueva).
+
+- **Modelo**: un solo `store.Project` por servidor (sus módulos). `ProjectModule.From` = plantilla de la que vino
+  (vacío = añadido en el servidor); `Project.Templates` = plantillas aplicadas. `RecipeID`/`Overrides` solo se leen
+  para convertir. `SaveProject` no deja crear un segundo conjunto en un servidor.
+- **Conversión de datos (v2 → v3)** al abrir: antes se copia `draupnode.json` a `draupnode.json.antes-0.50`. Por
+  servidor se junta todo en el despliegue más antiguo (conserva id, carpeta en el servidor, contraseñas e
+  historial); cada módulo recuerda su plantilla; los instalados se suman. Probado con una copia de los datos reales
+  del usuario (1 servidor, 1 plantilla: queda igual, con sus 4 módulos «de Pruebas»). Si un servidor tenía varias
+  plantillas, las contraseñas y registros de las demás quedan con su id antiguo (no se pierden, pero no se ven).
+- **API**: `ServerModules`, `ApplyTemplate` (añade los que faltan; los que ya están conservan su configuración),
+  `ModulesToTemplate` (a una existente: sustituye esos módulos y deja el resto; o nueva con nombre), `ForgetTemplate`.
+  `SaveRecipe` ya no toca servidores; `DeleteRecipe` se puede aunque esté aplicada (los servidores conservan sus
+  módulos y olvidan su origen). Quitados `DeployRecipe`, `ProjectRecipeDiff`, `PushToRecipe`, `ResetToRecipe` y el
+  cálculo de diferencias. `ListRecipes` devuelve `servers` (dónde se aplicó). «Recuperar» solo si el servidor no
+  tiene módulos (o son de la misma carpeta); «Destino de copias» usa los módulos del servidor destino.
+- **Ficha del servidor**: la pestaña «Plantillas» pasa a **«Módulos»**: el editor de módulos dentro de la ficha
+  (estado, Previsualizar/Aplicar, **Plantillas** — aplicar una, las aplicadas como chips que abren su edición,
+  «Guardar módulos en una plantilla…» con casillas y destino, Exportar instalar.sh —, Contraseñas, Qué pasará,
+  la lista con «de «plantilla»» en cada módulo, Añadir módulos, historial) y abajo «Lo que ya hay en este
+  servidor». Resumen: tarjeta «Módulos» (cuántos, sin aplicar, plantillas aplicadas pulsables para editarlas).
+  `openDeployment` y los avisos llevan a esa pestaña (`ui.serverTab`).
+- Plantillas: la lista dice en qué servidores se aplicó; el editor «Aplicar en un servidor…». Panel, tarjetas,
+  barra de estado, lista de servidores y avisos cuentan módulos («N módulos sin aplicar») en vez de plantillas.
+- Tests: `TestPlantillasYModulosDelServidor`, `TestConvertirAModulosDelServidor`, adaptados recuperar y
+  contraseñas. Demo del navegador convertida igual. Ayuda y capturas rehechas.

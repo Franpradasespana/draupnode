@@ -12,12 +12,13 @@
   import ApplyWizard from '../components/ApplyWizard.svelte'
   import { orderModules, clashesWith, modulePorts, sameValues, type CardState } from '../lib/modules'
   import { withConnection } from '../lib/connect'
-  import { api, errorText, type Module, type Project, type RecipeDiff, type ProjectCheck, type RunStart, type UninstallCheck, type UninstallChoice } from '../lib/api'
+  import { api, errorText, type Module, type Project, type ProjectCheck, type RunStart, type UninstallCheck, type UninstallChoice } from '../lib/api'
   import {
     ui, toast, refreshProjects, moduleName, timeAgo, startRun, confirmDialog, openRecipe,
   } from '../lib/state.svelte'
 
-  let { id }: { id: string } = $props()
+  // embedded: dentro de la ficha del servidor (pestaña Módulos), sin su propia barra de volver.
+  let { id, embedded = false }: { id: string; embedded?: boolean } = $props()
 
   const initial = untrack(() => ui.projects.find((p) => p.id === id))
   let draft = $state<Project>(
@@ -186,6 +187,8 @@
     const by = requiredBy(mid)
     return { text: by.length ? `Se instalará · lo necesita ${by.join(', ')}` : 'Se instalará', kind: 'info' }
   }
+  // De qué plantilla vino cada módulo ('' = añadido en el servidor).
+  const originOf = (mid: string) => recipeName(draft.modules.find((x) => x.id === mid)?.from)
   const leftList = $derived(installedList.filter((m) => !selected.has(m.id)))
   const lastFailed = $derived(!!stored?.lastRun && !stored.lastRun.ok && !stored.lastRun.check && !stored.lastRun.canceled)
   const status = $derived.by((): { text: string; kind: 'ok' | 'warn' | 'bad' } => {
@@ -305,73 +308,43 @@
     return save(true)
   }
 
-  // ---- receta de la que sale ----
-  const recipe = $derived(ui.recipes.find((r) => r.id === draft.recipeId))
-  let diff = $state<RecipeDiff | null>(null)
-  $effect(() => {
-    void stored?.updatedAt
-    void recipe?.updatedAt
-    if (draft.recipeId && draft.id) api.ProjectRecipeDiff(draft.id).then((d) => (diff = d)).catch(() => {})
-  })
-  const diffText = $derived.by(() => {
-    if (!diff) return ''
-    const parts: string[] = []
-    if (diff.added.length) parts.push('añade ' + diff.added.map(moduleName).join(', '))
-    if (diff.removed.length) parts.push('quita ' + diff.removed.map(moduleName).join(', '))
-    const ch = Object.keys(diff.changed)
-    if (ch.length) parts.push('opciones propias en ' + ch.map(moduleName).join(', '))
-    return parts.join(' · ')
-  })
-  async function pushToRecipe() {
-    const ok = await confirmDialog({
-      title: 'Llevar a la plantilla',
-      message: `Lo que este servidor tiene distinto (${diffText}) pasa a la plantilla «${recipe?.name}». Los demás servidores con esta plantilla lo recibirán (sin aplicarlo todavía) y conservarán lo suyo.`,
-      confirmLabel: 'Llevar a la plantilla',
-    })
-    if (!ok) return
+  // ---- plantillas: aplicar una (añade sus módulos) o guardar módulos en una ----
+  const recipeName = (rid?: string) => ui.recipes.find((r) => r.id === rid)?.name ?? ''
+  const appliedTemplates = $derived((draft.templates ?? []).filter((t) => recipeName(t)))
+  let applyPick = $state('')
+  async function applyTemplate() {
+    if (!applyPick || !(await ensureSaved())) return
     try {
-      await api.PushToRecipe(draft.id)
+      const r = await api.ApplyTemplate(draft.serverId, applyPick)
       await refreshProjects()
       reloadDraft()
-      toast('Plantilla actualizada')
+      applyPick = ''
+      toast(`Plantilla «${r.recipe.name}» aplicada. ${r.notes.join(' ')}`)
     } catch (e) {
       toast(errorText(e), 'error')
     }
   }
-  const varLabel = (mid: string, v: string) => byId(mid)?.variables?.find((x) => x.name === v)?.label ?? v
-  async function resetToRecipe() {
-    const ok = await confirmDialog({
-      title: 'Resetear plantilla',
-      message: `Este servidor vuelve a ser igual que la plantilla «${recipe?.name}»: se deshace lo propio de aquí (${diffText}). No desinstala nada: lo instalado no cambia hasta que apliques.`,
-      confirmLabel: 'Resetear plantilla', danger: true,
-    })
-    if (!ok) return
+  // Ventana «Guardar en una plantilla»: qué módulos y a cuál (o una nueva).
+  let saveTpl = $state<{ ids: string[]; target: string; name: string; busy: boolean } | null>(null)
+  function openSaveTpl() {
+    // Por defecto, la plantilla de la que vienen más módulos.
+    const counts: Record<string, number> = {}
+    for (const m of draft.modules) if (m.from && recipeName(m.from)) counts[m.from] = (counts[m.from] ?? 0) + 1
+    const best = Object.entries(counts).sort((x, y) => y[1] - x[1])[0]?.[0] ?? ''
+    saveTpl = { ids: draft.modules.map((m) => m.id), target: best, name: '', busy: false }
+  }
+  async function doSaveTpl() {
+    if (!saveTpl || !(await ensureSaved())) return
+    saveTpl.busy = true
     try {
-      await api.ResetToRecipe(draft.id)
+      const r = await api.ModulesToTemplate(draft.serverId, saveTpl.ids, saveTpl.target, saveTpl.name)
       await refreshProjects()
       reloadDraft()
-      toast('Igual que la plantilla')
+      saveTpl = null
+      toast(r.notes.join(' '))
     } catch (e) {
       toast(errorText(e), 'error')
-    }
-  }
-
-  async function remove() {
-    const ok = await confirmDialog({
-      title: draft.recipeId ? 'Desasociar la plantilla del servidor' : 'Eliminar',
-      message: draft.recipeId
-        ? `¿Desasociar «${draft.name}» de ${server?.name}? NO desinstala nada: lo instalado sigue funcionando en el servidor (para quitarlo, desinstala antes sus módulos). Draupnode deja de gestionarlo y borra sus registros y sus contraseñas guardadas. La plantilla se conserva y puedes volver a asociarla.`
-        : `¿Eliminar «${draft.name}»? Solo se borra de Draupnode (y sus registros); el servidor no se toca.`,
-      confirmLabel: draft.recipeId ? 'Desasociar' : 'Eliminar', danger: true,
-    })
-    if (!ok) return
-    try {
-      await api.DeleteProject(draft.id)
-      await refreshProjects()
-      ui.projectId = null
-      toast(draft.recipeId ? 'Plantilla desasociada del servidor' : 'Eliminado')
-    } catch (e) {
-      toast(errorText(e), 'error')
+      if (saveTpl) saveTpl.busy = false
     }
   }
 
@@ -437,10 +410,10 @@
   }
 </script>
 
-<div class="bar">
+<div class="bar" class:emb={embedded}>
   {#if openModule}
-    <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> {draft.name || 'Plantilla'}</button>
-  {:else}
+    <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> Módulos de {server?.name ?? 'este servidor'}</button>
+  {:else if !embedded}
     <button class="btn ghost sm" onclick={() => (ui.projectId = null)}><ArrowLeft size={15} /> {server?.name ?? 'Servidor'}</button>
   {/if}
   <div class="spacer"></div>
@@ -461,9 +434,7 @@
 {#if openModule && stored}
   <nav class="crumbs" aria-label="Dónde estás">
     <ServerIcon size={14} />
-    <button class="crumb" onclick={() => (ui.projectId = null)} title="Ficha del servidor">{server?.name ?? 'Sin servidor'}</button>
-    <ChevronRight size={14} class="sep" />
-    <button class="crumb" onclick={() => (openMod = null)}>{draft.name || 'Nueva'}</button>
+    <button class="crumb" onclick={() => (openMod = null)} title="Módulos del servidor">{server?.name ?? 'Sin servidor'} · Módulos</button>
     <ChevronRight size={14} class="sep" />
     <strong>{openModule.name}</strong>
   </nav>
@@ -472,7 +443,7 @@
     onapply={() => (pending.length ? openWizard() : start(false))}
     onremove={() => removeFromProject(openModule.id)} onreadd={() => readd(openModule.id)} onuninstall={() => uninstallOne(openModule.id)} onreload={reloadDraft} />
 {:else}
-  {#if !draft.recipeId}
+  {#if isNew}
   <div class="title-row">
     <input class="name" bind:value={draft.name} placeholder="Nombre (p. ej. Servidor web)" disabled={running} />
     <label class="field srv">
@@ -481,13 +452,9 @@
         {#each ui.servers as s}<option value={s.id}>{s.name} — {s.user}@{s.host}</option>{/each}
       </select>
     </label>
-    {#if isNew}
-      <button class="btn primary" onclick={() => save()} disabled={saving || !draft.name.trim() || !draft.serverId}>
-        <Save size={15} /> {saving ? 'Guardando…' : 'Guardar'}
-      </button>
-    {:else}
-      <button class="btn danger" onclick={remove} disabled={running}><Trash2 size={15} /> Eliminar</button>
-    {/if}
+    <button class="btn primary" onclick={() => save()} disabled={saving || !draft.name.trim() || !draft.serverId}>
+      <Save size={15} /> {saving ? 'Guardando…' : 'Guardar'}
+    </button>
   </div>
   {/if}
 
@@ -500,14 +467,10 @@
       <header class="top">
         <div class="ident">
           <div class="title">
-            <h1>{draft.name}</h1>
+            {#if embedded}<h2 class="h1s">Módulos del servidor</h2>{:else}<h1>Módulos de {server?.name ?? draft.name}</h1>{/if}
             <span class="pill {status.kind}">{#if status.kind === 'ok'}<CircleCheck size={12} />{/if}{status.text}</span>
           </div>
-          <div class="sub muted">
-            en <button class="crumb" onclick={() => (ui.projectId = null)}>{server?.name ?? 'Sin servidor'}</button>
-            {#if server}<span class="mono">{server.user}@{server.host}</span>{/if}
-            {#if recipe}<span>· plantilla «{recipe.name}»</span>{/if}
-          </div>
+          <div class="sub muted">Lo que Draupnode instala y gestiona en {server?.name ?? 'este servidor'}. Las plantillas solo sirven para añadir varios de una vez.</div>
         </div>
         <div class="act-btns">
           <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount} title="Muestra qué cambiaría en el servidor sin tocar nada"><Eye size={15} /> Previsualizar</button>
@@ -521,15 +484,25 @@
 
       <div class="two">
         <section class="card block">
-          <h2>Acciones</h2>
+          <h2>Plantillas</h2>
           <div class="row">
-            <button class="btn sm" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount} title="Un único instalar.sh para ejecutarlo tú en el servidor"><Download size={14} /> Exportar instalar.sh</button>
-            {#if draft.recipeId}
-              <button class="btn sm" onclick={() => openRecipe(draft.recipeId!)} title="La plantilla, para todos los servidores que la usan"><Pencil size={14} /> Editar plantilla</button>
-              <button class="btn sm danger" onclick={remove} disabled={running} title="Lo quita de Draupnode; lo instalado en el servidor no se toca"><Unlink size={14} /> Desasociar del servidor</button>
-            {/if}
+            <select class="input tsel" bind:value={applyPick} disabled={running || !ui.recipes.length}>
+              <option value="">{ui.recipes.length ? 'Elige una plantilla…' : 'Aún no hay plantillas'}</option>
+              {#each ui.recipes as r (r.id)}<option value={r.id}>{r.name} · {r.modules.length} módulos</option>{/each}
+            </select>
+            <button class="btn sm primary" onclick={applyTemplate} disabled={running || !applyPick}><Plus size={14} /> Aplicar plantilla</button>
           </div>
-          <p class="muted small">Editar plantilla cambia la plantilla para todos los servidores que la usan. Desasociar la quita de Draupnode sin desinstalar nada.</p>
+          <p class="muted small">Añade sus módulos a este servidor (los que ya tiene se quedan como están). No instala nada hasta que pulses Aplicar.</p>
+          <div class="row">
+            <span class="muted small">Aplicadas:</span>
+            {#each appliedTemplates as t (t)}
+              <button class="chip" onclick={() => openRecipe(t)} title="Editar la plantilla «{recipeName(t)}» (no cambia este servidor)"><Pencil size={11} /> {recipeName(t)}</button>
+            {:else}<span class="muted small">ninguna</span>{/each}
+          </div>
+          <div class="row">
+            <button class="btn sm" onclick={openSaveTpl} disabled={running || !draft.modules.length} title="Llevar módulos de este servidor a una plantilla existente o a una nueva"><Upload size={14} /> Guardar módulos en una plantilla…</button>
+            <button class="btn sm" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount} title="Un único instalar.sh para ejecutarlo tú en el servidor"><Download size={14} /> Exportar instalar.sh</button>
+          </div>
         </section>
         {#if draft.id}
           <div class="sec-col"><ProjectSecrets projectId={draft.id} title="Contraseñas" refreshKey={stored?.lastRun?.at ?? ''} /></div>
@@ -568,7 +541,7 @@
 
     <section class="card block">
       <div class="h2row">
-        <h2>Módulos de esta plantilla {#if rows.length}<span class="muted small">· {rows.length}</span>{/if}</h2>
+        <h2>Módulos {#if rows.length}<span class="muted small">· {rows.length}</span>{/if}</h2>
         <button class="btn sm primary" onclick={() => { query = ''; catalogOpen = true }} disabled={running}><Plus size={14} /> Añadir módulos</button>
       </div>
       {#if !rows.length}
@@ -583,7 +556,7 @@
               <button class="mmain" onclick={() => (openMod = mid)} title="Ver y configurar {m?.name ?? mid}">
                 <span class="num">{selected.has(mid) ? i + 1 : '–'}</span>
                 <span class="ic"><Icon size={18} /></span>
-                <span class="txt"><strong>{m?.name ?? mid}</strong><span class="muted desc">{m?.description ?? ''}</span></span>
+                <span class="txt"><strong>{m?.name ?? mid}</strong><span class="muted desc">{#if originOf(mid)}<span class="from">de «{originOf(mid)}»</span> · {/if}{m?.description ?? ''}</span></span>
                 <span class="tag {st.kind}">{st.text}</span>
                 <ChevronRight size={16} class="chev" />
               </button>
@@ -599,26 +572,6 @@
       {/if}
     </section>
 
-    {#if draft.recipeId && recipe && !isNew}
-      <section class="card block">
-        <h2>Respecto a la plantilla «{recipe.name}»</h2>
-        {#if diffText && diff}
-          <p class="small">Este servidor tiene cosas distintas de la plantilla:</p>
-          <ul class="difflist">
-            {#each diff.added as mid}<li><span class="tag info">Añadido solo aquí</span> {moduleName(mid)}</li>{/each}
-            {#each diff.removed as mid}<li><span class="tag warn">Quitado solo aquí</span> {moduleName(mid)}</li>{/each}
-            {#each Object.entries(diff.changed) as [mid, vars]}<li><span class="tag">Opciones propias</span> {moduleName(mid)}: <span class="muted">{vars.map((v) => varLabel(mid, v)).join(', ')}</span></li>{/each}
-          </ul>
-          <div class="row">
-            <button class="btn sm" onclick={pushToRecipe} disabled={running || dirty} title="Lo propio de este servidor pasa a la plantilla (y a los demás servidores que la usan). No instala nada."><Upload size={14} /> Llevar a la plantilla</button>
-            <button class="btn sm" onclick={resetToRecipe} disabled={running || dirty} title="Deshace lo propio de este servidor y lo deja igual que la plantilla (no desinstala nada)"><Undo2 size={14} /> Resetear plantilla</button>
-          </div>
-          <p class="muted small"><strong>Llevar a la plantilla</strong>: estos cambios pasan a la plantilla y a los demás servidores que la usan. <strong>Resetear plantilla</strong>: este servidor vuelve a ser igual que la plantilla (se pierden estos cambios). Ninguno instala ni desinstala nada hasta que apliques.</p>
-        {:else}
-          <p class="okline small"><CircleCheck size={14} /> Igual que la plantilla. Lo que cambies aquí será solo de este servidor.</p>
-        {/if}
-      </section>
-    {/if}
 
     {#if draft.id && draft.serverId}
       <div class="hist-gap"><RunHistory serverId={draft.serverId} projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} /></div>
@@ -628,6 +581,31 @@
 
 
   </div>
+{/if}
+
+{#if saveTpl}
+  <Modal title="Guardar módulos en una plantilla" width={620} onclose={() => (saveTpl = null)}>
+    <p class="muted small">Copia los módulos que marques, con sus opciones (sin contraseñas), a una plantilla. Este servidor no cambia. Los demás servidores en los que se aplicó esa plantilla tampoco: les llegará si la vuelves a aplicar.</p>
+    <div class="chk-list">
+      {#each draft.modules as m (m.id)}
+        <label class="chk"><input type="checkbox" checked={saveTpl.ids.includes(m.id)} onchange={(e) => { if (!saveTpl) return; saveTpl.ids = (e.currentTarget as HTMLInputElement).checked ? [...saveTpl.ids, m.id] : saveTpl.ids.filter((x) => x !== m.id) }} />
+          <strong>{moduleName(m.id)}</strong>{#if originOf(m.id)} <span class="muted small">de «{originOf(m.id)}»</span>{/if}</label>
+      {/each}
+    </div>
+    <div class="dest">
+      <label class="chk"><input type="radio" name="dest" checked={saveTpl.target !== ''} disabled={!ui.recipes.length} onchange={() => saveTpl && (saveTpl.target = saveTpl.target || ui.recipes[0]?.id || '')} /> En una plantilla existente</label>
+      {#if saveTpl.target !== ''}
+        <select class="input" bind:value={saveTpl.target}>{#each ui.recipes as r (r.id)}<option value={r.id}>{r.name}</option>{/each}</select>
+        <span class="muted small">Los módulos marcados sustituyen a los que ya tenga con el mismo nombre; los demás de la plantilla se quedan.</span>
+      {/if}
+      <label class="chk"><input type="radio" name="dest" checked={saveTpl.target === ''} onchange={() => saveTpl && (saveTpl.target = '')} /> En una plantilla nueva</label>
+      {#if saveTpl.target === ''}<input class="input" placeholder="Nombre de la plantilla" bind:value={saveTpl.name} />{/if}
+    </div>
+    {#snippet footer()}
+      <button class="btn" onclick={() => (saveTpl = null)}>Cancelar</button>
+      <button class="btn primary" onclick={doSaveTpl} disabled={saveTpl!.busy || !saveTpl!.ids.length || (saveTpl!.target === '' && !saveTpl!.name.trim())}><Upload size={15} /> {saveTpl!.busy ? 'Guardando…' : 'Guardar en la plantilla'}</button>
+    {/snippet}
+  </Modal>
 {/if}
 
 {#if catalogOpen}
@@ -699,6 +677,15 @@
   .two > .block { margin: 0; }
   .sec-col { display: flex; }
   .sec-col :global(.sec) { margin: 0; flex: 1; }
+  .h1s { margin: 0; font-size: 18px; }
+  .tsel { width: auto; min-width: 220px; height: 32px; flex: 1; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
+  .chip:hover { border-color: var(--muted); }
+  .from { color: var(--info); }
+  .chk-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow: auto; padding: 6px 2px; }
+  .chk { display: flex; gap: 8px; align-items: center; font-size: 13.5px; cursor: pointer; }
+  .dest { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border-soft); }
+  .bar.emb:not(:has(button)) { display: flex; justify-content: flex-end; }
   .difflist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
   @media (max-width: 1100px) { .two { grid-template-columns: 1fr; } }
   .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }

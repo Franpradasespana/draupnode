@@ -6,7 +6,7 @@
   const id = $derived(contextServerId())
   const srv = $derived(ui.servers.find((s) => s.id === id))
   const lc = $derived(srv?.lastCheck)
-  const nProj = $derived(ui.projects.filter((p) => p.serverId === id).length)
+  const nProj = $derived(ui.projects.find((p) => p.serverId === id)?.modules.length ?? 0)
 
   let live = $state<ServerLive | null>(null)
   let liveFor = $state<string | null>(null)
@@ -37,7 +37,7 @@
 
   // Ejecuciones en marcha (de cualquier proyecto).
   const running = $derived(Object.values(ui.runs).filter((r) => !r.done))
-  const projName = (pid: string) => ui.projects.find((p) => p.id === pid)?.name ?? 'plantilla'
+  const projName = (pid: string) => ui.projects.find((p) => p.id === pid)?.name ?? 'servidor'
 
   function pick(e: Event) {
     const v = (e.currentTarget as HTMLSelectElement).value
@@ -88,7 +88,7 @@
 
     <span class="grow"></span>
     <button class="lnk hide-sm" onclick={() => openServerProjects(srv.id)} title="Ficha de este servidor">
-      <Activity size={12} /> {nProj} {nProj === 1 ? 'plantilla' : 'plantillas'}
+      <Activity size={12} /> {nProj} {nProj === 1 ? 'módulo' : 'módulos'}
     </button>
     <button class="icon-b" onclick={refresh} disabled={checking} title="Volver a comprobar" aria-label="Volver a comprobar">
       <RefreshCw size={12} class={checking ? 'spin' : ''} />

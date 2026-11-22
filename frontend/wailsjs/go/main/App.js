@@ -14,6 +14,10 @@ export function AppInfo() {
   return window['go']['main']['App']['AppInfo']();
 }
 
+export function ApplyTemplate(arg1, arg2) {
+  return window['go']['main']['App']['ApplyTemplate'](arg1, arg2);
+}
+
 export function BackupDownload(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['App']['BackupDownload'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
@@ -134,10 +138,6 @@ export function DeleteUserModuleFile(arg1, arg2) {
   return window['go']['main']['App']['DeleteUserModuleFile'](arg1, arg2);
 }
 
-export function DeployRecipe(arg1, arg2) {
-  return window['go']['main']['App']['DeployRecipe'](arg1, arg2);
-}
-
 export function DockerInfo() {
   return window['go']['main']['App']['DockerInfo']();
 }
@@ -168,6 +168,10 @@ export function FetchProjectSecrets(arg1, arg2, arg3, arg4) {
 
 export function FindKeys() {
   return window['go']['main']['App']['FindKeys']();
+}
+
+export function ForgetTemplate(arg1, arg2) {
+  return window['go']['main']['App']['ForgetTemplate'](arg1, arg2);
 }
 
 export function GenerateDocker(arg1, arg2) {
@@ -234,6 +238,10 @@ export function ModuleFile(arg1, arg2) {
   return window['go']['main']['App']['ModuleFile'](arg1, arg2);
 }
 
+export function ModulesToTemplate(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ModulesToTemplate'](arg1, arg2, arg3, arg4);
+}
+
 export function MonitorSummary(arg1, arg2, arg3) {
   return window['go']['main']['App']['MonitorSummary'](arg1, arg2, arg3);
 }
@@ -270,20 +278,12 @@ export function PingServers() {
   return window['go']['main']['App']['PingServers']();
 }
 
-export function ProjectRecipeDiff(arg1) {
-  return window['go']['main']['App']['ProjectRecipeDiff'](arg1);
-}
-
 export function ProjectSecrets(arg1, arg2) {
   return window['go']['main']['App']['ProjectSecrets'](arg1, arg2);
 }
 
 export function ProjectSecretsInfo(arg1) {
   return window['go']['main']['App']['ProjectSecretsInfo'](arg1);
-}
-
-export function PushToRecipe(arg1) {
-  return window['go']['main']['App']['PushToRecipe'](arg1);
 }
 
 export function ReadRunLog(arg1, arg2) {
@@ -300,10 +300,6 @@ export function RecoverFromServer(arg1, arg2) {
 
 export function ReloadModules() {
   return window['go']['main']['App']['ReloadModules']();
-}
-
-export function ResetToRecipe(arg1) {
-  return window['go']['main']['App']['ResetToRecipe'](arg1);
 }
 
 export function RunHistory(arg1, arg2, arg3) {
@@ -356,6 +352,10 @@ export function ServerLive(arg1) {
 
 export function ServerLogs(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['App']['ServerLogs'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+export function ServerModules(arg1) {
+  return window['go']['main']['App']['ServerModules'](arg1);
 }
 
 export function ServerOverview(arg1, arg2, arg3, arg4) {

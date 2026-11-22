@@ -45,6 +45,8 @@ export const ui = $state({
   projectId: null as string | null,
   // Ficha de servidor abierta (null = lista de servidores).
   serverId: null as string | null,
+  // Pestaña que debe abrir la ficha del servidor (la ficha la consume y la deja en null).
+  serverTab: null as string | null,
   // Recetas («Proyectos»): la abierta ('' = nueva, null = lista) y la lista.
   recipeId: null as string | null,
   recipes: [] as RecipeView[],
@@ -90,12 +92,17 @@ export function openServer(id: string) {
 /** Compatibilidad: antes abría la lista de proyectos de un servidor; ahora su ficha. */
 export const openServerProjects = openServer
 
-/** Abre el proyecto desplegado en un servidor (su pantalla de aplicar y módulos). */
+/** Abre los módulos de un servidor (pestaña «Módulos» de su ficha). Desde la
+ *  0.50 un servidor tiene un solo conjunto de módulos (projectId). */
 export function openDeployment(projectId: string) {
   const p = ui.projects.find((x) => x.id === projectId)
-  if (p) setActiveServer(p.serverId)
-  ui.serverId = p?.serverId ?? ui.serverId
-  ui.projectId = projectId
+  if (p) openServerModules(p.serverId)
+}
+export function openServerModules(serverId: string) {
+  setActiveServer(serverId)
+  ui.serverId = serverId
+  ui.projectId = null
+  ui.serverTab = 'modulos'
   ui.view = 'servers'
 }
 

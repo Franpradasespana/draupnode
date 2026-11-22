@@ -47,10 +47,13 @@ func publicValues(m *modules.Module, v map[string]any) map[string]any {
 }
 
 func (a *App) markerJSON(p store.Project, mods []markerModule) []byte {
-	tpl := ""
-	if r, err := a.store.Recipe(p.RecipeID); err == nil {
-		tpl = r.Name
+	var tpls []string
+	for _, id := range p.Templates {
+		if r, err := a.store.Recipe(id); err == nil {
+			tpls = append(tpls, r.Name)
+		}
 	}
+	tpl := strings.Join(tpls, ", ")
 	sort.Slice(mods, func(i, j int) bool { return mods[i].ID < mods[j].ID })
 	b, _ := json.MarshalIndent(serverMarker{Draupnode: Version, At: time.Now().UTC(), Name: p.Name, Template: tpl, Slug: slugOf(p), Modules: mods}, "", "  ")
 	return b
@@ -109,10 +112,12 @@ func (a *App) RecoverFromServer(serverID, markerJSON string) (RecoverResult, err
 	if _, err := a.store.Server(serverID); err != nil {
 		return res, err
 	}
-	for _, p := range a.store.Projects() {
-		if p.ServerID == serverID && slugOf(p) == m.Slug {
-			return res, fmt.Errorf("este servidor ya tiene esa plantilla («%s»)", p.Name)
-		}
+	// Desde la 0.50 un servidor tiene un solo conjunto de módulos, con su
+	// carpeta en el servidor (slug): solo se recupera si aún no tiene módulos
+	// en este Draupnode, o si la ficha es de esa misma carpeta.
+	existing, hasMods := a.store.ServerProject(serverID)
+	if hasMods && slugOf(existing) != m.Slug && len(existing.Modules) > 0 {
+		return res, fmt.Errorf("este servidor ya tiene módulos en Draupnode (carpeta «%s»); esta ficha es de otra («%s»): añade sus módulos a mano", slugOf(existing), m.Slug)
 	}
 	name := strings.TrimSpace(m.Name)
 	if name == "" {
@@ -157,14 +162,8 @@ func (a *App) RecoverFromServer(serverID, markerJSON string) (RecoverResult, err
 		if r.Name != tplName || ids(r.Modules) != ids(mods) {
 			continue
 		}
-		used := false
-		for _, p := range a.store.Projects() {
-			used = used || (p.RecipeID == r.ID && p.ServerID == serverID)
-		}
-		if !used {
-			rec = r
-			break
-		}
+		rec = r
+		break
 	}
 	if rec.ID == "" {
 		n := tplName
@@ -179,7 +178,18 @@ func (a *App) RecoverFromServer(serverID, markerJSON string) (RecoverResult, err
 		}
 		res.Notes = append(res.Notes, fmt.Sprintf("Se ha creado la plantilla «%s».", rec.Name))
 	}
-	p, err := a.SaveProject(store.Project{Name: name, ServerID: serverID, RecipeID: rec.ID, Modules: mods})
+	for i := range mods {
+		mods[i].From = rec.ID
+	}
+	var p store.Project
+	var err error
+	if hasMods {
+		// Mismo servidor sin módulos (o de la misma carpeta): se le ponen estos.
+		existing.Modules, existing.Templates = mods, []string{rec.ID}
+		p, err = a.SaveProject(existing)
+	} else {
+		p, err = a.SaveProject(store.Project{Name: name, ServerID: serverID, Templates: []string{rec.ID}, Modules: mods})
+	}
 	if err != nil {
 		return res, err
 	}

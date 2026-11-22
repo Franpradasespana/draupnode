@@ -29,8 +29,9 @@ func tarB64(t *testing.T, files map[string]string) string {
 func TestCarpetaDeSecretosFija(t *testing.T) {
 	a := newTestApp(t, secrets.Memory{})
 	srv, _ := a.SaveServer(srvPassword(), "", false, "")
+	srv2, _ := a.SaveServer(srvPassword(), "", false, "")
 	p1, _ := a.SaveProject(store.Project{Name: "Web", ServerID: srv.ID})
-	p2, _ := a.SaveProject(store.Project{Name: "web", ServerID: srv.ID})
+	p2, _ := a.SaveProject(store.Project{Name: "web", ServerID: srv2.ID}) // un conjunto de módulos por servidor
 	if p1.Slug != "web" || p2.Slug != "web-2" {
 		t.Fatalf("slugs %q %q", p1.Slug, p2.Slug)
 	}
@@ -83,7 +84,8 @@ func TestContrasenasDelProyecto(t *testing.T) {
 		t.Fatalf("comodín %+v", byName["postgres_tienda"])
 	}
 	// Lo que ya no está en el servidor se quita; los de otro proyecto no se tocan.
-	other, _ := a.SaveProject(store.Project{Name: "Otro", ServerID: srv.ID})
+	srvOtro, _ := a.SaveServer(srvPassword(), "", false, "")
+	other, _ := a.SaveProject(store.Project{Name: "Otro", ServerID: srvOtro.ID})
 	a.storeGenerated(other.ID, tarB64(t, map[string]string{"x": "1"}))
 	a.storeGenerated(p.ID, tarB64(t, map[string]string{"postgres_superusuario": "abc"}))
 	if list, _ := a.ProjectSecrets(p.ID, master); len(list) != 1 {

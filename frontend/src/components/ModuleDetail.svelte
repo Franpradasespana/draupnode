@@ -137,7 +137,7 @@
     {#if requiredBy.length}<p class="muted small">No se puede quitar mientras lo necesite {requiredBy.join(', ')}.</p>{/if}
   {:else}
     <div class="z">
-      <div><strong>Volver a gestionarlo</strong><span class="muted small">Lo añade otra vez a la plantilla de este servidor con la configuración con la que se instaló.</span></div>
+      <div><strong>Volver a gestionarlo</strong><span class="muted small">Lo añade otra vez a los módulos de este servidor con la configuración con la que se instaló.</span></div>
       <button class="btn" onclick={onreadd} disabled={running}><Undo2 size={15} /> Volver a gestionarlo</button>
     </div>
   {/if}

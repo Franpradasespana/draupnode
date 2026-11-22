@@ -12,6 +12,8 @@ export function AnalyzeProject(arg1:string,arg2:string):Promise<dockerize.Analys
 
 export function AppInfo():Promise<main.AppInfo>;
 
+export function ApplyTemplate(arg1:string,arg2:string):Promise<main.TemplateResult>;
+
 export function BackupDownload(arg1:string,arg2:string,arg3:Array<string>,arg4:string,arg5:string,arg6:string,arg7:string):Promise<main.BackupResult>;
 
 export function BackupLs(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<main.BackupRestoreResult>;
@@ -72,8 +74,6 @@ export function DeleteUserModule(arg1:string):Promise<void>;
 
 export function DeleteUserModuleFile(arg1:string,arg2:string):Promise<main.UserModule>;
 
-export function DeployRecipe(arg1:string,arg2:string):Promise<store.Project>;
-
 export function DockerInfo():Promise<main.DockerInfo>;
 
 export function DockerLabStop(arg1:string,arg2:dockerize.Spec):Promise<void>;
@@ -89,6 +89,8 @@ export function FetchBackups(arg1:string,arg2:string,arg3:string,arg4:string,arg
 export function FetchProjectSecrets(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.FetchSecretsResult>;
 
 export function FindKeys():Promise<Array<sshx.KeyInfo>>;
+
+export function ForgetTemplate(arg1:string,arg2:string):Promise<store.Project>;
 
 export function GenerateDocker(arg1:string,arg2:dockerize.Spec):Promise<main.DockerPreview>;
 
@@ -122,6 +124,8 @@ export function ListUserModules():Promise<Array<main.UserModule>>;
 
 export function ModuleFile(arg1:string,arg2:string):Promise<string>;
 
+export function ModulesToTemplate(arg1:string,arg2:Array<string>,arg3:string,arg4:string):Promise<main.TemplateResult>;
+
 export function MonitorSummary(arg1:string,arg2:string,arg3:string):Promise<main.MonitorResult>;
 
 export function OpenAppTunnel(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.MonitorResult>;
@@ -140,13 +144,9 @@ export function PickKeyFile():Promise<string>;
 
 export function PingServers():Promise<Array<main.ServerPing>>;
 
-export function ProjectRecipeDiff(arg1:string):Promise<main.RecipeDiff>;
-
 export function ProjectSecrets(arg1:string,arg2:string):Promise<Array<main.ProjectSecret>>;
 
 export function ProjectSecretsInfo(arg1:string):Promise<main.ProjectSecretsSummary>;
-
-export function PushToRecipe(arg1:string):Promise<store.Recipe>;
 
 export function ReadRunLog(arg1:string,arg2:string):Promise<string>;
 
@@ -155,8 +155,6 @@ export function ReadUserModuleFile(arg1:string,arg2:string):Promise<string>;
 export function RecoverFromServer(arg1:string,arg2:string):Promise<main.RecoverResult>;
 
 export function ReloadModules():Promise<main.ModulesInfo>;
-
-export function ResetToRecipe(arg1:string):Promise<store.Project>;
 
 export function RunHistory(arg1:string,arg2:string,arg3:number):Promise<Array<main.RunEntry>>;
 
@@ -183,6 +181,8 @@ export function SecretsInfo():Promise<main.SecretsInfo>;
 export function ServerLive(arg1:string):Promise<main.ServerLive>;
 
 export function ServerLogs(arg1:string,arg2:string,arg3:string,arg4:number,arg5:string,arg6:string,arg7:string):Promise<main.ServerLogsResult>;
+
+export function ServerModules(arg1:string):Promise<store.Project>;
 
 export function ServerOverview(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.ServerOverviewResult>;
 

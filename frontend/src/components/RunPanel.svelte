@@ -102,7 +102,7 @@
         <p>Draupnode ya no lo gestiona.</p>
       {:else if run.uninstall?.length}
         <p class="big">No se pudo desinstalar del todo: se paró con errores.</p>
-        <p>Lo que se quitó antes del fallo queda quitado. El módulo sigue en la plantilla: corrige el problema y vuelve a intentarlo.</p>
+        <p>Lo que se quitó antes del fallo queda quitado. El módulo sigue en el servidor: corrige el problema y vuelve a intentarlo.</p>
         <ul>{#each failedTasks as t}<li>{t.name} <span class="muted">· {roleName(t.role)}</span></li>{/each}</ul>
       {:else if run.check && run.summary?.ok}
         {#if changedTasks.length}

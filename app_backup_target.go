@@ -85,16 +85,22 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 	}
 
 	// 1. El proyecto destino (uno por servidor).
-	tgt, isNew := a.findTargetProject(tgtSrv.ID)
+	// Los módulos del servidor destino; el destino de copias viene de la
+	// plantilla «Destino de copias» (se crea si no existe).
+	tgt, err := a.ServerModules(tgtSrv.ID)
+	if err != nil {
+		return res, err
+	}
+	isNew := projectModule(tgt, targetModule) == nil
+	fromRecipe := ""
 	if isNew {
-		// El destino es una receta más («Servidor de copias») desplegada en ese servidor.
 		rec, err := a.copiasRecipe()
 		if err != nil {
 			return res, err
 		}
-		tgt, err = a.SaveProject(store.Project{Name: rec.Name, ServerID: tgtSrv.ID, RecipeID: rec.ID})
-		if err != nil {
-			return res, err
+		fromRecipe = rec.ID
+		if !contains(tgt.Templates, rec.ID) {
+			tgt.Templates = append(tgt.Templates, rec.ID)
 		}
 	}
 	vals := map[string]any{}
@@ -147,9 +153,11 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 	for _, m := range tgt.Modules {
 		if m.ID != targetModule {
 			mods = append(mods, m)
+		} else if fromRecipe == "" {
+			fromRecipe = m.From
 		}
 	}
-	mods = append(mods, store.ProjectModule{ID: targetModule, Values: vals})
+	mods = append(mods, store.ProjectModule{ID: targetModule, Values: vals, From: fromRecipe})
 	fwNote := a.targetFirewall(tgt.ID, tgtSrv, port, &mods)
 	if fwNote != "" {
 		res.Notes = append(res.Notes, fwNote)

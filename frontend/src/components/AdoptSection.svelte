@@ -17,6 +17,10 @@
   const covered = $derived(new Set([...deployments.flatMap((p) => p.installedModules ?? []), ...(ov.draupnode?.markers ?? []).flatMap((m) => m.modulos.map((x) => x.id))]))
   const outside = $derived((ov.software ?? []).filter((s) => !covered.has(s.module) && knownMods(s.module)))
   let busy = $state('')
+  // Desde la 0.50 un servidor tiene un solo conjunto de módulos (con su carpeta):
+  // si ya tiene módulos, una ficha de otra carpeta no se puede recuperar encima.
+  const own = $derived(deployments[0])
+  const blocked = (slug: string) => !!own?.modules.length && (own.slug ?? '') !== slug
 
   const NOTES: Record<string, string> = {
     docker: 'Se puede añadir sin problema: el módulo Docker respeta lo instalado.',
@@ -33,7 +37,7 @@
     try {
       const r = await api.RecoverFromServer(serverId, JSON.stringify(m))
       await refreshProjects()
-      toast(['Plantilla recuperada.', ...r.notes, guessed ? 'Revisa sus módulos: se han deducido de lo que hay en el servidor.' : ''].filter(Boolean).join(' '))
+      toast(['Módulos recuperados.', ...r.notes, guessed ? 'Revisa sus módulos: se han deducido de lo que hay en el servidor.' : ''].filter(Boolean).join(' '))
       const ok = await confirmDialog({ title: 'Contraseñas', message: `¿Traer ya a la bóveda las contraseñas que generaron sus módulos en el servidor?`, confirmLabel: 'Traer ahora' })
       if (ok) {
         const res = await withConnection(ui.servers.find((s) => s.id === serverId), (s, a, u) => api.FetchProjectSecrets(r.project.id, s, a, u))
@@ -59,7 +63,7 @@
 <section class="card adopt">
     <h2><PackageSearch size={17} /> Lo que ya hay en este servidor</h2>
     {#if !markers.length && !orphans.length && !outside.length}
-      <p class="muted small">Todo lo que Draupnode instaló aquí ya está en sus plantillas. Si abres Draupnode en otro equipo (o pierdes sus datos), aquí saldrán esas plantillas con el botón «Recuperar».</p>
+      <p class="muted small">Todo lo que Draupnode instaló aquí ya está en sus módulos. Si abres Draupnode en otro equipo (o pierdes sus datos), aquí saldrá con el botón «Recuperar».</p>
     {/if}
 
     {#each markers as m (m.slug)}
@@ -67,9 +71,13 @@
         <ArchiveRestore size={16} class="ic" />
         <div class="txt">
           <span><strong>{m.nombre || m.slug}</strong>{#if m.plantilla && m.plantilla !== m.nombre} <span class="muted">(plantilla «{m.plantilla}»)</span>{/if}</span>
-          <span class="muted small">Aplicada con Draupnode{m.draupnode ? ' ' + m.draupnode : ''}{m.at ? ' ' + timeAgo(m.at) : ''}, pero este Draupnode no la conoce. Módulos: {m.modulos.map((x) => moduleName(x.id)).join(', ')}.</span>
+          <span class="muted small">Instalada con Draupnode{m.draupnode ? ' ' + m.draupnode : ''}{m.at ? ' ' + timeAgo(m.at) : ''}, pero este Draupnode no la conoce. Módulos: {m.modulos.map((x) => moduleName(x.id)).join(', ')}.</span>
         </div>
-        <button class="btn sm primary" onclick={() => recover(m)} disabled={!!busy}>{busy === m.slug ? 'Recuperando…' : 'Recuperar'}</button>
+        {#if blocked(m.slug)}
+          <span class="muted small nb" title="Este servidor ya tiene módulos en Draupnode">Añade sus módulos a mano (Añadir módulos) o aplica una plantilla con ellos.</span>
+        {:else}
+          <button class="btn sm primary" onclick={() => recover(m)} disabled={!!busy}>{busy === m.slug ? 'Recuperando…' : 'Recuperar'}</button>
+        {/if}
       </div>
     {/each}
 
@@ -81,14 +89,14 @@
           <strong>{s}</strong>
           <span class="muted small">Contraseñas de una plantilla aplicada con un Draupnode anterior a la 0.42 (sin ficha). Se puede recuperar con lo que se ve instalado{g.modulos.length ? ': ' + g.modulos.map((x) => moduleName(x.id)).join(', ') : ''}; revisa después sus módulos.</span>
         </div>
-        <button class="btn sm" onclick={() => recover(g, true)} disabled={!!busy || !g.modulos.length}>{busy === s ? 'Recuperando…' : 'Recuperar'}</button>
+        <button class="btn sm" onclick={() => recover(g, true)} disabled={!!busy || !g.modulos.length || blocked(s)}>{busy === s ? 'Recuperando…' : 'Recuperar'}</button>
       </div>
     {/each}
 
     {#if outside.length}
       <div class="out">
-        <p class="small"><strong>Instalado fuera de las plantillas de Draupnode:</strong> {outside.map((s) => moduleName(s.module)).join(', ')}.</p>
-        <p class="muted small">Draupnode no lo toca. Si añades su módulo a una plantilla de este servidor, pasará a gestionarlo:</p>
+        <p class="small"><strong>Instalado fuera de los módulos de Draupnode:</strong> {outside.map((s) => moduleName(s.module)).join(', ')}.</p>
+        <p class="muted small">Draupnode no lo toca. Si añades su módulo a este servidor, pasará a gestionarlo:</p>
         <ul>
           {#each outside as s}<li class="small"><strong>{moduleName(s.module)}</strong>{s.active ? '' : ' (parado)'}: {NOTES[s.module] ?? 'su módulo puede cambiar la configuración que tenga: pruébalo antes en el servidor de pruebas.'}</li>{/each}
         </ul>
@@ -103,6 +111,7 @@
   .item :global(.ic) { color: var(--accent); flex: none; }
   .txt { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13.5px; }
   .small { font-size: 12.5px; margin: 0; }
+  .nb { max-width: 260px; text-align: right; }
   .out { border-top: 1px solid var(--border-soft); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
   ul { margin: 2px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 </style>

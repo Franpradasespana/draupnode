@@ -4,6 +4,8 @@
 import { api, isDesktop, onEvent, type BackupDue, type BackupFetchProgress, type BackupResult, type CachedOverview, type ServerOverview } from './api'
 import { ui, toast, refreshProjects } from './state.svelte'
 import { withConnection } from './connect'
+import { sameValues } from './modules'
+import type { Project } from './api'
 
 export type AlertItem =
   | { kind: 'backups'; key: string; projectId: string; name: string; server: string; due: BackupDue }
@@ -103,11 +105,13 @@ export function alertItems(): AlertItem[] {
       out.push({ kind: 'server', key: `s:${sid}:${f.id}`, serverId: sid, name: srv.name, text: f.text, bad: f.bad, at: c.at })
     }
   }
-  for (const r of ui.recipes) {
-    for (const d of r.deployments) {
-      if (d.applied && !d.pending) continue
-      out.push({ kind: 'pending', key: `p:${d.projectId}:${d.applied}`, projectId: d.projectId, name: r.name, server: d.serverName, applied: d.applied })
-    }
+  // Servidores con módulos sin aplicar (nuevos o con la configuración cambiada).
+  for (const p of ui.projects) {
+    if (!p.modules.length) continue
+    const n = pendingModules(p)
+    if (!n) continue
+    const srv = ui.servers.find((x) => x.id === p.serverId)
+    out.push({ kind: 'pending', key: `p:${p.id}:${n}`, projectId: p.id, name: `${n} ${n === 1 ? 'módulo' : 'módulos'}`, server: srv?.name ?? '', applied: !!p.appliedAt })
   }
   if (alerts.update) out.push({ kind: 'update', key: 'u:' + alerts.update.latest, ...alerts.update })
   return out.filter((a) => !alerts.hidden.includes(a.key))
@@ -183,4 +187,9 @@ export function serverFindings(ov: ServerOverview): { id: string; text: string; 
 /** Guarda en memoria una ficha recién leída (ServerOverview ya la deja en disco). */
 export function rememberOverview(serverId: string, overview: ServerOverview) {
   alerts.fichas[serverId] = { at: new Date().toISOString(), overview }
+}
+
+/** Módulos de un servidor por instalar o con la configuración cambiada desde que se aplicó. */
+export function pendingModules(p: Project): number {
+  return p.modules.filter((m) => !(p.installedModules ?? []).includes(m.id) || !sameValues(m.values, p.installedValues?.[m.id] ?? {})).length
 }

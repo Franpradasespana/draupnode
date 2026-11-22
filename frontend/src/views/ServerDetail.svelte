@@ -7,15 +7,16 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
-    LayoutDashboard, DatabaseBackup, ArrowRight, History,
+    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
-  import ProjectSecrets from '../components/ProjectSecrets.svelte'
+  import ProjectEditor from './ProjectEditor.svelte'
   import RunHistory from '../components/RunHistory.svelte'
   import AdoptSection from '../components/AdoptSection.svelte'
   import ServerForm from './ServerForm.svelte'
   import { api, errorText, type MonitorResult, type ServerLogsResult, type ServerOverview, type ServerOverviewResult } from '../lib/api'
-  import { ui, toast, timeAgo, refreshProjects, openDeployment, openRecipe, moduleName, openTerminal } from '../lib/state.svelte'
+  import { ui, toast, timeAgo, refreshProjects, openRecipe, moduleName, openTerminal } from '../lib/state.svelte'
+  import { sameValues } from '../lib/modules'
   import { withConnection } from '../lib/connect'
   import BackupsPanel from '../components/BackupsPanel.svelte'
   import { alerts, rememberOverview, serverFindings } from '../lib/alerts.svelte'
@@ -23,13 +24,18 @@
   let { id }: { id: string } = $props()
 
   const server = $derived(ui.servers.find((s) => s.id === id))
+  // Los módulos del servidor (desde la 0.50, uno por servidor). «deployments»
+  // es una lista de 0 o 1 para el código que recorre módulos instalados.
   const deployments = $derived(ui.projects.filter((p) => p.serverId === id))
+  const project = $derived(deployments[0])
   const recipeName = (rid?: string) => ui.recipes.find((r) => r.id === rid)?.name
+  const applied = $derived((project?.templates ?? []).map((t) => ({ id: t, name: recipeName(t) })).filter((t) => t.name))
+  // Módulos por instalar o con la configuración cambiada desde la última vez.
+  const pendingMods = $derived(project ? project.modules.filter((m) => !(project.installedModules ?? []).includes(m.id) || !sameValues(m.values, project.installedValues?.[m.id] ?? {})).length : 0)
   let ov = $state<ServerOverview | null>(null)
   let loading = $state(false)
   let error = $state('')
   let editing = $state(false)
-  let deployPick = $state('')
   let logs = $state<{ title: string; kind: string; name: string; text: string; loading: boolean } | null>(null)
 
   async function load() {
@@ -83,18 +89,10 @@
     logs.text = r?.status === 'ok' ? r.text || '(vacío)' : r?.message || 'No se pudo leer'
   }
 
-  async function deploy() {
-    if (!deployPick) return
-    try {
-      const p = await api.DeployRecipe(deployPick, id)
-      await refreshProjects()
-      deployPick = ''
-      toast('Plantilla asociada. Revísala y pulsa Aplicar cuando quieras.')
-      openDeployment(p.id)
-    } catch (e) {
-      toast(errorText(e), 'error')
-    }
-  }
+  // La primera vez, el servidor recibe su conjunto de módulos (vacío).
+  onMount(() => {
+    if (!ui.projects.some((p) => p.serverId === id)) api.ServerModules(id).then(refreshProjects).catch(() => {})
+  })
 
   // Apps de Draupnode con dirección (módulos con proxy_site instalados).
   const draupnodeApps = $derived(deployments.flatMap((p) => (p.installedModules ?? []).flatMap((mid) => {
@@ -145,26 +143,23 @@
   const dockerPorts = $derived(publicPorts.filter((p) => p.process === 'docker-proxy').map((p) => `${p.port}/${p.proto}`))
   const blockedPorts = $derived(publicPorts.filter((p) => p.process !== 'docker-proxy' && !(p.proto === 'tcp' ? ov?.firewall?.tcp : ov?.firewall?.udp)?.some((s) => inRange(s, p.port))).map((p) => `${p.port}/${p.proto}`))
   const badContainers = $derived((ov?.containers ?? []).filter((c) => c.state !== 'running' || c.health === 'unhealthy'))
-  const others = $derived(ui.recipes.filter((r) => !deployments.some((d) => d.recipeId === r.id)))
 
   // ---- Pestañas (se recuerda la última abierta)
-  type Tab = 'resumen' | 'plantillas' | 'apps' | 'contenedores' | 'copias' | 'red' | 'registros'
+  type Tab = 'resumen' | 'modulos' | 'apps' | 'contenedores' | 'copias' | 'red' | 'registros'
   const ping = $derived(alerts.ping[id])
   const isDown = $derived(!!ping && !ping.reachable && !ping.lab)
   const findings = $derived(ov ? serverFindings(ov) : [])
   const sickContainers = $derived((ov?.containers ?? []).filter((c) => ['restarting', 'dead'].includes(c.state) || c.health === 'unhealthy'))
   const runningContainers = $derived((ov?.containers ?? []).filter((c) => c.state === 'running').length)
-  const isPending = (p: (typeof deployments)[number]) => !p.appliedAt || !!(p.updatedAt && p.appliedAt && p.updatedAt > p.appliedAt)
-  const pendingDeps = $derived(deployments.filter(isPending))
   const backupDeps = $derived(deployments.filter((p) => p.installedModules?.includes('backups')))
   const backupFindings = $derived(findings.filter((f) => f.id.startsWith('bk')))
   const appCount = $derived(draupnodeApps.length + grafanaDeps.length + (ov?.coolify ? 1 + ov.coolify.apps.length : 0) + (ov?.sites?.length ?? 0))
   const rootDisk = $derived(ov?.disks?.find((d) => d.mount === '/') ?? ov?.disks?.[0])
   // Lo mismo que lista «Necesita atención» en el Resumen.
-  const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + pendingDeps.length)
+  const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + (pendingMods ? 1 : 0))
   const tabs = $derived([
     { id: 'resumen' as Tab, label: 'Resumen', icon: LayoutDashboard, badge: attention, bad: isDown || findings.some((f) => f.bad) },
-    { id: 'plantillas' as Tab, label: 'Plantillas', icon: FolderGit2, count: deployments.length, badge: pendingDeps.length, bad: false },
+    { id: 'modulos' as Tab, label: 'Módulos', icon: Blocks, count: project?.modules.length ?? 0, badge: pendingMods, bad: false },
     { id: 'apps' as Tab, label: 'Apps y bases', icon: Globe, count: appCount + (ov?.databases?.reduce((t, d) => t + d.databases.length, 0) ?? 0), badge: 0, bad: false },
     { id: 'contenedores' as Tab, label: 'Contenedores', icon: Box, count: ov?.containers?.length ?? 0, badge: sickContainers.length, bad: true },
     ...(backupDeps.length || ov?.backups?.length ? [{ id: 'copias' as Tab, label: 'Copias', icon: DatabaseBackup, count: 0, badge: backupFindings.length, bad: backupFindings.some((f) => f.bad) }] : []),
@@ -173,8 +168,16 @@
   ])
   let tab = $state<Tab>(readTab())
   function readTab(): Tab {
-    try { return (localStorage.getItem('dn-ficha-tab') as Tab) || 'resumen' } catch { return 'resumen' }
+    try {
+      const t = localStorage.getItem('dn-ficha-tab')
+      return (t === 'plantillas' ? 'modulos' : (t as Tab)) || 'resumen'
+    } catch { return 'resumen' }
   }
+  // Otra pantalla pide abrir una pestaña (p. ej. «Abrir» en un aviso → Módulos).
+  $effect(() => {
+    const want = ui.serverTab
+    if (want) { setTab(want as Tab); ui.serverTab = null }
+  })
   function setTab(t: Tab) {
     tab = t
     try { localStorage.setItem('dn-ficha-tab', t) } catch { /* sin almacenamiento */ }
@@ -266,28 +269,31 @@
           {#each ov?.failed ?? [] as u}<li class="bad-t">Servicio <strong>{u}</strong> ha fallado <button class="lnk" onclick={() => showLogs('unit', u, u)}>ver registro</button></li>{/each}
           {#each findings.filter((f) => f.id.startsWith('disk')) as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}</li>{/each}
           {#each backupFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text} <button class="lnk" onclick={() => setTab('copias')}>ver copias</button></li>{/each}
-          {#each pendingDeps as p}<li class="info-t">La plantilla <strong>{recipeName(p.recipeId) ?? p.name}</strong> {p.appliedAt ? 'tiene cambios sin aplicar' : 'no se ha aplicado aún'} <button class="lnk" onclick={() => openDeployment(p.id)}>abrir</button></li>{/each}
+          {#if pendingMods}<li class="info-t">{pendingMods === 1 ? 'Hay 1 módulo' : `Hay ${pendingMods} módulos`} sin aplicar <button class="lnk" onclick={() => setTab('modulos')}>ver módulos</button></li>{/if}
         </ul>
     </section>
     {/if}
 
     <div class="two">
       <section class="card block">
-        <div class="h2row"><h2><FolderGit2 size={17} /> Plantillas</h2><button class="btn sm ghost" onclick={() => setTab('plantillas')}>Gestionar <ArrowRight size={13} /></button></div>
-        {#each deployments as p (p.id)}
-          <div class="dep slim">
-            <button class="dep-main" onclick={() => openDeployment(p.id)}>
-              <strong>{recipeName(p.recipeId) ?? p.name}</strong>
-              <span class="mods">{p.modules.map((m) => moduleName(m.id)).join(' · ')}</span>
-            </button>
-            {#if p.lastRun && !p.lastRun.ok && !p.lastRun.check}<span class="pill bad">Falló</span>
-            {:else if !p.appliedAt}<span class="pill warn">Sin aplicar</span>
-            {:else if isPending(p)}<span class="pill warn">Cambios sin aplicar</span>
-            {:else}<span class="pill ok"><CircleCheck size={12} /> Aplicada</span>{/if}
-          </div>
+        <div class="h2row"><h2><Blocks size={17} /> Módulos</h2><button class="btn sm ghost" onclick={() => setTab('modulos')}>Gestionar <ArrowRight size={13} /></button></div>
+        {#if !project?.modules.length}
+          <p class="muted">Ninguno todavía. <button class="lnk" onclick={() => setTab('modulos')}>Añade módulos o aplica una plantilla</button>.</p>
         {:else}
-          <p class="muted">Ninguna todavía. <button class="lnk" onclick={() => setTab('plantillas')}>Asocia una</button>.</p>
-        {/each}
+          <p class="small">
+            <strong>{project.modules.length}</strong> {project.modules.length === 1 ? 'módulo' : 'módulos'}
+            {#if pendingMods}<span class="pill warn">{pendingMods} sin aplicar</span>{:else if project.appliedAt}<span class="pill ok"><CircleCheck size={12} /> Aplicados {timeAgo(project.appliedAt)}</span>{/if}
+          </p>
+          <p class="mods">{project.modules.map((m) => moduleName(m.id)).join(' · ')}</p>
+        {/if}
+        <div class="tpl">
+          <span class="muted small">Plantillas aplicadas:</span>
+          {#each applied as t (t.id)}
+            <button class="chip" onclick={() => openRecipe(t.id)} title="Editar la plantilla «{t.name}»"><FolderGit2 size={12} /> {t.name}</button>
+          {:else}
+            <span class="muted small">ninguna</span>
+          {/each}
+        </div>
       </section>
       <section class="card block">
         <div class="h2row"><h2><Globe size={17} /> Apps</h2>{#if appCount}<button class="btn sm ghost" onclick={() => setTab('apps')}>Todas <ArrowRight size={13} /></button>{/if}</div>
@@ -305,51 +311,12 @@
     <RunHistory serverId={id} limit={5} title="Actividad reciente" refreshKey={deployments.map((p) => p.lastRun?.at ?? '').join()} />
   {/if}
 
-  {#if current === 'plantillas'}
-    <section class="card block">
-      <h2><FolderGit2 size={17} /> Plantillas de este servidor</h2>
-      {#each deployments as p (p.id)}
-        <div class="dep">
-          <button class="dep-main" onclick={() => openDeployment(p.id)}>
-            <strong>{recipeName(p.recipeId) ?? p.name}</strong>
-            <span class="mods">{p.modules.map((m) => moduleName(m.id)).join(' · ')}</span>
-          </button>
-          <div class="dep-st">
-            {#if p.lastRun && !p.lastRun.ok && !p.lastRun.check}<span class="pill bad">Falló la última vez</span>
-            {:else if !p.appliedAt}<span class="pill warn">Sin aplicar</span>
-            {:else if isPending(p)}<span class="pill warn">Cambios sin aplicar</span>
-            {:else}<span class="pill ok"><CircleCheck size={12} /> Aplicada {timeAgo(p.appliedAt)}</span>{/if}
-            {#if p.overrides && ((p.overrides.added?.length ?? 0) + (p.overrides.removed?.length ?? 0) + Object.keys(p.overrides.values ?? {}).length)}<span class="pill">Con datos propios de este servidor</span>{/if}
-            <button class="btn sm primary" onclick={() => openDeployment(p.id)}>Abrir</button>
-          </div>
-        </div>
-      {:else}
-        <p class="muted">Este servidor aún no tiene ninguna plantilla. Asóciale una; después la revisas y la aplicas.</p>
-      {/each}
-      <div class="assoc">
-        {#if others.length}
-          <select class="input" bind:value={deployPick}>
-            <option value="">{deployments.length ? 'Añadir otra plantilla…' : 'Elige una plantilla…'}</option>
-            {#each others as r}<option value={r.id}>{r.name}</option>{/each}
-          </select>
-          <button class="btn sm" onclick={deploy} disabled={!deployPick}><Plus size={14} /> Asociar</button>
-        {/if}
-        <button class="btn sm ghost" onclick={() => openRecipe('')}><Plus size={14} /> Crear una plantilla nueva</button>
-      </div>
-    </section>
-
-    {#if deployments.length}
-      <section class="card block">
-        <h2><KeyRound size={17} /> Contraseñas</h2>
-        <p class="muted small">Las que generan los módulos en el servidor la primera vez que pulsas <strong>Aplicar</strong> (al previsualizar no se crean) y los datos secretos que escribiste. Draupnode las guarda cifradas en la bóveda; para verlas te pide su contraseña.</p>
-        <div class="secrets">
-          {#each deployments as p (p.id)}
-            <ProjectSecrets projectId={p.id} title={recipeName(p.recipeId) ?? p.name} refreshKey={p.lastRun?.at ?? ''} />
-          {/each}
-        </div>
-      </section>
+  {#if current === 'modulos'}
+    {#if project}
+      {#key project.id}<ProjectEditor id={project.id} embedded />{/key}
+    {:else}
+      <p class="muted"><LoaderCircle size={14} class="spin" /> Preparando los módulos del servidor…</p>
     {/if}
-
     {#if ov}<AdoptSection serverId={id} {ov} {deployments} />{/if}
   {/if}
 
@@ -363,14 +330,14 @@
         <tbody>
           {#each draupnodeApps as a}
             <tr>
-              <td><strong>{a.module.name}</strong><br /><span class="muted small">Draupnode · {recipeName(a.project.recipeId) ?? a.project.name}</span></td>
+              <td><strong>{a.module.name}</strong><br /><span class="muted small">Draupnode{a.project.modules.find((x) => x.id === a.module.id)?.from ? ' · de «' + (recipeName(a.project.modules.find((x) => x.id === a.module.id)?.from) ?? '') + '»' : ''}</span></td>
               <td>{#if a.domain}<button class="lnk" onclick={() => api.OpenURL('https://' + a.domain)}>https://{a.domain}</button>{:else}<span class="muted small">sin dominio · 127.0.0.1:{a.port}</span>{/if}</td>
               <td class="r"><button class="btn sm" onclick={() => openApp(a.project.id, a.module.id)}><ExternalLink size={13} /> Abrir</button></td>
             </tr>
           {/each}
           {#each grafanaDeps as p}
             <tr>
-              <td><strong>Grafana</strong><br /><span class="muted small">Draupnode · Monitorización · {recipeName(p.recipeId) ?? p.name}</span></td>
+              <td><strong>Grafana</strong><br /><span class="muted small">Draupnode · Monitorización</span></td>
               <td><span class="muted small">127.0.0.1:{grafanaPort(p)} en el servidor · se abre por túnel SSH (usuario admin; contraseña en Plantillas → Contraseñas)</span></td>
               <td class="r"><button class="btn sm" onclick={() => openGrafana(p.id)}><ExternalLink size={13} /> Abrir</button></td>
             </tr>
@@ -457,13 +424,13 @@
       {:else if !ov.backups?.length}<p class="muted">El servidor no tiene ninguna copia programada por Draupnode todavía (se crea al aplicar el módulo Copias).</p>
       {:else}
         <table class="tbl">
-          <thead><tr><th>Copia</th><th>Plantilla</th><th>Última</th><th></th></tr></thead>
+          <thead><tr><th>Copia</th><th>De</th><th>Última</th><th></th></tr></thead>
           <tbody>
             {#each ov.backups as b (b.slug)}
               {@const p = deployments.find((d) => d.slug === b.slug)}
               <tr>
                 <td class="mono">{b.slug}</td>
-                <td>{#if p}{recipeName(p.recipeId) ?? p.name}{:else}<span class="muted small">no la conoce este Draupnode · <button class="lnk" onclick={() => setTab('plantillas')}>recuperar</button></span>{/if}</td>
+                <td>{#if p}este servidor{:else}<span class="muted small">no la conoce este Draupnode · <button class="lnk" onclick={() => setTab('modulos')}>recuperar</button></span>{/if}</td>
                 <td>
                   {#if b.running}<strong>haciéndose ahora</strong>
                   {:else if !b.ok}<strong class="bad-t">falló</strong>
@@ -479,7 +446,7 @@
     </section>
     {#each backupDeps as p (p.id)}
       <section class="card block">
-        <h2><DatabaseBackup size={17} /> {recipeName(p.recipeId) ?? p.name}</h2>
+        <h2><DatabaseBackup size={17} /> Copias de seguridad</h2>
         <BackupsPanel project={p} />
       </section>
     {/each}
@@ -595,18 +562,19 @@
   .applist { list-style: none; margin: 0; padding: 0; }
   .applist li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--border-soft); font-size: 13px; }
   .applist li > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tpl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
+  .chip:hover { border-color: var(--muted); }
   .dep { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 10px 12px; }
   .dep.slim { padding: 8px 10px; }
   .dep-main { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
-  .dep-main:hover strong { text-decoration: underline; }
   .mods { font-size: 12.5px; color: var(--muted); }
   .dep-st { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; background: var(--sidebar-hover); color: var(--muted); white-space: nowrap; }
   .pill.ok { background: var(--success-soft); color: var(--success); }
   .pill.warn { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
   .pill.bad { background: var(--danger-soft); color: var(--danger); }
-  .assoc, .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .assoc .input { width: auto; min-width: 220px; height: 32px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .chk { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
   .secrets { display: flex; flex-direction: column; gap: 8px; }
   .secrets :global(.card) { box-shadow: none; margin: 0; }

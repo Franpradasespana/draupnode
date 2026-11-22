@@ -23,7 +23,7 @@
           <span><strong>{a.name}</strong>: {a.text}.</span>
           {#if !compact}<span class="muted small">Visto en la ficha del servidor {timeAgo(a.at)}. Si ya está arreglado, se quita al volver a leerla.</span>{/if}
         {:else if a.kind === 'pending'}
-          <span>La plantilla <strong>{a.name}</strong> en <strong>{a.server}</strong> {a.applied ? 'tiene cambios sin aplicar' : 'está asociada pero no se ha aplicado nunca'}.</span>
+          <span><strong>{a.server}</strong>: {a.name} sin aplicar.</span>
         {:else if a.kind === 'backups'}
           {#if alerts.busy === a.projectId}
             <span><LoaderCircle size={13} class="spin" /> Trayendo las copias de <strong>{a.name}</strong>…{#if alerts.progress?.total} {size(alerts.progress.done)} de {size(alerts.progress.total)}{/if}</span>

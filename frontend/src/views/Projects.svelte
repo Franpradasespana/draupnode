@@ -3,7 +3,7 @@
   // asocian a uno o varios servidores (desde aquí o desde la ficha del servidor).
   import { Plus, FolderGit2, Server as ServerIcon, CircleCheck } from '@lucide/svelte'
   import RecipeEditor from './RecipeEditor.svelte'
-  import { ui, moduleName, openRecipe, openDeployment } from '../lib/state.svelte'
+  import { ui, moduleName, openRecipe, openServerModules } from '../lib/state.svelte'
 </script>
 
 {#if ui.recipeId !== null}
@@ -12,7 +12,7 @@
   <div class="head">
     <div>
       <h1>Plantillas</h1>
-      <p class="muted">Una plantilla es lo que quieres instalar y cómo: módulos y opciones. Se prepara sin servidor y no instala nada por sí sola. Cuando la asocias a un servidor (desde aquí o desde su ficha) y pulsas Aplicar, se instala allí. La misma plantilla sirve para varios servidores.</p>
+      <p class="muted">Una plantilla es un grupo de módulos con sus opciones, para añadirlos de una vez a un servidor. Al aplicarla, sus módulos pasan a ser del servidor (allí ves de qué plantilla vino cada uno) y se instalan cuando pulsas Aplicar. Editar una plantilla no cambia los servidores en los que ya se aplicó.</p>
     </div>
     <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> Nueva plantilla</button>
   </div>
@@ -34,14 +34,12 @@
             <div class="mods">{#each r.modules as m}<span class="badge">{moduleName(m.id)}</span>{/each}</div>
           </button>
           <div class="deps">
-            {#each r.deployments as d}
-              <button class="dep" onclick={() => openDeployment(d.projectId)} title="Abrir esta plantilla en ese servidor">
+            {#each r.servers as d (d.serverId)}
+              <button class="dep" onclick={() => openServerModules(d.serverId)} title="Ver los módulos de ese servidor">
                 <ServerIcon size={13} /> {d.serverName}
-                {#if !d.applied}<span class="st warn">sin aplicar</span>{:else if d.pending}<span class="st warn">cambios sin aplicar</span>{:else}<span class="st ok"><CircleCheck size={11} /> aplicado</span>{/if}
-                {#if !d.sameRecipe}<span class="st">con datos propios</span>{/if}
               </button>
             {:else}
-              <span class="muted small">En ningún servidor todavía.</span>
+              <span class="muted small">No se ha aplicado en ningún servidor.</span>
             {/each}
           </div>
         </div>
@@ -65,7 +63,4 @@
   .deps { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--border-soft); padding-top: 10px; }
   .dep { display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 3px 0; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; text-align: left; }
   .dep:hover { color: var(--accent); }
-  .st { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: var(--sidebar-hover); color: var(--muted); display: inline-flex; gap: 3px; align-items: center; }
-  .st.ok { background: var(--success-soft); color: var(--success); }
-  .st.warn { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
 </style>

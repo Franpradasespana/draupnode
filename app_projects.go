@@ -263,6 +263,10 @@ func contains(l []string, s string) bool {
 // proyecto con sus valores por defecto, en el orden de ejecución.
 func (a *App) SaveProject(p store.Project) (store.Project, error) {
 	if p.ID == "" {
+		// Un servidor tiene un solo conjunto de módulos.
+		if other, ok := a.store.ServerProject(p.ServerID); ok {
+			return other, errors.New("este servidor ya tiene sus módulos: añádelos ahí")
+		}
 		p.Slug = a.uniqueSlug(p.Name, "")
 	} else if old, err := a.store.Project(p.ID); err == nil {
 		p.Slug = slugOf(old) // los de antes de la 0.8 se quedan con el de su nombre actual
@@ -280,16 +284,18 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 		}
 		return store.Project{}, errors.New("revisa los campos marcados en rojo")
 	}
+	// Cada módulo conserva de qué plantilla vino (las dependencias que se
+	// añaden solas, como añadidas en el servidor).
+	from := map[string]string{}
+	for _, m := range p.Modules {
+		from[m.ID] = m.From
+	}
 	mods := make([]store.ProjectModule, 0, len(sel))
 	for _, s := range sel {
-		mods = append(mods, store.ProjectModule{ID: s.Module.ID, Values: s.Values})
+		mods = append(mods, store.ProjectModule{ID: s.Module.ID, Values: s.Values, From: from[s.Module.ID]})
 	}
 	p.Modules = mods
-	if p.RecipeID != "" {
-		if r, err := a.store.Recipe(p.RecipeID); err == nil {
-			p.Overrides = diffModules(mods, r.Modules)
-		}
-	}
+	p.RecipeID, p.Overrides = "", nil
 	return a.store.SaveProject(p)
 }
 

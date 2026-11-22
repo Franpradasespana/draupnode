@@ -121,7 +121,7 @@
   <div class="list">
     {#each ui.servers as s (s.id)}
       {@const lc = s.lastCheck}
-      {@const n = ui.projects.filter((p) => p.serverId === s.id).length}
+      {@const n = ui.projects.find((p) => p.serverId === s.id)?.modules.length ?? 0}
       <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
       <article class="card srv" role="link" tabindex="0" title="Ver la ficha del servidor"
         onclick={(e) => openProjects(e, s.id)}
@@ -153,7 +153,7 @@
           {:else if s.authMethod === 'password' || s.keyEncrypted}
             <span class="badge">contraseña: se pide al conectar</span>
           {/if}
-          <span class="badge"><FolderGit2 size={12} /> {n} {n === 1 ? 'plantilla' : 'plantillas'}</span>
+          <span class="badge"><FolderGit2 size={12} /> {n} {n === 1 ? 'módulo' : 'módulos'}</span>
           {#if lc?.ok}
             <span class="badge ok">Conectado {timeAgo(lc.at)}</span>
           {:else if lc}
