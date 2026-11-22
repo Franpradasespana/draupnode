@@ -770,3 +770,11 @@ módulos de una vez; editarla no cambia los servidores. Desde un servidor se pue
   barra de estado, lista de servidores y avisos cuentan módulos («N módulos sin aplicar») en vez de plantillas.
 - Tests: `TestPlantillasYModulosDelServidor`, `TestConvertirAModulosDelServidor`, adaptados recuperar y
   contraseñas. Demo del navegador convertida igual. Ayuda y capturas rehechas.
+
+## 2026-11-22 · 0.50.1 · «Leer el repositorio» dice qué ha leído
+
+- El usuario probó con `https://github.com/twbs/bootstrap.git` y solo veía «Último cambio: ac35207 feat(collapse)…»
+  (Bootstrap no tiene compose ni .env.example, y la pantalla no lo decía claro). Ahora pone «Leído: <dirección>
+  (rama …) · último cambio: …» y, si en esa rama no está el fichero compose, un aviso de que con ese repositorio
+  no se puede arrancar la app (revisar dirección, rama y fichero; o crearlo con Docker Creator) sin tocar las
+  opciones. «No usa variables» solo sale si hay compose.

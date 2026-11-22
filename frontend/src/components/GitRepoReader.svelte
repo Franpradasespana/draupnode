@@ -14,6 +14,7 @@
   type Row = { key: string; what: string; kind: 'gen' | 'example' | 'empty' | 'external' | 'optional' | 'had'; hint?: string }
   let busy = $state(false)
   let result = $state<GitInspectResult | null>(null)
+  let readFrom = $state('')
   let rows = $state<Row[]>([])
 
   const server = $derived(ui.servers.find((s) => s.id === ui.projects.find((p) => p.id === projectId)?.serverId))
@@ -27,7 +28,9 @@
       if (!r) return
       if (r.status !== 'ok') { toast(r.message || 'No se pudo leer el repositorio', 'error'); return }
       result = r
-      fill(r)
+      readFrom = `${values.git_app_repo} (rama ${values.git_app_branch || 'main'})`
+      if (r.composeFound) fill(r)
+      else rows = []
     } finally {
       busy = false
     }
@@ -63,21 +66,24 @@
     </button>
   </div>
   {#if result}
-    <p class="small muted">
-      {result.commit ? `Último cambio: ${result.commit}. ` : ''}{result.exampleFile ? `Ejemplo: ${result.exampleFile}. ` : 'Sin .env.example. '}{result.composeFound ? '' : 'No encuentro el fichero compose en esa rama.'}
-    </p>
-    {#if !rows.length}
-      <p class="small"><CircleCheck size={13} class="ok" /> No usa variables de entorno.</p>
+    <p class="small"><strong>Leído:</strong> <code>{readFrom}</code>{#if result.commit}<span class="muted">{' · '}último cambio: {result.commit}</span>{/if}</p>
+    {#if !result.composeFound}
+      <p class="small bad"><TriangleAlert size={13} /> <span>En esa rama no está <code>{values.git_app_compose || 'docker-compose.yml'}</code>: con este repositorio el módulo no puede arrancar la app. Comprueba que la dirección es la de tu app, la rama y el nombre del fichero compose (puedes crearlo con <strong>Docker Creator</strong> y subirlo al repositorio). No se ha cambiado nada en las opciones.</span></p>
     {:else}
-      <ul>
-        {#each rows as r (r.key)}
-          <li class={r.kind}>
-            {#if r.kind === 'gen'}<Sparkles size={13} />{:else if r.kind === 'external'}<KeyRound size={13} />{:else if r.kind === 'empty'}<TriangleAlert size={13} />{:else if r.kind === 'optional'}<Minus size={13} />{:else}<CircleCheck size={13} />{/if}
-            <code>{r.key}</code> <span>{r.what}{r.hint ? ` (${r.hint})` : ''}</span>
-          </li>
-        {/each}
-      </ul>
-      <p class="small muted">Al aplicar, si alguna variable que usa el compose se queda sin valor, Draupnode para y te dice cuál.</p>
+      <p class="small muted">{result.exampleFile ? `Variables de ${result.exampleFile} y del compose.` : 'Sin .env.example: solo las variables del compose.'}</p>
+      {#if !rows.length}
+        <p class="small"><CircleCheck size={13} class="ok" /> El compose no usa variables de entorno: no hace falta rellenar nada.</p>
+      {:else}
+        <ul>
+          {#each rows as r (r.key)}
+            <li class={r.kind}>
+              {#if r.kind === 'gen'}<Sparkles size={13} />{:else if r.kind === 'external'}<KeyRound size={13} />{:else if r.kind === 'empty'}<TriangleAlert size={13} />{:else if r.kind === 'optional'}<Minus size={13} />{:else}<CircleCheck size={13} />{/if}
+              <code>{r.key}</code> <span>{r.what}{r.hint ? ` (${r.hint})` : ''}</span>
+            </li>
+          {/each}
+        </ul>
+        <p class="small muted">Al aplicar, si alguna variable que usa el compose se queda sin valor, Draupnode para y te dice cuál.</p>
+      {/if}
     {/if}
   {/if}
 </div>
@@ -88,6 +94,8 @@
   .head > div { display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
   .head small { color: var(--muted); font-size: 12px; }
   .small { font-size: 12.5px; margin: 0; }
+  .bad { color: var(--warning); display: flex; gap: 6px; align-items: flex-start; }
+  .bad :global(svg) { flex: none; margin-top: 2px; }
   ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
   li { display: flex; gap: 6px; align-items: baseline; }
   li :global(svg) { flex: none; position: relative; top: 2px; }

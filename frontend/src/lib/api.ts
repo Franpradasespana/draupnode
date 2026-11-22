@@ -1396,6 +1396,7 @@ function mockBackend(): Backend {
     async GitAppInspect(_p, repo) {
       await wait(900)
       if (!repo) return { status: 'error', message: 'Escribe primero la dirección del repositorio (https://… o git@…).', composeFound: false, vars: [] }
+      if (/bootstrap/.test(repo)) return { status: 'ok', commit: 'ac35207 feat(collapse): add .collapse-instant', composeFound: false, vars: [] }
       const v = (key: string, o: Partial<GitEnvVar>): GitEnvVar => ({ key, inExample: true, inCompose: false, hasDefault: false, secret: false, external: false, ...o })
       return { status: 'ok', commit: 'a1b2c3d Primera versión', composeFound: true, exampleFile: '.env.example', vars: [
         v('ALLOWED_HOSTS', { example: 'localhost' }), v('DATABASE_URL', { example: 'postgres://app:pass@db:5432/app', hint: 'dirección: si lleva usuario y contraseña, escríbela entera' }),
