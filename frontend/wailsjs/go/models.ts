@@ -1102,6 +1102,8 @@ export namespace main {
 	export class RunEntry {
 	    projectId: string;
 	    project: string;
+	    serverId: string;
+	    server: string;
 	    name: string;
 	    // Go type: time
 	    at: any;
@@ -1122,6 +1124,8 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.projectId = source["projectId"];
 	        this.project = source["project"];
+	        this.serverId = source["serverId"];
+	        this.server = source["server"];
 	        this.name = source["name"];
 	        this.at = this.convertValues(source["at"], null);
 	        this.mode = source["mode"];

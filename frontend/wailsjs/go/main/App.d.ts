@@ -106,6 +106,8 @@ export function LabRegister():Promise<main.ServerView>;
 
 export function LabStatus():Promise<main.LabStatus>;
 
+export function LastOverviews():Promise<Record<string, main.CachedOverview>>;
+
 export function ListModules():Promise<main.ModulesInfo>;
 
 export function ListProjects():Promise<Array<store.Project>>;

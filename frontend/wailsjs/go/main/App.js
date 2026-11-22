@@ -202,6 +202,10 @@ export function LabStatus() {
   return window['go']['main']['App']['LabStatus']();
 }
 
+export function LastOverviews() {
+  return window['go']['main']['App']['LastOverviews']();
+}
+
 export function ListModules() {
   return window['go']['main']['App']['ListModules']();
 }

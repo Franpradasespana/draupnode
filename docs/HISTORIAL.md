@@ -616,3 +616,28 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
 - **Ficha → Disco**: no salía nada en servidores cuya raíz es `overlay` (el servidor de pruebas, que es un contenedor,
   o algunos VPS). Ahora se descarta `overlay` salvo en `/`, y `/` va primero. En el servidor de pruebas el tamaño
   es el del disco del equipo, porque el contenedor lo comparte.
+
+## 2026-11-22 · 0.45.0 · Panel nuevo: qué conviene mirar
+
+El usuario no le veía utilidad al Panel (solo contaba cosas y repetía la lista de servidores). Ahora responde a
+«¿va todo bien y qué tengo que mirar?»:
+
+- **Contadores de verdad y clicables**: Servidores (cuántos responden ahora; si solo hay uno, abre su ficha),
+  Plantillas (en uso en cuántos servidores, cuántas sin aplicar → Plantillas), Contenedores (en marcha / con
+  problemas, de la última ficha de cada servidor → el servidor con problemas) y Avisos (→ Avisos).
+- **Necesita atención**: los avisos, lo grave primero, como mucho 4 y «Ver los N avisos». Avisos nuevos (también
+  en la pantalla Avisos, el menú y la campana), sacados de la última ficha leída: disco ≥ 85 % (grave ≥ 95 %),
+  contenedores reiniciándose / muertos / no sanos, servicios caídos, copias que fallaron, sin hacer o con más de
+  26 h; y plantillas asociadas sin aplicar o con cambios sin aplicar. Si no hay nada: «Todo en orden».
+- **Una tarjeta por servidor**: responde o no (ping cada 2 min; el de pruebas parado no cuenta como caído), CPU,
+  RAM y disco, contenedores, última copia, sus plantillas (pulsables, marcando las que tienen cambios), apps
+  (Draupnode por túnel y Coolify por su URL), Grafana si tiene Monitorización, Terminal y Ficha.
+- **Última ficha guardada en este equipo** (`fichas/<servidor>.json`, `LastOverviews`): el Panel la enseña al
+  momento sin conectar («Leído hace…») y la vuelve a leer sola cada 5 min si la contraseña está guardada (si no,
+  lo dice y ↻ la lee preguntando). Se borra al borrar el servidor.
+- **Ficha del servidor → copias**: la lectura incluye las copias del módulo Copias (`draupnode-copia-*`):
+  si la última fue bien y hace cuánto (hora real del servicio o, tras reiniciar, la del temporizador).
+- **Actividad reciente**: las últimas 6 ejecuciones de todos los servidores (`RunHistory` con servidor vacío
+  = todos; ahora lleva el nombre del servidor).
+- Fuera: la barra de «%», «Última comprobación» y «Primeros pasos» (solo sale si no hay ningún servidor).
+- Tests: `TestFichaGuardada` y el historial de todos los servidores. Capturas `panel` y `copias-aviso` rehechas.

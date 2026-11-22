@@ -1,7 +1,7 @@
 # Estado de un servidor para Draupnode (se ejecuta como root, sin escribir nada).
 # Saca un JSON con: sistema, CPU, memoria, discos, contenedores (con su uso),
 # bases de datos y su tamaño, apps de Coolify, sitios de nginx/Caddy,
-# servicios caídos, puertos escuchando y lo que deja pasar el cortafuegos. Cada parte es independiente: si una
+# servicios caídos, copias de Draupnode, puertos escuchando y lo que deja pasar el cortafuegos. Cada parte es independiente: si una
 # falla, las demás siguen.
 import glob, json, os, re, shutil, socket, subprocess, time
 
@@ -244,6 +244,26 @@ def _():
     sec = sorted(os.path.basename(d) for d in glob.glob("/etc/draupnode/secretos/*") if os.path.isdir(d))
     apps = sorted(os.path.basename(d) for d in glob.glob("/srv/draupnode/apps/*") if os.path.isdir(d))
     return {"markers": marks, "secretDirs": sec, "appDirs": apps}
+
+@part("backups")
+def _():
+    # Copias de Draupnode (módulo Copias): cuándo terminó la última y si fue bien.
+    # «ago» = segundos desde que terminó (None si no se ha hecho nunca).
+    res = []
+    for unit in run("systemctl", "list-units", "--all", "--plain", "--no-legend", "draupnode-copia-*.service").split():
+        if not unit.startswith("draupnode-copia-") or not unit.endswith(".service"):
+            continue
+        info = dict(l.split("=", 1) for l in run("systemctl", "show", unit, "-p", "Result,ExecMainExitTimestamp,ActiveState").splitlines() if "=" in l)
+        # Si el servicio no lo sabe (p. ej. tras reiniciar), lo que recuerda el temporizador.
+        when = info.get("ExecMainExitTimestamp", "").strip()
+        if not when:
+            when = run("systemctl", "show", unit[:-len(".service")] + ".timer", "-p", "LastTriggerUSec", "--value").strip()
+        ts = run("date", "+%s", "-d", when).strip() if when and when != "n/a" else ""
+        res.append({"slug": unit[len("draupnode-copia-"):-len(".service")],
+                    "ok": info.get("Result") in (None, "", "success"),
+                    "running": info.get("ActiveState") == "activating",
+                    "ago": max(0, round(time.time() - int(ts))) if ts.isdigit() else None})
+    return res
 
 @part("software")
 def _():

@@ -266,6 +266,8 @@ export interface UserModule {
 export interface RunEntry {
   projectId: string
   project: string
+  serverId: string
+  server: string
   name: string
   at: string
   mode: string
@@ -510,6 +512,12 @@ export interface ServerOverview {
   firewall?: { active: boolean; tcp: string[]; udp: string[] }
   draupnode?: { markers: ServerMarker[]; secretDirs: string[]; appDirs: string[] }
   software?: { module: string; active: boolean }[]
+  backups?: { slug: string; ok: boolean; running: boolean; ago: number | null }[]
+}
+
+export interface CachedOverview {
+  at: string
+  overview: ServerOverview
 }
 
 export interface ServerMarker {
@@ -639,6 +647,7 @@ interface Backend {
   PushToRecipe(projectId: string): Promise<Recipe>
   ResetToRecipe(projectId: string): Promise<Project>
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
+  LastOverviews(): Promise<Record<string, CachedOverview>>
   ServerLogs(serverId: string, kind: string, name: string, lines: number, secret: string, accept: string, sudoPassword: string): Promise<ServerLogsResult>
   BackupsDue(): Promise<BackupDue[]>
   SaveTextFile(defaultName: string, content: string): Promise<string>
@@ -1185,11 +1194,12 @@ function mockBackend(): Backend {
       save('projects', projects)
       return { project: p, notes: ['Se ha creado la plantilla «' + (m.plantilla || m.nombre) + '».'] }
     },
-    async RunHistory(sid, pid) {
-      return projects.filter((p) => p.serverId === sid && (!pid || p.id === pid) && p.lastRun).map((p) => {
+    async RunHistory(sid, pid, limit) {
+      const l = projects.filter((p) => (!sid || p.serverId === sid) && (!pid || p.id === pid) && p.lastRun).map((p) => {
         const r = p.lastRun!
-        return { projectId: p.id, project: p.name, name: 'demo.log', at: r.at, mode: r.uninstall ? 'desinstalar' : r.check ? 'previsualizar' : 'aplicar', known: true, ok: r.ok, canceled: !!r.canceled, changed: r.changed, failed: r.failed, error: r.error, durationMs: r.durationMs ?? 42000 }
-      })
+        return { projectId: p.id, project: p.name, serverId: p.serverId, server: servers.find((x) => x.id === p.serverId)?.name ?? '', name: 'demo.log', at: r.at, mode: r.uninstall ? 'desinstalar' : r.check ? 'previsualizar' : 'aplicar', known: true, ok: r.ok, canceled: !!r.canceled, changed: r.changed, failed: r.failed, error: r.error, durationMs: r.durationMs ?? 42000 }
+      }).sort((a, b) => b.at.localeCompare(a.at))
+      return limit > 0 ? l.slice(0, limit) : l
     },
     async RunLogs() {
       return []
@@ -1332,8 +1342,16 @@ function mockBackend(): Backend {
       save('projects', projects)
       return p
     },
-    async ServerOverview(id) {
-      await wait(900)
+    async LastOverviews() {
+      const out: Record<string, CachedOverview> = {}
+      for (const s of servers) {
+        const r = await (this.ServerOverview as (...a: unknown[]) => Promise<ServerOverviewResult>)(s.id, '', '', '', true)
+        if (r.overview) out[s.id] = { at: new Date(Date.now() - 4 * 60000).toISOString(), overview: r.overview }
+      }
+      return out
+    },
+    async ServerOverview(id, _s, _a, _u, fast?: boolean) {
+      if (!fast) await wait(900)
       const gb = 1024 ** 3
       const lab = servers.find((s) => s.id === id)?.port === 2222
       return { status: 'ok', overview: {
@@ -1355,6 +1373,7 @@ function mockBackend(): Backend {
         firewall: { active: true, tcp: ['22', '80', '443', '8000'], udp: [] },
         draupnode: { markers: [{ draupnode: '0.41.0', at: new Date(Date.now() - 40 * 86400000).toISOString(), nombre: 'Copias', plantilla: 'Copias diarias', slug: 'copias', modulos: [{ id: 'docker', values: {} }, { id: 'backups', values: {} }] }], secretDirs: ['copias'], appDirs: [] },
         software: [{ module: 'docker', active: true }, { module: 'nginx', active: true }, { module: 'coolify', active: true }, { module: 'backups', active: true }],
+        backups: [{ slug: 'copias', ok: true, running: false, ago: lab ? 3 * 3600 : 30 * 3600 }],
       } }
     },
     async ServerLogs(_id, kind, name) {

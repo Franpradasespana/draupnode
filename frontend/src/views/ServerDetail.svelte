@@ -16,6 +16,7 @@
   import { api, errorText, type MonitorResult, type ServerLogsResult, type ServerOverview, type ServerOverviewResult } from '../lib/api'
   import { ui, toast, timeAgo, refreshProjects, openDeployment, openRecipe, moduleName, openTerminal } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
+  import { rememberOverview } from '../lib/alerts.svelte'
 
   let { id }: { id: string } = $props()
 
@@ -36,7 +37,7 @@
       const r = await withConnection<ServerOverviewResult>(server, (s, a, u) => api.ServerOverview(id, s, a, u))
       if (!r) return
       if (r.status !== 'ok' || !r.overview) error = r.message || 'No se pudo leer el servidor'
-      else ov = r.overview
+      else { ov = r.overview; rememberOverview(id, r.overview) }
     } catch (e) {
       error = errorText(e)
     } finally {
@@ -62,7 +63,7 @@
     if (loading || !ov || document.hidden || ui.view !== 'servers' || ui.serverId !== id) return
     try {
       const r = await api.ServerOverview(id, '', '', '')
-      if (r.status === 'ok' && r.overview) { ov = r.overview; autoNote = '' }
+      if (r.status === 'ok' && r.overview) { ov = r.overview; autoNote = ''; rememberOverview(id, r.overview) }
       else if (['needs_secret', 'vault_locked', 'needs_sudo'].includes(r.status)) autoNote = 'para actualizar sola necesita la contraseña guardada (o la bóveda abierta)'
     } catch { /* siguiente vuelta */ }
   }

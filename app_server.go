@@ -52,6 +52,7 @@ func (a *App) ServerOverview(serverID, secret, accept, sudoPassword string) Serv
 		}
 		res.Overview = ov
 		a.refreshFacts(serverID, ov)
+		a.saveOverview(serverID, ov)
 		return RunStart{Status: "ok"}
 	})
 	return res

@@ -21,7 +21,7 @@ import (
 )
 
 // Version de la aplicación.
-const Version = "0.44.1"
+const Version = "0.45.0"
 
 // Prefijos que la interfaz reconoce en los errores para abrir el diálogo
 // de la bóveda (crear o desbloquear) y reintentar.
@@ -276,6 +276,7 @@ func (a *App) DeleteServer(id string) error {
 		return err
 	}
 	a.forgetSecret(id)
+	a.forgetOverview(id)
 	return nil
 }
 

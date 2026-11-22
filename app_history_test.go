@@ -28,6 +28,9 @@ func TestHistorial(t *testing.T) {
 	if len(a.RunHistory("otro", "", 0)) != 0 {
 		t.Fatal("otro servidor")
 	}
+	if all := a.RunHistory("", "", 1); len(all) != 1 || all[0].Server != "web" || all[0].ServerID != s.ID {
+		t.Fatalf("todos los servidores: %+v", all)
+	}
 	for i := 0; i < 5; i++ {
 		os.WriteFile(filepath.Join(dir, "2026-11-1"+string(rune('0'+i))+"_10-00-00-aplicar.log"), []byte("z"), 0o600)
 	}

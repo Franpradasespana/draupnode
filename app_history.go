@@ -44,6 +44,8 @@ func pruneRunLogs(dir string, keep int) {
 type RunEntry struct {
 	ProjectID string    `json:"projectId"`
 	Project   string    `json:"project"`
+	ServerID  string    `json:"serverId"`
+	Server    string    `json:"server"`
 	Name      string    `json:"name"` // fichero del registro
 	At        time.Time `json:"at"`
 	Mode      string    `json:"mode"` // aplicar | previsualizar | desinstalar
@@ -56,17 +58,22 @@ type RunEntry struct {
 	Duration  int64     `json:"durationMs"`
 }
 
-// RunHistory: las ejecuciones de las plantillas de un servidor (o de una
-// sola si projectID no está vacío), de la más reciente a la más antigua.
+// RunHistory: las ejecuciones de las plantillas de un servidor (de todos si
+// serverID está vacío; de una sola si projectID no lo está), de la más
+// reciente a la más antigua.
 func (a *App) RunHistory(serverID, projectID string, limit int) []RunEntry {
 	out := []RunEntry{}
+	names := map[string]string{}
+	for _, s := range a.store.Servers() {
+		names[s.ID] = s.Name
+	}
 	for _, p := range a.store.Projects() {
-		if p.ServerID != serverID || (projectID != "" && p.ID != projectID) {
+		if (serverID != "" && p.ServerID != serverID) || (projectID != "" && p.ID != projectID) {
 			continue
 		}
 		dir := filepath.Join(a.store.Dir(), "runs", p.ID)
 		for _, name := range a.RunLogs(p.ID) {
-			e := RunEntry{ProjectID: p.ID, Project: p.Name, Name: name}
+			e := RunEntry{ProjectID: p.ID, Project: p.Name, ServerID: p.ServerID, Server: names[p.ServerID], Name: name}
 			base := strings.TrimSuffix(name, ".log")
 			if i := strings.LastIndex(base, "-"); i > 0 {
 				e.Mode = base[i+1:]

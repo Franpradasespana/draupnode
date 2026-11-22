@@ -39,11 +39,12 @@ export const HELP: HelpSection[] = [
   {
     id: 'dashboard',
     title: 'Panel',
-    intro: 'Resumen de tus servidores y los siguientes pasos.',
+    intro: 'Cómo están tus servidores y qué conviene mirar, sin entrar uno por uno.',
     steps: [
-      { title: 'Resumen', text: 'Arriba: cuántos servidores tienes, cuántos conectan bien, cuántas plantillas aplicadas y cuándo fue la última comprobación.', img: 'panel' },
-      { title: 'Lista de servidores', text: 'Pulsa un servidor para abrir su ficha. El punto verde indica que la última prueba de conexión fue bien; rojo, que falló.' },
-      { title: 'Primeros pasos', text: 'Lista de lo que falta por hacer. «Ir» te lleva a la pantalla correspondiente.' },
+      { title: 'Contadores', text: 'Servidores (cuántos responden ahora), Plantillas (en cuántos servidores se usan y cuántas tienen cambios sin aplicar), Contenedores (en marcha y con problemas, de la última lectura de cada servidor) y Avisos. Pulsa cualquiera para ir a esa pantalla; si solo tienes un servidor, «Servidores» abre su ficha.', img: 'panel' },
+      { title: 'Necesita atención', text: 'Los avisos más importantes primero: servidores que no responden, disco por encima del 85 %, contenedores que se reinician o no están sanos, servicios caídos, copias que fallaron o con más de 26 horas, plantillas sin aplicar, copias sin traer y la copia de Draupnode. «Ver los N avisos» lleva a todos.' },
+      { title: 'Tarjetas de servidor', text: 'Si responde ahora (se comprueba cada 2 minutos), CPU, memoria y disco, contenedores, la última copia y sus plantillas (pulsa una para abrirla). Los datos son de la última vez que se leyó la ficha del servidor («Leído hace…»): el Panel la vuelve a leer sola cada 5 minutos si la contraseña está guardada; si no, pulsa ↻. Abajo: sus apps, Grafana (si tiene Monitorización), Terminal y Ficha.' },
+      { title: 'Actividad reciente', text: 'Lo último que se ha previsualizado, aplicado o desinstalado en cualquier servidor. Pulsa una línea para ver su registro.' },
     ],
   },
   {
@@ -161,6 +162,8 @@ export const HELP: HelpSection[] = [
     steps: [
       { title: 'Copias sin traer', img: 'avisos', text: 'Un servidor con Copias cuyas copias hace tiempo (o nunca) que no traes a este equipo. «Traer ahora» las descarga. En la plantilla del servidor → Copias eliges cada cuántos días avisa, que se traigan solas al abrir la app o que no avise.' },
       { title: 'Aplicaciones que fallaron', text: 'La última vez que pulsaste «Aplicar» en ese servidor hubo un error. «Abrir» lleva allí para ver qué pasó; desaparece cuando vuelve a aplicarse bien.' },
+      { title: 'Lo que se ve en la ficha del servidor', text: 'Cada vez que se lee la ficha de un servidor (al abrirla, o el Panel solo cada 5 minutos si la contraseña está guardada), se apunta lo que conviene mirar: disco por encima del 85 %, contenedores que se reinician o no están sanos, servicios caídos y copias que fallaron o con más de 26 horas. «Ficha» lleva al servidor; se quita solo cuando se vuelve a leer y ya está bien.' },
+      { title: 'Plantillas sin aplicar', text: 'Una plantilla asociada a un servidor que nunca se ha aplicado, o con cambios (tuyos o de la plantilla) que aún no se han instalado. «Abrir» lleva a ella para revisar y aplicar.' },
       { title: 'Servidores que no responden', text: 'Mientras Draupnode está abierto, cada 2 minutos mira si el SSH de cada servidor responde (sin entrar). Si falla dos veces seguidas, avisa; cuando vuelve, el aviso se quita solo. El servidor de pruebas no cuenta (es normal que esté parado). Para enterarte con la app cerrada, usa el módulo «Alertas» en otro servidor («Vigilar otros servidores»).' },
       { title: 'Versión nueva', text: 'Al abrir, Draupnode mira en GitHub la última versión publicada (una consulta anónima; se puede desactivar en Ajustes). Si hay una más nueva, «Descargar» abre su página.' },
       { title: 'Ocultar', text: 'La ✕ lo quita hasta la próxima vez que abras la app.' },

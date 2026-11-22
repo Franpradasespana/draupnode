@@ -1,11 +1,12 @@
 <script lang="ts">
   // Historial de ejecuciones (Previsualizar / Aplicar / Desinstalar) de las
-  // plantillas de un servidor, o de una sola. Pulsando una se ve su registro.
+  // plantillas de un servidor, de una sola o (serverId vacío) de todos los
+  // servidores, como en el Panel. Pulsando una se ve su registro.
   import { History, CircleCheck, CircleX, CircleSlash, Circle, ScrollText, LoaderCircle } from '@lucide/svelte'
   import Modal from './Modal.svelte'
   import { api, type RunEntry } from '../lib/api'
 
-  let { serverId, projectId = '', refreshKey = '' }: { serverId: string; projectId?: string; refreshKey?: string } = $props()
+  let { serverId, projectId = '', refreshKey = '', limit = 0, title = 'Historial de ejecuciones' }: { serverId: string; projectId?: string; refreshKey?: string; limit?: number; title?: string } = $props()
 
   let list = $state<RunEntry[]>([])
   let all = $state(false)
@@ -13,7 +14,7 @@
 
   $effect(() => {
     void refreshKey
-    api.RunHistory(serverId, projectId, 0).then((l) => (list = l)).catch(() => {})
+    api.RunHistory(serverId, projectId, limit).then((l) => (list = l)).catch(() => {})
   })
   const shown = $derived(all ? list : list.slice(0, 8))
 
@@ -31,9 +32,9 @@
 </script>
 
 <section class="card hist">
-  <h2><History size={17} /> Historial de ejecuciones</h2>
+  <h2><History size={17} /> {title}</h2>
   {#if !list.length}
-    <p class="muted">Todavía no se ha previsualizado ni aplicado nada{projectId ? '' : ' en este servidor'}.</p>
+    <p class="muted">Todavía no se ha previsualizado ni aplicado nada{projectId || !serverId ? '' : ' en este servidor'}.</p>
   {:else}
     <div class="rows">
       {#each shown as e (e.projectId + e.name)}
@@ -43,7 +44,7 @@
           </span>
           <span class="when mono">{when(e.at)}</span>
           <span class="mode m-{e.mode}">{e.mode}</span>
-          {#if !projectId}<strong class="proj">{e.project}</strong>{/if}
+          {#if !serverId}<strong class="proj">{e.server}</strong><span class="proj muted">{e.project}</span>{:else if !projectId}<strong class="proj">{e.project}</strong>{/if}
           <span class="res muted">
             {#if !e.known}—{:else if e.canceled}cancelada{:else if e.ok}{e.changed ? `${e.changed} cambio(s)` : 'sin cambios'}{:else}{e.error || `${e.failed} fallo(s)`}{/if}
             {#if e.known && e.durationMs} · {dur(e.durationMs)}{/if}
@@ -52,7 +53,7 @@
         </button>
       {/each}
     </div>
-    {#if list.length > 8}<button class="btn sm ghost" onclick={() => (all = !all)}>{all ? 'Ver menos' : `Ver las ${list.length}`}</button>{/if}
+    {#if !limit && list.length > 8}<button class="btn sm ghost" onclick={() => (all = !all)}>{all ? 'Ver menos' : `Ver las ${list.length}`}</button>{/if}
   {/if}
 </section>
 
