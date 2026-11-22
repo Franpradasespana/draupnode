@@ -4,6 +4,7 @@
   import VarField from './VarField.svelte'
   import SecretField from './SecretField.svelte'
   import GitRepoReader from './GitRepoReader.svelte'
+  import EnvEditor from './EnvEditor.svelte'
   import type { Module } from '../lib/api'
 
   let { m, values = $bindable(), errors = {}, projectId, onsecret }: {
@@ -19,7 +20,8 @@
   <div class="rows">
     {#each m.variables.filter((v) => !v.managed) as v (v.name)}
       {#if m.id.split('@')[0] === 'git-app' && v.name === 'git_app_env'}<GitRepoReader bind:values {projectId} moduleId={m.id} />{/if}
-      <div class="row" class:bad={!!errors[v.name]}>
+      {@const envRows = m.id.split('@')[0] === 'git-app' && v.name === 'git_app_env'}
+      <div class="row" class:bad={!!errors[v.name]} class:wide={envRows}>
         <div class="lbl">
           <strong>{v.label}{#if v.required} <span class="req">*</span>{/if}</strong>
           {#if v.help}<small>{v.help}</small>{/if}
@@ -28,6 +30,8 @@
         <div class="ctl">
           {#if v.type === 'secret'}
             <SecretField v={inst ? { ...v, name: `${v.name}@${inst}` } : v} {projectId} error={errors[v.name]} onchange={onsecret} bare />
+          {:else if envRows}
+            <EnvEditor bind:value={values[v.name]} error={errors[v.name]} />
           {:else}
             <VarField {v} bind:value={values[v.name]} error={errors[v.name]} bare />
           {/if}
@@ -42,6 +46,8 @@
   .rows { display: flex; flex-direction: column; }
   .row { display: grid; grid-template-columns: minmax(200px, 2fr) 3fr; gap: 20px; align-items: start; padding: 14px 0; border-top: 1px solid var(--border-soft); }
   .row:first-child { border-top: 0; padding-top: 4px; }
+  /* Variables (.env): en filas a todo lo ancho, debajo de su explicación. */
+  .row.wide { grid-template-columns: 1fr; gap: 10px; }
   .lbl { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
   .lbl strong { font-size: 13.5px; font-weight: 600; }
   .lbl small { font-size: 12.5px; color: var(--muted); line-height: 1.45; }

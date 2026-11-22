@@ -867,3 +867,15 @@ como root encima de la app, falta de migrate) y que la Simulación decía «todo
   contenedor (`ContainerAction`); «Limpiar Docker…» (`DockerDiskUsage` + `DockerPrune`): enseña lo que ocupa y lo
   recuperable y borra imágenes sin usar, caché de construcción y, si se marca, contenedores parados. Los volúmenes
   nunca.
+
+## 2026-11-22 · 0.53.1 · «Variables (.env)» en filas, con lo que hay que tocar resaltado
+
+- Petición del usuario: la lista de texto pasa a filas (nombre | valor | ✕), con «Añadir variable» y «Editar como
+  texto» (`EnvEditor`). Cada fila se revisa al momento y, si hay que tocarla, sale resaltada (rojo: hay que
+  arreglarla; ámbar: conviene revisarla) con el motivo: nombre no válido o repetido, vacía, NODE_ENV fuera de
+  production/development/test, valor de ejemplo (changeme, insecure, example.com…), DEBUG activado, entorno de
+  desarrollo, puerto publicado a todo internet, carpeta del código montada, healthcheck desactivado, localhost, o
+  algo que parece contraseña escrito a la vista. Arriba: «N variables para revisar».
+- Estado del servidor de pruebas visto con el usuario: la app «prueba» arranca y sirve la portada; falla
+  `python3 manage.py migrate` por `POSTGRES_DB=` vacía (Django recibe un nombre de base en blanco). Quedó la app
+  vieja «app» (dn-app) huérfana al cambiar el nombre.

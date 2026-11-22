@@ -71,7 +71,7 @@ variables:
     pattern_help: Ruta a un .yml
   - name: git_app_env
     label: Variables (.env)
-    help: Una por línea, «CLAVE=valor». No pongas aquí contraseñas (van en el campo de abajo).
+    help: "Las de tu app que no son secretas, una por fila (nombre y valor). Las resaltadas hay que completarlas o revisarlas antes de aplicar. Las contraseñas no van aquí: en «Generar en el servidor» o en «Variables secretas»."
     type: list
     default: []
     pattern: '^[A-Za-z_][A-Za-z0-9_]*=.*$'
