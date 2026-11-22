@@ -1152,6 +1152,26 @@ export namespace main {
 	        this.at = source["at"];
 	    }
 	}
+	export class PublishResult {
+	    projectId: string;
+	    serverId: string;
+	    moduleId: string;
+	    notes: string[];
+	    review: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PublishResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectId = source["projectId"];
+	        this.serverId = source["serverId"];
+	        this.moduleId = source["moduleId"];
+	        this.notes = source["notes"];
+	        this.review = source["review"];
+	    }
+	}
 	export class RecipeServer {
 	    serverId: string;
 	    serverName: string;

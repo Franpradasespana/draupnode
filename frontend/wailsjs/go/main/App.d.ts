@@ -158,6 +158,8 @@ export function ProjectSecrets(arg1:string,arg2:string):Promise<Array<main.Proje
 
 export function ProjectSecretsInfo(arg1:string):Promise<main.ProjectSecretsSummary>;
 
+export function PublishDockerApp(arg1:string,arg2:dockerize.Spec,arg3:string):Promise<main.PublishResult>;
+
 export function ReadRunLog(arg1:string,arg2:string):Promise<string>;
 
 export function ReadUserModuleFile(arg1:string,arg2:string):Promise<string>;

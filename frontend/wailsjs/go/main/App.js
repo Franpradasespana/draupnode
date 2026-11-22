@@ -306,6 +306,10 @@ export function ProjectSecretsInfo(arg1) {
   return window['go']['main']['App']['ProjectSecretsInfo'](arg1);
 }
 
+export function PublishDockerApp(arg1, arg2, arg3) {
+  return window['go']['main']['App']['PublishDockerApp'](arg1, arg2, arg3);
+}
+
 export function ReadRunLog(arg1, arg2) {
   return window['go']['main']['App']['ReadRunLog'](arg1, arg2);
 }

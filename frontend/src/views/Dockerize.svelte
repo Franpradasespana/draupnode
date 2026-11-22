@@ -2,10 +2,10 @@
   import { onMount, tick } from 'svelte'
   import {
     FolderOpen, ArrowLeft, ArrowRight, Save, Hammer, LoaderCircle, CircleCheck, CircleX, TriangleAlert,
-    Info, Copy, Square, RefreshCw, FileCode, FlaskConical, ExternalLink, Trash2,
+    Info, Copy, Square, RefreshCw, FileCode, FlaskConical, ExternalLink, Trash2, Upload,
   } from '@lucide/svelte'
-  import { api, errorText, onEvent, type DockerAnalysis, type DockerInfo, type DockerPreview, type DockerSpec } from '../lib/api'
-  import { toast, confirmDialog } from '../lib/state.svelte'
+  import { api, errorText, onEvent, type DockerAnalysis, type DockerInfo, type DockerPreview, type DockerSpec, type PublishResult } from '../lib/api'
+  import { toast, confirmDialog, ui, openServerModules, refreshProjects } from '../lib/state.svelte'
 
   const STEPS = ['Carpeta', 'Tipo y versión', 'Arranque', 'Servicios', 'Vista previa']
   const STACKS: Record<string, string> = {
@@ -246,6 +246,24 @@
   const openUrl = $derived(spec?.proxy ? `http://${spec.proxyDomain || 'localhost'}${(spec.proxyPort || 80) === 80 ? '' : ':' + spec.proxyPort}` : '')
   const upCmd = $derived('docker compose' + (spec?.sideBySide ? ' -f ' + composeName : '') + ' up -d --build')
   const canNext = $derived(step === 0 ? !!spec && !analyzing : !!spec?.stack)
+
+  // ---- Publicar en un servidor (App desde Git que sale de esta carpeta)
+  let pubServer = $state('')
+  let publishing = $state(false)
+  let pubResult = $state<PublishResult | null>(null)
+  async function publish() {
+    if (!spec || !pubServer) return
+    publishing = true
+    try {
+      pubResult = await api.PublishDockerApp(dir, $state.snapshot(spec) as DockerSpec, pubServer)
+      await refreshProjects()
+      toast('Añadida a los módulos del servidor: revísala y pulsa Aplicar')
+    } catch (e) {
+      toast(errorText(e), 'error')
+    } finally {
+      publishing = false
+    }
+  }
 </script>
 
 <div class="head">
@@ -467,6 +485,24 @@
       </div>
       {#if saved}
         <p class="found"><CircleCheck size={16} /> Guardado: {saved.join(', ')}.</p>
+        <div class="note publish">
+          <p><strong>Publicar en un servidor</strong>: Draupnode añade la app a los módulos del servidor con todo rellenado (este compose, el puerto, las variables y las contraseñas que se generan allí) y la sube desde esta carpeta cada vez que aplicas. No hace falta GitHub.</p>
+          <div class="row">
+            <select class="input" bind:value={pubServer}>
+              <option value="">Elige el servidor…</option>
+              {#each ui.servers as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
+            </select>
+            <button class="btn primary" onclick={publish} disabled={!pubServer || publishing}>{#if publishing}<LoaderCircle size={15} class="spin" />{:else}<Upload size={15} />{/if} Publicar en el servidor</button>
+          </div>
+          {#if pubResult}
+            {#each pubResult.notes as n}<p class="small"><CircleCheck size={13} /> {n}</p>{/each}
+            {#if pubResult.review.length}
+              <p class="small"><strong>Para revisar antes de aplicar</strong> (en sus opciones):</p>
+              <ul class="small">{#each pubResult.review as r}<li>{r}</li>{/each}</ul>
+            {/if}
+            <button class="btn sm" onclick={() => openServerModules(pubResult!.serverId)}>Ir a sus módulos y aplicar <ArrowRight size={13} /></button>
+          {/if}
+        </div>
         <div class="note">
           <p><strong>Para arrancarlo</strong>, en una terminal dentro de la carpeta del proyecto:</p>
           <div class="cmd"><code class="selectable">{upCmd}</code><button class="btn icon sm ghost" title="Copiar" onclick={() => copy(upCmd)}><Copy size={14} /></button></div>
@@ -566,4 +602,9 @@
   .stages { margin: 0; padding: 8px 12px 8px 32px; font-size: 12.5px; color: var(--muted); border-bottom: 1px solid var(--border-soft); }
   .stages li.cur { color: var(--text); font-weight: 500; }
   .nav { display: flex; justify-content: space-between; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  .publish { display: flex; flex-direction: column; gap: 8px; border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+  .publish .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .publish .input { width: auto; min-width: 240px; }
+  .publish .small { font-size: 12.5px; margin: 0; }
+  .publish ul { margin: 0; padding-left: 18px; }
 </style>

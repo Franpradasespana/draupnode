@@ -98,7 +98,7 @@
       <small>«Leer el repositorio» baja el repositorio en el servidor (con el token si es privado), mira su <code>.env.example</code> y las <code>${'{VARIABLE}'}</code> del compose, y rellena las opciones de abajo. Si no subes un <code>.env.example</code>, elige el <code>.env</code> de tu equipo: las contraseñas y claves van cifradas a la bóveda y el resto a «Variables (.env)». El fichero no se copia a ningún sitio.</small>
     </div>
     <div class="btns">
-      <button class="btn sm" onclick={read} disabled={busy || importing || !values.git_app_repo}>
+      <button class="btn sm" onclick={read} disabled={busy || importing || !values.git_app_repo || values.git_app_source === 'carpeta'} title={values.git_app_source === 'carpeta' ? 'Con «carpeta» las variables ya las rellena Docker Creator al publicar' : ''}>
         {#if busy}<LoaderCircle size={14} class="spin" /> Leyendo…{:else}<FileSearch size={14} /> Leer el repositorio{/if}
       </button>
       <button class="btn sm" onclick={importEnv} disabled={busy || importing} title="Si tu repositorio no tiene .env.example: elige el .env que usas en tu equipo">

@@ -2,7 +2,7 @@ id: git-app
 name: App desde Git (Docker Compose)
 version: 1.0.0
 category: 3 · Plataformas
-description: Despliega tu app desde su repositorio de Git con su docker-compose.yml (por ejemplo, el que genera Docker Creator). Al aplicar, la actualiza.
+description: Despliega tu app con su docker-compose.yml (por ejemplo, el que genera Docker Creator), desde un repositorio de Git o desde una carpeta de este equipo. Al aplicar, la actualiza.
 details: |
   Clona el repositorio en /srv/draupnode/apps/<nombre> y la arranca con
   «docker compose up -d --build». Cada vez que aplicas, trae lo último de la
@@ -38,11 +38,21 @@ secrets:
 uninstall_warning: Para y quita los contenedores de la app.
 uninstall_data: Borrar también su carpeta, sus volúmenes de Docker (datos de la app y su base de datos) y sus valores generados.
 variables:
+  - name: git_app_source
+    label: De dónde sale el código
+    help: "«git» = de un repositorio (GitHub, GitLab, Forgejo…). «carpeta» = de una carpeta de este equipo: Draupnode la sube al servidor cada vez que aplicas (no hace falta saber git)."
+    type: select
+    options: [git, carpeta]
+    default: git
+  - name: git_app_local_dir
+    label: Carpeta en este equipo
+    help: "Solo con «carpeta»: la del proyecto, con su docker-compose (Docker Creator lo genera). Se sube sin .git, .env, entornos virtuales ni node_modules (ni lo que diga su .dockerignore)."
+    type: string
+    default: ""
   - name: git_app_repo
     label: Repositorio
-    help: "https://github.com/usuario/repo.git (público, o privado con el token de abajo) o git@github.com:usuario/repo.git (privado, con deploy key)."
+    help: "Solo con «git»: https://github.com/usuario/repo.git (público, o privado con el token de abajo) o git@github.com:usuario/repo.git (privado, con deploy key)."
     type: string
-    required: true
     pattern: '^(https://[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+|[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/~-]+)$'
     pattern_help: Dirección https:// o git@servidor:usuario/repo.git
   - name: git_app_token
@@ -78,11 +88,11 @@ variables:
     pattern_help: CLAVE=valor
   - name: git_app_env_generate
     label: Generar en el servidor (secretos al azar)
-    help: Nombres de variables, uno por línea (SECRET_KEY, DB_PASSWORD…). Se crean una vez y se guardan.
+    help: "Nombres de variables, uno por línea (SECRET_KEY, DB_PASSWORD…). Se crean una vez y se guardan. Si la app exige un formato, añádelo con «:»: NOMBRE:fernet (clave de cryptography.Fernet), NOMBRE:base64-32 (32 bytes en Base64), NOMBRE:hex-32. Sin nada: 40 letras y números."
     type: list
     default: []
-    pattern: '^[A-Za-z_][A-Za-z0-9_]*$'
-    pattern_help: Nombre de variable
+    pattern: '^[A-Za-z_][A-Za-z0-9_]*(:(fernet|base64-32|hex-32))?$'
+    pattern_help: "NOMBRE o NOMBRE:fernet / :base64-32 / :hex-32"
   - name: git_app_env_secret
     label: Variables secretas con valor tuyo
     help: "Tokens o claves que ya tienes: «CLAVE=valor; OTRA=valor». Se guardan cifradas en tu bóveda."

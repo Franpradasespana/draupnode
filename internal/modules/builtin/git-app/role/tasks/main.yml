@@ -3,7 +3,9 @@
   ansible.builtin.set_fact:
     git_app_dir: "/srv/draupnode/apps/{{ git_app_name }}"
     git_app_key: "{{ draupnode_secrets_dir }}/.git_app_{{ git_app_name }}_key"
-    git_app_ssh: "{{ git_app_repo is match('^[A-Za-z0-9._-]+@') }}"
+    git_app_ssh: "{{ git_app_repo | default('') is match('^[A-Za-z0-9._-]+@') }}"
+    # «carpeta»: el código lo sube Draupnode desde este equipo antes de ejecutar esto.
+    git_app_from_git: "{{ (git_app_source | default('git')) == 'git' }}"
     git_app_project: "dn-{{ git_app_name }}"
     # Otra app de Git en el mismo servidor (instancia): sus valores generados llevan su nombre.
     git_app_gen_prefix: "{{ 'git_app_env_' if (draupnode_instance | default('')) == '' else 'git_app_' ~ draupnode_instance ~ '_env_' }}"
@@ -23,7 +25,7 @@
     echo creada
   register: git_app_keygen
   changed_when: "'creada' in git_app_keygen.stdout"
-  when: git_app_ssh | bool and not ansible_check_mode
+  when: git_app_from_git | bool and git_app_ssh | bool and not ansible_check_mode
 
 - name: Traer el código (clonar o actualizar)
   ansible.builtin.shell: |
@@ -57,7 +59,7 @@
   register: git_app_git
   changed_when: "'clonado' in git_app_git.stdout or 'actualizado' in git_app_git.stdout"
   failed_when: false
-  when: not ansible_check_mode
+  when: not ansible_check_mode and git_app_from_git | bool
 
 - name: No se pudo traer el código
   ansible.builtin.fail:
@@ -67,7 +69,18 @@
       {{ lookup('ansible.builtin.file', git_app_key ~ '.pub', errors='ignore') }}
       {%- elif (git_app_token | default('') | trim) %}El token no sirve para este repositorio: comprueba que no ha caducado y que tiene permiso de lectura («Contents: Read-only» en GitHub) sobre él.
       {%- else %}Si el repositorio es privado, pon un «Token de acceso» de solo lectura en las opciones del módulo (o usa la dirección git@… con deploy key) y vuelve a aplicar.{% endif %}
-  when: not ansible_check_mode and git_app_git.rc != 0
+  when: not ansible_check_mode and git_app_from_git | bool and git_app_git.rc != 0
+
+- name: ¿Se ha subido el código? (carpeta)
+  ansible.builtin.stat:
+    path: "{{ git_app_dir }}"
+  register: git_app_uploaded
+  when: not ansible_check_mode and not git_app_from_git | bool
+
+- name: Falta el código (carpeta)
+  ansible.builtin.fail:
+    msg: "No está el código de {{ git_app_name }} en {{ git_app_dir }}. Con «carpeta», Draupnode lo sube desde {{ git_app_local_dir }} al aplicar: vuelve a aplicar desde Draupnode (el instalar.sh exportado no puede subirlo)."
+  when: not ansible_check_mode and not git_app_from_git | bool and not git_app_uploaded.stat.exists
 
 - name: Dueño de la carpeta de la app
   ansible.builtin.command: chown -R {{ git_app_owner | quote }} {{ git_app_dir | quote }}
@@ -85,9 +98,26 @@
     msg: "El repositorio no tiene {{ git_app_compose }} (en la rama {{ git_app_branch }}). Créalo con Docker Creator y súbelo."
   when: not ansible_check_mode and not git_app_cf.stat.exists
 
+- name: Valores generados con formato (una vez)
+  # NOMBRE:fernet / :base64-32 / :hex-32 → 32 bytes al azar en ese formato.
+  ansible.builtin.shell: |
+    f={{ (draupnode_secrets_dir ~ '/' ~ git_app_gen_prefix ~ item.split(':')[0]) | quote }}
+    [ -s "$f" ] && exit 0
+    umask 077
+    python3 -c 'import base64,os,sys; b=os.urandom(32); f=sys.argv[1]; print({"fernet": base64.urlsafe_b64encode(b).decode(), "base64-32": base64.b64encode(b).decode(), "hex-32": b.hex()}[f])' {{ item.split(':')[1] | quote }} > "$f"
+    echo creado
+  loop: "{{ git_app_env_generate | select('search', ':') | list }}"
+  register: git_app_genfmt
+  changed_when: "'creado' in git_app_genfmt.stdout"
+  no_log: true
+  when: not ansible_check_mode
+
 - name: Valores generados (una vez)
   ansible.builtin.set_fact:
-    git_app_gen: "{{ git_app_gen | default({}) | combine({item: lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/' ~ git_app_gen_prefix ~ item, chars=['ascii_letters', 'digits'], length=40)}) }}"
+    git_app_gen: >-
+      {{ git_app_gen | default({}) | combine({item.split(':')[0]:
+           (lookup('ansible.builtin.file', draupnode_secrets_dir ~ '/' ~ git_app_gen_prefix ~ item.split(':')[0]) | trim) if ':' in item
+           else lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/' ~ git_app_gen_prefix ~ item, chars=['ascii_letters', 'digits'], length=40)}) }}
   loop: "{{ git_app_env_generate }}"
   no_log: true
   when: not ansible_check_mode
@@ -100,7 +130,7 @@
       {% for l in git_app_env %}
       {{ l }}
       {% endfor %}
-      {% for k, v in (git_app_gen | default(dict(git_app_env_generate | zip(git_app_env_generate | map('regex_replace', '.*', 'generado'))))).items() %}
+      {% for k, v in (git_app_gen | default(dict(git_app_env_generate | map('regex_replace', ':.*', '') | zip(git_app_env_generate | map('regex_replace', '.*', 'generado'))))).items() %}
       {{ k }}={{ v }}
       {% endfor %}
       {% for l in (git_app_env_secret | default('')).split(';') if '=' in l %}
@@ -120,13 +150,13 @@
 # ---- Simulación: sin tocar la app, qué cambiaría y qué fallaría
 - name: ¿Está ya la app en el servidor?
   ansible.builtin.stat:
-    path: "{{ git_app_dir }}/.git"
+    path: "{{ git_app_dir }}{{ '/.git' if git_app_from_git | bool else '' }}"
   register: git_app_cloned
   check_mode: false
 
 - name: Simulación · primera vez
   ansible.builtin.debug:
-    msg: "{{ git_app_name }}: se bajará {{ git_app_repo }} y se construirá por primera vez (sin bajarla no se puede revisar más)."
+    msg: "{{ git_app_name }}: {{ ('se bajará ' ~ git_app_repo) if git_app_from_git | bool else ('se subirá desde ' ~ git_app_local_dir) }} y se construirá por primera vez (sin el código en el servidor no se puede revisar más)."
   changed_when: true
   when: ansible_check_mode and not git_app_cloned.stat.exists
 
@@ -147,7 +177,7 @@
   check_mode: false
   changed_when: (git_app_remote.stdout.split() | length) == 2 and git_app_remote.stdout.split()[0] != git_app_remote.stdout.split()[1] and git_app_update | bool
   failed_when: false
-  when: ansible_check_mode and git_app_cloned.stat.exists
+  when: ansible_check_mode and git_app_cloned.stat.exists and git_app_from_git | bool
 
 - name: Simulación · cambios nuevos
   ansible.builtin.debug:

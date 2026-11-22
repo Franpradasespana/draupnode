@@ -152,6 +152,11 @@ func AnalyzeAs(dir, stack string) (*Analysis, error) {
 	if len(a.Spec.EnvKeys) > 0 {
 		a.Evidence = append(a.Evidence, "Variables de entorno sacadas de .env.example: "+strings.Join(a.Spec.EnvKeys, ", ")+".")
 	}
+	// Variables que lee el código y no están en el .env.example (p. ej. DB_ENGINE en settings.py).
+	if extra := CodeEnvKeys(dir, a.Spec.EnvKeys); len(extra) > 0 {
+		a.Spec.EnvKeys = append(a.Spec.EnvKeys, extra...)
+		a.Evidence = append(a.Evidence, "Variables que lee tu código y no están en .env.example: "+strings.Join(extra, ", ")+".")
+	}
 	if exists(dir, ".env") {
 		a.Evidence = append(a.Evidence, "Hay un .env: no se lee ni se mete en la imagen (va en .dockerignore); el compose lo usa al arrancar.")
 	}

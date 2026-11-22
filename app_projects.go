@@ -174,6 +174,38 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 		_, inst := modules.SplitID(id)
 		sel = append(sel, bundle.Selection{Module: m, Values: v, ID: id, Instance: inst})
 	}
+	// App desde Git: según de dónde sale el código, el repositorio o la carpeta.
+	for _, s := range sel {
+		if s.Module.ID != "git-app" {
+			continue
+		}
+		e := map[string]string{}
+		if fmt.Sprint(s.Values["git_app_source"]) == "carpeta" {
+			dir, _ := s.Values["git_app_local_dir"].(string)
+			compose, _ := s.Values["git_app_compose"].(string)
+			switch st, err := os.Stat(dir); {
+			case dir == "":
+				e["git_app_local_dir"] = "elige la carpeta del proyecto"
+			case recipe:
+			case err != nil || !st.IsDir():
+				e["git_app_local_dir"] = "no existe en este equipo"
+			default:
+				if _, err := os.Stat(filepath.Join(dir, compose)); err != nil {
+					e["git_app_compose"] = "no está en " + dir + " (créalo con Docker Creator)"
+				}
+			}
+		} else if r, _ := s.Values["git_app_repo"].(string); strings.TrimSpace(r) == "" {
+			e["git_app_repo"] = "es obligatorio"
+		}
+		if len(e) > 0 {
+			if res.Errors[s.Key()] == nil {
+				res.Errors[s.Key()] = map[string]string{}
+			}
+			for k, v := range e {
+				res.Errors[s.Key()][k] = v
+			}
+		}
+	}
 	// Copias de un módulo repetible: cada una con su nombre de app (su carpeta).
 	names := map[string]string{}
 	for _, s := range sel {
@@ -586,6 +618,31 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "progress", "text": line}})
 		})
 	}()
+	// App desde Git con «carpeta»: subir el código antes (no en la simulación).
+	if !check && len(rm.uninstall) == 0 && len(localApps(p)) > 0 {
+		send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "stage", "name": "Subiendo el código de este equipo"}})
+		if err := a.uploadLocalApps(ctx, c, su, p, func(msg string) {
+			lmu.Lock()
+			if lw != nil {
+				fmt.Fprintf(lw, "NOTA DE DRAUPNODE: %s\n", msg)
+			}
+			lmu.Unlock()
+			send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "notice", "msg": msg}})
+		}); err != nil {
+			stopProg()
+			<-progDone
+			sum.Error = err.Error()
+			if lw != nil {
+				fmt.Fprintf(lw, "FALLO: %s\n# Fin: ok=false\n", err)
+				_ = lw.Flush()
+				_ = lf.Close()
+			}
+			_ = a.store.SetLastRun(p.ID, sum)
+			saveRunSummary(logPath, sum)
+			send(RunEvent{Kind: "done", Summary: &sum})
+			return
+		}
+	}
 	// Módulos por los que va pasando la ejecución (por el nombre de sus tareas, «módulo : tarea»).
 	var roles []string
 	code, err := runner.RunOpts(ctx, c, script, runner.Opts{Check: check, SecretsBack: len(rm.uninstall) == 0 || a.vault.Status().Unlocked}, su, func(e runner.Event) {

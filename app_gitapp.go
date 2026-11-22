@@ -56,7 +56,7 @@ var (
 	gitNameRe    = regexp.MustCompile(`^[a-z][a-z0-9-]{1,30}$`)
 	secretNameRe = regexp.MustCompile(`(?i)(SECRET|PASSWORD|PASSWD|PASSPHRASE|(^|_)PASS($|_)|TOKEN|(^|_)KEY$|PRIVATE|SALT|CREDENTIAL|(^|_)PWD($|_))`)
 	urlNameRe    = regexp.MustCompile(`(?i)(_URL|_URI|_DSN)$`)
-	externalRe   = regexp.MustCompile(`(?i)(API_KEY|APIKEY|ACCESS_KEY|_TOKEN$|^TOKEN$|STRIPE|PAYPAL|SENDGRID|MAILGUN|SMTP|EMAIL_HOST|TWILIO|OPENAI|ANTHROPIC|GOOGLE|GITHUB|AWS_|S3_|SENTRY|RECAPTCHA)`)
+	externalRe   = regexp.MustCompile(`(?i)(API_KEY|APIKEY|ACCESS_KEY|_TOKEN$|^TOKEN$|STRIPE|PAYPAL|SENDGRID|MAILGUN|SMTP|EMAIL_HOST|TWILIO|OPENAI|ANTHROPIC|GOOGLE|GITHUB|AWS_|S3_|SENTRY|RECAPTCHA|VAPID)`)
 )
 
 // classifyGitVar decide qué es cada variable por su nombre: una contraseña o

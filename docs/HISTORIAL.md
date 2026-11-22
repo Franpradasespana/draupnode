@@ -898,3 +898,29 @@ como root encima de la app, falta de migrate) y que la Simulación decía «todo
 - La barra «Cambios sin aplicar» se quedaba fija dentro del editor de módulos y, al bajar del todo, se montaba
   sobre «Lo que ya hay en este servidor» (que iba después, fuera del editor). Ahora esa sección se pinta dentro del
   editor (`after`), antes de la barra: al final de la página la barra queda debajo de todo.
+
+## 2026-11-22 · 0.54.0 · Publicar sin GitHub desde Docker Creator (probado con un proyecto Django real)
+
+Objetivo del usuario: que alguien sin saber de Docker ni de git pueda publicar su proyecto. Probado con una copia de
+un proyecto Django real del usuario en el servidor de pruebas: instalado sin fallos, 110 migraciones en PostgreSQL, claves Fernet y
+AES válidas, DEBUG=False, web 200, junto a la app Django de antes (8000) en el 8001.
+
+- **App desde Git con «carpeta»** (`git_app_source` = git | carpeta, `git_app_local_dir`): antes de aplicar,
+  Draupnode sube la carpeta por SSH (tar.gz por stdin, `app_upload.go`) a `/srv/draupnode/apps/<nombre>`, sin
+  .git/.env/.venv/node_modules/__pycache__/*.sqlite3/*.zip ni lo del `.dockerignore`. En la simulación no se sube.
+  Se comprueba antes que la carpeta y su compose existen. El formulario solo enseña los campos de cada caso y
+  «Elegir…» para la carpeta. El instalar.sh exportado no puede subirla (lo dice si falta).
+- **Claves con formato** en «Generar en el servidor»: `NOMBRE:fernet`, `:base64-32`, `:hex-32` (32 bytes al azar).
+- **Docker Creator**:
+  - Lee también las **variables que usa el código** (`os.environ.get`, `getenv`, `process.env`, `env(…)`…) que no
+    están en `.env.example` (`CodeEnvKeys`; en la prueba: DB_ENGINE, FILES_ENCRYPTION_KEY…).
+  - Deduce el **formato de las claves** mirando el código cerca de donde se leen (`KeyFormats`: `Fernet(clave)` →
+    fernet; `b64decode` + 32 → base64-32; hex). Una clave derivada (`Fernet(base64…(…))`) no cuenta.
+  - El puerto del compose queda en **127.0.0.1** y se puede cambiar con `APP_HOST_PORT`.
+  - **«Publicar en un servidor»** (`PublishDockerApp`): añade la App desde Git (con «carpeta») a los módulos del
+    servidor elegido, otra copia si ya hay una; puerto libre si el suyo está ocupado; variables: las del compose
+    sin valor por defecto + las de la app (ejemplo o código), con valores de servidor típicos (DEBUG=false,
+    DB_ENGINE=postgres…); las que no tienen valor **no se ponen** (vacías pisarían el valor por defecto) y salen en
+    «para revisar»; contraseñas y claves → generar (en su formato); las de otros servicios (correo, VAPID…) → para
+    revisar.
+- Tests: `TestSubirCarpeta`, `TestVariablesYFormatosDelCodigo`.

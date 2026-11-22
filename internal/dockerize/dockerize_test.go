@@ -98,7 +98,7 @@ func TestValidar(t *testing.T) {
 	s = Default(StackNode, "app")
 	s.Framework = "spa"
 	f, _ := Generate(s)
-	if !strings.Contains(f["docker-compose.yml"], `"8080:80"`) || strings.Contains(f["docker-compose.yml"], "env_file") {
+	if !strings.Contains(f["docker-compose.yml"], `"127.0.0.1:${APP_HOST_PORT:-8080}:80"`) || strings.Contains(f["docker-compose.yml"], "env_file") {
 		t.Fatalf("spa: %s", f["docker-compose.yml"])
 	}
 	s = Default(StackPython, "app")

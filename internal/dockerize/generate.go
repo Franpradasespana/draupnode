@@ -555,7 +555,9 @@ func compose(s Spec) string {
 	if s.Proxy {
 		b.WriteString(fmt.Sprintf("    # No se publica: le llega todo a través de nginx (servicio «web»), por el puerto %d de dentro.\n    expose:\n      - \"%d\"\n", s.Port, s.Port))
 	} else {
-		b.WriteString(fmt.Sprintf("    # «puerto del equipo:puerto de la app». Abre http://localhost:%d\n    ports:\n      - \"%d:%d\"\n", s.HostPort, s.HostPort, s.Port))
+		// Solo en 127.0.0.1: en un servidor, Docker se salta el cortafuegos; para llegar desde fuera,
+		// Caddy/nginx (dominio) o el túnel SSH de Draupnode.
+		b.WriteString(fmt.Sprintf("    # «puerto del equipo:puerto de la app», solo en este equipo/servidor (127.0.0.1). Abre http://localhost:%d\n    # (para publicarlo a internet: un dominio con Caddy/nginx, o quita «127.0.0.1:»). APP_HOST_PORT en .env lo cambia.\n    ports:\n      - \"127.0.0.1:${APP_HOST_PORT:-%d}:%d\"\n", s.HostPort, s.HostPort, s.Port))
 	}
 	if s.Stack != StackStatic && !(s.Stack == StackNode && s.Framework == "spa") {
 		b.WriteString("    # Variables de entorno (contraseñas, claves…) desde .env, que NO va en la imagen.\n")
