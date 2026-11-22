@@ -629,6 +629,71 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class DockerUsage {
+	    type: string;
+	    total: string;
+	    active: string;
+	    size: string;
+	    reclaimable: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DockerUsage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.total = source["total"];
+	        this.active = source["active"];
+	        this.size = source["size"];
+	        this.reclaimable = source["reclaimable"];
+	    }
+	}
+	export class DockerResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    output?: string;
+	    usage?: DockerUsage[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DockerResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.output = source["output"];
+	        this.usage = this.convertValues(source["usage"], DockerUsage);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class EnvImportResult {
 	    status: string;
 	    runId?: string;
@@ -718,6 +783,8 @@ export namespace main {
 	    composeFound: boolean;
 	    exampleFile?: string;
 	    vars: GitEnvVar[];
+	    postCommand?: string;
+	    postService?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GitInspectResult(source);
@@ -735,6 +802,8 @@ export namespace main {
 	        this.composeFound = source["composeFound"];
 	        this.exampleFile = source["exampleFile"];
 	        this.vars = this.convertValues(source["vars"], GitEnvVar);
+	        this.postCommand = source["postCommand"];
+	        this.postService = source["postService"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

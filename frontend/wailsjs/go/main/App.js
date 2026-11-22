@@ -106,6 +106,10 @@ export function CloseTunnels() {
   return window['go']['main']['App']['CloseTunnels']();
 }
 
+export function ContainerAction(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['ContainerAction'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function CreateBackupTarget(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateBackupTarget'](arg1, arg2, arg3);
 }
@@ -142,6 +146,10 @@ export function DeleteUserModuleFile(arg1, arg2) {
   return window['go']['main']['App']['DeleteUserModuleFile'](arg1, arg2);
 }
 
+export function DockerDiskUsage(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['DockerDiskUsage'](arg1, arg2, arg3, arg4);
+}
+
 export function DockerInfo() {
   return window['go']['main']['App']['DockerInfo']();
 }
@@ -152,6 +160,10 @@ export function DockerLabStop(arg1, arg2) {
 
 export function DockerLabTest(arg1, arg2) {
   return window['go']['main']['App']['DockerLabTest'](arg1, arg2);
+}
+
+export function DockerPrune(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['DockerPrune'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function ExportBackup(arg1, arg2) {

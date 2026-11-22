@@ -529,6 +529,9 @@ export interface GitEnvVar {
 }
 
 export interface GitInspectResult extends RunStart {
+  /** Orden para preparar la base de datos según el tipo de app, y dónde ejecutarla. */
+  postCommand?: string
+  postService?: string
   commit?: string
   composeFound: boolean
   exampleFile?: string
@@ -539,6 +542,19 @@ export interface EnvImportResult extends RunStart {
   env: string[]
   secretKeys: string[]
   skipped: string[]
+}
+
+export interface DockerUsage {
+  type: string
+  total: string
+  active: string
+  size: string
+  reclaimable: string
+}
+
+export interface DockerResult extends RunStart {
+  output?: string
+  usage?: DockerUsage[]
 }
 
 export interface CachedOverview {
@@ -674,6 +690,9 @@ interface Backend {
   ForgetTemplate(serverId: string, recipeId: string): Promise<Project>
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
   LastOverviews(): Promise<Record<string, CachedOverview>>
+  ContainerAction(serverId: string, name: string, action: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
+  DockerDiskUsage(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
+  DockerPrune(serverId: string, what: string[], secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   ChooseEnvFile(): Promise<string>
   GitAppImportEnv(projectId: string, moduleId: string, path: string): Promise<EnvImportResult>
   GitAppInspect(projectId: string, moduleId: string, repo: string, branch: string, compose: string, appName: string, secret: string, accept: string, sudoPassword: string): Promise<GitInspectResult>
@@ -1415,13 +1434,30 @@ function mockBackend(): Backend {
       if (!repo) return { status: 'error', message: 'Escribe primero la dirección del repositorio (https://… o git@…).', composeFound: false, vars: [] }
       if (/bootstrap/.test(repo)) return { status: 'ok', commit: 'ac35207 feat(collapse): add .collapse-instant', composeFound: false, vars: [] }
       const v = (key: string, o: Partial<GitEnvVar>): GitEnvVar => ({ key, inExample: true, inCompose: false, hasDefault: false, secret: false, external: false, ...o })
-      return { status: 'ok', commit: 'a1b2c3d Primera versión', composeFound: true, exampleFile: '.env.example', vars: [
+      return { status: 'ok', commit: 'a1b2c3d Primera versión', composeFound: true, exampleFile: '.env.example', postCommand: 'python3 manage.py migrate', postService: 'web', vars: [
         v('ALLOWED_HOSTS', { example: 'localhost' }), v('DATABASE_URL', { example: 'postgres://app:pass@db:5432/app', hint: 'dirección: si lleva usuario y contraseña, escríbela entera' }),
         v('DEBUG', { example: 'False' }), v('PORT', { inExample: false, inCompose: true, hasDefault: true }),
         v('POSTGRES_PASSWORD', { inCompose: true, secret: true, hint: 'contraseña o clave de la app: se puede generar al azar' }),
         v('SECRET_KEY', { inCompose: true, secret: true, hint: 'contraseña o clave de la app: se puede generar al azar' }),
         v('STRIPE_API_KEY', { inExample: false, inCompose: true, external: true, hint: 'clave de otro servicio: solo la tienes tú' }),
       ] }
+    },
+    async ContainerAction() {
+      await wait(600)
+      return { status: 'ok' }
+    },
+    async DockerDiskUsage() {
+      await wait(500)
+      return { status: 'ok', usage: [
+        { type: 'Images', total: '15', active: '8', size: '3.1GB', reclaimable: '1.66GB (53%)' },
+        { type: 'Containers', total: '8', active: '7', size: '68B', reclaimable: '0B (0%)' },
+        { type: 'Local Volumes', total: '6', active: '4', size: '154.5MB', reclaimable: '73.3MB (47%)' },
+        { type: 'Build Cache', total: '52', active: '0', size: '1.07GB', reclaimable: '888.4MB' },
+      ] }
+    },
+    async DockerPrune(_s, what) {
+      await wait(900)
+      return { status: 'ok', output: what.map((w: string) => (w === 'images' ? '== Imágenes sin usar\nTotal reclaimed space: 1.66GB' : w === 'build' ? '== Caché de construcción\nTotal reclaimed space: 888.4MB' : '== Contenedores parados\nTotal reclaimed space: 0B')).join('\n') }
     },
     async LastOverviews() {
       const out: Record<string, CachedOverview> = {}

@@ -67,3 +67,13 @@ func TestImportarEnvALaBoveda(t *testing.T) {
 		t.Fatal(v)
 	}
 }
+
+func TestAvisosDelEnv(t *testing.T) {
+	w := gitEnvWarnings("App", map[string]any{"git_app_env": []any{"NODE_ENV=produccion", "DEBUG=true", "POSTGRES_DB=", "ALLOWED_HOSTS=*", "NODE_ENV=production"}})
+	if len(w) != 3 || !strings.Contains(w[0], "NODE_ENV=produccion") || !strings.Contains(w[1], "DEBUG=true") || !strings.Contains(w[2], "POSTGRES_DB") {
+		t.Fatalf("%q", w)
+	}
+	if gitPostSuggestion(map[string]bool{"manage.py": true}) != "python3 manage.py migrate" || gitPostSuggestion(map[string]bool{}) != "" {
+		t.Fatal("sugerencia")
+	}
+}

@@ -842,3 +842,28 @@ como root, la app corre con el usuario 1000).
   Jinja sin !unsafe; probado con Ansible real). Sus valores generados: `git_app_<nombre>_env_*`. Dos copias con el
   mismo nombre de app → error en ese campo. En la interfaz: «Añadir módulos» → pulsar otra vez «App desde Git» pide
   el nombre; se ve como «App desde Git · blog» con su página, su asistente y sus contraseñas. Test `TestDosAppsDeGit`.
+
+## 2026-11-22 · 0.53.0 · App desde Git revisa sola los errores típicos; controles de Docker
+
+Lo aprendido con `nickjj/docker-django-example` (NODE_ENV mal escrito, puerto abierto a internet, código montado
+como root encima de la app, falta de migrate) y que la Simulación decía «todo bien» con la app caída.
+
+- **Revisor en el servidor** (`files/revisar.py` del rol): `compose` lee `docker compose config --format json` con
+  el .env que quedaría (en la simulación, uno temporal con los generados como «con valor») y saca variables sin
+  valor (para), puertos publicados en 0.0.0.0 (aviso: Docker se salta el cortafuegos) y servicios que montan la
+  carpeta del código (aviso); `permisos` mira con qué usuario corre cada imagen (`docker image inspect`, y si es un
+  nombre, `id -u/-g` dentro) y, si no es root y monta carpetas de la app, las crea y se las da (si «Dueño de la
+  carpeta» está vacío); `estado` lista contenedores de la app que no están en marcha. Probado en el servidor de
+  pruebas con la app Django real y una copia de su carpeta.
+- **La Simulación ya comprueba la app** (sin tocarla): si es la primera vez, si hay commits nuevos (`git
+  ls-remote`), la revisión del compose y qué contenedores están parados. Probado con una simulación real de
+  Ansible sobre los módulos del servidor de pruebas.
+- **Avisos antes de aplicar** (`gitEnvWarnings`): NODE_ENV fuera de production/development/test, DEBUG/APP_DEBUG…
+  verdadero, RAILS_ENV/APP_ENV/FLASK_ENV de desarrollo, variables vacías. Test `TestAvisosDelEnv`.
+- **«Leer el repositorio» reconoce el tipo de app** (manage.py, artisan, bin/rails, prisma/schema.prisma,
+  alembic.ini, en la raíz o un nivel por debajo) y, si la orden después de arrancar está vacía, la rellena
+  (`python3 manage.py migrate`…) con el primer servicio que se construye. Probado con el repositorio real.
+- **Controles de Docker** en la ficha → Contenedores: arrancar, parar (con confirmación) y reiniciar cada
+  contenedor (`ContainerAction`); «Limpiar Docker…» (`DockerDiskUsage` + `DockerPrune`): enseña lo que ocupa y lo
+  recuperable y borra imágenes sin usar, caché de construcción y, si se marca, contenedores parados. Los volúmenes
+  nunca.

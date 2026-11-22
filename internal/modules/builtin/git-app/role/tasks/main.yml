@@ -92,44 +92,144 @@
   no_log: true
   when: not ansible_check_mode
 
-- name: .env
-  ansible.builtin.copy:
-    dest: "{{ git_app_dir }}/.env"
-    mode: "0600"
-    content: |
+- name: Contenido del .env
+  # En la simulación, los generados aún no existen: se cuentan como «con valor».
+  ansible.builtin.set_fact:
+    git_app_env_text: |
       # Generado por Draupnode (módulo git-app). Se reescribe al aplicar.
       {% for l in git_app_env %}
       {{ l }}
       {% endfor %}
-      {% for k, v in (git_app_gen | default({})).items() %}
+      {% for k, v in (git_app_gen | default(dict(git_app_env_generate | zip(git_app_env_generate | map('regex_replace', '.*', 'generado'))))).items() %}
       {{ k }}={{ v }}
       {% endfor %}
       {% for l in (git_app_env_secret | default('')).split(';') if '=' in l %}
       {{ l | trim }}
       {% endfor %}
+  no_log: true
+
+- name: .env
+  ansible.builtin.copy:
+    dest: "{{ git_app_dir }}/.env"
+    mode: "0600"
+    content: "{{ git_app_env_text }}"
   register: git_app_envf
   no_log: true
   when: not ansible_check_mode
 
-- name: Variables que usa el compose y no tienen valor
+# ---- Simulación: sin tocar la app, qué cambiaría y qué fallaría
+- name: ¿Está ya la app en el servidor?
+  ansible.builtin.stat:
+    path: "{{ git_app_dir }}/.git"
+  register: git_app_cloned
+  check_mode: false
+
+- name: Simulación · primera vez
+  ansible.builtin.debug:
+    msg: "{{ git_app_name }}: se bajará {{ git_app_repo }} y se construirá por primera vez (sin bajarla no se puede revisar más)."
+  changed_when: true
+  when: ansible_check_mode and not git_app_cloned.stat.exists
+
+- name: Simulación · ¿hay cambios en el repositorio?
   ansible.builtin.shell: |
-    docker compose -p {{ git_app_project }} -f {{ git_app_compose | quote }} config -q 2>&1 >/dev/null \
-      | sed -n 's/.*The \\\{0,1\}"\([A-Za-z_][A-Za-z0-9_]*\)\\\{0,1\}" variable is not set.*/\1/p' | sort -u
-  args:
-    chdir: "{{ git_app_dir }}"
-  register: git_app_unset
-  changed_when: false
+    export GIT_TERMINAL_PROMPT=0
+    export GIT_SSH_COMMAND="ssh -i {{ git_app_key }} -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile={{ draupnode_secrets_dir }}/.git_known_hosts"
+    if [ -n "${GIT_APP_TOKEN:-}" ]; then
+      auth=$(printf 'x-access-token:%s' "$GIT_APP_TOKEN" | base64 -w0)
+      export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: Basic $auth"
+    fi
+    cd {{ git_app_dir | quote }}
+    remoto=$(timeout 60 git ls-remote {{ git_app_repo | quote }} {{ ('refs/heads/' ~ git_app_branch) | quote }} | cut -f1)
+    echo "$(git rev-parse HEAD) ${remoto:-?}"
+  environment:
+    GIT_APP_TOKEN: "{{ (git_app_token | default('') | trim) if not (git_app_ssh | bool) else '' }}"
+  register: git_app_remote
+  check_mode: false
+  changed_when: (git_app_remote.stdout.split() | length) == 2 and git_app_remote.stdout.split()[0] != git_app_remote.stdout.split()[1] and git_app_update | bool
   failed_when: false
-  when: not ansible_check_mode
+  when: ansible_check_mode and git_app_cloned.stat.exists
+
+- name: Simulación · cambios nuevos
+  ansible.builtin.debug:
+    msg: "{{ git_app_name }}: hay cambios nuevos en el repositorio ({{ git_app_remote.stdout.split()[0][:7] }} → {{ git_app_remote.stdout.split()[1][:7] }}): al aplicar se bajarán y se reconstruirá."
+  changed_when: true
+  when: ansible_check_mode and git_app_remote is changed
+
+- name: .env para revisar (simulación)
+  ansible.builtin.copy:
+    dest: "/tmp/draupnode-env-{{ git_app_project }}"
+    mode: "0600"
+    content: "{{ git_app_env_text }}"
+  check_mode: false
+  changed_when: false
+  no_log: true
+  when: ansible_check_mode and git_app_cloned.stat.exists
+
+# ---- Revisar el compose (simulación y aplicar): variables, puertos, código montado
+- name: Revisar el compose
+  ansible.builtin.command:
+    argv: [python3, "{{ role_path }}/files/revisar.py", compose, "{{ git_app_dir }}", "{{ git_app_project }}", "{{ git_app_compose }}", "{{ ('/tmp/draupnode-env-' ~ git_app_project) if ansible_check_mode else (git_app_dir ~ '/.env') }}"]
+  register: git_app_review
+  check_mode: false
+  changed_when: false
+  when: git_app_cloned.stat.exists or not ansible_check_mode
+
+- name: Quitar el .env de la simulación
+  ansible.builtin.file:
+    path: "/tmp/draupnode-env-{{ git_app_project }}"
+    state: absent
+  check_mode: false
+  changed_when: false
+  when: ansible_check_mode
+
+- name: Lo que se ha visto en el compose
+  ansible.builtin.set_fact:
+    git_app_rev: "{{ git_app_review.stdout | from_json }}"
+  when: git_app_review.stdout is defined and git_app_review.stdout | length > 0
 
 - name: Faltan variables
   ansible.builtin.fail:
     msg: >-
-      El docker-compose usa variables que no tienen valor: {{ git_app_unset.stdout_lines | join(', ') }}.
+      El docker-compose usa variables que no tienen valor: {{ git_app_rev.unset | join(', ') }}.
       Ponlas en las opciones del módulo: en «Variables (.env)» como CLAVE=valor, en «Generar en el servidor» si deben
       ser al azar, o en «Variables secretas». Si alguna debe quedar vacía a propósito, escríbela como «CLAVE=».
       («Leer el repositorio», en las opciones, las encuentra solas.)
-  when: not ansible_check_mode and (git_app_unset.stdout_lines | default([]) | length) > 0
+  when: git_app_rev is defined and git_app_rev.unset | length > 0
+
+- name: El compose no se puede leer
+  ansible.builtin.fail:
+    msg: "docker compose no puede leer {{ git_app_compose }}: {{ git_app_rev.error }}"
+  when: git_app_rev is defined and git_app_rev.error != '' and git_app_rev.services | length == 0
+
+- name: Aviso · puertos abiertos a internet
+  ansible.builtin.debug:
+    msg: >-
+      {{ git_app_name }}: {{ git_app_rev.public | join(', ') }} {{ 'se publica' if git_app_rev.public | length == 1 else 'se publican' }}
+      a todo internet, y Docker se salta el cortafuegos. Si la app va detrás de Caddy/nginx o la abres por túnel SSH,
+      publícalo solo en 127.0.0.1 (p. ej. «127.0.0.1:8000:8000» o la variable del .env que lo controle).
+  when: git_app_rev is defined and git_app_rev.public | length > 0
+
+- name: Aviso · código montado encima de la app
+  ansible.builtin.debug:
+    msg: >-
+      {{ git_app_name }}: {{ git_app_rev.srcmount | join(', ') }} monta la carpeta del código («.») dentro del contenedor.
+      Eso es para desarrollo: en un servidor tapa lo que se construyó en la imagen. Si el compose lo controla con
+      una variable del .env, quítala o cámbiala.
+  when: git_app_rev is defined and git_app_rev.srcmount | length > 0
+
+- name: Simulación · contenedores que no están en marcha
+  ansible.builtin.command:
+    argv: [python3, "{{ role_path }}/files/revisar.py", estado, "{{ git_app_dir }}", "{{ git_app_project }}", "{{ git_app_compose }}"]
+  register: git_app_state
+  check_mode: false
+  changed_when: (git_app_state.stdout | from_json).stopped | length > 0
+  when: ansible_check_mode and git_app_cloned.stat.exists
+
+- name: Simulación · parados
+  ansible.builtin.debug:
+    msg: "{{ git_app_name }}: ahora no están en marcha: {{ (git_app_state.stdout | from_json).stopped | join(', ') }}. Al aplicar se volverán a arrancar."
+  changed_when: true
+  when: ansible_check_mode and git_app_state is changed
 
 - name: Construir la app (se ve en directo)
   # La salida va a un fichero que Draupnode enseña mientras tanto. Se para si pasa
@@ -175,6 +275,20 @@
       {%- else %}Falló la construcción de la imagen (docker compose build). Últimas líneas:
       {{ git_app_build.stdout | default('') }}{% endif %}
   when: not ansible_check_mode and git_app_build.rc != 0
+
+- name: Permisos de las carpetas de la app
+  # Si la imagen no corre como root y monta carpetas de la app, se las da a su
+  # usuario (lo que haría falta poner a mano en «Dueño de la carpeta de la app»).
+  ansible.builtin.command:
+    argv: [python3, "{{ role_path }}/files/revisar.py", permisos, "{{ git_app_dir }}", "{{ git_app_project }}", "{{ git_app_compose }}"]
+  register: git_app_perms
+  changed_when: (git_app_perms.stdout | from_json).notes | length > 0
+  when: not ansible_check_mode and git_app_owner | default('') == ''
+
+- name: Permisos ajustados
+  ansible.builtin.debug:
+    msg: "{{ git_app_name }}: carpetas dadas al usuario con el que corre la app: {{ (git_app_perms.stdout | from_json).notes | join('; ') }}."
+  when: git_app_perms is changed
 
 - name: Arrancar
   ansible.builtin.command: docker compose -p {{ git_app_project }} -f {{ git_app_compose }} up -d --quiet-pull --remove-orphans

@@ -7,15 +7,15 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
-    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks,
+    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectEditor from './ProjectEditor.svelte'
   import RunHistory from '../components/RunHistory.svelte'
   import AdoptSection from '../components/AdoptSection.svelte'
   import ServerForm from './ServerForm.svelte'
-  import { api, errorText, type MonitorResult, type ServerLogsResult, type ServerOverview, type ServerOverviewResult } from '../lib/api'
-  import { ui, toast, timeAgo, refreshProjects, openRecipe, moduleName, openTerminal } from '../lib/state.svelte'
+  import { api, errorText, type DockerResult, type MonitorResult, type ServerLogsResult, type ServerOverview, type ServerOverviewResult } from '../lib/api'
+  import { ui, toast, timeAgo, refreshProjects, openRecipe, moduleName, openTerminal, confirmDialog } from '../lib/state.svelte'
   import { sameValues } from '../lib/modules'
   import { withConnection } from '../lib/connect'
   import BackupsPanel from '../components/BackupsPanel.svelte'
@@ -185,6 +185,39 @@
   // Si la pestaña recordada no existe en este servidor (Copias), al Resumen.
   const current = $derived(tabs.some((t) => t.id === tab) ? tab : 'resumen')
   let onlySick = $state(false)
+
+  // ---- Controles de Docker: parar / arrancar / reiniciar y limpiar
+  let ctrBusy = $state('')
+  async function containerAction(name: string, action: 'start' | 'stop' | 'restart') {
+    if (action === 'stop') {
+      const ok = await confirmDialog({ title: `Parar ${name}`, message: 'El contenedor se para hasta que lo arranques (o hasta que vuelvas a aplicar sus módulos). Lo que sirva dejará de funcionar mientras tanto.', confirmLabel: 'Parar', danger: true })
+      if (!ok) return
+    }
+    ctrBusy = name + ':' + action
+    try {
+      const r = await withConnection<DockerResult>(server, (s, a, u) => api.ContainerAction(id, name, action, s, a, u))
+      if (r?.status === 'ok') { toast(`${name}: ${action === 'start' ? 'arrancado' : action === 'stop' ? 'parado' : 'reiniciado'}`); await load() }
+      else if (r) toast(r.message || 'No se pudo', 'error')
+    } finally {
+      ctrBusy = ''
+    }
+  }
+  let cleaning = $state<{ usage: DockerResult['usage']; what: string[]; busy: boolean; output: string } | null>(null)
+  async function openClean() {
+    const r = await withConnection<DockerResult>(server, (s, a, u) => api.DockerDiskUsage(id, s, a, u))
+    if (r?.status !== 'ok') { if (r) toast(r.message || 'No se pudo leer Docker', 'error'); return }
+    cleaning = { usage: r.usage ?? [], what: ['images', 'build'], busy: false, output: '' }
+  }
+  async function doClean() {
+    if (!cleaning) return
+    cleaning.busy = true
+    const r = await withConnection<DockerResult>(server, (s, a, u) => api.DockerPrune(id, cleaning!.what, s, a, u))
+    if (!cleaning) return
+    cleaning.busy = false
+    if (r?.status === 'ok') { cleaning.output = r.output || 'Hecho.'; load() }
+    else if (r) toast(r.message || 'No se pudo limpiar', 'error')
+  }
+  const usageOf = (t: string) => cleaning?.usage?.find((u) => u.type === t)
   let moduleOpen = $state(false)
 </script>
 
@@ -391,7 +424,10 @@
     <section class="card block">
       <div class="h2row">
         <h2><Box size={17} /> Contenedores {#if ov?.docker}<span class="muted small">· {runningContainers} en marcha de {ov.containers?.length ?? 0}</span>{/if}</h2>
-        {#if ov?.docker && (ov.containers?.length ?? 0) > 0}<label class="chk small"><input type="checkbox" bind:checked={onlySick} /> Solo los que no están en marcha o fallan</label>{/if}
+        <div class="row">
+          {#if ov?.docker && (ov.containers?.length ?? 0) > 0}<label class="chk small"><input type="checkbox" bind:checked={onlySick} /> Solo los que no están en marcha o fallan</label>{/if}
+          {#if ov?.docker}<button class="btn sm" onclick={openClean} title="Ver cuánto ocupa Docker y borrar lo que no se usa (nunca los volúmenes)"><Eraser size={14} /> Limpiar Docker…</button>{/if}
+        </div>
       </div>
       {#if !ov}<p class="muted">{loading ? 'Leyendo…' : '—'}</p>
       {:else if !ov.docker}<p class="muted">Este servidor no tiene Docker.</p>
@@ -407,7 +443,15 @@
                 <td class="mono small">{c.cpu ?? ''}</td>
                 <td class="mono small">{c.mem ?? ''}</td>
                 <td class="mono small">{c.ports.join(', ')}</td>
-                <td class="r"><button class="btn sm ghost" onclick={() => showLogs('container', c.name, c.name)}><ScrollText size={13} /> Registro</button></td>
+                <td class="r"><div class="acts">
+                  {#if c.state === 'running' || c.state === 'restarting'}
+                    <button class="btn sm ghost icon" title="Reiniciar" disabled={!!ctrBusy} onclick={() => containerAction(c.name, 'restart')}>{#if ctrBusy === c.name + ':restart'}<LoaderCircle size={13} class="spin" />{:else}<RotateCw size={13} />{/if}</button>
+                    <button class="btn sm ghost icon" title="Parar" disabled={!!ctrBusy} onclick={() => containerAction(c.name, 'stop')}>{#if ctrBusy === c.name + ':stop'}<LoaderCircle size={13} class="spin" />{:else}<Square size={13} />{/if}</button>
+                  {:else}
+                    <button class="btn sm ghost icon" title="Arrancar" disabled={!!ctrBusy} onclick={() => containerAction(c.name, 'start')}>{#if ctrBusy === c.name + ':start'}<LoaderCircle size={13} class="spin" />{:else}<Play size={13} />{/if}</button>
+                  {/if}
+                  <button class="btn sm ghost" onclick={() => showLogs('container', c.name, c.name)}><ScrollText size={13} /> Registro</button>
+                </div></td>
               </tr>
             {:else}
               <tr><td colspan="6" class="muted">{onlySick ? 'Todos en marcha y sanos.' : 'No hay contenedores.'}</td></tr>
@@ -500,6 +544,28 @@
   {#if ov?.errors?.length}<p class="muted small">No se pudo leer todo: {ov.errors.join(' · ')}</p>{/if}
 {/if}
 
+{#if cleaning}
+  <Modal title="Limpiar Docker" width={620} onclose={() => (cleaning = null)}>
+    {#if cleaning.output}
+      <pre class="log selectable">{cleaning.output}</pre>
+      <p class="muted small">Listo. Los volúmenes (los datos) no se han tocado.</p>
+    {:else}
+      <p class="muted small">Borra lo que no usa ningún contenedor para liberar disco. <strong>Los volúmenes (donde están los datos de tus apps y bases de datos) nunca se tocan.</strong></p>
+      <label class="chk"><input type="checkbox" checked={cleaning.what.includes('images')} onchange={(e) => cleaning && (cleaning.what = (e.currentTarget as HTMLInputElement).checked ? [...cleaning.what, 'images'] : cleaning.what.filter((x) => x !== 'images'))} />
+        <span><strong>Imágenes que no usa ningún contenedor</strong> <span class="muted small">· se pueden recuperar {usageOf('Images')?.reclaimable ?? '—'} · se vuelven a bajar o construir si hacen falta</span></span></label>
+      <label class="chk"><input type="checkbox" checked={cleaning.what.includes('build')} onchange={(e) => cleaning && (cleaning.what = (e.currentTarget as HTMLInputElement).checked ? [...cleaning.what, 'build'] : cleaning.what.filter((x) => x !== 'build'))} />
+        <span><strong>Caché de construcción</strong> <span class="muted small">· {usageOf('Build Cache')?.reclaimable ?? '—'} · la próxima construcción tardará más</span></span></label>
+      <label class="chk"><input type="checkbox" checked={cleaning.what.includes('containers')} onchange={(e) => cleaning && (cleaning.what = (e.currentTarget as HTMLInputElement).checked ? [...cleaning.what, 'containers'] : cleaning.what.filter((x) => x !== 'containers'))} />
+        <span><strong>Contenedores parados</strong> <span class="muted small">· {usageOf('Containers')?.reclaimable ?? '—'} · se borran; los de tus apps se vuelven a crear al aplicar</span></span></label>
+      <p class="muted small">Ocupa ahora: imágenes {usageOf('Images')?.size ?? '—'}, caché {usageOf('Build Cache')?.size ?? '—'}, volúmenes {usageOf('Local Volumes')?.size ?? '—'} (no se tocan).</p>
+    {/if}
+    {#snippet footer()}
+      <button class="btn" onclick={() => (cleaning = null)}>{cleaning!.output ? 'Cerrar' : 'Cancelar'}</button>
+      {#if !cleaning!.output}<button class="btn primary" onclick={doClean} disabled={cleaning!.busy || !cleaning!.what.length}>{#if cleaning!.busy}<LoaderCircle size={14} class="spin" /> Limpiando…{:else}<Eraser size={14} /> Limpiar{/if}</button>{/if}
+    {/snippet}
+  </Modal>
+{/if}
+
 {#if editing && server}
   <ServerForm {server} onclose={() => (editing = false)} onsaved={() => (editing = false)} />
 {/if}
@@ -584,6 +650,7 @@
   .tbl th { text-align: left; font-size: 11.5px; color: var(--muted); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--border); }
   .tbl td { padding: 7px 8px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
   .tbl td.r { text-align: right; white-space: nowrap; }
+  .acts { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
   .lnk { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-align: left; }
   .lnk:hover { text-decoration: underline; }
   .block-l { display: block; }

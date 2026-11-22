@@ -58,6 +58,8 @@ export function CloseTerminals():Promise<void>;
 
 export function CloseTunnels():Promise<void>;
 
+export function ContainerAction(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<main.DockerResult>;
+
 export function CreateBackupTarget(arg1:string,arg2:string,arg3:number):Promise<main.BackupTargetResult>;
 
 export function CreateUserModule(arg1:string,arg2:string):Promise<main.UserModule>;
@@ -76,11 +78,15 @@ export function DeleteUserModule(arg1:string):Promise<void>;
 
 export function DeleteUserModuleFile(arg1:string,arg2:string):Promise<main.UserModule>;
 
+export function DockerDiskUsage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.DockerResult>;
+
 export function DockerInfo():Promise<main.DockerInfo>;
 
 export function DockerLabStop(arg1:string,arg2:dockerize.Spec):Promise<void>;
 
 export function DockerLabTest(arg1:string,arg2:dockerize.Spec):Promise<void>;
+
+export function DockerPrune(arg1:string,arg2:Array<string>,arg3:string,arg4:string,arg5:string):Promise<main.DockerResult>;
 
 export function ExportBackup(arg1:string,arg2:boolean):Promise<string>;
 

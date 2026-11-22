@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"sort"
@@ -42,6 +43,10 @@ type GitInspectResult struct {
 	ComposeFound bool        `json:"composeFound"`
 	ExampleFile  string      `json:"exampleFile,omitempty"`
 	Vars         []GitEnvVar `json:"vars"`
+	// Orden para preparar la base de datos según el tipo de app (manage.py → migrate…) y
+	// el servicio donde ejecutarla (el primero que se construye).
+	PostCommand string `json:"postCommand,omitempty"`
+	PostService string `json:"postService,omitempty"`
 }
 
 var (
@@ -122,7 +127,21 @@ if os.path.isfile(cp):
         if m.group(2) and m.group(2).lstrip(":").startswith("-"):
             v["hasDefault"] = True
 c = subprocess.run(["git", "-C", root, "log", "-1", "--format=%h %s"], capture_output=True, text=True).stdout.strip()
-print(json.dumps({"commit": c, "compose": out["compose"], "example": out["example"], "vars": list(out["vars"].values())}))
+known = []
+for f in ("manage.py", "artisan", "bin/rails", "prisma/schema.prisma", "alembic.ini"):
+    hits = [f] if os.path.isfile(os.path.join(root, f)) else [os.path.join(d, f) for d in sorted(os.listdir(root)) if not d.startswith(".") and os.path.isfile(os.path.join(root, d, f))]
+    if hits:
+        known.append(f)
+built = ""
+if out["compose"]:
+    cur = None
+    for l in open(cp, errors="replace"):
+        m = re.match(r"^  ([A-Za-z0-9][A-Za-z0-9_.-]*):\s*$", l)
+        if m:
+            cur = m.group(1)
+        elif cur and not built and re.match(r"^    (build|<<):", l):
+            built = cur
+print(json.dumps({"commit": c, "compose": out["compose"], "example": out["example"], "vars": list(out["vars"].values()), "known": known, "built": built}))
 PY
 `
 
@@ -187,6 +206,8 @@ func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName,
 			Compose bool        `json:"compose"`
 			Example string      `json:"example"`
 			Vars    []GitEnvVar `json:"vars"`
+			Known   []string    `json:"known"`
+			Built   string      `json:"built"`
 		}
 		if json.Unmarshal([]byte(lastJSONLine(out)), &raw) != nil {
 			return RunStart{Status: "error", Message: "respuesta no válida del servidor"}
@@ -200,6 +221,13 @@ func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName,
 			return RunStart{Status: "error", Message: gitCloneHelp(raw.Detail, isSSH, token != "", keyPath)}
 		}
 		res.Commit, res.ComposeFound, res.ExampleFile = raw.Commit, raw.Compose, raw.Example
+		known := map[string]bool{}
+		for _, f := range raw.Known {
+			known[f] = true
+		}
+		if res.PostCommand = gitPostSuggestion(known); res.PostCommand != "" {
+			res.PostService = raw.Built
+		}
 		for i := range raw.Vars {
 			classifyGitVar(&raw.Vars[i])
 		}
@@ -385,4 +413,57 @@ func (a *App) GitAppImportEnv(projectID, moduleID, path string) EnvImportResult 
 	}
 	res.RunStart = RunStart{Status: "ok"}
 	return res
+}
+
+// gitEnvWarnings: errores típicos en «Variables (.env)» de la app, antes de
+// aplicar (salen como avisos en «Qué pasará» y en el asistente).
+func gitEnvWarnings(name string, vals map[string]any) []string {
+	var out []string
+	lines, _ := vals["git_app_env"].([]any)
+	var strs []string
+	for _, l := range lines {
+		if s, ok := l.(string); ok {
+			strs = append(strs, s)
+		}
+	}
+	if ls, ok := vals["git_app_env"].([]string); ok {
+		strs = append(strs, ls...)
+	}
+	for _, l := range strs {
+		k, v, ok := strings.Cut(l, "=")
+		if !ok {
+			continue
+		}
+		k, v = strings.TrimSpace(k), strings.Trim(strings.TrimSpace(v), `"'`)
+		lv := strings.ToLower(v)
+		switch {
+		case k == "NODE_ENV" && v != "" && v != "production" && v != "development" && v != "test":
+			out = append(out, fmt.Sprintf("%s: NODE_ENV=%s no es un valor que entiendan las apps de Node (production, development o test); en un servidor, «production». Con otro valor muchas se quedan en modo desarrollo.", name, v))
+		case (k == "DEBUG" || k == "APP_DEBUG" || k == "FLASK_DEBUG" || k == "DJANGO_DEBUG") && (lv == "true" || lv == "1" || lv == "yes" || lv == "on"):
+			out = append(out, fmt.Sprintf("%s: %s=%s en un servidor enseña los errores (y a veces contraseñas) a cualquiera; ponlo a false.", name, k, v))
+		case (k == "RAILS_ENV" || k == "APP_ENV" || k == "FLASK_ENV") && (lv == "development" || lv == "dev" || lv == "local"):
+			out = append(out, fmt.Sprintf("%s: %s=%s es para desarrollo; en un servidor, «production».", name, k, v))
+		case v == "" && !strings.HasPrefix(k, "#"):
+			out = append(out, fmt.Sprintf("%s: %s está vacía. Si la app no la necesita, quita la línea (vacía no es lo mismo que «sin poner»: puede pisar un valor por defecto).", name, k))
+		}
+	}
+	return out
+}
+
+// gitPostSuggestion: la orden típica para preparar la base de datos según el
+// tipo de app que se ve en el repositorio.
+func gitPostSuggestion(files map[string]bool) string {
+	switch {
+	case files["manage.py"]:
+		return "python3 manage.py migrate"
+	case files["artisan"]:
+		return "php artisan migrate --force"
+	case files["bin/rails"]:
+		return "bin/rails db:migrate"
+	case files["prisma/schema.prisma"]:
+		return "npx prisma migrate deploy"
+	case files["alembic.ini"]:
+		return "alembic upgrade head"
+	}
+	return ""
 }

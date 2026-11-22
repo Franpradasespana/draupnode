@@ -80,6 +80,12 @@
     }
     values.git_app_env = env
     values.git_app_env_generate = gen
+    // Tipo de app (Django, Laravel…): la orden para preparar la base de datos, si aún no hay ninguna.
+    if (r.postCommand && !String(values.git_app_post_command ?? '').trim()) {
+      values.git_app_post_command = r.postCommand
+      if (r.postService) values.git_app_post_service = r.postService
+      out.push({ key: 'Orden después de arrancar', what: `«${r.postCommand}» en el servicio ${r.postService || values.git_app_post_service}: prepara la base de datos en cada aplicación`, kind: 'gen' })
+    }
     rows = out
     changed()
   }

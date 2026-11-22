@@ -189,6 +189,11 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 		}
 		names[n] = s.Key()
 	}
+	for _, s := range sel {
+		if s.Module.ID == "git-app" {
+			res.Warnings = append(res.Warnings, gitEnvWarnings(a.moduleName(s.Key()), s.Values)...)
+		}
+	}
 	res.Warnings = append(res.Warnings, missingPorts(sel)...)
 	res.Warnings = append(res.Warnings, syncProxySites(sel)...)
 	syncVPNDNS(sel)
