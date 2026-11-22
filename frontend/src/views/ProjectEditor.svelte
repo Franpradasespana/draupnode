@@ -31,8 +31,14 @@
   const contentKey = (p: Project) => JSON.stringify([p.name.trim(), p.serverId, p.modules])
   let savedKey = $state(initial ? contentKey(initial) : '')
   let saveError = $state('')
-  // Solo se dice «Cambios guardados» después de haber guardado algo en esta pantalla.
-  let savedAt = $state(0)
+  // «Cambios guardados» (en verde, unos segundos) solo cuando se guarda algo
+  // que has cambiado tú: escribir o marcar algo (eventos input/change que suben
+  // hasta aquí) o los botones que cambian módulos. Lo que se normaliza solo al
+  // abrir no cuenta.
+  let touched = false
+  let justSaved = $state(false)
+  let savedTimer: ReturnType<typeof setTimeout> | undefined
+  function touch() { touched = true }
   let check = $state<ProjectCheck | null>(null)
   let saving = $state(false)
   const mods = $derived(ui.modules?.modules ?? [])
@@ -122,6 +128,7 @@
   // Pulsar una tarjeta del catálogo: marca o desmarca un módulo que aún no
   // está instalado (los instalados se gestionan en su propia página).
   function toggleCard(mid: string) {
+    touched = true
     if (selected.has(mid)) {
       const users = requiredBy(mid)
       if (users.length) return toast(`No se puede quitar: lo necesita ${users.join(', ')}`, 'error')
@@ -223,9 +230,10 @@
       message: `${moduleName(mid)} seguirá instalado y funcionando en el servidor; Draupnode solo dejará de gestionarlo. Podrás volver a añadirlo o desinstalarlo desde su página.`,
       confirmLabel: 'Dejar de gestionarlo',
     })
-    if (ok) draft.modules = draft.modules.filter((x) => x.id !== mid)
+    if (ok) { touched = true; draft.modules = draft.modules.filter((x) => x.id !== mid) }
   }
   function readd(mid: string) {
+    touched = true
     const m = byId(mid)
     if (!m || selected.has(mid)) return
     for (const d of m.depends ?? []) add(d)
@@ -267,7 +275,12 @@
       draft.id = saved.id
       savedKey = contentKey(snap)
       saveError = ''
-      savedAt = Date.now()
+      if (touched) {
+        touched = false
+        justSaved = true
+        clearTimeout(savedTimer)
+        savedTimer = setTimeout(() => (justSaved = false), 5000)
+      }
       await refreshProjects()
       if (wasNew) {
         draft.modules = saved.modules
@@ -415,6 +428,7 @@
   }
 </script>
 
+<div class="pe" oninput={touch} onchange={touch}>
 <div class="bar" class:emb={embedded}>
   {#if openModule}
     <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> Módulos de {server?.name ?? 'este servidor'}</button>
@@ -427,7 +441,7 @@
       {#if saving}<LoaderCircle size={13} class="spin" /> Guardando…
       {:else if dirty && errorCount}<span class="warn"><TriangleAlert size={13} /> No se guarda hasta corregir las opciones en rojo</span>
       {:else if saveError}<span class="bad">{saveError}</span>
-      {:else if !dirty && savedAt}<CircleCheck size={13} /> Cambios guardados{/if}
+      {:else if !dirty && justSaved}<span class="ok"><CircleCheck size={13} /> Cambios guardados</span>{/if}
     </span>
   {/if}
 </div>
@@ -651,12 +665,14 @@
 {#if uninstallPrompt}
   <UninstallDialog check={uninstallPrompt.check} allowRemove={uninstallPrompt.allowRemove} done={uninstallPrompt.resolve} />
 {/if}
+</div>
 
 <style>
   .bar { display: flex; align-items: center; gap: 8px; margin: -8px 0 8px; }
   .spacer { flex: 1; }
   .save-st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
   .save-st .bad { color: var(--danger); }
+  .save-st .ok { display: inline-flex; align-items: center; gap: 6px; color: var(--success); }
   .warn { display: inline-flex; gap: 7px; align-items: center; color: var(--warning); }
   .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--muted); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--panel-2); border: 1px solid var(--border-soft); }
   .crumbs strong { color: var(--text); }

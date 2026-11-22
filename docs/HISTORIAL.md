@@ -804,3 +804,10 @@ módulos de una vez; editarla no cambia los servidores. Desde un servidor se pue
   Draupnode ya no cambia su configuración al aplicar ni lo desinstala).
 - En la página de un módulo ya no sale debajo «Lo que ya hay en este servidor» (no es del módulo); en la lista de
   módulos sale separado.
+
+## 2026-11-22 · 0.51.1 · «Cambios guardados» solo si has cambiado algo, en verde
+
+- Solo aparece cuando se guarda algo que has cambiado tú (escribir o marcar en un formulario —eventos que suben
+  hasta el editor—, añadir/quitar/volver a gestionar un módulo, o rellenar con «Leer el repositorio» / «Usar un
+  .env»), en verde, y se quita a los 5 s. Lo que se ajusta solo al abrir no cuenta.
+- «Leer el repositorio»: «último commit `da55035`: «mensaje»» (el usuario confundió el hash con un color).

@@ -39,6 +39,8 @@
 
   // «Usar un .env de este equipo»: las contraseñas y claves van cifradas a la
   // bóveda (las guarda el backend); el resto, a «Variables (.env)» con su valor.
+  let root: HTMLDivElement | undefined
+  const changed = () => root?.dispatchEvent(new Event('change', { bubbles: true }))
   let importing = $state(false)
   let imported = $state<EnvImportResult | null>(null)
   async function importEnv() {
@@ -56,6 +58,7 @@
       values.git_app_env_generate = ((values.git_app_env_generate as string[]) ?? []).filter((k) => !keys.has(k))
       imported = r
       result = null
+      changed()
       toast(`.env leído: ${r.env.length} variable(s) normales y ${r.secretKeys.length} secreta(s) guardadas en la bóveda`)
     } finally {
       importing = false
@@ -78,10 +81,11 @@
     values.git_app_env = env
     values.git_app_env_generate = gen
     rows = out
+    changed()
   }
 </script>
 
-<div class="reader">
+<div class="reader" bind:this={root}>
   <div class="head">
     <div>
       <strong>¿Qué variables necesita tu app?</strong>
@@ -102,7 +106,7 @@
     <p class="small muted">Revisa abajo los valores: los de tu equipo (localhost, DEBUG…) quizá no sirvan en el servidor.</p>
   {/if}
   {#if result}
-    <p class="small"><strong>Leído:</strong> <code>{readFrom}</code>{#if result.commit}<span class="muted">{' · '}último cambio: {result.commit}</span>{/if}</p>
+    <p class="small"><strong>Leído:</strong> <code>{readFrom}</code>{#if result.commit}<span class="muted">{' · '}último commit <code>{result.commit.split(' ')[0]}</code>: «{result.commit.split(' ').slice(1).join(' ')}»</span>{/if}</p>
     {#if !result.composeFound}
       <p class="small bad"><TriangleAlert size={13} /> <span>En esa rama no está <code>{values.git_app_compose || 'docker-compose.yml'}</code>: con este repositorio el módulo no puede arrancar la app. Comprueba que la dirección es la de tu app, la rama y el nombre del fichero compose (puedes crearlo con <strong>Docker Creator</strong> y subirlo al repositorio). No se ha cambiado nada en las opciones.</span></p>
     {:else}
