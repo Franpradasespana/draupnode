@@ -1,0 +1,239 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"regexp"
+	"sort"
+	"strings"
+
+	"draupnode/internal/bundle"
+	"draupnode/internal/runner"
+	"draupnode/internal/secrets"
+
+	"golang.org/x/crypto/ssh"
+)
+
+// «Leer el repositorio» (módulo App desde Git): se baja el repositorio en el
+// servidor (con el token o la deploy key si es privado), se miran
+// .env.example y el docker-compose y se devuelven las variables que usa la
+// app, para rellenar las opciones del módulo. Nunca se leen ficheros .env
+// de verdad ni valores secretos: solo nombres y los valores de ejemplo.
+
+// GitEnvVar es una variable que usa la app.
+type GitEnvVar struct {
+	Key        string `json:"key"`
+	Example    string `json:"example,omitempty"` // valor de .env.example (si lo trae)
+	InExample  bool   `json:"inExample"`         // sale en .env.example
+	InCompose  bool   `json:"inCompose"`         // el compose la usa como ${KEY}
+	HasDefault bool   `json:"hasDefault"`        // el compose le da valor por defecto (${KEY:-x})
+	Secret     bool   `json:"secret"`            // por su nombre, parece una contraseña o clave
+	External   bool   `json:"external"`          // clave o token de otro servicio (Stripe, correo…): solo la tiene el usuario
+	Hint       string `json:"hint,omitempty"`
+}
+
+// GitInspectResult es lo que se ha visto en el repositorio.
+type GitInspectResult struct {
+	RunStart
+	Commit       string      `json:"commit,omitempty"`
+	ComposeFound bool        `json:"composeFound"`
+	ExampleFile  string      `json:"exampleFile,omitempty"`
+	Vars         []GitEnvVar `json:"vars"`
+}
+
+var (
+	gitRepoRe    = regexp.MustCompile(`^(https://[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+|[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/~-]+)$`)
+	gitBranchRe  = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
+	gitComposeRe = regexp.MustCompile(`^[A-Za-z0-9._/-]+\.ya?ml$`)
+	gitNameRe    = regexp.MustCompile(`^[a-z][a-z0-9-]{1,30}$`)
+	secretNameRe = regexp.MustCompile(`(?i)(SECRET|PASSWORD|PASSWD|PASSPHRASE|(^|_)PASS($|_)|TOKEN|(^|_)KEY$|PRIVATE|SALT|CREDENTIAL|(^|_)PWD($|_))`)
+	urlNameRe    = regexp.MustCompile(`(?i)(_URL|_URI|_DSN)$`)
+	externalRe   = regexp.MustCompile(`(?i)(API_KEY|APIKEY|ACCESS_KEY|_TOKEN$|^TOKEN$|STRIPE|PAYPAL|SENDGRID|MAILGUN|SMTP|EMAIL_HOST|TWILIO|OPENAI|ANTHROPIC|GOOGLE|GITHUB|AWS_|S3_|SENTRY|RECAPTCHA)`)
+)
+
+// classifyGitVar decide qué es cada variable por su nombre: una contraseña o
+// clave propia de la app (se puede generar al azar), una clave o token de otro
+// servicio (solo la tiene el usuario) o una dirección.
+func classifyGitVar(v *GitEnvVar) {
+	k := strings.ToUpper(v.Key)
+	switch {
+	case urlNameRe.MatchString(k):
+		v.Hint = "dirección: si lleva usuario y contraseña, escríbela entera"
+	case strings.Contains(k, "PUBLIC") || strings.HasSuffix(k, "_KEY_ID") || strings.HasSuffix(k, "_ID"):
+	case externalRe.MatchString(k):
+		v.External = true
+		v.Hint = "clave de otro servicio: solo la tienes tú"
+	case secretNameRe.MatchString(k):
+		v.Secret = true
+		v.Hint = "contraseña o clave de la app: se puede generar al azar"
+	}
+}
+
+const gitInspectScript = `set -e
+IFS= read -r T || true
+command -v git >/dev/null 2>&1 || { echo '{"error":"nogit"}'; exit 0; }
+command -v python3 >/dev/null 2>&1 || { echo '{"error":"nopy"}'; exit 0; }
+d=$(mktemp -d); trap 'rm -rf "$d"' EXIT
+export GIT_TERMINAL_PROMPT=0
+if [ -n "$K" ] && [ -f "$K" ]; then
+  export GIT_SSH_COMMAND="ssh -i $K -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$KH"
+else
+  export GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$d/kh"
+fi
+if [ -n "$T" ]; then
+  auth=$(printf 'x-access-token:%s' "$T" | base64 -w0)
+  export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: Basic $auth"
+fi
+if ! timeout 120 git clone -q --depth 1 --branch "$B" "$R" "$d/r" 2>"$d/err"; then
+  python3 -c 'import json,sys; print(json.dumps({"error":"clone","detail":open(sys.argv[1]).read()[-400:]}))' "$d/err"
+  exit 0
+fi
+python3 - "$d/r" "$C" <<'PY'
+import json, os, re, subprocess, sys
+root, compose = sys.argv[1], sys.argv[2]
+out = {"vars": {}, "compose": False, "example": ""}
+def var(k):
+    return out["vars"].setdefault(k, {"key": k, "inExample": False, "inCompose": False, "hasDefault": False, "example": ""})
+for name in (".env.example", ".env.sample", ".env.template", ".env.dist", "env.example"):
+    p = os.path.join(root, name)
+    if os.path.isfile(p):
+        out["example"] = name
+        for l in open(p, errors="replace"):
+            l = l.strip()
+            if not l or l.startswith("#"):
+                continue
+            if l.startswith("export "):
+                l = l[7:].strip()
+            m = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", l)
+            if m:
+                v = var(m.group(1)); v["inExample"] = True
+                val = re.sub(r"\s+#.*$", "", m.group(2)).strip().strip('"').strip("'")
+                v["example"] = val[:200]
+        break
+cp = os.path.join(root, compose)
+if os.path.isfile(cp):
+    out["compose"] = True
+    txt = open(cp, errors="replace").read()
+    for m in re.finditer(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:?[-?+][^}]*)?\}", txt):
+        v = var(m.group(1)); v["inCompose"] = True
+        if m.group(2) and m.group(2).lstrip(":").startswith("-"):
+            v["hasDefault"] = True
+c = subprocess.run(["git", "-C", root, "log", "-1", "--format=%h %s"], capture_output=True, text=True).stdout.strip()
+print(json.dumps({"commit": c, "compose": out["compose"], "example": out["example"], "vars": list(out["vars"].values())}))
+PY
+`
+
+// GitAppInspect lee el repositorio (en el servidor del proyecto) y devuelve
+// las variables que usa la app. repo/branch/compose son los del formulario
+// (aún sin guardar); el token, si hace falta, se toma de la bóveda.
+func (a *App) GitAppInspect(projectID, repo, branch, compose, appName, secret, accept, sudoPassword string) GitInspectResult {
+	fail := func(msg string) GitInspectResult {
+		return GitInspectResult{RunStart: RunStart{Status: "error", Message: msg}}
+	}
+	repo, branch, compose = strings.TrimSpace(repo), strings.TrimSpace(branch), strings.TrimSpace(compose)
+	if branch == "" {
+		branch = "main"
+	}
+	if compose == "" {
+		compose = "docker-compose.yml"
+	}
+	switch {
+	case !gitRepoRe.MatchString(repo):
+		return fail("Escribe primero la dirección del repositorio (https://… o git@…).")
+	case !gitBranchRe.MatchString(branch):
+		return fail("El nombre de la rama no es válido.")
+	case !gitComposeRe.MatchString(compose) || strings.Contains(compose, ".."):
+		return fail("El fichero compose no es válido.")
+	}
+	p, err := a.store.Project(projectID)
+	if err != nil {
+		return fail(err.Error())
+	}
+	srv, err := a.store.Server(p.ServerID)
+	if err != nil {
+		return fail(err.Error())
+	}
+	isSSH := !strings.HasPrefix(repo, "https://")
+	token := ""
+	if !isSSH {
+		t, err := a.vault.Get(varName(projectID, "git_app_token"))
+		switch {
+		case errors.Is(err, secrets.ErrLocked):
+			return GitInspectResult{RunStart: RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: ahí está el token del repositorio."}}
+		case err == nil:
+			token = strings.TrimSpace(t)
+		}
+	}
+	keyPath, knownHosts := "", ""
+	if isSSH && gitNameRe.MatchString(appName) {
+		dir := bundle.SecretsDir(slugOf(p))
+		keyPath, knownHosts = dir+"/.git_app_"+appName+"_key", dir+"/.git_known_hosts"
+	}
+	var res GitInspectResult
+	res.RunStart = a.withServerConn(srv.ID, secret, accept, sudoPassword, func(c *ssh.Client, su runner.Sudo) RunStart {
+		env := "R=" + bundle.ShellQuote(repo) + " B=" + bundle.ShellQuote(branch) + " C=" + bundle.ShellQuote(compose) +
+			" K=" + bundle.ShellQuote(keyPath) + " KH=" + bundle.ShellQuote(knownHosts)
+		out, errOut, err := execIn(c, su, env+" sh -c "+bundle.ShellQuote(gitInspectScript), token+"\n")
+		if err != nil && strings.TrimSpace(out) == "" {
+			return RunStart{Status: "error", Message: "no se pudo leer: " + firstLine(errOut, err)}
+		}
+		var raw struct {
+			Error   string      `json:"error"`
+			Detail  string      `json:"detail"`
+			Commit  string      `json:"commit"`
+			Compose bool        `json:"compose"`
+			Example string      `json:"example"`
+			Vars    []GitEnvVar `json:"vars"`
+		}
+		if json.Unmarshal([]byte(lastJSONLine(out)), &raw) != nil {
+			return RunStart{Status: "error", Message: "respuesta no válida del servidor"}
+		}
+		switch raw.Error {
+		case "nogit":
+			return RunStart{Status: "error", Message: "El servidor aún no tiene git (se instala al aplicar este módulo). Aplica una vez o instala git y vuelve a probar."}
+		case "nopy":
+			return RunStart{Status: "error", Message: "El servidor no tiene python3 (lo instala el módulo «Sistema base»)."}
+		case "clone":
+			return RunStart{Status: "error", Message: gitCloneHelp(raw.Detail, isSSH, token != "", keyPath)}
+		}
+		res.Commit, res.ComposeFound, res.ExampleFile = raw.Commit, raw.Compose, raw.Example
+		for i := range raw.Vars {
+			classifyGitVar(&raw.Vars[i])
+		}
+		sort.Slice(raw.Vars, func(i, j int) bool { return raw.Vars[i].Key < raw.Vars[j].Key })
+		res.Vars = raw.Vars
+		return RunStart{Status: "ok"}
+	})
+	if res.Vars == nil {
+		res.Vars = []GitEnvVar{}
+	}
+	return res
+}
+
+func gitCloneHelp(detail string, isSSH, hasToken bool, keyPath string) string {
+	d := strings.TrimSpace(detail)
+	if i := strings.LastIndex(d, "fatal:"); i >= 0 {
+		d = strings.TrimSpace(d[i:])
+	}
+	msg := "No se pudo bajar el repositorio (" + d + "). "
+	switch {
+	case strings.Contains(d, "Remote branch") || strings.Contains(d, "not found in upstream"):
+		return msg + "Comprueba el nombre de la rama."
+	case isSSH && keyPath == "":
+		return msg + "Pon antes el nombre de la app."
+	case isSSH:
+		return msg + "Si es privado por SSH, la deploy key se crea al aplicar por primera vez: aplica, añádela al repositorio y vuelve a leerlo; o usa la dirección https:// con un token."
+	case hasToken:
+		return msg + "El token no sirve para este repositorio: comprueba que no ha caducado y que tiene permiso de lectura."
+	default:
+		return msg + "Si es privado, pon antes el «Token de acceso» (solo lectura) y vuelve a leerlo."
+	}
+}
+
+// execIn es como execOut, pero mandando stdin (para no poner secretos en la orden).
+func execIn(c *ssh.Client, su runner.Sudo, cmd, stdin string) (string, string, error) {
+	var out, errb strings.Builder
+	err := runner.Exec(context.Background(), c, su, cmd, strings.NewReader(stdin), &out, &errb)
+	return out.String(), errb.String(), err
+}

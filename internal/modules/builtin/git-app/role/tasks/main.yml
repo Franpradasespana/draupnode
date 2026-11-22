@@ -103,6 +103,26 @@
   no_log: true
   when: not ansible_check_mode
 
+- name: Variables que usa el compose y no tienen valor
+  ansible.builtin.shell: |
+    docker compose -p {{ git_app_project }} -f {{ git_app_compose | quote }} config -q 2>&1 >/dev/null \
+      | sed -n 's/.*The \\\{0,1\}"\([A-Za-z_][A-Za-z0-9_]*\)\\\{0,1\}" variable is not set.*/\1/p' | sort -u
+  args:
+    chdir: "{{ git_app_dir }}"
+  register: git_app_unset
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Faltan variables
+  ansible.builtin.fail:
+    msg: >-
+      El docker-compose usa variables que no tienen valor: {{ git_app_unset.stdout_lines | join(', ') }}.
+      Ponlas en las opciones del módulo: en «Variables (.env)» como CLAVE=valor, en «Generar en el servidor» si deben
+      ser al azar, o en «Variables secretas». Si alguna debe quedar vacía a propósito, escríbela como «CLAVE=».
+      («Leer el repositorio», en las opciones, las encuentra solas.)
+  when: not ansible_check_mode and (git_app_unset.stdout_lines | default([]) | length) > 0
+
 - name: Construir y arrancar
   ansible.builtin.command: docker compose -p {{ git_app_project }} -f {{ git_app_compose }} up -d --build --quiet-pull --remove-orphans
   args:
@@ -110,6 +130,44 @@
   register: git_app_up
   changed_when: "'Started' in git_app_up.stderr or 'Recreated' in git_app_up.stderr or 'Created' in git_app_up.stderr or 'Built' in git_app_up.stderr"
   when: not ansible_check_mode
+
+- name: Esperar a que arranquen los contenedores
+  # Hasta 2 min: todos en marcha y ninguno «arrancando» (healthcheck) ni reiniciándose.
+  ansible.builtin.shell: |
+    for i in $(seq 1 40); do
+      st=$(docker compose -p {{ git_app_project }} -f {{ git_app_compose | quote }} ps -a --format '{{ '{{' }}.Service{{ '}}' }}|{{ '{{' }}.State{{ '}}' }}|{{ '{{' }}.Health{{ '}}' }}|{{ '{{' }}.ExitCode{{ '}}' }}')
+      echo "$st" | grep -qE '\|(restarting|created)\||\|starting\|' || { echo "$st"; exit 0; }
+      sleep 3
+    done
+    echo "$st"
+  args:
+    chdir: "{{ git_app_dir }}"
+  register: git_app_ps
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Contenedores que no han arrancado bien
+  ansible.builtin.set_fact:
+    git_app_bad: "{{ git_app_ps.stdout_lines | select('search', '\\|(exited|dead|restarting|created)\\||\\|unhealthy\\|') | list }}"
+  when: not ansible_check_mode
+
+- name: Registro de los que fallan
+  ansible.builtin.shell: |
+    docker compose -p {{ git_app_project }} -f {{ git_app_compose | quote }} logs --no-color --tail 25 {{ git_app_bad | map('split', '|') | map('first') | map('quote') | join(' ') }} 2>&1 | tail -n 60
+  args:
+    chdir: "{{ git_app_dir }}"
+  register: git_app_badlogs
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode and git_app_bad | length > 0
+
+- name: La app no ha arrancado
+  ansible.builtin.fail:
+    msg: |
+      No han arrancado bien: {% for l in git_app_bad %}{% set f = l.split('|') %}{{ f[0] }} ({{ f[1] }}{% if f[2] %}, {{ f[2] }}{% endif %}{% if f[1] == 'exited' %}, código {{ f[3] }}{% endif %}){{ ', ' if not loop.last }}{% endfor %}.
+      Últimas líneas de su registro:
+      {{ git_app_badlogs.stdout | default('') }}
+  when: not ansible_check_mode and git_app_bad | length > 0
 
 - name: Comprobar que responde
   ansible.builtin.uri:
@@ -122,6 +180,14 @@
   delay: 3
   failed_when: false
   when: not ansible_check_mode and git_app_port | int > 0
+
+- name: La app no responde
+  ansible.builtin.fail:
+    msg: >-
+      Los contenedores están en marcha, pero la app no contesta en 127.0.0.1:{{ git_app_port }} tras 90 s.
+      Comprueba que el compose publica ese puerto («Puerto de la app» en las opciones) o mira su registro en la ficha
+      del servidor → Contenedores. 0 en «Puerto de la app» = no comprobar.
+  when: not ansible_check_mode and git_app_port | int > 0 and git_app_http.status | default(-1) not in [200, 201, 204, 301, 302, 303, 307, 308, 401, 403, 404]
 
 - name: Nota
   ansible.builtin.debug:

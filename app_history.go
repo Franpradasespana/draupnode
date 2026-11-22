@@ -48,7 +48,7 @@ type RunEntry struct {
 	Server    string    `json:"server"`
 	Name      string    `json:"name"` // fichero del registro
 	At        time.Time `json:"at"`
-	Mode      string    `json:"mode"` // aplicar | previsualizar | desinstalar
+	Mode      string    `json:"mode"`  // aplicar | previsualizar | desinstalar
 	Known     bool      `json:"known"` // hay resumen (las de antes de la 0.40 no lo tienen)
 	OK        bool      `json:"ok"`
 	Canceled  bool      `json:"canceled"`

@@ -718,3 +718,24 @@ suyos solo se distinguían por el color), dos filas de botones arriba, no decía
   plantilla · Respecto a la plantilla · Historial. «Volver a la plantilla» pasa a **«Resetear plantilla»** y las
   diferencias van una por renglón (Añadido solo aquí / Quitado solo aquí / Opciones propias: con el nombre de
   cada opción).
+
+## 2026-11-22 · 0.49.0 · App desde Git: qué variables necesita y si ha arrancado; Grafana en Apps
+
+- **«Leer el repositorio»** (opciones del módulo App desde Git, también en el asistente): `GitAppInspect` baja el
+  repositorio en el servidor (clon superficial en una carpeta temporal que se borra; token por stdin y cabecera
+  `GIT_CONFIG_*`, o la deploy key si ya existe) y saca, con python3, los nombres de `.env.example` (y
+  .env.sample/.template/.dist) con su valor de ejemplo y las `${VAR}` del compose (con o sin valor por defecto).
+  Nunca lee `.env`. Clasifica por el nombre: contraseña/clave de la app (SECRET_KEY, *_PASSWORD, *_SALT…) →
+  «Generar en el servidor»; clave de otro servicio (API_KEY, *_TOKEN, STRIPE, SMTP, AWS_…) → la pone el usuario
+  en «Variables secretas»; el resto → «Variables (.env)» con el ejemplo («revísalo») o vacía. Las que el compose
+  ya trae con valor por defecto se dejan. Componente `GitRepoReader`; tests `TestClasificarVariables`. Probado el
+  guion en el servidor de pruebas con un repositorio local (variables, rama que no existe).
+- **Al aplicar**: antes de arrancar, `docker compose config` lista las variables sin valor y, si hay, para con
+  «El docker-compose usa variables que no tienen valor: …» (una vacía a propósito se escribe «CLAVE=»). Después de
+  `up`, espera hasta 2 min a que todos los contenedores estén en marcha (sin «starting»/«restarting»); si alguno
+  se cae o no está sano, falla diciendo cuál, su estado/código y sus últimas líneas de registro. Si la app no
+  contesta en su puerto tras 90 s, ahora es un fallo (antes solo una nota). Probadas las órdenes en el servidor
+  de pruebas (aviso con comillas escapadas de Compose 2.40).
+- **Ficha → Apps**: sale **Grafana** cuando la plantilla tiene Monitorización (se abre por túnel SSH; antes no
+  salía porque solo se listaban los módulos con dominio).
+- **Ficha → Resumen**: «Necesita atención» no se muestra si no hay nada.

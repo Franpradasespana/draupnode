@@ -3,6 +3,7 @@
   // explicación a la izquierda y el control a la derecha.
   import VarField from './VarField.svelte'
   import SecretField from './SecretField.svelte'
+  import GitRepoReader from './GitRepoReader.svelte'
   import type { Module } from '../lib/api'
 
   let { m, values = $bindable(), errors = {}, projectId, onsecret }: {
@@ -15,6 +16,7 @@
 {:else}
   <div class="rows">
     {#each m.variables.filter((v) => !v.managed) as v (v.name)}
+      {#if m.id === 'git-app' && v.name === 'git_app_env'}<GitRepoReader bind:values {projectId} />{/if}
       <div class="row" class:bad={!!errors[v.name]}>
         <div class="lbl">
           <strong>{v.label}{#if v.required} <span class="req">*</span>{/if}</strong>

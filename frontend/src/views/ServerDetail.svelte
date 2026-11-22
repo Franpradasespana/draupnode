@@ -104,6 +104,15 @@
     return [{ project: p, module: m, domain: String(v[m.proxySite.domain] ?? ''), port: Number(v[m.proxySite.port] ?? 0) }]
   })))
 
+  // Grafana (módulo Monitorización): no tiene dominio, se abre por túnel SSH.
+  const grafanaDeps = $derived(deployments.filter((p) => p.installedModules?.includes('monitoring')))
+  const grafanaPort = (p: (typeof deployments)[number]) => Number(p.installedValues?.monitoring?.monitoring_grafana_port ?? 3000)
+  async function openGrafana(projectId: string) {
+    const r = await withConnection<MonitorResult>(server, (s, a) => api.OpenGrafana(projectId, s, a))
+    if (r?.status === 'ok' && r.url) api.OpenURL(r.url)
+    else if (r) toast(r.message || 'No se pudo abrir Grafana', 'error')
+  }
+
   async function openApp(projectId: string, moduleId: string) {
     const r = await withConnection<MonitorResult>(server, (s, a) => api.OpenAppTunnel(projectId, moduleId, s, a))
     if (r?.status === 'ok' && r.url) api.OpenURL(r.url)
@@ -149,7 +158,7 @@
   const pendingDeps = $derived(deployments.filter(isPending))
   const backupDeps = $derived(deployments.filter((p) => p.installedModules?.includes('backups')))
   const backupFindings = $derived(findings.filter((f) => f.id.startsWith('bk')))
-  const appCount = $derived(draupnodeApps.length + (ov?.coolify ? 1 + ov.coolify.apps.length : 0) + (ov?.sites?.length ?? 0))
+  const appCount = $derived(draupnodeApps.length + grafanaDeps.length + (ov?.coolify ? 1 + ov.coolify.apps.length : 0) + (ov?.sites?.length ?? 0))
   const rootDisk = $derived(ov?.disks?.find((d) => d.mount === '/') ?? ov?.disks?.[0])
   // Lo mismo que lista «Necesita atención» en el Resumen.
   const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + pendingDeps.length)
@@ -248,13 +257,9 @@
       </button>
     </section>
 
+    {#if attention}
     <section class="card block">
       <h2><TriangleAlert size={17} /> Necesita atención</h2>
-      {#if !ov && !isDown}
-        <p class="muted">{loading ? 'Leyendo el servidor…' : 'Pulsa «Actualizar» para leer el servidor.'}</p>
-      {:else if !attention}
-        <p class="okline"><CircleCheck size={16} /> Todo en orden.</p>
-      {:else}
         <ul class="att">
           {#if isDown}<li class="bad-t">No responde por SSH. Puede estar apagado, sin red o con el puerto cerrado.</li>{/if}
           {#each sickContainers as c}<li class="bad-t">Contenedor <strong>{c.name}</strong>: {c.state}{c.health ? ` (${c.health})` : ''}{c.restarts ? ` · ${c.restarts} reinicios` : ''} <button class="lnk" onclick={() => showLogs('container', c.name, c.name)}>ver registro</button></li>{/each}
@@ -263,8 +268,8 @@
           {#each backupFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text} <button class="lnk" onclick={() => setTab('copias')}>ver copias</button></li>{/each}
           {#each pendingDeps as p}<li class="info-t">La plantilla <strong>{recipeName(p.recipeId) ?? p.name}</strong> {p.appliedAt ? 'tiene cambios sin aplicar' : 'no se ha aplicado aún'} <button class="lnk" onclick={() => openDeployment(p.id)}>abrir</button></li>{/each}
         </ul>
-      {/if}
     </section>
+    {/if}
 
     <div class="two">
       <section class="card block">
@@ -289,6 +294,7 @@
         {#if !appCount}<p class="muted">{loading ? 'Leyendo…' : 'No hay apps publicadas que se puedan ver desde aquí.'}</p>{/if}
         <ul class="applist">
           {#each draupnodeApps as a}<li><span><strong>{a.module.name}</strong> <span class="muted small">{a.domain || 'sin dominio'}</span></span><button class="btn sm ghost" onclick={() => openApp(a.project.id, a.module.id)}><ExternalLink size={13} /> Abrir</button></li>{/each}
+          {#each grafanaDeps as p}<li><span><strong>Grafana</strong> <span class="muted small">monitorización · por túnel SSH</span></span><button class="btn sm ghost" onclick={() => openGrafana(p.id)}><ExternalLink size={13} /> Abrir</button></li>{/each}
           {#if ov?.coolify}<li><span><strong>Panel de Coolify</strong></span><button class="btn sm ghost" onclick={() => api.OpenURL(ov?.coolify?.panel ? url(ov.coolify.panel) : `http://${server!.host}:8000`)}><ExternalLink size={13} /> Abrir</button></li>{/if}
           {#each (ov?.coolify?.apps ?? []).filter((c) => c.urls[0]) as c}<li><span><strong>{c.name}</strong> <span class="muted small">{c.urls[0]}</span></span><button class="btn sm ghost" onclick={() => api.OpenURL(url(c.urls[0]))}><ExternalLink size={13} /> Abrir</button></li>{/each}
           {#each ov?.sites ?? [] as st}<li><span><strong>{st.domain}</strong> <span class="muted small">{st.server}</span></span><button class="btn sm ghost" onclick={() => api.OpenURL((st.https ? 'https://' : 'http://') + st.domain)}><ExternalLink size={13} /> Abrir</button></li>{/each}
@@ -360,6 +366,13 @@
               <td><strong>{a.module.name}</strong><br /><span class="muted small">Draupnode · {recipeName(a.project.recipeId) ?? a.project.name}</span></td>
               <td>{#if a.domain}<button class="lnk" onclick={() => api.OpenURL('https://' + a.domain)}>https://{a.domain}</button>{:else}<span class="muted small">sin dominio · 127.0.0.1:{a.port}</span>{/if}</td>
               <td class="r"><button class="btn sm" onclick={() => openApp(a.project.id, a.module.id)}><ExternalLink size={13} /> Abrir</button></td>
+            </tr>
+          {/each}
+          {#each grafanaDeps as p}
+            <tr>
+              <td><strong>Grafana</strong><br /><span class="muted small">Draupnode · Monitorización · {recipeName(p.recipeId) ?? p.name}</span></td>
+              <td><span class="muted small">127.0.0.1:{grafanaPort(p)} en el servidor · se abre por túnel SSH (usuario admin; contraseña en Plantillas → Contraseñas)</span></td>
+              <td class="r"><button class="btn sm" onclick={() => openGrafana(p.id)}><ExternalLink size={13} /> Abrir</button></td>
             </tr>
           {/each}
           {#if ov?.coolify}

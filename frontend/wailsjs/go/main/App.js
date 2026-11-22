@@ -178,6 +178,10 @@ export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
+export function GitAppInspect(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+  return window['go']['main']['App']['GitAppInspect'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+}
+
 export function ImportBackup(arg1, arg2) {
   return window['go']['main']['App']['ImportBackup'](arg1, arg2);
 }

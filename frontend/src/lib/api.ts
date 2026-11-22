@@ -515,6 +515,24 @@ export interface ServerOverview {
   backups?: { slug: string; ok: boolean; running: boolean; ago: number | null }[]
 }
 
+export interface GitEnvVar {
+  key: string
+  example?: string
+  inExample: boolean
+  inCompose: boolean
+  hasDefault: boolean
+  secret: boolean
+  external: boolean
+  hint?: string
+}
+
+export interface GitInspectResult extends RunStart {
+  commit?: string
+  composeFound: boolean
+  exampleFile?: string
+  vars: GitEnvVar[]
+}
+
 export interface CachedOverview {
   at: string
   overview: ServerOverview
@@ -648,6 +666,7 @@ interface Backend {
   ResetToRecipe(projectId: string): Promise<Project>
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
   LastOverviews(): Promise<Record<string, CachedOverview>>
+  GitAppInspect(projectId: string, repo: string, branch: string, compose: string, appName: string, secret: string, accept: string, sudoPassword: string): Promise<GitInspectResult>
   ServerLogs(serverId: string, kind: string, name: string, lines: number, secret: string, accept: string, sudoPassword: string): Promise<ServerLogsResult>
   BackupsDue(): Promise<BackupDue[]>
   SaveTextFile(defaultName: string, content: string): Promise<string>
@@ -1341,6 +1360,18 @@ function mockBackend(): Backend {
       p.modules = JSON.parse(JSON.stringify(recipes.find((x) => x.id === p.recipeId)!.modules))
       save('projects', projects)
       return p
+    },
+    async GitAppInspect(_p, repo) {
+      await wait(900)
+      if (!repo) return { status: 'error', message: 'Escribe primero la dirección del repositorio (https://… o git@…).', composeFound: false, vars: [] }
+      const v = (key: string, o: Partial<GitEnvVar>): GitEnvVar => ({ key, inExample: true, inCompose: false, hasDefault: false, secret: false, external: false, ...o })
+      return { status: 'ok', commit: 'a1b2c3d Primera versión', composeFound: true, exampleFile: '.env.example', vars: [
+        v('ALLOWED_HOSTS', { example: 'localhost' }), v('DATABASE_URL', { example: 'postgres://app:pass@db:5432/app', hint: 'dirección: si lleva usuario y contraseña, escríbela entera' }),
+        v('DEBUG', { example: 'False' }), v('PORT', { inExample: false, inCompose: true, hasDefault: true }),
+        v('POSTGRES_PASSWORD', { inCompose: true, secret: true, hint: 'contraseña o clave de la app: se puede generar al azar' }),
+        v('SECRET_KEY', { inCompose: true, secret: true, hint: 'contraseña o clave de la app: se puede generar al azar' }),
+        v('STRIPE_API_KEY', { inExample: false, inCompose: true, external: true, hint: 'clave de otro servicio: solo la tienes tú' }),
+      ] }
     },
     async LastOverviews() {
       const out: Record<string, CachedOverview> = {}
