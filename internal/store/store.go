@@ -92,6 +92,9 @@ type RunSummary struct {
 	Duration int64     `json:"durationMs"`
 	// Uninstall: fue una desinstalación (no cuenta como aplicar).
 	Uninstall bool `json:"uninstall,omitempty"`
+	// Completed: en una aplicación que falló (o se canceló), los módulos que
+	// terminaron enteros antes del fallo (esos sí quedan instalados).
+	Completed []string `json:"completed,omitempty"`
 }
 
 // Project = un servidor + los módulos que se le aplican.
@@ -529,6 +532,22 @@ func (s *Store) SetLastRun(id string, r RunSummary) error {
 					pr.InstalledValues[m.ID] = m.Values
 				}
 				sort.Strings(s.d.Projects[i].InstalledModules)
+			} else if !r.OK && !r.Check && !r.Uninstall && len(r.Completed) > 0 {
+				// Aplicación a medias: lo que llegó a instalarse, instalado (sin fecha de aplicada).
+				pr := &s.d.Projects[i]
+				if pr.InstalledValues == nil {
+					pr.InstalledValues = map[string]map[string]any{}
+				}
+				for _, m := range pr.Modules {
+					if !containsStr(r.Completed, m.ID) {
+						continue
+					}
+					if !containsStr(pr.InstalledModules, m.ID) {
+						pr.InstalledModules = append(pr.InstalledModules, m.ID)
+					}
+					pr.InstalledValues[m.ID] = m.Values
+				}
+				sort.Strings(pr.InstalledModules)
 			}
 			return s.saveLocked()
 		}

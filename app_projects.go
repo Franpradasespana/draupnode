@@ -540,6 +540,8 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		a.emit("run", e)
 	}
 	var secretsMsg string
+	// Módulos por los que va pasando la ejecución (por el nombre de sus tareas, «módulo : tarea»).
+	var roles []string
 	code, err := runner.RunOpts(ctx, c, script, runner.Opts{Check: check, SecretsBack: len(rm.uninstall) == 0 || a.vault.Status().Unlocked}, su, func(e runner.Event) {
 		if e.Kind == "secrets" {
 			// Nunca al registro ni a la interfaz: directo a la bóveda.
@@ -559,6 +561,11 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			switch e.Ev["ev"] {
 			case "task":
 				sum.Tasks++
+				if name, _ := e.Ev["name"].(string); strings.Contains(name, " : ") {
+					if r := strings.TrimSpace(strings.SplitN(name, " : ", 2)[0]); len(roles) == 0 || roles[len(roles)-1] != r {
+						roles = append(roles, r)
+					}
+				}
 			case "stats":
 				sum.Changed = toInt(e.Ev["changed"])
 				sum.Failed = toInt(e.Ev["failures"]) + toInt(e.Ev["unreachable"])
@@ -586,6 +593,11 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 	}
 	if secretsMsg != "" {
 		notice(secretsMsg)
+	}
+	if !sum.OK && !check && len(rm.uninstall) == 0 {
+		if msg := partialApply(&sum, p, roles, a.moduleName); msg != "" {
+			notice(msg)
+		}
 	}
 	switch {
 	case sum.OK && len(rm.uninstall) > 0:
@@ -683,4 +695,63 @@ func (a *App) ReadRunLog(projectID, name string) (string, error) {
 	}
 	b, err := os.ReadFile(filepath.Join(a.store.Dir(), "runs", projectID, name))
 	return string(b), err
+}
+
+// partialApply: tras una aplicación que no terminó, qué módulos llegaron a
+// instalarse enteros (todos por los que pasó menos el último, donde se paró),
+// en cuál se paró y a cuáles no llegó. Rellena sum.Completed.
+func partialApply(sum *store.RunSummary, p store.Project, roles []string, name func(string) string) string {
+	inProject := map[string]bool{}
+	for _, m := range p.Modules {
+		inProject[m.ID] = true
+	}
+	var seen []string
+	for _, r := range roles {
+		if inProject[r] {
+			seen = append(seen, r)
+		}
+	}
+	if len(seen) == 0 {
+		return ""
+	}
+	stopped := seen[len(seen)-1]
+	sum.Completed = append([]string(nil), seen[:len(seen)-1]...)
+	reached := map[string]bool{}
+	for _, r := range seen {
+		reached[r] = true
+	}
+	var pending []string
+	for _, m := range p.Modules {
+		if !reached[m.ID] {
+			pending = append(pending, name(m.ID))
+		}
+	}
+	names := func(ids []string) string {
+		out := make([]string, len(ids))
+		for i, id := range ids {
+			out[i] = name(id)
+		}
+		return strings.Join(out, ", ")
+	}
+	msg := ""
+	if len(sum.Completed) > 0 {
+		msg = "Quedaron instalados: " + names(sum.Completed) + ". "
+	}
+	verb := "Falló en"
+	if sum.Canceled {
+		verb = "Se canceló en"
+	}
+	msg += verb + ": " + name(stopped) + "."
+	if len(pending) > 0 {
+		msg += " No se llegó a: " + strings.Join(pending, ", ") + " (se instalarán al volver a aplicar)."
+	}
+	return msg
+}
+
+// moduleName: el nombre visible de un módulo (o su id si no está en el catálogo).
+func (a *App) moduleName(id string) string {
+	if m, ok := a.cat().Get(id); ok {
+		return m.Name
+	}
+	return id
 }

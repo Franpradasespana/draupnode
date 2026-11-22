@@ -7,10 +7,13 @@ details: |
   Clona el repositorio en /srv/draupnode/apps/<nombre> y la arranca con
   «docker compose up -d --build». Cada vez que aplicas, trae lo último de la
   rama y la vuelve a construir (solo se reinicia lo que cambia).
-  Repositorio privado: Draupnode crea una «deploy key» en el servidor; la ves
-  en «Contraseñas» y la añades en tu GitHub/GitLab/Forgejo
-  (Settings → Deploy keys, solo lectura). Usa la dirección SSH
-  (git@github.com:usuario/repo.git).
+  Repositorio privado, dos formas:
+  - Con la dirección https:// y un «Token de acceso» de solo lectura (GitHub:
+    Fine-grained token con «Contents: Read-only» solo para ese repositorio).
+    Se guarda cifrado en tu bóveda; en el servidor no queda escrito.
+  - Con la dirección SSH (git@github.com:usuario/repo.git): Draupnode crea una
+    «deploy key» en el servidor; la ves en «Contraseñas» y la añades en tu
+    GitHub/GitLab/Forgejo (Settings → Deploy keys, solo lectura).
   Variables (.env): las normales, una por línea «CLAVE=valor»; las que deben
   ser secretas y al azar (SECRET_KEY, DB_PASSWORD…), en «Generar en el
   servidor»: se crean una vez y no cambian.
@@ -33,11 +36,15 @@ uninstall_data: Borrar también su carpeta, sus volúmenes de Docker (datos de l
 variables:
   - name: git_app_repo
     label: Repositorio
-    help: "https://github.com/usuario/repo.git (público) o git@github.com:usuario/repo.git (privado, con deploy key)."
+    help: "https://github.com/usuario/repo.git (público, o privado con el token de abajo) o git@github.com:usuario/repo.git (privado, con deploy key)."
     type: string
     required: true
     pattern: '^(https://[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+|[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/~-]+)$'
     pattern_help: Dirección https:// o git@servidor:usuario/repo.git
+  - name: git_app_token
+    label: Token de acceso (solo si el repositorio es privado)
+    help: "Para una dirección https:// de un repositorio privado. En GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens, solo este repositorio y permiso «Contents: Read-only» (en GitLab/Forgejo, un token con lectura del repositorio). Se guarda cifrado en tu bóveda y no se queda escrito en el servidor. Si es público, déjalo vacío. Sin token: usa la dirección git@… y la deploy key."
+    type: secret
   - name: git_app_branch
     label: Rama
     type: string

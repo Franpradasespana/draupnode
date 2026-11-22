@@ -696,3 +696,25 @@ suyos solo se distinguían por el color), dos filas de botones arriba, no decía
   **Historial** y **Otras acciones** (Exportar instalar.sh, Editar plantilla, Desasociar del servidor).
 - Iconos de módulos en `lib/icons.ts` (compartidos). Quitado el orden «Instalados / Por categoría».
 - Ayuda reescrita («La plantilla en el servidor, de arriba abajo», «Añadir módulos»); capturas rehechas.
+
+## 2026-11-22 · 0.48.0 · Lo visto al aplicar en el servidor de pruebas
+
+- **Aplicación a medias**: al aplicar «Pruebas» falló la app de Git y Draupnode no apuntaba nada como instalado
+  (solo lo hacía si todo iba bien), así que no se sabía qué había quedado. Ahora `RunSummary.Completed` guarda los
+  módulos que terminaron enteros antes del fallo (o de cancelar) y quedan como instalados (sin fecha de
+  aplicada); el aviso final dice «Quedaron instalados: … Falló en: … No se llegó a: … (se instalarán al volver a
+  aplicar)». Test `TestAplicacionAMedias`.
+- **App desde Git con repositorio privado por https**: nueva opción «Token de acceso» (tipo secreto, en la bóveda).
+  Se pasa por el entorno y git lo recibe con `GIT_CONFIG_COUNT/KEY/VALUE` (cabecera `Authorization`), así no
+  queda en `.git/config` ni en la orden (`git -c` no valía: `timeout git` se salta una función de shell).
+  Necesita git ≥ 2.31 (Ubuntu 22.04+, Debian 12+). Probado contra GitHub: sin token no se envía nada; con un
+  token falso la descarga falla. El mensaje de fallo explica qué hacer según el caso (https sin token, token que
+  no sirve, deploy key).
+- **Asistente al aplicar** con alto fijo (`Modal height`): los botones Anterior/Siguiente/Finalizar no se mueven
+  al cambiar de paso; lo largo se desplaza dentro.
+- **Recuadro de la ejecución** («Previsualización terminada»…) separado del siguiente.
+- **Plantilla en el servidor, nuevo orden** (petición del usuario): título · dos columnas «Acciones» (Exportar,
+  Editar plantilla, Desasociar, con su explicación) y «Contraseñas» · Qué pasará al aplicar · Módulos de esta
+  plantilla · Respecto a la plantilla · Historial. «Volver a la plantilla» pasa a **«Resetear plantilla»** y las
+  diferencias van una por renglón (Añadido solo aquí / Quitado solo aquí / Opciones propias: con el nombre de
+  cada opción).

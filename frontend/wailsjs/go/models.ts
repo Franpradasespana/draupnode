@@ -1911,6 +1911,7 @@ export namespace store {
 	    logFile?: string;
 	    durationMs: number;
 	    uninstall?: boolean;
+	    completed?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new RunSummary(source);
@@ -1929,6 +1930,7 @@ export namespace store {
 	        this.logFile = source["logFile"];
 	        this.durationMs = source["durationMs"];
 	        this.uninstall = source["uninstall"];
+	        this.completed = source["completed"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

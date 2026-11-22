@@ -30,7 +30,7 @@
   const allErrors = $derived(Object.values(errors).reduce((n, e) => n + Object.keys(e).length, 0))
 </script>
 
-<Modal title={step ? `Configurar ${step.name}` : 'Resumen'} {onclose} width={780}>
+<Modal title={step ? `Configurar ${step.name}` : 'Resumen'} {onclose} width={780} height={680}>
   <div class="top">
     <span class="where">{where}</span>
     <ol class="dots">

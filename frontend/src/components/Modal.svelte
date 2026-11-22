@@ -2,10 +2,12 @@
   import type { Snippet } from 'svelte'
   import { X } from '@lucide/svelte'
 
-  let { title, onclose, width = 520, children, footer }: {
+  // height: alto fijo (p. ej. un asistente por pasos, para que los botones no se muevan al cambiar de paso).
+  let { title, onclose, width = 520, height = 0, children, footer }: {
     title: string
     onclose: () => void
     width?: number
+    height?: number
     children: Snippet
     footer?: Snippet
   } = $props()
@@ -18,7 +20,7 @@
 <svelte:window onkeydown={onkey} />
 
 <div class="backdrop" role="presentation" onmousedown={(e) => e.target === e.currentTarget && onclose()}>
-  <div class="modal" role="dialog" aria-modal="true" aria-label={title} style="width: min({width}px, calc(100vw - 32px))">
+  <div class="modal" role="dialog" aria-modal="true" aria-label={title} style="width: min({width}px, calc(100vw - 32px)){height ? `; height: min(${height}px, calc(100vh - 32px))` : ''}">
     <header>
       <h2>{title}</h2>
       <button class="btn icon ghost sm" onclick={onclose} aria-label="Cerrar"><X size={17} /></button>
@@ -42,7 +44,7 @@
     animation: pop .14s ease-out;
   }
   header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px 22px; }
-  .body { padding: 4px 22px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .body { flex: 1; min-height: 0; padding: 4px 22px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
   footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border); }
   @keyframes fade { from { opacity: 0; } }
   @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.985); } }

@@ -338,11 +338,12 @@
       toast(errorText(e), 'error')
     }
   }
+  const varLabel = (mid: string, v: string) => byId(mid)?.variables?.find((x) => x.name === v)?.label ?? v
   async function resetToRecipe() {
     const ok = await confirmDialog({
-      title: 'Volver a la plantilla',
-      message: `Se deshace lo propio de este servidor (${diffText}) y queda igual que la plantilla. No desinstala nada: lo instalado no cambia hasta que apliques.`,
-      confirmLabel: 'Volver a la plantilla', danger: true,
+      title: 'Resetear plantilla',
+      message: `Este servidor vuelve a ser igual que la plantilla «${recipe?.name}»: se deshace lo propio de aquí (${diffText}). No desinstala nada: lo instalado no cambia hasta que apliques.`,
+      confirmLabel: 'Resetear plantilla', danger: true,
     })
     if (!ok) return
     try {
@@ -518,6 +519,23 @@
         </div>
       </header>
 
+      <div class="two">
+        <section class="card block">
+          <h2>Acciones</h2>
+          <div class="row">
+            <button class="btn sm" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount} title="Un único instalar.sh para ejecutarlo tú en el servidor"><Download size={14} /> Exportar instalar.sh</button>
+            {#if draft.recipeId}
+              <button class="btn sm" onclick={() => openRecipe(draft.recipeId!)} title="La plantilla, para todos los servidores que la usan"><Pencil size={14} /> Editar plantilla</button>
+              <button class="btn sm danger" onclick={remove} disabled={running} title="Lo quita de Draupnode; lo instalado en el servidor no se toca"><Unlink size={14} /> Desasociar del servidor</button>
+            {/if}
+          </div>
+          <p class="muted small">Editar plantilla cambia la plantilla para todos los servidores que la usan. Desasociar la quita de Draupnode sin desinstalar nada.</p>
+        </section>
+        {#if draft.id}
+          <div class="sec-col"><ProjectSecrets projectId={draft.id} title="Contraseñas" refreshKey={stored?.lastRun?.at ?? ''} /></div>
+        {/if}
+      </div>
+
       <section class="card plan" class:done={!needsApply && !!stored?.appliedAt && !errorList.length}>
         <h2>Qué pasará al aplicar</h2>
         {#if errorList.length}
@@ -584,38 +602,31 @@
     {#if draft.recipeId && recipe && !isNew}
       <section class="card block">
         <h2>Respecto a la plantilla «{recipe.name}»</h2>
-        {#if diffText}
-          <p class="small"><span class="pill warn">Distinto</span> Este servidor {diffText}.</p>
+        {#if diffText && diff}
+          <p class="small">Este servidor tiene cosas distintas de la plantilla:</p>
+          <ul class="difflist">
+            {#each diff.added as mid}<li><span class="tag info">Añadido solo aquí</span> {moduleName(mid)}</li>{/each}
+            {#each diff.removed as mid}<li><span class="tag warn">Quitado solo aquí</span> {moduleName(mid)}</li>{/each}
+            {#each Object.entries(diff.changed) as [mid, vars]}<li><span class="tag">Opciones propias</span> {moduleName(mid)}: <span class="muted">{vars.map((v) => varLabel(mid, v)).join(', ')}</span></li>{/each}
+          </ul>
           <div class="row">
             <button class="btn sm" onclick={pushToRecipe} disabled={running || dirty} title="Lo propio de este servidor pasa a la plantilla (y a los demás servidores que la usan). No instala nada."><Upload size={14} /> Llevar a la plantilla</button>
-            <button class="btn sm" onclick={resetToRecipe} disabled={running || dirty} title="Quita lo propio de este servidor y lo deja igual que la plantilla (no desinstala nada)"><Undo2 size={14} /> Volver a la plantilla</button>
+            <button class="btn sm" onclick={resetToRecipe} disabled={running || dirty} title="Deshace lo propio de este servidor y lo deja igual que la plantilla (no desinstala nada)"><Undo2 size={14} /> Resetear plantilla</button>
           </div>
+          <p class="muted small"><strong>Llevar a la plantilla</strong>: estos cambios pasan a la plantilla y a los demás servidores que la usan. <strong>Resetear plantilla</strong>: este servidor vuelve a ser igual que la plantilla (se pierden estos cambios). Ninguno instala ni desinstala nada hasta que apliques.</p>
         {:else}
           <p class="okline small"><CircleCheck size={14} /> Igual que la plantilla. Lo que cambies aquí será solo de este servidor.</p>
         {/if}
       </section>
     {/if}
 
-    {#if draft.id}
-      <ProjectSecrets projectId={draft.id} title="Contraseñas" refreshKey={stored?.lastRun?.at ?? ''} />
-    {/if}
-
     {#if draft.id && draft.serverId}
       <div class="hist-gap"><RunHistory serverId={draft.serverId} projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} /></div>
     {/if}
 
-    {#if !isNew}
-      <section class="card block">
-        <h2>Otras acciones</h2>
-        <div class="row">
-          <button class="btn sm" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount} title="Un único instalar.sh para ejecutarlo tú en el servidor"><Download size={14} /> Exportar instalar.sh</button>
-          {#if draft.recipeId}
-            <button class="btn sm" onclick={() => openRecipe(draft.recipeId!)} title="La plantilla, para todos los servidores que la usan"><Pencil size={14} /> Editar plantilla</button>
-            <button class="btn sm danger" onclick={remove} disabled={running} title="Lo quita de Draupnode; lo instalado en el servidor no se toca"><Unlink size={14} /> Desasociar del servidor</button>
-          {/if}
-        </div>
-      </section>
-    {/if}
+
+
+
   </div>
 {/if}
 
@@ -684,6 +695,12 @@
   .errs :global(svg) { color: var(--danger); flex: none; }
   .cat { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; margin: 14px 0 8px; }
   .hist-gap { margin: 0 0 14px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; align-items: stretch; }
+  .two > .block { margin: 0; }
+  .sec-col { display: flex; }
+  .sec-col :global(.sec) { margin: 0; flex: 1; }
+  .difflist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
+  @media (max-width: 1100px) { .two { grid-template-columns: 1fr; } }
   .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
   .ident { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

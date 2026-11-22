@@ -26,6 +26,12 @@
   ansible.builtin.shell: |
     set -e
     export GIT_SSH_COMMAND="ssh -i {{ git_app_key }} -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile={{ draupnode_secrets_dir }}/.git_known_hosts"
+    # Repositorio privado por https: el token va en una cabecera solo para esta orden
+    # (no se guarda en .git/config ni sale en la orden: llega por el entorno).
+    if [ -n "${GIT_APP_TOKEN:-}" ]; then
+      auth=$(printf 'x-access-token:%s' "$GIT_APP_TOKEN" | base64 -w0)
+      export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: Basic $auth"
+    fi
     d={{ git_app_dir | quote }}
     if [ ! -d "$d/.git" ]; then
       mkdir -p "$(dirname "$d")"; rm -rf "$d.tmp"
@@ -43,6 +49,8 @@
       [ "$antes" != "$(git rev-parse HEAD)" ] && echo actualizado || true
     fi
     git -C "$d" log -1 --format='%h %s'
+  environment:
+    GIT_APP_TOKEN: "{{ (git_app_token | default('') | trim) if not (git_app_ssh | bool) else '' }}"
   register: git_app_git
   changed_when: "'clonado' in git_app_git.stdout or 'actualizado' in git_app_git.stdout"
   failed_when: false
@@ -53,7 +61,9 @@
     msg: >-
       No se pudo descargar {{ git_app_repo }} ({{ git_app_git.stderr | default('') | trim | truncate(300) }}).
       {% if git_app_ssh | bool %}Si es privado, añade esta deploy key (solo lectura) al repositorio y vuelve a aplicar:
-      {{ lookup('ansible.builtin.file', git_app_key ~ '.pub', errors='ignore') }}{% endif %}
+      {{ lookup('ansible.builtin.file', git_app_key ~ '.pub', errors='ignore') }}
+      {%- elif (git_app_token | default('') | trim) %}El token no sirve para este repositorio: comprueba que no ha caducado y que tiene permiso de lectura («Contents: Read-only» en GitHub) sobre él.
+      {%- else %}Si el repositorio es privado, pon un «Token de acceso» de solo lectura en las opciones del módulo (o usa la dirección git@… con deploy key) y vuelve a aplicar.{% endif %}
   when: not ansible_check_mode and git_app_git.rc != 0
 
 - name: El compose existe

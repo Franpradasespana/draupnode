@@ -174,7 +174,7 @@
 </section>
 
 <style>
-  .run { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+  .run { display: flex; flex-direction: column; gap: 12px; padding: 16px; margin-bottom: 16px; }
   .run.ok { border-color: color-mix(in srgb, var(--success) 50%, var(--border)); }
   .run.fail { border-color: color-mix(in srgb, var(--danger) 50%, var(--border)); }
   header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
