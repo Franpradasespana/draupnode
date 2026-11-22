@@ -7,6 +7,7 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
+    LayoutDashboard, DatabaseBackup, Ellipsis, ArrowRight, History,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
@@ -16,7 +17,8 @@
   import { api, errorText, type MonitorResult, type ServerLogsResult, type ServerOverview, type ServerOverviewResult } from '../lib/api'
   import { ui, toast, timeAgo, refreshProjects, openDeployment, openRecipe, moduleName, openTerminal } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
-  import { rememberOverview } from '../lib/alerts.svelte'
+  import BackupsPanel from '../components/BackupsPanel.svelte'
+  import { alerts, rememberOverview, serverFindings } from '../lib/alerts.svelte'
 
   let { id }: { id: string } = $props()
 
@@ -135,152 +137,268 @@
   const blockedPorts = $derived(publicPorts.filter((p) => p.process !== 'docker-proxy' && !(p.proto === 'tcp' ? ov?.firewall?.tcp : ov?.firewall?.udp)?.some((s) => inRange(s, p.port))).map((p) => `${p.port}/${p.proto}`))
   const badContainers = $derived((ov?.containers ?? []).filter((c) => c.state !== 'running' || c.health === 'unhealthy'))
   const others = $derived(ui.recipes.filter((r) => !deployments.some((d) => d.recipeId === r.id)))
+
+  // ---- Pestañas (se recuerda la última abierta)
+  type Tab = 'resumen' | 'plantillas' | 'apps' | 'contenedores' | 'copias' | 'red' | 'registros'
+  const ping = $derived(alerts.ping[id])
+  const isDown = $derived(!!ping && !ping.reachable && !ping.lab)
+  const findings = $derived(ov ? serverFindings(ov) : [])
+  const sickContainers = $derived((ov?.containers ?? []).filter((c) => ['restarting', 'dead'].includes(c.state) || c.health === 'unhealthy'))
+  const runningContainers = $derived((ov?.containers ?? []).filter((c) => c.state === 'running').length)
+  const isPending = (p: (typeof deployments)[number]) => !p.appliedAt || !!(p.updatedAt && p.appliedAt && p.updatedAt > p.appliedAt)
+  const pendingDeps = $derived(deployments.filter(isPending))
+  const backupDeps = $derived(deployments.filter((p) => p.installedModules?.includes('backups')))
+  const backupFindings = $derived(findings.filter((f) => f.id.startsWith('bk')))
+  const appCount = $derived(draupnodeApps.length + (ov?.coolify ? 1 + ov.coolify.apps.length : 0) + (ov?.sites?.length ?? 0))
+  const rootDisk = $derived(ov?.disks?.find((d) => d.mount === '/') ?? ov?.disks?.[0])
+  // Lo mismo que lista «Necesita atención» en el Resumen.
+  const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + pendingDeps.length)
+  const tabs = $derived([
+    { id: 'resumen' as Tab, label: 'Resumen', icon: LayoutDashboard, badge: attention, bad: isDown || findings.some((f) => f.bad) },
+    { id: 'plantillas' as Tab, label: 'Plantillas', icon: FolderGit2, count: deployments.length, badge: pendingDeps.length, bad: false },
+    { id: 'apps' as Tab, label: 'Apps y bases', icon: Globe, count: appCount + (ov?.databases?.reduce((t, d) => t + d.databases.length, 0) ?? 0), badge: 0, bad: false },
+    { id: 'contenedores' as Tab, label: 'Contenedores', icon: Box, count: ov?.containers?.length ?? 0, badge: sickContainers.length, bad: true },
+    ...(backupDeps.length || ov?.backups?.length ? [{ id: 'copias' as Tab, label: 'Copias', icon: DatabaseBackup, count: 0, badge: backupFindings.length, bad: backupFindings.some((f) => f.bad) }] : []),
+    { id: 'red' as Tab, label: 'Red y seguridad', icon: Network, count: 0, badge: 0, bad: false },
+    { id: 'registros' as Tab, label: 'Registros', icon: ScrollText, count: 0, badge: ov?.failed?.length ?? 0, bad: true },
+  ])
+  let tab = $state<Tab>(readTab())
+  function readTab(): Tab {
+    try { return (localStorage.getItem('dn-ficha-tab') as Tab) || 'resumen' } catch { return 'resumen' }
+  }
+  function setTab(t: Tab) {
+    tab = t
+    try { localStorage.setItem('dn-ficha-tab', t) } catch { /* sin almacenamiento */ }
+  }
+  // Si la pestaña recordada no existe en este servidor (Copias), al Resumen.
+  const current = $derived(tabs.some((t) => t.id === tab) ? tab : 'resumen')
+  let onlySick = $state(false)
+  let menu = $state(false)
 </script>
+
+<svelte:window onclick={(e) => { if (menu && !(e.target as HTMLElement).closest('.menu-wrap')) menu = false }} />
 
 {#if server}
   <div class="bar">
     <button class="btn ghost sm" onclick={() => (ui.serverId = null)}><ArrowLeft size={15} /> Servidores</button>
-    <div class="spacer"></div>
-    {#if ov}<span class="muted small" title={autoNote}>Leído {timeAgo(new Date(ov.at * 1000).toISOString())}{autoNote ? ' · ' + autoNote : ''}</span>{/if}
-    <label class="auto muted small" title="Volver a leer el servidor solo">Actualizar sola
-      <select class="input" value={auto} onchange={(e) => setAuto(Number((e.currentTarget as HTMLSelectElement).value))}>
-        {#each AUTO_OPTS as [v, l]}<option value={v}>{l}</option>{/each}
-      </select>
-    </label>
-    <button class="btn sm" onclick={() => server && openTerminal(server.id)}><SquareTerminal size={14} /> Terminal</button>
-    <button class="btn sm" onclick={load} disabled={loading}>{#if loading}<LoaderCircle size={14} class="spin" />{:else}<RefreshCw size={14} />{/if} Actualizar</button>
-    <button class="btn sm" onclick={() => (editing = true)}><Pencil size={14} /> Editar conexión</button>
   </div>
 
-  <div class="head">
-    <h1>{server.name}</h1>
-    <span class="mono muted selectable">{server.user}@{server.host}{server.port !== 22 ? ':' + server.port : ''}</span>
-    {#if sys}<span class="muted">· {sys.os} · {sys.hostname}</span>{/if}
-  </div>
-  {#if server.notes}<p class="muted notes">{server.notes}</p>{/if}
+  <header class="top">
+    <div class="ident">
+      <div class="title">
+        <span class="dot" class:ok={ping?.reachable} class:err={isDown}></span>
+        <h1>{server.name}</h1>
+        <span class="small" class:muted={!isDown} class:bad-t={isDown}>
+          {#if !ping}comprobando…{:else if ping.reachable}responde · {ping.latencyMs} ms{:else if ping.lab}parado (servidor de pruebas){:else}no responde{/if}
+        </span>
+      </div>
+      <div class="sub muted">
+        <span class="mono selectable">{server.user}@{server.host}{server.port !== 22 ? ':' + server.port : ''}</span>
+        {#if sys}<span>· {sys.os}</span><span>· {sys.hostname}</span><span>· encendido {uptime(sys.uptime)}</span>{/if}
+      </div>
+      {#if server.notes}<p class="muted notes">{server.notes}</p>{/if}
+    </div>
+    <div class="actions">
+      {#if ov}<span class="muted small" title={autoNote}>Leído {timeAgo(new Date(ov.at * 1000).toISOString())}{autoNote ? ' · ' + autoNote : ''}</span>{/if}
+      <button class="btn sm" onclick={load} disabled={loading}>{#if loading}<LoaderCircle size={14} class="spin" />{:else}<RefreshCw size={14} />{/if} Actualizar</button>
+      <button class="btn sm primary" onclick={() => server && openTerminal(server.id)}><SquareTerminal size={14} /> Terminal</button>
+      <div class="menu-wrap">
+        <button class="btn sm icon" title="Más opciones" aria-label="Más opciones" onclick={() => (menu = !menu)}><Ellipsis size={16} /></button>
+        {#if menu}
+          <div class="menu card">
+            <button class="mi" onclick={() => { menu = false; editing = true }}><Pencil size={14} /> Editar conexión</button>
+            <label class="mi auto" title="Volver a leer el servidor solo mientras la ficha está a la vista">Actualizar sola
+              <select class="input" value={auto} onchange={(e) => setAuto(Number((e.currentTarget as HTMLSelectElement).value))}>
+                {#each AUTO_OPTS as [v, l]}<option value={v}>{l}</option>{/each}
+              </select>
+            </label>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </header>
 
   {#if error}
     <div class="card err"><CircleAlert size={18} /> <div><strong>No se pudo leer el servidor.</strong> {error}</div></div>
   {/if}
 
-  <!-- Estado -->
-  <section class="stats">
-    <div class="card stat">
-      <div class="st-h"><Cpu size={16} /> CPU</div>
-      {#if sys}<div class="big">{sys.cpu} %</div><div class="muted small">{sys.cpus} núcleos · carga {sys.load.map((l) => l.toFixed(2)).join(' / ')}</div>
-      {:else}<div class="muted">{loading ? 'Leyendo…' : '—'}</div>{/if}
-    </div>
-    <div class="card stat">
-      <div class="st-h"><MemoryStick size={16} /> Memoria</div>
-      {#if sys}<div class="big">{pct(memUsed, sys.memTotal)} %</div><div class="meter"><i class={level(pct(memUsed, sys.memTotal))} style:width="{pct(memUsed, sys.memTotal)}%"></i></div><div class="muted small">{fmt(memUsed)} de {fmt(sys.memTotal)}{sys.swapTotal ? ` · swap ${fmt(sys.swapTotal - sys.swapFree)} de ${fmt(sys.swapTotal)}` : ''}</div>
-      {:else}<div class="muted">{loading ? 'Leyendo…' : '—'}</div>{/if}
-    </div>
-    <div class="card stat">
-      <div class="st-h"><HardDrive size={16} /> Disco</div>
-      {#if ov?.disks?.length}
-        {#each ov.disks as d}
-          <div class="disk"><span class="mono small">{d.mount}</span><div class="meter"><i class={level(pct(d.used, d.size))} style:width="{pct(d.used, d.size)}%"></i></div><span class="small">{fmt(d.free)} libres de {fmt(d.size)}</span></div>
-        {/each}
-      {:else}<div class="muted">{loading ? 'Leyendo…' : '—'}</div>{/if}
-    </div>
-    <div class="card stat">
-      <div class="st-h"><Clock size={16} /> Encendido</div>
-      {#if sys}<div class="big">{uptime(sys.uptime)}</div><div class="muted small">kernel {sys.kernel}</div>
-      {:else}<div class="muted">{loading ? 'Leyendo…' : '—'}</div>{/if}
-    </div>
-  </section>
+  <div class="tabs" role="tablist">
+    {#each tabs as t (t.id)}
+      <button role="tab" class="tab" class:on={current === t.id} aria-selected={current === t.id} onclick={() => setTab(t.id)}>
+        <t.icon size={15} /> {t.label}
+        {#if t.badge}<span class="badge-n" class:bad={t.bad}>{t.badge}</span>{:else if t.count}<span class="count">{t.count}</span>{/if}
+      </button>
+    {/each}
+  </div>
 
-  {#if ov && (badContainers.length || ov.failed?.length)}
-    <div class="card warnbox">
-      <TriangleAlert size={18} />
-      <div>
-        {#each badContainers as c}<p>Contenedor <strong>{c.name}</strong>: {c.state}{c.health ? ` (${c.health})` : ''}{c.restarts ? ` · ${c.restarts} reinicios` : ''} — <button class="lnk" onclick={() => showLogs('container', c.name, c.name)}>ver registro</button></p>{/each}
-        {#each ov.failed ?? [] as u}<p>Servicio <strong>{u}</strong> ha fallado — <button class="lnk" onclick={() => showLogs('unit', u, u)}>ver registro</button></p>{/each}
+  {#if current === 'resumen'}
+    <section class="stats">
+      <div class="card stat">
+        <div class="st-h"><Cpu size={16} /> CPU</div>
+        {#if sys}<div class="big">{Math.round(sys.cpu)} %</div><div class="meter"><i class={level(sys.cpu)} style:width="{Math.min(100, sys.cpu)}%"></i></div><div class="muted small">{sys.cpus} núcleos · carga {sys.load.map((l) => l.toFixed(2)).join(' / ')}</div>
+        {:else}<div class="muted">{loading ? 'Leyendo…' : '—'}</div>{/if}
       </div>
+      <div class="card stat">
+        <div class="st-h"><MemoryStick size={16} /> Memoria</div>
+        {#if sys}<div class="big">{pct(memUsed, sys.memTotal)} %</div><div class="meter"><i class={level(pct(memUsed, sys.memTotal))} style:width="{pct(memUsed, sys.memTotal)}%"></i></div><div class="muted small">{fmt(memUsed)} de {fmt(sys.memTotal)}{sys.swapTotal ? ` · swap ${fmt(sys.swapTotal - sys.swapFree)}` : ''}</div>
+        {:else}<div class="muted">{loading ? 'Leyendo…' : '—'}</div>{/if}
+      </div>
+      <div class="card stat">
+        <div class="st-h"><HardDrive size={16} /> Disco {#if rootDisk}<span class="mono">{rootDisk.mount}</span>{/if}</div>
+        {#if rootDisk}<div class="big">{pct(rootDisk.used, rootDisk.size)} %</div><div class="meter"><i class={level(pct(rootDisk.used, rootDisk.size))} style:width="{pct(rootDisk.used, rootDisk.size)}%"></i></div><div class="muted small">{fmt(rootDisk.free)} libres de {fmt(rootDisk.size)}</div>
+          {#each (ov?.disks ?? []).filter((d) => d !== rootDisk) as d}<div class="muted small"><span class="mono">{d.mount}</span> · {pct(d.used, d.size)} % · {fmt(d.free)} libres</div>{/each}
+        {:else}<div class="muted">{loading ? 'Leyendo…' : '—'}</div>{/if}
+      </div>
+      <button class="card stat click" onclick={() => setTab('contenedores')} title="Ver los contenedores">
+        <div class="st-h"><Box size={16} /> Contenedores</div>
+        {#if ov && !ov.docker}<div class="muted">Sin Docker</div>
+        {:else if ov}<div class="big">{runningContainers}<span class="of">{' / '}{ov.containers?.length ?? 0}</span></div><div class="muted small">en marcha{#if sickContainers.length}{' · '}<span class="bad-t">{sickContainers.length} con problemas</span>{/if}</div>
+        {:else}<div class="muted">{loading ? 'Leyendo…' : '—'}</div>{/if}
+      </button>
+    </section>
+
+    <section class="card block">
+      <h2><TriangleAlert size={17} /> Necesita atención</h2>
+      {#if !ov && !isDown}
+        <p class="muted">{loading ? 'Leyendo el servidor…' : 'Pulsa «Actualizar» para leer el servidor.'}</p>
+      {:else if !attention}
+        <p class="okline"><CircleCheck size={16} /> Todo en orden.</p>
+      {:else}
+        <ul class="att">
+          {#if isDown}<li class="bad-t">No responde por SSH. Puede estar apagado, sin red o con el puerto cerrado.</li>{/if}
+          {#each sickContainers as c}<li class="bad-t">Contenedor <strong>{c.name}</strong>: {c.state}{c.health ? ` (${c.health})` : ''}{c.restarts ? ` · ${c.restarts} reinicios` : ''} <button class="lnk" onclick={() => showLogs('container', c.name, c.name)}>ver registro</button></li>{/each}
+          {#each ov?.failed ?? [] as u}<li class="bad-t">Servicio <strong>{u}</strong> ha fallado <button class="lnk" onclick={() => showLogs('unit', u, u)}>ver registro</button></li>{/each}
+          {#each findings.filter((f) => f.id.startsWith('disk')) as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}</li>{/each}
+          {#each backupFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text} <button class="lnk" onclick={() => setTab('copias')}>ver copias</button></li>{/each}
+          {#each pendingDeps as p}<li class="info-t">La plantilla <strong>{recipeName(p.recipeId) ?? p.name}</strong> {p.appliedAt ? 'tiene cambios sin aplicar' : 'no se ha aplicado aún'} <button class="lnk" onclick={() => openDeployment(p.id)}>abrir</button></li>{/each}
+        </ul>
+      {/if}
+    </section>
+
+    <div class="two">
+      <section class="card block">
+        <div class="h2row"><h2><FolderGit2 size={17} /> Plantillas</h2><button class="btn sm ghost" onclick={() => setTab('plantillas')}>Gestionar <ArrowRight size={13} /></button></div>
+        {#each deployments as p (p.id)}
+          <div class="dep slim">
+            <button class="dep-main" onclick={() => openDeployment(p.id)}>
+              <strong>{recipeName(p.recipeId) ?? p.name}</strong>
+              <span class="mods">{p.modules.map((m) => moduleName(m.id)).join(' · ')}</span>
+            </button>
+            {#if p.lastRun && !p.lastRun.ok && !p.lastRun.check}<span class="pill bad">Falló</span>
+            {:else if !p.appliedAt}<span class="pill warn">Sin aplicar</span>
+            {:else if isPending(p)}<span class="pill warn">Cambios sin aplicar</span>
+            {:else}<span class="pill ok"><CircleCheck size={12} /> Aplicada</span>{/if}
+          </div>
+        {:else}
+          <p class="muted">Ninguna todavía. <button class="lnk" onclick={() => setTab('plantillas')}>Asocia una</button>.</p>
+        {/each}
+      </section>
+      <section class="card block">
+        <div class="h2row"><h2><Globe size={17} /> Apps</h2>{#if appCount}<button class="btn sm ghost" onclick={() => setTab('apps')}>Todas <ArrowRight size={13} /></button>{/if}</div>
+        {#if !appCount}<p class="muted">{loading ? 'Leyendo…' : 'No hay apps publicadas que se puedan ver desde aquí.'}</p>{/if}
+        <ul class="applist">
+          {#each draupnodeApps as a}<li><span><strong>{a.module.name}</strong> <span class="muted small">{a.domain || 'sin dominio'}</span></span><button class="btn sm ghost" onclick={() => openApp(a.project.id, a.module.id)}><ExternalLink size={13} /> Abrir</button></li>{/each}
+          {#if ov?.coolify}<li><span><strong>Panel de Coolify</strong></span><button class="btn sm ghost" onclick={() => api.OpenURL(ov?.coolify?.panel ? url(ov.coolify.panel) : `http://${server!.host}:8000`)}><ExternalLink size={13} /> Abrir</button></li>{/if}
+          {#each (ov?.coolify?.apps ?? []).filter((c) => c.urls[0]) as c}<li><span><strong>{c.name}</strong> <span class="muted small">{c.urls[0]}</span></span><button class="btn sm ghost" onclick={() => api.OpenURL(url(c.urls[0]))}><ExternalLink size={13} /> Abrir</button></li>{/each}
+          {#each ov?.sites ?? [] as st}<li><span><strong>{st.domain}</strong> <span class="muted small">{st.server}</span></span><button class="btn sm ghost" onclick={() => api.OpenURL((st.https ? 'https://' : 'http://') + st.domain)}><ExternalLink size={13} /> Abrir</button></li>{/each}
+        </ul>
+      </section>
     </div>
+
+    <RunHistory serverId={id} limit={5} title="Actividad reciente" refreshKey={deployments.map((p) => p.lastRun?.at ?? '').join()} />
   {/if}
 
-  <!-- Proyecto -->
-  <section class="card block">
-    <h2><FolderGit2 size={17} /> Plantillas aplicadas</h2>
-    {#each deployments as p (p.id)}
-      {@const pending = !p.appliedAt || (p.updatedAt && p.appliedAt && p.updatedAt > p.appliedAt)}
-      <div class="dep">
-        <button class="dep-main" onclick={() => openDeployment(p.id)}>
-          <strong>{recipeName(p.recipeId) ?? p.name}</strong>
-          <span class="mods">{p.modules.map((m) => moduleName(m.id)).join(' · ')}</span>
-        </button>
-        <div class="dep-st">
-          {#if p.lastRun && !p.lastRun.ok && !p.lastRun.check}<span class="pill bad">Falló la última vez</span>
-          {:else if !p.appliedAt}<span class="pill warn">Sin aplicar</span>
-          {:else if pending}<span class="pill warn">Cambios sin aplicar</span>
-          {:else}<span class="pill ok"><CircleCheck size={12} /> Aplicado {timeAgo(p.appliedAt)}</span>{/if}
-          {#if p.overrides && ((p.overrides.added?.length ?? 0) + (p.overrides.removed?.length ?? 0) + Object.keys(p.overrides.values ?? {}).length)}<span class="pill">Con datos propios de este servidor</span>{/if}
-          <button class="btn sm primary" onclick={() => openDeployment(p.id)}>Abrir</button>
+  {#if current === 'plantillas'}
+    <section class="card block">
+      <h2><FolderGit2 size={17} /> Plantillas de este servidor</h2>
+      {#each deployments as p (p.id)}
+        <div class="dep">
+          <button class="dep-main" onclick={() => openDeployment(p.id)}>
+            <strong>{recipeName(p.recipeId) ?? p.name}</strong>
+            <span class="mods">{p.modules.map((m) => moduleName(m.id)).join(' · ')}</span>
+          </button>
+          <div class="dep-st">
+            {#if p.lastRun && !p.lastRun.ok && !p.lastRun.check}<span class="pill bad">Falló la última vez</span>
+            {:else if !p.appliedAt}<span class="pill warn">Sin aplicar</span>
+            {:else if isPending(p)}<span class="pill warn">Cambios sin aplicar</span>
+            {:else}<span class="pill ok"><CircleCheck size={12} /> Aplicada {timeAgo(p.appliedAt)}</span>{/if}
+            {#if p.overrides && ((p.overrides.added?.length ?? 0) + (p.overrides.removed?.length ?? 0) + Object.keys(p.overrides.values ?? {}).length)}<span class="pill">Con datos propios de este servidor</span>{/if}
+            <button class="btn sm primary" onclick={() => openDeployment(p.id)}>Abrir</button>
+          </div>
         </div>
+      {:else}
+        <p class="muted">Este servidor aún no tiene ninguna plantilla. Asóciale una; después la revisas y la aplicas.</p>
+      {/each}
+      <div class="assoc">
+        {#if others.length}
+          <select class="input" bind:value={deployPick}>
+            <option value="">{deployments.length ? 'Añadir otra plantilla…' : 'Elige una plantilla…'}</option>
+            {#each others as r}<option value={r.id}>{r.name}</option>{/each}
+          </select>
+          <button class="btn sm" onclick={deploy} disabled={!deployPick}><Plus size={14} /> Asociar</button>
+        {/if}
+        <button class="btn sm ghost" onclick={() => openRecipe('')}><Plus size={14} /> Crear una plantilla nueva</button>
       </div>
-    {:else}
-      <p class="muted">Este servidor aún no tiene ninguna plantilla. Asóciale una; después la revisas y la aplicas.</p>
-    {/each}
-    <div class="assoc">
-      {#if others.length}
-        <select class="input" bind:value={deployPick}>
-          <option value="">{deployments.length ? 'Añadir otra plantilla…' : 'Elige una plantilla…'}</option>
-          {#each others as r}<option value={r.id}>{r.name}</option>{/each}
-        </select>
-        <button class="btn sm" onclick={deploy} disabled={!deployPick}><Plus size={14} /> Asociar</button>
-      {/if}
-      <button class="btn sm ghost" onclick={() => openRecipe('')}><Plus size={14} /> Crear una plantilla nueva</button>
-    </div>
-  </section>
+    </section>
 
-  {#if ov}<AdoptSection serverId={id} {ov} {deployments} />{/if}
-
-  <!-- Apps y direcciones -->
-  <section class="card block">
-    <h2><Globe size={17} /> Apps y direcciones</h2>
-    {#if !draupnodeApps.length && !ov?.coolify?.apps.length && !ov?.sites?.length && !ov?.coolify}
-      <p class="muted">{loading ? 'Leyendo…' : 'No hay apps publicadas que se puedan ver desde aquí.'}</p>
+    {#if deployments.length}
+      <section class="card block">
+        <h2><KeyRound size={17} /> Contraseñas</h2>
+        <p class="muted small">Las que generan los módulos en el servidor la primera vez que pulsas <strong>Aplicar</strong> (al previsualizar no se crean) y los datos secretos que escribiste. Draupnode las guarda cifradas en la bóveda; para verlas te pide su contraseña.</p>
+        <div class="secrets">
+          {#each deployments as p (p.id)}
+            <ProjectSecrets projectId={p.id} title={recipeName(p.recipeId) ?? p.name} refreshKey={p.lastRun?.at ?? ''} />
+          {/each}
+        </div>
+      </section>
     {/if}
-    <table class="tbl">
-      <tbody>
-        {#each draupnodeApps as a}
-          <tr>
-            <td><strong>{a.module.name}</strong><br /><span class="muted small">Draupnode · {recipeName(a.project.recipeId) ?? a.project.name}</span></td>
-            <td>{#if a.domain}<button class="lnk" onclick={() => api.OpenURL('https://' + a.domain)}>https://{a.domain}</button>{:else}<span class="muted small">sin dominio · 127.0.0.1:{a.port}</span>{/if}</td>
-            <td class="r"><button class="btn sm" onclick={() => openApp(a.project.id, a.module.id)}><ExternalLink size={13} /> Abrir</button></td>
-          </tr>
-        {/each}
-        {#if ov?.coolify}
-          <tr>
-            <td><strong>Panel de Coolify</strong><br /><span class="muted small">Coolify</span></td>
-            <td>{#if ov.coolify.panel}<button class="lnk" onclick={() => api.OpenURL(url(ov!.coolify!.panel))}>{ov.coolify.panel}</button>{:else}<span class="muted small">http://{server.host}:8000</span>{/if}</td>
-            <td class="r"><button class="btn sm" onclick={() => api.OpenURL(ov?.coolify?.panel ? url(ov.coolify.panel) : `http://${server!.host}:8000`)}><ExternalLink size={13} /> Abrir</button></td>
-          </tr>
-          {#each ov.coolify.apps as c}
+
+    {#if ov}<AdoptSection serverId={id} {ov} {deployments} />{/if}
+  {/if}
+
+  {#if current === 'apps'}
+    <section class="card block">
+      <h2><Globe size={17} /> Apps y direcciones</h2>
+      {#if !appCount}
+        <p class="muted">{loading ? 'Leyendo…' : 'No hay apps publicadas que se puedan ver desde aquí.'}</p>
+      {/if}
+      <table class="tbl">
+        <tbody>
+          {#each draupnodeApps as a}
             <tr>
-              <td><strong>{c.name}</strong><br /><span class="muted small">Coolify · {c.kind}{c.status ? ' · ' + c.status : ''}</span></td>
-              <td>{#each c.urls as u}<button class="lnk block-l" onclick={() => api.OpenURL(url(u))}>{u}</button>{:else}<span class="muted small">sin dominio</span>{/each}</td>
-              <td class="r">{#if c.urls[0]}<button class="btn sm" onclick={() => api.OpenURL(url(c.urls[0]))}><ExternalLink size={13} /> Abrir</button>{/if}</td>
+              <td><strong>{a.module.name}</strong><br /><span class="muted small">Draupnode · {recipeName(a.project.recipeId) ?? a.project.name}</span></td>
+              <td>{#if a.domain}<button class="lnk" onclick={() => api.OpenURL('https://' + a.domain)}>https://{a.domain}</button>{:else}<span class="muted small">sin dominio · 127.0.0.1:{a.port}</span>{/if}</td>
+              <td class="r"><button class="btn sm" onclick={() => openApp(a.project.id, a.module.id)}><ExternalLink size={13} /> Abrir</button></td>
             </tr>
           {/each}
-        {/if}
-        {#each ov?.sites ?? [] as s}
-          <tr>
-            <td><strong>{s.domain}</strong><br /><span class="muted small">{s.server} · {s.target || '—'}</span></td>
-            <td><button class="lnk" onclick={() => api.OpenURL((s.https ? 'https://' : 'http://') + s.domain)}>{s.https ? 'https' : 'http'}://{s.domain}</button></td>
-            <td class="r"><button class="btn sm" onclick={() => api.OpenURL((s.https ? 'https://' : 'http://') + s.domain)}><ExternalLink size={13} /> Abrir</button></td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </section>
+          {#if ov?.coolify}
+            <tr>
+              <td><strong>Panel de Coolify</strong><br /><span class="muted small">Coolify</span></td>
+              <td>{#if ov.coolify.panel}<button class="lnk" onclick={() => api.OpenURL(url(ov!.coolify!.panel))}>{ov.coolify.panel}</button>{:else}<span class="muted small">http://{server.host}:8000</span>{/if}</td>
+              <td class="r"><button class="btn sm" onclick={() => api.OpenURL(ov?.coolify?.panel ? url(ov.coolify.panel) : `http://${server!.host}:8000`)}><ExternalLink size={13} /> Abrir</button></td>
+            </tr>
+            {#each ov.coolify.apps as c}
+              <tr>
+                <td><strong>{c.name}</strong><br /><span class="muted small">Coolify · {c.kind}{c.status ? ' · ' + c.status : ''}</span></td>
+                <td>{#each c.urls as u}<button class="lnk block-l" onclick={() => api.OpenURL(url(u))}>{u}</button>{:else}<span class="muted small">sin dominio</span>{/each}</td>
+                <td class="r">{#if c.urls[0]}<button class="btn sm" onclick={() => api.OpenURL(url(c.urls[0]))}><ExternalLink size={13} /> Abrir</button>{/if}</td>
+              </tr>
+            {/each}
+          {/if}
+          {#each ov?.sites ?? [] as st}
+            <tr>
+              <td><strong>{st.domain}</strong><br /><span class="muted small">{st.server} · {st.target || '—'}</span></td>
+              <td><button class="lnk" onclick={() => api.OpenURL((st.https ? 'https://' : 'http://') + st.domain)}>{st.https ? 'https' : 'http'}://{st.domain}</button></td>
+              <td class="r"><button class="btn sm" onclick={() => api.OpenURL((st.https ? 'https://' : 'http://') + st.domain)}><ExternalLink size={13} /> Abrir</button></td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </section>
 
-  <!-- Bases de datos -->
-  {#if ov?.databases?.length}
     <section class="card block">
       <h2><Database size={17} /> Bases de datos</h2>
-      {#each ov.databases as d}
+      {#each ov?.databases ?? [] as d}
         <div class="db">
           <div class="db-h"><strong>{d.engine}</strong> <span class="mono small muted">{d.container} · {d.image}</span>
             <span class="muted small">· {fmt(d.databases.reduce((t, x) => t + x.size, 0))} en total</span>
@@ -291,20 +409,25 @@
             </tbody>
           </table>
         </div>
+      {:else}
+        <p class="muted">{loading ? 'Leyendo…' : 'No hay bases de datos en contenedores (PostgreSQL, MariaDB/MySQL).'}</p>
       {/each}
     </section>
   {/if}
 
-  <!-- Contenedores -->
-  {#if ov}
+  {#if current === 'contenedores'}
     <section class="card block">
-      <h2><Box size={17} /> Contenedores {#if ov.docker}<span class="muted small">· {ov.containers?.length ?? 0}</span>{/if}</h2>
-      {#if !ov.docker}<p class="muted">Este servidor no tiene Docker.</p>
+      <div class="h2row">
+        <h2><Box size={17} /> Contenedores {#if ov?.docker}<span class="muted small">· {runningContainers} en marcha de {ov.containers?.length ?? 0}</span>{/if}</h2>
+        {#if ov?.docker && (ov.containers?.length ?? 0) > 0}<label class="chk small"><input type="checkbox" bind:checked={onlySick} /> Solo los que no están en marcha o fallan</label>{/if}
+      </div>
+      {#if !ov}<p class="muted">{loading ? 'Leyendo…' : '—'}</p>
+      {:else if !ov.docker}<p class="muted">Este servidor no tiene Docker.</p>
       {:else}
         <table class="tbl">
           <thead><tr><th>Nombre</th><th>Estado</th><th>CPU</th><th>Memoria</th><th>Puertos</th><th></th></tr></thead>
           <tbody>
-            {#each ov.containers ?? [] as c}
+            {#each (ov.containers ?? []).filter((c) => !onlySick || badContainers.includes(c)) as c}
               <tr>
                 <td><strong>{c.name}</strong><br /><span class="muted small mono">{c.image}</span>
                   {#if c.draupnode || c.coolify || c.compose}<br /><span class="muted small">{c.draupnode ? 'Draupnode · ' + c.draupnode : c.coolify ? 'Coolify · ' + c.coolify : 'compose · ' + c.compose}</span>{/if}</td>
@@ -314,46 +437,95 @@
                 <td class="mono small">{c.ports.join(', ')}</td>
                 <td class="r"><button class="btn sm ghost" onclick={() => showLogs('container', c.name, c.name)}><ScrollText size={13} /> Registro</button></td>
               </tr>
+            {:else}
+              <tr><td colspan="6" class="muted">{onlySick ? 'Todos en marcha y sanos.' : 'No hay contenedores.'}</td></tr>
             {/each}
           </tbody>
         </table>
       {/if}
     </section>
+  {/if}
 
-    <!-- Puertos y registros del sistema -->
+  {#if current === 'copias'}
     <section class="card block">
-      <h2><Network size={17} /> Puertos</h2>
-      <h3>El cortafuegos deja pasar</h3>
-      {#if !ov.firewall}<p class="muted">No se pudo leer.</p>
-      {:else if !ov.firewall.active}<p class="muted">No hay cortafuegos activo: se llega a cualquier puerto en el que algo escuche.</p>
-      {:else if ov.firewall.tcp.length || ov.firewall.udp.length}
-        <div class="ports">
-          {#each ov.firewall.tcp as p}<span class="pill mono" class:idle={!listening('tcp', p)}>{p}/tcp</span>{/each}
-          {#each ov.firewall.udp as p}<span class="pill mono" class:idle={!listening('udp', p)}>{p}/udp</span>{/each}
-        </div>
-        {#if idlePorts.length}<p class="muted small">{idlePorts.join(', ')}: abierto{idlePorts.length > 1 ? 's' : ''}, pero ahora no hay nada escuchando (se usará cuando instales algo que lo necesite, como Caddy o nginx en el 80/443).</p>{/if}
-      {:else}<p class="muted">Nada: todo cerrado.</p>{/if}
-      <h3>Programas escuchando hacia fuera</h3>
-      {#if publicPorts.length}
-        <div class="ports">{#each publicPorts as p}<span class="pill mono">{p.port}/{p.proto} · {p.process || '?'}</span>{/each}</div>
-      {:else}<p class="muted">Ninguno aparte de los locales.</p>{/if}
-      {#if ov.firewall?.active && dockerPorts.length}<p class="muted small">{dockerPorts.join(', ')}: {dockerPorts.length > 1 ? 'los publica' : 'lo publica'} Docker, que se salta este cortafuegos: se llega desde fuera aunque no esté en la lista de arriba.</p>{/if}
-      {#if ov.firewall?.active && blockedPorts.length}<p class="muted small">{blockedPorts.join(', ')}: escucha{blockedPorts.length > 1 ? 'n' : ''}, pero el cortafuegos no {blockedPorts.length > 1 ? 'los' : 'lo'} deja pasar desde fuera.</p>{/if}
+      <h2><DatabaseBackup size={17} /> Estado de las copias en el servidor</h2>
+      {#if !ov}<p class="muted">{loading ? 'Leyendo…' : 'Pulsa «Actualizar» para leer el servidor.'}</p>
+      {:else if !ov.backups?.length}<p class="muted">El servidor no tiene ninguna copia programada por Draupnode todavía (se crea al aplicar el módulo Copias).</p>
+      {:else}
+        <table class="tbl">
+          <thead><tr><th>Copia</th><th>Plantilla</th><th>Última</th><th></th></tr></thead>
+          <tbody>
+            {#each ov.backups as b (b.slug)}
+              {@const p = deployments.find((d) => d.slug === b.slug)}
+              <tr>
+                <td class="mono">{b.slug}</td>
+                <td>{#if p}{recipeName(p.recipeId) ?? p.name}{:else}<span class="muted small">no la conoce este Draupnode · <button class="lnk" onclick={() => setTab('plantillas')}>recuperar</button></span>{/if}</td>
+                <td>
+                  {#if b.running}<strong>haciéndose ahora</strong>
+                  {:else if !b.ok}<strong class="bad-t">falló</strong>
+                  {:else if b.ago === null}<span class="warn-t">no consta ninguna</span>
+                  {:else}<span class:warn-t={b.ago > 26 * 3600}>hace {b.ago < 3600 ? Math.max(1, Math.round(b.ago / 60)) + ' min' : b.ago < 172800 ? Math.round(b.ago / 3600) + ' h' : Math.round(b.ago / 86400) + ' días'}</span>{#if b.ago <= 26 * 3600} <CircleCheck size={13} class="ok-i" />{/if}{/if}
+                </td>
+                <td class="r"><button class="btn sm ghost" onclick={() => showLogs('unit', 'draupnode-copia-' + b.slug, 'Copias · ' + b.slug)}><ScrollText size={13} /> Registro</button></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
+    </section>
+    {#each backupDeps as p (p.id)}
+      <section class="card block">
+        <h2><DatabaseBackup size={17} /> {recipeName(p.recipeId) ?? p.name}</h2>
+        <BackupsPanel project={p} />
+      </section>
+    {/each}
+  {/if}
+
+  {#if current === 'red'}
+    <section class="card block">
+      <h2><Network size={17} /> Puertos y cortafuegos</h2>
+      {#if !ov}<p class="muted">{loading ? 'Leyendo…' : '—'}</p>
+      {:else}
+        <h3>El cortafuegos deja pasar</h3>
+        {#if !ov.firewall}<p class="muted">No se pudo leer.</p>
+        {:else if !ov.firewall.active}<p class="muted">No hay cortafuegos activo: se llega a cualquier puerto en el que algo escuche.</p>
+        {:else if ov.firewall.tcp.length || ov.firewall.udp.length}
+          <div class="ports">
+            {#each ov.firewall.tcp as p}<span class="pill mono" class:idle={!listening('tcp', p)}>{p}/tcp</span>{/each}
+            {#each ov.firewall.udp as p}<span class="pill mono" class:idle={!listening('udp', p)}>{p}/udp</span>{/each}
+          </div>
+          {#if idlePorts.length}<p class="muted small">{idlePorts.join(', ')}: abierto{idlePorts.length > 1 ? 's' : ''}, pero ahora no hay nada escuchando (se usará cuando instales algo que lo necesite, como Caddy o nginx en el 80/443).</p>{/if}
+        {:else}<p class="muted">Nada: todo cerrado.</p>{/if}
+        <h3>Programas escuchando hacia fuera</h3>
+        {#if publicPorts.length}
+          <div class="ports">{#each publicPorts as p}<span class="pill mono">{p.port}/{p.proto} · {p.process || '?'}</span>{/each}</div>
+        {:else}<p class="muted">Ninguno aparte de los locales.</p>{/if}
+        {#if ov.firewall?.active && dockerPorts.length}<p class="muted small">{dockerPorts.join(', ')}: {dockerPorts.length > 1 ? 'los publica' : 'lo publica'} Docker, que se salta este cortafuegos: se llega desde fuera aunque no esté en la lista de arriba.</p>{/if}
+        {#if ov.firewall?.active && blockedPorts.length}<p class="muted small">{blockedPorts.join(', ')}: escucha{blockedPorts.length > 1 ? 'n' : ''}, pero el cortafuegos no {blockedPorts.length > 1 ? 'los' : 'lo'} deja pasar desde fuera.</p>{/if}
+        {@const local = (ov.ports ?? []).filter((p) => !p.public)}
+        {#if local.length}
+          <h3>Solo dentro del servidor</h3>
+          <div class="ports">{#each local as p}<span class="pill mono idle">{p.addr}:{p.port}/{p.proto} · {p.process || '?'}</span>{/each}</div>
+          <p class="muted small">No se llega desde fuera; se abren con un túnel SSH (como Grafana o las apps sin dominio).</p>
+        {/if}
+      {/if}
+    </section>
+  {/if}
+
+  {#if current === 'registros'}
+    <section class="card block">
+      <h2><ScrollText size={17} /> Registros del servidor</h2>
       <div class="row">
         <button class="btn sm" onclick={() => showLogs('system', '', 'Registro del sistema')}><ScrollText size={14} /> Registro del sistema</button>
         <button class="btn sm" onclick={() => showLogs('unit', 'ssh', 'SSH')}><ScrollText size={14} /> Registro de SSH</button>
+        {#each ov?.failed ?? [] as u}<button class="btn sm danger" onclick={() => showLogs('unit', u, u)}><ScrollText size={14} /> {u} (falló)</button>{/each}
       </div>
+      <p class="muted small">Los de cada contenedor están en la pestaña <button class="lnk" onclick={() => setTab('contenedores')}>Contenedores</button>.</p>
     </section>
-    {#if ov.errors?.length}<p class="muted small">No se pudo leer todo: {ov.errors.join(' · ')}</p>{/if}
+    <RunHistory serverId={id} refreshKey={deployments.map((p) => p.lastRun?.at ?? '').join()} />
   {/if}
 
-  <RunHistory serverId={id} refreshKey={deployments.map((p) => p.lastRun?.at ?? '').join()} />
-
-  <!-- Contraseñas -->
-  {#each deployments as p (p.id)}
-    <div class="secrets"><KeyRound size={15} /> <strong>{recipeName(p.recipeId) ?? p.name}</strong></div>
-    <ProjectSecrets projectId={p.id} refreshKey={p.lastRun?.at ?? ''} />
-  {/each}
+  {#if ov?.errors?.length}<p class="muted small">No se pudo leer todo: {ov.errors.join(' · ')}</p>{/if}
 {/if}
 
 {#if editing && server}
@@ -371,44 +543,73 @@
 {/if}
 
 <style>
-  .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .spacer { flex: 1; }
-  .auto { display: inline-flex; gap: 6px; align-items: center; }
+  .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .ident { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .title h1 { margin: 0; }
+  .sub { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+  .notes { margin: 2px 0 0; font-size: 13px; }
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .menu-wrap { position: relative; }
+  .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: flex; flex-direction: column; gap: 2px; padding: 6px; min-width: 230px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+  .mi { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 0; border-radius: var(--radius-sm); background: none; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; text-align: left; }
+  .mi:hover { background: var(--sidebar-hover); }
+  .auto { justify-content: space-between; }
   .auto .input { height: 28px; padding: 0 6px; width: auto; font-size: 12.5px; }
-  .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
-  .head h1 { margin: 0; }
-  .notes { margin: 0 0 12px; }
   .small { font-size: 12px; }
-  .err, .warnbox { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0; }
-  .err { border-color: var(--danger); }
+  .bad-t { color: var(--danger); }
+  .warn-t { color: var(--warning); }
+  .info-t { color: var(--info); }
+  .err { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; border-color: var(--danger); }
   .err :global(svg) { color: var(--danger); flex: none; }
-  .warnbox { border-color: color-mix(in srgb, var(--warning) 50%, var(--border)); }
-  .warnbox :global(svg) { color: var(--warning); flex: none; }
-  .warnbox p { margin: 2px 0; font-size: 13px; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 14px 0; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
+  .tab { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; font: inherit; font-size: 13.5px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .tab:hover { color: var(--text); }
+  .tab.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab.on :global(svg) { color: var(--accent); }
+  .count { font-size: 11.5px; color: var(--muted); font-weight: 400; }
+  .badge-n { font-size: 11px; font-weight: 600; min-width: 18px; padding: 0 5px; line-height: 18px; text-align: center; border-radius: 9px; background: var(--warning); color: #fff; }
+  .badge-n.bad { background: var(--danger); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
   .stat { display: flex; flex-direction: column; gap: 6px; }
+  .stat.click { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+  .stat.click:hover { border-color: var(--muted); }
   .st-h { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12.5px; font-weight: 600; }
-  .big { font-size: 24px; font-weight: 600; }
+  .big { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .of { font-size: 15px; color: var(--muted); font-weight: 500; }
   .meter { height: 6px; border-radius: 3px; background: var(--border-soft); overflow: hidden; }
   .meter i { display: block; height: 100%; }
   .meter i.ok { background: var(--success); }
   .meter i.warn { background: var(--warning); }
   .meter i.bad { background: var(--danger); }
-  .disk { display: grid; grid-template-columns: 50px 1fr; gap: 2px 8px; align-items: center; }
-  .disk span:last-child { grid-column: 1 / -1; color: var(--muted); }
   .block { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
   .block h2 { display: flex; gap: 8px; align-items: center; font-size: 15px; margin: 0; }
   .block h2 :global(svg) { color: var(--accent); }
+  .h2row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .okline { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13.5px; }
+  .okline :global(svg), :global(.ok-i) { color: var(--success); vertical-align: -2px; }
+  .att { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .two .block { margin-bottom: 14px; }
+  .applist { list-style: none; margin: 0; padding: 0; }
+  .applist li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--border-soft); font-size: 13px; }
+  .applist li > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dep { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 10px 12px; }
-  .dep-main { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .dep.slim { padding: 8px 10px; }
+  .dep-main { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+  .dep-main:hover strong { text-decoration: underline; }
   .mods { font-size: 12.5px; color: var(--muted); }
   .dep-st { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; background: var(--sidebar-hover); color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; background: var(--sidebar-hover); color: var(--muted); white-space: nowrap; }
   .pill.ok { background: var(--success-soft); color: var(--success); }
   .pill.warn { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
   .pill.bad { background: var(--danger-soft); color: var(--danger); }
   .assoc, .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .assoc .input { width: auto; min-width: 220px; height: 32px; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+  .secrets { display: flex; flex-direction: column; gap: 8px; }
+  .secrets :global(.card) { box-shadow: none; margin: 0; }
   .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
   .tbl th { text-align: left; font-size: 11.5px; color: var(--muted); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--border); }
   .tbl td { padding: 7px 8px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
@@ -419,8 +620,11 @@
   .db { display: flex; flex-direction: column; gap: 4px; }
   .db-h { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
   .ports { display: flex; flex-wrap: wrap; gap: 6px; }
-  .pill.idle { opacity: 0.55; border-style: dashed; }
-  h3 { font-size: 0.9rem; margin: 10px 0 6px; font-weight: 600; }
-  .secrets { display: flex; gap: 6px; align-items: center; margin: 18px 0 -6px; font-size: 13px; color: var(--muted); }
+  .pill.idle { opacity: 0.6; border: 1px dashed var(--border); }
+  h3 { font-size: 0.9rem; margin: 6px 0 0; font-weight: 600; }
   .log { margin: 0; max-height: 60vh; overflow: auto; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); font-family: var(--mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+  @media (max-width: 1100px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .two { grid-template-columns: 1fr; }
+  }
 </style>

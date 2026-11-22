@@ -646,3 +646,25 @@ El usuario no le veía utilidad al Panel (solo contaba cosas y repetía la lista
 
 - Panel: toda la tarjeta de un servidor abre su ficha (como los contadores), no solo el nombre. Sus botones
   (apps, plantillas, Grafana, Terminal, ↻) siguen haciendo lo suyo. También con el teclado (Tab + Intro).
+
+## 2026-11-22 · 0.46.0 · Ficha del servidor por pestañas
+
+La ficha era una sola página de ~2.600 px con 10 bloques (las copias sin sitio propio, las contraseñas repetidas
+al final con el mismo párrafo, Disco descuadrado, barra de arriba con demasiados botones). Ahora:
+
+- **Cabecera fija**: punto y «responde · N ms» (o «no responde» / «parado» si es el de pruebas), usuario@IP, sistema,
+  nombre de la máquina y tiempo encendido; «Leído hace…», «Actualizar», «Terminal» y «⋯» (Editar conexión,
+  Actualizar sola).
+- **Pestañas** (se recuerda la última; número rojo/ámbar si hay algo que mirar, gris = cuántos hay):
+  - **Resumen**: CPU, memoria, disco (`/` grande y el resto debajo) y contenedores (pulsable); «Necesita atención»
+    (no responde, contenedores, servicios, disco, copias, plantillas sin aplicar, con enlaces) o «Todo en orden»;
+    plantillas y apps en dos columnas; actividad reciente (5).
+  - **Plantillas**: lista completa, asociar/crear, **Contraseñas** de todas juntas con la explicación una sola vez
+    (`ProjectSecrets` con `title`: «Todavía ninguna.») y «Lo que ya hay en este servidor».
+  - **Apps y bases**: direcciones y bases de datos.
+  - **Contenedores**: tabla con «Solo los que no están en marcha o fallan».
+  - **Copias** (si hay módulo Copias o copias en el servidor): tabla de estado (última, plantilla o «recuperar»,
+    registro del servicio) y el panel de copias de cada plantilla (copia ahora, ver, restaurar, traer).
+  - **Red y seguridad**: cortafuegos, lo que escucha hacia fuera y, nuevo, lo que solo escucha dentro.
+  - **Registros**: sistema, SSH, servicios caídos e historial completo.
+- Ayuda de Servidores reescrita; capturas rehechas (las que entran en la ficha pulsan antes «Resumen»).

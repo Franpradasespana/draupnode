@@ -50,8 +50,8 @@ const ALL_SHOTS = [
   { name: 'proyectos', view: 'projects' },
   { name: 'proyecto', view: 'projects', act: [['click', 'button.main', 'Coolify producción'], ['wait', 900]] },
   { name: 'plantilla-cambios', view: 'projects', act: [['click', 'button.main', 'Coolify producción'], ['wait', 900], ['click', 'button.mc', 'Vaultwarden'], ['wait', 1200]] },
-  { name: 'servidor', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1800]] },
-  { name: 'despliegue', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Coolify producción'], ['wait', 1200]] },
+  { name: 'servidor', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 600]] },
+  { name: 'despliegue', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 400], ['click', 'button.dep-main', 'Coolify producción'], ['wait', 1200]] },
   { name: 'catalogo', view: 'catalog', act: [['wait', 1200], ['click', 'button.mod', 'Coolify'], ['wait', 700]] },
   { name: 'pruebas', view: 'lab', act: [['wait', 600], ['click', 'button', 'Crear y arrancar'], ['wait', 4500]] },
   { name: 'docker', view: 'docker', act: [['click', 'button', 'Elegir carpeta'], ['wait', 900]] },
@@ -64,9 +64,9 @@ const ALL_SHOTS = [
       d.projects.push({ id: 'p4', name: 'Tienda', serverId: 'demo1', slug: 'tienda', modules: [{ id: 'base', values: {} }, { id: 'backups', values: { backups_time: '03:30', backups_remote_type: 'no' } }],
         installedModules: ['base', 'backups'], installedValues: { base: {}, backups: { backups_time: '03:30', backups_remote_type: 'no' } }, appliedAt: ago(60) })
     },
-    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600]] },
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 400], ['click', 'button.dep-main', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600]] },
   { name: 'destino-copias-aplicar', view: 'servers', seed: 'destino-copias',
-    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600],
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 400], ['click', 'button.dep-main', 'Tienda'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600],
       ['click', 'button', 'Preparar'], ['wait', 1000], ['click', 'button', 'Aplicar los dos ahora'], ['wait', 30000]] },
   { name: 'vpn', view: 'servers', seed: (d) => {
       d.vault = { exists: true, master: 'demo-demo-demo' }
@@ -74,14 +74,14 @@ const ALL_SHOTS = [
       d.projects.push({ id: 'p5', name: 'VPN', serverId: 'demo1', slug: 'vpn', modules: [{ id: 'base', values: {} }, { id: 'wireguard', values: { wireguard_peers: ['portatil', 'movil'] } }],
         installedModules: ['base', 'wireguard'], appliedAt: ago(30) })
     },
-    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'VPN'], ['wait', 700], ['click', 'button', 'WireGuard'], ['wait', 700], ['click', 'button', 'Ver configuraciones'], ['wait', 400],
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 400], ['click', 'button.dep-main', 'VPN'], ['wait', 700], ['click', 'button', 'WireGuard'], ['wait', 700], ['click', 'button', 'Ver configuraciones'], ['wait', 400],
       ['type', '.modal input', 'demo-demo-demo'], ['click', 'button', 'Continuar'], ['wait', 900]] },
   { name: 'alertas', view: 'servers', seed: (d) => {
       d.vault = { exists: true, master: 'demo-demo-demo' }
       d.projects.push({ id: 'p6', name: 'Alertas', serverId: 'demo1', slug: 'alertas', modules: [{ id: 'base', values: {} }, { id: 'alerts', values: {} }],
         installedModules: ['base', 'alerts'], appliedAt: ago(30) })
     },
-    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.dep-main', 'Alertas'], ['wait', 700], ['click', 'button', 'Alertas al móvil'], ['wait', 700], ['click', 'button', 'Qué ve ahora'], ['wait', 1000],
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 400], ['click', 'button.dep-main', 'Alertas'], ['wait', 700], ['click', 'button', 'Alertas al móvil'], ['wait', 700], ['click', 'button', 'Qué ve ahora'], ['wait', 1000],
       ['click', 'button', 'Suscribirse en el móvil'], ['wait', 400], ['type', '.modal input', 'demo-demo-demo'], ['click', 'button', 'Continuar'], ['wait', 900]] },
   { name: 'copias-aviso', view: 'dashboard', seed: (d) => {
       d.projects.push({ id: 'p7', name: 'Tienda', serverId: 'demo1', slug: 'tienda', modules: [{ id: 'base', values: {} }, { id: 'backups', values: {} }],
@@ -95,7 +95,7 @@ const ALL_SHOTS = [
   { name: 'terminal', view: 'terminal', act: [['click', 'button', 'Abrir terminal'], ['wait', 1200],
     ['js', `(() => { const t = document.querySelector('.xterm-helper-textarea'); t.dispatchEvent(new InputEvent('input', { data: 'uptime', inputType: 'insertText', bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true })) })()`], ['wait', 800]] },
   { name: 'modulos', view: 'modules', act: [['click', 'button', 'Nuevo módulo'], ['wait', 400], ['type', 'input[placeholder="mi-modulo"]', 'mis-paquetes'], ['click', 'button', 'Crear'], ['wait', 1200]] },
-  { name: 'adoptar', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1800], ['js', `document.querySelector('.adopt')?.scrollIntoView()`], ['wait', 300]] },
+  { name: 'adoptar', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Plantillas'], ['wait', 600], ['js', `document.querySelector('.adopt')?.scrollIntoView()`], ['wait', 300]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]

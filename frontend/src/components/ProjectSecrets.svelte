@@ -10,7 +10,8 @@
   import { withConnection } from '../lib/connect'
 
   // module: solo las de ese módulo (nombre visible), en su página.
-  let { projectId, refreshKey = '', module = '' }: { projectId: string; refreshKey?: string; module?: string } = $props()
+  // title: en la ficha del servidor, el nombre de la plantilla (y el texto de ayuda va una sola vez, fuera).
+  let { projectId, refreshKey = '', module = '', title = '' }: { projectId: string; refreshKey?: string; module?: string; title?: string } = $props()
 
   const HIDE_AFTER_MS = 2 * 60 * 1000
 
@@ -104,11 +105,13 @@
     <div class="head">
       <KeyRound size={17} />
       <div class="txt">
-        <strong>{module ? `Contraseñas de ${module}` : 'Contraseñas'}</strong>
+        <strong>{title || (module ? `Contraseñas de ${module}` : 'Contraseñas')}</strong>
         {#if count > 0}
           <span class="muted">
             {#if module}Están en la bóveda cifrada{:else}{count} guardada{count === 1 ? '' : 's'} en la bóveda cifrada{/if}{#if info?.at} · traídas del servidor {timeAgo(info.at)}{/if}
           </span>
+        {:else if title}
+          <span class="muted">Todavía ninguna.</span>
         {:else}
           <span class="muted">Todavía no hay ninguna: los módulos las generan en el servidor la primera vez que pulsas <strong>Aplicar</strong> (al previsualizar no se crean). Draupnode las trae y las guarda cifradas en la bóveda.</span>
         {/if}
