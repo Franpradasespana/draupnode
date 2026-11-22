@@ -48,11 +48,15 @@ def _():
 
 @part("disks")
 def _():
+    # «overlay» se descarta (son las capas de los contenedores), salvo si es la raíz:
+    # en un servidor que es un contenedor (o un VPS con overlay) «/» es el disco de verdad.
     d = []
-    for l in run("df", "-P", "-B1", "-x", "tmpfs", "-x", "devtmpfs", "-x", "overlay", "-x", "squashfs", "-x", "efivarfs").splitlines()[1:]:
+    for l in run("df", "-P", "-B1", "-T", "-x", "tmpfs", "-x", "devtmpfs", "-x", "squashfs", "-x", "efivarfs").splitlines()[1:]:
         f = l.split()
-        if len(f) >= 6 and os.path.isdir(f[5]):
-            d.append({"mount": f[5], "size": int(f[1]), "used": int(f[2]), "free": int(f[3])})
+        if len(f) < 7 or not os.path.isdir(f[6]) or (f[1] == "overlay" and f[6] != "/"):
+            continue
+        d.append({"mount": f[6], "size": int(f[2]), "used": int(f[3]), "free": int(f[4])})
+    d.sort(key=lambda x: (x["mount"] != "/", x["mount"]))
     return d
 
 DOCKER = bool(shutil.which("docker")) and run("docker", "info", "--format", "{{.ServerVersion}}").strip() != ""

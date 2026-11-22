@@ -605,3 +605,14 @@ Pasos 2, 3 y 4 del rediseño pedido (PLAN.md): «los proyectos son las recetas y
   («no responde por SSH desde…», con «Ficha»); cuando vuelve, se quita solo y avisa. El servidor de pruebas no
   cuenta. Para enterarse con la app cerrada sigue estando el módulo Alertas («Vigilar otros servidores»).
 - Test de `PingServers` (uno escuchando y otro cerrado) y captura `avisos-caido`.
+
+## 2026-11-22 · 0.44.1 · Arreglos tras probar la 0.39–0.44
+
+- **Terminal**: el botón «Reconectar» no se leía (borde sobre el fondo negro, letras del color del tema claro):
+  ahora es un botón relleno con el color de acento.
+- **Plantilla dentro de un servidor**: más espacio entre las tarjetas de módulos y «Historial de ejecuciones».
+- **Ficha del servidor → «Lo que ya hay en este servidor»** se ve siempre. Si no hay nada que recuperar lo explica
+  (el botón «Recuperar» solo sale cuando el servidor tiene plantillas que este Draupnode no conoce).
+- **Ficha → Disco**: no salía nada en servidores cuya raíz es `overlay` (el servidor de pruebas, que es un contenedor,
+  o algunos VPS). Ahora se descarta `overlay` salvo en `/`, y `/` va primero. En el servidor de pruebas el tamaño
+  es el del disco del equipo, porque el contenedor lo comparte.

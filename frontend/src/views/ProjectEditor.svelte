@@ -566,7 +566,7 @@
     </section>
 
     {#if draft.id && draft.serverId}
-      <RunHistory serverId={draft.serverId} projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} />
+      <div class="hist-gap"><RunHistory serverId={draft.serverId} projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} /></div>
     {/if}
   </div>
 {/if}
@@ -624,6 +624,7 @@
   .sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .sec h3 { margin: 0; font-size: 15px; }
   .cat { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; margin: 14px 0 8px; }
+  .hist-gap { margin-top: 24px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
   .empty { font-size: 13.5px; }
   @media (max-width: 1100px) {

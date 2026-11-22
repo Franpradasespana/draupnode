@@ -159,7 +159,7 @@
       <div class="screen" class:on={active === t.key}>
         <div class="xt" bind:this={t.el}></div>
         {#if t.closed}
-          <div class="re"><button class="btn sm" onclick={() => openTab(t.serverId, t)}><RotateCcw size={14} /> Reconectar</button></div>
+          <div class="re"><button class="btn sm primary" onclick={() => openTab(t.serverId, t)}><RotateCcw size={14} /> Reconectar</button></div>
         {/if}
       </div>
     {/each}

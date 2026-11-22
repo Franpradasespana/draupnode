@@ -56,9 +56,11 @@
   }
 </script>
 
-{#if markers.length || orphans.length || outside.length}
-  <section class="card adopt">
+<section class="card adopt">
     <h2><PackageSearch size={17} /> Lo que ya hay en este servidor</h2>
+    {#if !markers.length && !orphans.length && !outside.length}
+      <p class="muted small">Todo lo que Draupnode instaló aquí ya está en sus plantillas. Si abres Draupnode en otro equipo (o pierdes sus datos), aquí saldrán esas plantillas con el botón «Recuperar».</p>
+    {/if}
 
     {#each markers as m (m.slug)}
       <div class="item">
@@ -92,8 +94,7 @@
         </ul>
       </div>
     {/if}
-  </section>
-{/if}
+</section>
 
 <style>
   .adopt { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
