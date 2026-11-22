@@ -121,7 +121,8 @@ for name in (".env.example", ".env.sample", ".env.template", ".env.dist", "env.e
 cp = os.path.join(root, compose)
 if os.path.isfile(cp):
     out["compose"] = True
-    txt = open(cp, errors="replace").read()
+    # Sin las líneas comentadas: una variable en un comentario no la usa la app.
+    txt = "\n".join(l for l in open(cp, errors="replace") if not l.lstrip().startswith("#"))
     for m in re.finditer(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:?[-?+][^}]*)?\}", txt):
         v = var(m.group(1)); v["inCompose"] = True
         if m.group(2) and m.group(2).lstrip(":").startswith("-"):

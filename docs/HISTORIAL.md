@@ -879,3 +879,16 @@ como root encima de la app, falta de migrate) y que la Simulación decía «todo
 - Estado del servidor de pruebas visto con el usuario: la app «prueba» arranca y sirve la portada; falla
   `python3 manage.py migrate` por `POSTGRES_DB=` vacía (Django recibe un nombre de base en blanco). Quedó la app
   vieja «app» (dn-app) huérfana al cambiar el nombre.
+
+## 2026-11-22 · 0.53.2 · Servidor de pruebas rehecho y la app Django funcionando
+
+- A petición del usuario, el servidor de pruebas se borró entero (contenedor + Docker interno) y se creó de nuevo
+  (lab Remove/Start + huella). En la configuración: módulos sin cambios (Sistema base, Docker, Cortafuegos, App desde
+  Git «prueba», Monitorización), estado «nada instalado», y el .env de la app corregido (puerto solo en 127.0.0.1,
+  `DOCKER_RESTART_POLICY=unless-stopped`, fuera lo de desarrollo y `POSTGRES_DB`; migrate después de arrancar).
+  Copia de antes en `~/.config/draupnode/antes-de-limpiar-<fecha>/`. Comprobado instalando con el instalar.sh
+  exportado: 0 fallos, 18 migraciones, web y estáticos 200, Grafana 200, todo en 127.0.0.1, permisos 1000:1000
+  puestos solos.
+- Fallo encontrado y corregido: «Leer el repositorio» cogía variables de líneas **comentadas** del compose
+  (`# POSTGRES_DB: "${POSTGRES_DB}"`), y esa variable (con otro valor que el de la base que se crea) rompía el
+  migrate. Ahora se ignoran los comentarios.
