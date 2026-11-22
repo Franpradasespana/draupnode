@@ -116,3 +116,7 @@ docs/                    PLAN.md (fases) e HISTORIAL.md (cambios)
 | Módulos propios | `modules/` en la carpeta de configuración |
 | Registros de cada ejecución | `runs/` en la carpeta de configuración (los 60 últimos por plantilla y servidor) |
 | En cada servidor | `/etc/draupnode/secretos/<plantilla>/` (contraseñas generadas, solo root), `/etc/draupnode/plantillas/` (ficha sin contraseñas), `/srv/draupnode/apps/` (datos de las apps) |
+
+## Publicar tu app
+
+Guía paso a paso (crear los ficheros de Docker, publicar en un servidor, revisar la configuración y subir, con o sin GitHub): [docs/GUIA_PUBLICAR.md](docs/GUIA_PUBLICAR.md).

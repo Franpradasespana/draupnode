@@ -924,3 +924,11 @@ AES válidas, DEBUG=False, web 200, junto a la app Django de antes (8000) en el 
     «para revisar»; contraseñas y claves → generar (en su formato); las de otros servicios (correo, VAPID…) → para
     revisar.
 - Tests: `TestSubirCarpeta`, `TestVariablesYFormatosDelCodigo`.
+
+## 2026-11-22 · 0.54.1 · Guía «Publicar tu app paso a paso»
+
+- Petición del usuario: que quede registrado cómo se crea, configura y sube una app. Nueva sección en la ayuda,
+  «Publicar tu app paso a paso» (entre Docker Creator y Terminal), con 9 pasos y la variante con GitHub: antes de
+  empezar, crear los ficheros de Docker, probarlo, publicar en un servidor, revisar su configuración, simular y
+  aplicar, abrir la app, actualizarla y qué hacer si algo falla. Capturas nuevas `publicar` y `publicar-modulo`.
+  La misma guía, en `docs/GUIA_PUBLICAR.md`, enlazada desde el README. La de Docker Creator remite a ella.

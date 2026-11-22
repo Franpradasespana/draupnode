@@ -16,7 +16,7 @@ export interface HelpStep {
 }
 
 export interface HelpSection {
-  id: View | 'general'
+  id: View | 'general' | 'publicar'
   title: string
   intro: string
   steps: HelpStep[]
@@ -123,7 +123,7 @@ export const HELP: HelpSection[] = [
   {
     id: 'docker',
     title: 'Docker Creator',
-    intro: 'Un asistente que crea los ficheros de Docker (Dockerfile, docker-compose.yml, .dockerignore y, si hace falta, docker-entrypoint.sh) de cualquier proyecto: Python, Node, Java, PHP, Go o web estática. Al final, «Publicar en un servidor» la añade a los módulos del servidor elegido con todo rellenado (compose, puerto libre, variables, claves en su formato) y la sube desde esta carpeta al aplicar: no hace falta GitHub.',
+    intro: 'Un asistente que crea los ficheros de Docker (Dockerfile, docker-compose.yml, .dockerignore y, si hace falta, docker-entrypoint.sh) de cualquier proyecto: Python, Node, Java, PHP, Go o web estática. Al final, «Publicar en un servidor» la añade a los módulos del servidor elegido con todo rellenado (compose, puerto libre, variables, claves en su formato) y la sube desde esta carpeta al aplicar: no hace falta GitHub. La guía completa está en «Publicar tu app paso a paso».',
     steps: [
       { title: '1 · Carpeta', text: 'Elige la carpeta del proyecto. Draupnode mira sus ficheros (requirements.txt, package.json, pom.xml…) y te dice qué ha reconocido y en qué se ha basado. El .env nunca se lee.', img: 'docker' },
       { title: '2 a 4 · Revisa', text: 'Lenguaje y versión, cómo arranca y qué necesita (PostgreSQL, MariaDB, Redis, variables, carpetas de datos). Todo viene relleno con lo detectado: cambia solo lo que no cuadre.' },
@@ -131,6 +131,23 @@ export const HELP: HelpSection[] = [
       { title: '5 · Vista previa y guardar', text: 'Ves cada fichero antes de guardarlo. Si el proyecto ya tenía Dockerfile, los nuevos se guardan al lado con «.draupnode» en el nombre y no se toca nada tuyo.', img: 'docker-vista' },
       { title: 'Probar a construir', text: 'Si hay Docker en este equipo, construye la imagen y te enseña la salida. Si falla, las últimas líneas suelen decir qué falta.' },
       { title: 'Probar en el servidor de pruebas', text: 'Arranca el proyecto de verdad (con su compose: base de datos, nginx…) en el servidor de pruebas de este equipo; si no existe, lo crea, y le instala Docker si le falta. Sube la carpeta sin .git ni node_modules (si no hay .env, crea uno de prueba desde .env.example), comprueba que responde y te da «Abrir en el navegador». «Parar la prueba» lo borra todo del servidor de pruebas. Necesita Docker en este equipo (pantalla «Servidor de pruebas»).', img: 'docker-vista' },
+    ],
+  },
+  {
+    id: 'publicar',
+    title: 'Publicar tu app paso a paso',
+    intro: 'Cómo pasar un proyecto de tu ordenador a un servidor funcionando, sin saber de Docker ni de git: crear los ficheros de Docker, publicarlo, revisar su configuración y subirlo. Probado con una app Django real (base de datos PostgreSQL, claves de cifrado, 110 migraciones) en el servidor de pruebas.',
+    steps: [
+      { title: '1 · Antes de empezar', text: 'Necesitas el servidor dado de alta en Servidores (y que responda) y la carpeta de tu proyecto en este equipo. Si tu proyecto tiene un .env.example con sus variables, mejor; si no, Draupnode las saca del código. El .env (con tus contraseñas de verdad) nunca se lee ni se sube.' },
+      { title: '2 · Crear los ficheros de Docker', text: 'Utilidades → Docker Creator → «Elegir carpeta». Draupnode reconoce el lenguaje (Python/Django, Node, Java, PHP/Laravel, Go…), la base de datos que usa y sus variables, también las que lee el código aunque no estén en .env.example, y en qué formato van sus claves (por ejemplo, una clave Fernet). Revisa lo reconocido, pulsa «Siguiente» hasta la vista previa y «Guardar en la carpeta». Si tu proyecto ya tenía Dockerfile o compose, los nuevos se guardan al lado (.draupnode) sin tocar los tuyos.', img: 'docker-vista' },
+      { title: '3 · Probarlo (opcional)', text: '«Probar en el servidor de pruebas» lo arranca en el servidor de pruebas de este equipo y te deja abrirlo en el navegador. Si funciona allí, funcionará en tu servidor.' },
+      { title: '4 · Publicar en un servidor', text: 'Debajo, en «Publicar en un servidor», elige el servidor y pulsa «Publicar en el servidor». Draupnode añade la app a los módulos de ese servidor con todo rellenado: de dónde sale el código (esta carpeta), el compose, un puerto libre (solo dentro del servidor, 127.0.0.1), las variables con los valores de servidor típicos (DEBUG=false, la base de datos…), y las contraseñas y claves que se generarán en el servidor, cada una en su formato. Lo que no puede saber (el correo, claves de otros servicios…) te lo lista en «Para revisar». Todavía no instala nada.', img: 'publicar' },
+      { title: '5 · Revisar su configuración', text: '«Ir a sus módulos y aplicar» te lleva a la ficha del servidor → Módulos. Abre «App desde Git»: «De dónde sale el código» = carpeta (con «Elegir…» para cambiarla). En «Variables (.env)», una fila por variable: las resaltadas son las que hay que completar o revisar, con el motivo. Las contraseñas no van ahí: «Generar en el servidor» (NOMBRE, o NOMBRE:fernet / :base64-32 / :hex-32 si la app exige formato) o «Variables secretas» (las que solo tienes tú: correo, claves de pago…). Si la imagen no prepara la base de datos al arrancar, pon «Orden después de arrancar» (por ejemplo, python3 manage.py migrate).', img: 'publicar-modulo' },
+      { title: '6 · Simular y aplicar', text: '«Simular» no toca nada: dice qué se haría y avisa de lo que fallaría (variables sin valor, puertos abiertos a internet…). «Aplicar» (abajo, en la barra fija) sube la carpeta al servidor (sin .git, .env, entornos virtuales ni node_modules, ni lo de su .dockerignore), construye la app enseñando el progreso en directo, la arranca, comprueba que los contenedores siguen en marcha y que responde, y guarda en tu bóveda las contraseñas que se generaron en el servidor. La primera vez tarda unos minutos.' },
+      { title: '7 · Abrir la app', text: 'Ficha del servidor → Apps (o Resumen) → «Abrir»: se abre en tu navegador por un túnel SSH, sin estar abierta a internet. Para publicarla en internet con tu dominio y HTTPS, añade el módulo Caddy (o nginx) y pon el dominio en la app; el dominio tiene que apuntar a la IP del servidor.' },
+      { title: '8 · Actualizarla', text: 'Cambia el código en tu equipo y vuelve a pulsar «Aplicar» en los módulos del servidor: sube lo nuevo, reconstruye y reinicia. Los datos (la base de datos, los ficheros subidos) están en volúmenes de Docker y no se pierden.' },
+      { title: '9 · Si algo falla', text: 'El aviso del final dice en qué paso se paró y por qué (por ejemplo, «la orden después de arrancar falló» con sus últimas líneas). En la ficha → Contenedores tienes el registro de cada contenedor y botones para reiniciarlo. Errores típicos: una variable vacía que pisa el valor por defecto de la app (quítala), un valor de desarrollo (DEBUG=true, NODE_ENV mal escrito) o una clave con el formato equivocado (usa :fernet, :base64-32…).' },
+      { title: 'Con GitHub en vez de una carpeta', text: 'Si tu proyecto está en GitHub (u otro Git), en «App desde Git» elige «git», pon la dirección del repositorio y, si es privado, un token de solo lectura. «Leer el repositorio» saca sus variables y el tipo de app. Cada vez que apliques, baja lo último de la rama.' },
     ],
   },
   {
