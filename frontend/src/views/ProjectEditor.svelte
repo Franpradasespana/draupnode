@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
+  import { untrack, tick } from 'svelte'
   import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, Unlink, Pencil, Plus, Search, X, Upload, Undo2 } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import { moduleIcon } from '../lib/icons'
@@ -423,6 +423,16 @@
     else toast(r.message || 'No se pudo lanzar', 'error')
   }
 
+  // Al pulsar Aplicar o Simular, la vista baja al recuadro «Aplicación en curso».
+  let runEl = $state<HTMLDivElement | undefined>()
+  let shownRun = ''
+  $effect(() => {
+    const r = run
+    if (!r || r.done || r.runId === shownRun) return
+    shownRun = r.runId
+    tick().then(() => runEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  })
+
   function closeRun() {
     if (draft.id) delete ui.runs[draft.id]
   }
@@ -447,7 +457,7 @@
 </div>
 
 {#if run}
-  <RunPanel {run} onclose={closeRun} />
+  <div class="run-anchor" bind:this={runEl}><RunPanel {run} onclose={closeRun} /></div>
 {/if}
 
 {#if openModule && stored}
@@ -665,6 +675,25 @@
 {#if uninstallPrompt}
   <UninstallDialog check={uninstallPrompt.check} allowRemove={uninstallPrompt.allowRemove} done={uninstallPrompt.resolve} />
 {/if}
+  {#if !isNew && needsApply && ordered.length && !running}
+    <div class="apply-bar" role="region" aria-label="Cambios sin aplicar">
+      <div class="ab-text">
+        {#if errorList.length}<span class="bad-t"><CircleX size={15} /> {errorList.length === 1 ? 'Falta 1 dato' : `Faltan ${errorList.length} datos`} antes de aplicar</span>
+        {:else}<Hammer size={15} />
+          <span><strong>Cambios sin aplicar</strong>{#if pending.length}{' · '}instalar {pending.map(moduleName).join(', ')}{/if}{#if changedInstalled.length}{' · '}configuración de {changedInstalled.map(moduleName).join(', ')}{/if}{#if !pending.length && !changedInstalled.length}{' · '}volver a aplicar{/if}</span>
+        {/if}
+      </div>
+      <div class="ab-btns">
+        <button class="btn" onclick={() => start(true)} disabled={saving || !!errorCount} title="Muestra qué cambiaría en el servidor sin tocar nada"><Eye size={15} /> Simular</button>
+        {#if pending.length}
+          <button class="btn primary" onclick={openWizard} disabled={saving || !!errorCount}><Hammer size={15} /> Configurar y aplicar…</button>
+        {:else}
+          <button class="btn primary" onclick={() => start(false)} disabled={saving || !!errorCount}><Hammer size={15} /> Aplicar</button>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
 </div>
 
 <style>
@@ -672,6 +701,17 @@
   .spacer { flex: 1; }
   .save-st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
   .save-st .bad { color: var(--danger); }
+  .run-anchor { scroll-margin-top: 12px; }
+  .apply-bar {
+    position: sticky; bottom: -40px; z-index: 5; margin: 18px -32px -40px; padding: 12px 32px;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    background: var(--panel); border-top: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, .10);
+  }
+  .ab-text { display: flex; align-items: center; gap: 8px; font-size: 13.5px; min-width: 0; flex: 1; }
+  .ab-text > :global(svg) { color: var(--accent); flex: none; }
+  .ab-text span { overflow: hidden; text-overflow: ellipsis; }
+  .ab-btns { display: flex; gap: 8px; flex: none; }
   .save-st .ok { display: inline-flex; align-items: center; gap: 6px; color: var(--success); }
   .warn { display: inline-flex; gap: 7px; align-items: center; color: var(--warning); }
   .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--muted); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--panel-2); border: 1px solid var(--border-soft); }

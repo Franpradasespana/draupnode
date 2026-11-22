@@ -811,3 +811,10 @@ módulos de una vez; editarla no cambia los servidores. Desde un servidor se pue
   hasta el editor—, añadir/quitar/volver a gestionar un módulo, o rellenar con «Leer el repositorio» / «Usar un
   .env»), en verde, y se quita a los 5 s. Lo que se ajusta solo al abrir no cuenta.
 - «Leer el repositorio»: «último commit `da55035`: «mensaje»» (el usuario confundió el hash con un color).
+
+## 2026-11-22 · 0.51.2 · Barra fija «Cambios sin aplicar» y foco en la ejecución
+
+- Petición del usuario: cuando hay algo por aplicar (módulos nuevos, configuración cambiada o la lista cambiada),
+  abajo aparece una barra fija (sticky) con «Cambios sin aplicar · instalar … · configuración de …» y Simular /
+  Aplicar (o «Configurar y aplicar…»); si falta algún dato, lo dice en rojo. También en la página de un módulo.
+- Al empezar una simulación o una aplicación, la pantalla se desplaza sola al recuadro «… en curso».
