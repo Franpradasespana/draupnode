@@ -185,6 +185,7 @@
   // Si la pestaña recordada no existe en este servidor (Copias), al Resumen.
   const current = $derived(tabs.some((t) => t.id === tab) ? tab : 'resumen')
   let onlySick = $state(false)
+  let moduleOpen = $state(false)
 </script>
 
 
@@ -313,11 +314,11 @@
 
   {#if current === 'modulos'}
     {#if project}
-      {#key project.id}<ProjectEditor id={project.id} embedded />{/key}
+      {#key project.id}<ProjectEditor id={project.id} embedded bind:moduleOpen />{/key}
     {:else}
       <p class="muted"><LoaderCircle size={14} class="spin" /> Preparando los módulos del servidor…</p>
     {/if}
-    {#if ov}<AdoptSection serverId={id} {ov} {deployments} />{/if}
+    {#if ov && !moduleOpen}<div class="adopt-gap"><AdoptSection serverId={id} {ov} {deployments} /></div>{/if}
   {/if}
 
   {#if current === 'apps'}
@@ -562,6 +563,7 @@
   .applist { list-style: none; margin: 0; padding: 0; }
   .applist li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--border-soft); font-size: 13px; }
   .applist li > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .adopt-gap { margin-top: 16px; }
   .tpl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
   .chip:hover { border-color: var(--muted); }

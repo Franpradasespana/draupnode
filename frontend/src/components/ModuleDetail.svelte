@@ -131,7 +131,7 @@
 <section class="card zone">
   {#if pm}
     <div class="z">
-      <div><strong>Dejar de gestionarlo</strong><span class="muted small">Sigue instalado en el servidor; Draupnode deja de gestionarlo.</span></div>
+      <div><strong>Dejar de gestionarlo</strong><span class="muted small">Lo quita de los módulos de Draupnode <strong>sin desinstalarlo</strong>: sigue funcionando en el servidor, pero Draupnode ya no cambia su configuración al aplicar ni lo desinstala. Útil si quieres manejarlo tú a mano. Puedes volver a gestionarlo después.</span></div>
       <button class="btn" onclick={onremove} disabled={running || requiredBy.length > 0} title={requiredBy.length ? `Lo necesita ${requiredBy.join(', ')}` : ''}>Dejar de gestionarlo</button>
     </div>
     {#if requiredBy.length}<p class="muted small">No se puede quitar mientras lo necesite {requiredBy.join(', ')}.</p>{/if}

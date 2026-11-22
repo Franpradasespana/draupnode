@@ -629,6 +629,34 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class EnvImportResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    env: string[];
+	    secretKeys: string[];
+	    skipped: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvImportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.env = source["env"];
+	        this.secretKeys = source["secretKeys"];
+	        this.skipped = source["skipped"];
+	    }
+	}
 	export class FetchSecretsResult {
 	    status: string;
 	    runId?: string;

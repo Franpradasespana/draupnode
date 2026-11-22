@@ -18,7 +18,8 @@
   } from '../lib/state.svelte'
 
   // embedded: dentro de la ficha del servidor (pestaña Módulos), sin su propia barra de volver.
-  let { id, embedded = false }: { id: string; embedded?: boolean } = $props()
+  // moduleOpen: avisa a la ficha de que hay un módulo abierto (para no enseñar debajo lo que no es de él).
+  let { id, embedded = false, moduleOpen = $bindable(false) }: { id: string; embedded?: boolean; moduleOpen?: boolean } = $props()
 
   const initial = untrack(() => ui.projects.find((p) => p.id === id))
   let draft = $state<Project>(
@@ -203,6 +204,7 @@
   // ---- página de un módulo ----
   let openMod = $state<string | null>(null)
   const openModule = $derived(openMod ? byId(openMod) : undefined)
+  $effect(() => { moduleOpen = !!openModule })
 
   // ---- asistente ----
   let wizard = $state(false)

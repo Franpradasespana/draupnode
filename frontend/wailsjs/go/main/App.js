@@ -90,6 +90,10 @@ export function ChooseBackupFolder(arg1) {
   return window['go']['main']['App']['ChooseBackupFolder'](arg1);
 }
 
+export function ChooseEnvFile() {
+  return window['go']['main']['App']['ChooseEnvFile']();
+}
+
 export function ChooseProjectDir() {
   return window['go']['main']['App']['ChooseProjectDir']();
 }
@@ -180,6 +184,10 @@ export function GenerateDocker(arg1, arg2) {
 
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
+}
+
+export function GitAppImportEnv(arg1, arg2) {
+  return window['go']['main']['App']['GitAppImportEnv'](arg1, arg2);
 }
 
 export function GitAppInspect(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {

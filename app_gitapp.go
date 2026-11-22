@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"draupnode/internal/runner"
 	"draupnode/internal/secrets"
 
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -236,4 +238,151 @@ func execIn(c *ssh.Client, su runner.Sudo, cmd, stdin string) (string, string, e
 	var out, errb strings.Builder
 	err := runner.Exec(context.Background(), c, su, cmd, strings.NewReader(stdin), &out, &errb)
 	return out.String(), errb.String(), err
+}
+
+// ---------------------------------------------------------------- .env de este equipo
+
+// EnvImportResult: lo que se ha sacado de un .env de este equipo. Las
+// variables normales vuelven para «Variables (.env)»; las secretas ya se han
+// guardado cifradas en la bóveda («Variables secretas con valor tuyo»).
+type EnvImportResult struct {
+	RunStart
+	Env        []string `json:"env"`        // CLAVE=valor (no secretas)
+	SecretKeys []string `json:"secretKeys"` // guardadas en la bóveda
+	Skipped    []string `json:"skipped"`    // no se pueden guardar así (valor con «;» o de varias líneas)
+}
+
+type envKV struct{ Key, Value string }
+
+var envLineRe = regexp.MustCompile(`^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$`)
+
+// parseDotEnv lee un .env sencillo: CLAVE=valor por línea, con «export»,
+// comillas y comentarios. Las comillas que no se cierran en la línea (valores
+// de varias líneas) se marcan para saltarlas.
+func parseDotEnv(text string) (out []envKV, multiline []string) {
+	seen := map[string]int{}
+	for _, l := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		m := envLineRe.FindStringSubmatch(l)
+		if m == nil {
+			continue
+		}
+		k, v := m[1], strings.TrimSpace(m[2])
+		switch {
+		case strings.HasPrefix(v, `"`) || strings.HasPrefix(v, `'`):
+			q := v[:1]
+			if end := strings.Index(v[1:], q); end >= 0 {
+				v = v[1 : end+1]
+			} else {
+				multiline = append(multiline, k)
+				continue
+			}
+		default:
+			if i := strings.Index(v, " #"); i >= 0 {
+				v = strings.TrimSpace(v[:i])
+			}
+		}
+		if i, ok := seen[k]; ok {
+			out[i].Value = v // la última gana, como en Docker Compose
+			continue
+		}
+		seen[k] = len(out)
+		out = append(out, envKV{k, v})
+	}
+	return out, multiline
+}
+
+// ChooseEnvFile abre el diálogo para elegir un .env de este equipo.
+func (a *App) ChooseEnvFile() (string, error) {
+	home, _ := os.UserHomeDir()
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:            "Fichero .env de tu app",
+		DefaultDirectory: home,
+		ShowHiddenFiles:  true,
+	})
+}
+
+// GitAppImportEnv lee un .env de este equipo para el módulo App desde Git:
+// las variables que parecen contraseñas o claves se guardan cifradas en la
+// bóveda (junto a las que ya hubiera); el resto vuelve como CLAVE=valor.
+// El fichero no se copia a ningún sitio.
+func (a *App) GitAppImportEnv(projectID, path string) EnvImportResult {
+	res := EnvImportResult{Env: []string{}, SecretKeys: []string{}, Skipped: []string{}}
+	fail := func(msg string) EnvImportResult { res.RunStart = RunStart{Status: "error", Message: msg}; return res }
+	if _, err := a.store.Project(projectID); err != nil {
+		return fail(err.Error())
+	}
+	st, err := os.Stat(path)
+	if err != nil {
+		return fail("no se pudo abrir el fichero: " + err.Error())
+	}
+	if st.IsDir() || st.Size() > 256<<10 {
+		return fail("eso no parece un fichero .env (es una carpeta o pesa demasiado)")
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return fail("no se pudo leer el fichero: " + err.Error())
+	}
+	vars, multi := parseDotEnv(string(b))
+	if len(vars) == 0 && len(multi) == 0 {
+		return fail("el fichero no tiene ninguna línea CLAVE=valor")
+	}
+	res.Skipped = append(res.Skipped, multi...)
+	secretVals := map[string]string{}
+	for _, kv := range vars {
+		v := GitEnvVar{Key: kv.Key}
+		classifyGitVar(&v)
+		if !v.Secret && !v.External {
+			res.Env = append(res.Env, kv.Key+"="+kv.Value)
+			continue
+		}
+		if strings.ContainsAny(kv.Value, ";\n") {
+			res.Skipped = append(res.Skipped, kv.Key)
+			continue
+		}
+		secretVals[kv.Key] = kv.Value
+	}
+	if len(secretVals) > 0 {
+		key := varName(projectID, "git_app_env_secret")
+		old, err := a.vault.Get(key)
+		switch {
+		case errors.Is(err, secrets.ErrLocked):
+			res.RunStart = RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: las contraseñas del .env se guardan cifradas ahí."}
+			return res
+		case errors.Is(err, secrets.ErrNoVault):
+			res.RunStart = RunStart{Status: "vault_missing", Message: "Las contraseñas del .env se guardan en la bóveda cifrada: créala."}
+			return res
+		}
+		merged := map[string]string{}
+		var order []string
+		for _, part := range strings.Split(old, ";") {
+			if k, v, ok := strings.Cut(strings.TrimSpace(part), "="); ok && k != "" {
+				if _, dup := merged[k]; !dup {
+					order = append(order, k)
+				}
+				merged[k] = v
+			}
+		}
+		for _, kv := range vars {
+			if v, ok := secretVals[kv.Key]; ok {
+				if _, dup := merged[kv.Key]; !dup {
+					order = append(order, kv.Key)
+				}
+				merged[kv.Key] = v
+				res.SecretKeys = append(res.SecretKeys, kv.Key)
+			}
+		}
+		parts := make([]string, 0, len(order))
+		for _, k := range order {
+			parts = append(parts, k+"="+merged[k])
+		}
+		if err := vaultErr(a.vault.Set(key, strings.Join(parts, "; "))); err != nil {
+			return fail(err.Error())
+		}
+	}
+	res.RunStart = RunStart{Status: "ok"}
+	return res
 }

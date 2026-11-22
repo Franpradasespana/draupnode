@@ -533,6 +533,12 @@ export interface GitInspectResult extends RunStart {
   vars: GitEnvVar[]
 }
 
+export interface EnvImportResult extends RunStart {
+  env: string[]
+  secretKeys: string[]
+  skipped: string[]
+}
+
 export interface CachedOverview {
   at: string
   overview: ServerOverview
@@ -666,6 +672,8 @@ interface Backend {
   ForgetTemplate(serverId: string, recipeId: string): Promise<Project>
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
   LastOverviews(): Promise<Record<string, CachedOverview>>
+  ChooseEnvFile(): Promise<string>
+  GitAppImportEnv(projectId: string, path: string): Promise<EnvImportResult>
   GitAppInspect(projectId: string, repo: string, branch: string, compose: string, appName: string, secret: string, accept: string, sudoPassword: string): Promise<GitInspectResult>
   ServerLogs(serverId: string, kind: string, name: string, lines: number, secret: string, accept: string, sudoPassword: string): Promise<ServerLogsResult>
   BackupsDue(): Promise<BackupDue[]>
@@ -1392,6 +1400,13 @@ function mockBackend(): Backend {
       for (const m of p.modules) if (m.from === rid) m.from = ''
       save('projects', projects)
       return p
+    },
+    async ChooseEnvFile() {
+      return '/home/demo/mi-app/.env'
+    },
+    async GitAppImportEnv() {
+      await wait(300)
+      return { status: 'ok', env: ['DEBUG=False', 'ALLOWED_HOSTS=mi-app.ejemplo.com', 'DATABASE_URL=postgres://app@db:5432/app'], secretKeys: ['SECRET_KEY', 'POSTGRES_PASSWORD', 'STRIPE_API_KEY'], skipped: [] }
     },
     async GitAppInspect(_p, repo) {
       await wait(900)

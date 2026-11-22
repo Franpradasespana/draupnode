@@ -50,6 +50,8 @@ export function ChooseBackupFile():Promise<string>;
 
 export function ChooseBackupFolder(arg1:string):Promise<string>;
 
+export function ChooseEnvFile():Promise<string>;
+
 export function ChooseProjectDir():Promise<string>;
 
 export function CloseTerminals():Promise<void>;
@@ -95,6 +97,8 @@ export function ForgetTemplate(arg1:string,arg2:string):Promise<store.Project>;
 export function GenerateDocker(arg1:string,arg2:dockerize.Spec):Promise<main.DockerPreview>;
 
 export function GetSettings():Promise<store.Settings>;
+
+export function GitAppImportEnv(arg1:string,arg2:string):Promise<main.EnvImportResult>;
 
 export function GitAppInspect(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string):Promise<main.GitInspectResult>;
 

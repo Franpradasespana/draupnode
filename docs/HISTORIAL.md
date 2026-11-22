@@ -789,3 +789,18 @@ módulos de una vez; editarla no cambia los servidores. Desde un servidor se pue
 
 - En los módulos del servidor salía «Cambios guardados» nada más abrir, sin haber cambiado nada. Ahora solo
   aparece después de que se guarde algo en esa pantalla. (Y el último «previsualizar» de la ayuda → «simular».)
+
+## 2026-11-22 · 0.51.0 · App desde Git: usar un .env de este equipo; «Dejar de gestionarlo» explicado
+
+- **«Usar un .env de este equipo…»** junto a «Leer el repositorio», para repositorios sin `.env.example`
+  (`ChooseEnvFile` + `GitAppImportEnv`). Se lee el fichero en este equipo (máx. 256 KB; CLAVE=valor, «export»,
+  comillas, comentarios; la última repetida gana). Las que parecen contraseñas o claves (las mismas reglas que
+  «Leer el repositorio») se guardan **cifradas en la bóveda** en «Variables secretas con valor tuyo», juntándolas
+  con las que ya hubiera; el resto vuelve a «Variables (.env)» con su valor (sustituye las mismas claves). Si el
+  .env trae el valor, se quita de «Generar en el servidor». Valores de varias líneas o con «;» no se pueden guardar
+  así y se avisa. Pide crear/abrir la bóveda si hace falta. El fichero no se copia a ningún sitio. Tests
+  `TestLeerEnvDelEquipo`, `TestImportarEnvALaBoveda`.
+- **«Dejar de gestionarlo»** dice lo que hace: quita el módulo de Draupnode sin desinstalarlo (sigue funcionando;
+  Draupnode ya no cambia su configuración al aplicar ni lo desinstala).
+- En la página de un módulo ya no sale debajo «Lo que ya hay en este servidor» (no es del módulo); en la lista de
+  módulos sale separado.
