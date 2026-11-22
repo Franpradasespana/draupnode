@@ -29,6 +29,8 @@ type PublishResult struct {
 	Review    []string `json:"review"` // variables que hay que completar o revisar
 }
 
+var passwordNameRe = regexp.MustCompile(`(?i)(PASSWORD|PASSWD|_PASS|_PWD)$`)
+
 var composeVarRe = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(:?[-?+][^}]*)?\}`)
 
 // composeVars: variables que usa un compose (sin las líneas comentadas) y si
@@ -118,6 +120,17 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 			keys[k] = true
 		}
 	}
+	// Base de datos: la del PostgreSQL compartido si Docker Creator lo generó así
+	// (sus datos de conexión los pone Draupnode, no van en las variables).
+	shared := spec.DBMode == "shared" && spec.Postgres
+	dbVars := regexp.MustCompile(`^(DATABASE_URL|DB_(HOST|PORT|NAME|USER|PASSWORD|DATABASE|USERNAME|CONNECTION)|POSTGRES_(HOST|PORT|DB|USER|PASSWORD))$`)
+	if shared {
+		for k := range keys {
+			if dbVars.MatchString(k) {
+				delete(keys, k)
+			}
+		}
+	}
 	examples := map[string]string{}
 	if b, err := os.ReadFile(filepath.Join(dir, ".env.example")); err == nil {
 		kv, _ := parseDotEnv(string(b))
@@ -131,11 +144,31 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 	}
 	sort.Strings(names)
 	formats := dockerize.KeyFormats(dir, names)
+	fw := spec.Framework
+	if spec.Stack == dockerize.StackNode {
+		fw = "node"
+	}
 	var env, gen []string
 	for _, k := range names {
 		v := GitEnvVar{Key: k}
 		classifyGitVar(&v)
+		pv, pgen, pfmt := profileValue(fw, k, examples[k], "")
 		switch {
+		case pgen:
+			if pfmt == "" {
+				pfmt = formats[k]
+			}
+			if pfmt != "" {
+				gen = append(gen, k+":"+pfmt)
+			} else {
+				gen = append(gen, k)
+			}
+		case pv != "":
+			env = append(env, k+"="+pv)
+		case v.Secret && formats[k] == "" && passwordNameRe.MatchString(k) && !used[k]:
+			// Una contraseña que el compose no usa es de otro servicio (Redis, correo…):
+			// generarla al azar haría que la app intente entrar con ella.
+			res.Review = append(res.Review, k+": contraseña de otro servicio; no se pone (si la usas, ponla en «Variables secretas»)")
 		case v.Secret || formats[k] != "":
 			if f := formats[k]; f != "" {
 				gen = append(gen, k+":"+f)
@@ -166,14 +199,9 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 	// Puerto en el servidor: el del compose, o uno libre si ya lo usa otra app
 	// (el compose de Docker Creator lo lee de APP_HOST_PORT).
 	port := dockerize.PublishedPort(spec)
-	taken := map[int]bool{}
-	for _, pm := range p.Modules {
-		if base, _ := modules.SplitID(pm.ID); base == "git-app" {
-			taken[toInt(pm.Values["git_app_port"])] = true
-		}
-	}
+	taken := a.takenPorts(serverID, p)
 	if taken[port] && !spec.Proxy && strings.Contains(string(cb), "APP_HOST_PORT") {
-		for port = 8001; taken[port]; port++ {
+		for port++; taken[port]; port++ {
 		}
 		env = append(env, fmt.Sprintf("APP_HOST_PORT=%d", port))
 		res.Notes = append(res.Notes, fmt.Sprintf("El puerto %d ya lo usa otra app de este servidor: esta irá por el %d.", dockerize.PublishedPort(spec), port))
@@ -182,6 +210,10 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 	vals["git_app_env"] = env
 	vals["git_app_env_generate"] = gen
 	vals["git_app_update"] = true
+	if shared {
+		vals["git_app_db"] = "postgres-compartido"
+		res.Notes = append(res.Notes, "Usará el PostgreSQL compartido del servidor (se añade si falta), con una base y un usuario «"+strings.ReplaceAll(name, "-", "_")+"».")
+	}
 	p.Modules = append(p.Modules, store.ProjectModule{ID: modID, Values: vals})
 	if p, err = a.SaveProject(p); err != nil {
 		return res, err
@@ -212,4 +244,31 @@ func serverDefault(k, example string, spec dockerize.Spec) string {
 		return "localhost,127.0.0.1"
 	}
 	return ""
+}
+
+// takenPorts: puertos que ya se usan en el servidor: los de sus módulos (cualquier
+// opción «…port» con número) y los que escuchan según la última lectura de su ficha.
+func (a *App) takenPorts(serverID string, p store.Project) map[int]bool {
+	taken := map[int]bool{}
+	for _, pm := range p.Modules {
+		for k, v := range pm.Values {
+			if strings.HasSuffix(strings.ToLower(k), "port") {
+				if n := toInt(v); n > 0 {
+					taken[n] = true
+				}
+			}
+		}
+	}
+	if c, ok := a.LastOverviews()[serverID]; ok {
+		if ports, ok := c.Overview["ports"].([]any); ok {
+			for _, x := range ports {
+				if m, ok := x.(map[string]any); ok {
+					if n := toInt(m["port"]); n > 0 {
+						taken[n] = true
+					}
+				}
+			}
+		}
+	}
+	return taken
 }

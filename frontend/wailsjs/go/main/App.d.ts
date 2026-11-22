@@ -168,6 +168,8 @@ export function RecoverFromServer(arg1:string,arg2:string):Promise<main.RecoverR
 
 export function ReloadModules():Promise<main.ModulesInfo>;
 
+export function RemoveOrphanApp(arg1:string,arg2:string,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<main.DockerResult>;
+
 export function RunHistory(arg1:string,arg2:string,arg3:number):Promise<Array<main.RunEntry>>;
 
 export function RunLogs(arg1:string):Promise<Array<string>>;

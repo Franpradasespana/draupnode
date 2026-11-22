@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"draupnode/internal/bundle"
@@ -25,6 +26,8 @@ import (
 // Draupnode lo sube al servidor (tar por SSH) justo antes de aplicar. Se sube
 // sin lo que no debe ir: .git, .env, entornos virtuales, node_modules… ni lo
 // que diga su .dockerignore.
+
+var dockerFileRe = regexp.MustCompile(`^(Dockerfile.*|.*compose.*\.ya?ml|docker-entrypoint.*|nginx.*\.conf|.*\.dockerignore)$`)
 
 // Siempre fuera (además del .dockerignore).
 var uploadSkip = []string{".git", ".env", ".venv", "venv", "env", "node_modules", "__pycache__", "*.pyc", ".DS_Store", ".idea", ".vscode", "*.sqlite3", "*.zip"}
@@ -52,7 +55,9 @@ func dockerignore(dir string) []string {
 // nombre suelto (en cualquier carpeta) como la ruta desde la raíz, y «**/».
 func skipUpload(rel string, patterns []string) bool {
 	base := path.Base(rel)
-	if base == ".env.example" || base == ".dockerignore" {
+	// Lo que hace falta para construir y arrancar sube siempre, aunque el
+	// .dockerignore lo excluya (ese fichero es para la imagen, no para la subida).
+	if base == ".env.example" || base == ".dockerignore" || dockerFileRe.MatchString(base) {
 		return false
 	}
 	for _, p := range patterns {

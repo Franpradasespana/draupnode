@@ -129,7 +129,16 @@ func AnalyzeAs(dir, stack string) (*Analysis, error) {
 		return a, nil
 	}
 	// Con varias pistas (p. ej. Django con un package.json para el CSS) manda
-	// el backend; el resto queda como alternativa.
+	// el backend; el resto queda como alternativa. PHP (composer.json, artisan)
+	// también manda sobre el package.json de sus estilos (Laravel con Vite).
+	if stack == "" && len(found) > 1 && found[0] == StackNode {
+		for i, f := range found {
+			if f == StackPHP {
+				found = append([]string{StackPHP}, append(append([]string{}, found[:i]...), found[i+1:]...)...)
+				break
+			}
+		}
+	}
 	main := found[0]
 	a.Alternatives = found[1:]
 	switch main {

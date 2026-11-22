@@ -755,6 +755,9 @@ export namespace main {
 	    secret: boolean;
 	    external: boolean;
 	    hint?: string;
+	    suggest?: string;
+	    generate?: boolean;
+	    format?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GitEnvVar(source);
@@ -770,6 +773,9 @@ export namespace main {
 	        this.secret = source["secret"];
 	        this.external = source["external"];
 	        this.hint = source["hint"];
+	        this.suggest = source["suggest"];
+	        this.generate = source["generate"];
+	        this.format = source["format"];
 	    }
 	}
 	export class GitInspectResult {
@@ -784,6 +790,7 @@ export namespace main {
 	    exampleFile?: string;
 	    vars: GitEnvVar[];
 	    postCommand?: string;
+	    framework?: string;
 	    postService?: string;
 	
 	    static createFrom(source: any = {}) {
@@ -803,6 +810,7 @@ export namespace main {
 	        this.exampleFile = source["exampleFile"];
 	        this.vars = this.convertValues(source["vars"], GitEnvVar);
 	        this.postCommand = source["postCommand"];
+	        this.framework = source["framework"];
 	        this.postService = source["postService"];
 	    }
 	

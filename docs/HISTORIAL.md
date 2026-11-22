@@ -932,3 +932,41 @@ AES válidas, DEBUG=False, web 200, junto a la app Django de antes (8000) en el 
   empezar, crear los ficheros de Docker, probarlo, publicar en un servidor, revisar su configuración, simular y
   aplicar, abrir la app, actualizarla y qué hacer si algo falla. Capturas nuevas `publicar` y `publicar-modulo`.
   La misma guía, en `docs/GUIA_PUBLICAR.md`, enlazada desde el README. La de Docker Creator remite a ella.
+
+## 2026-11-22 · 0.55.0 · Apps huérfanas, PostgreSQL compartido, perfiles por tipo de app y errores traducidos
+
+Probado de punta a punta en el servidor de pruebas con dos proyectos públicos reales, publicados como lo haría
+alguien sin saber de Docker (Docker Creator → «PostgreSQL compartido» → Publicar → Aplicar): el esqueleto oficial de
+Laravel (`laravel/laravel`) y `HugoDF/express-postgres-starter` (Express + PostgreSQL). Los dos en marcha y
+respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: production, debug apagado, APP_KEY
+`base64:` de 32 bytes, 3 migraciones sobre pgsql; Node: su migración creó sus tablas).
+
+- **Apps huérfanas** («Lo que ya hay en este servidor»): carpetas de `/srv/draupnode/apps` y proyectos `dn-…` que no
+  son de una App desde Git del servidor ni de un módulo del catálogo; «Borrar…» (`RemoveOrphanApp`): `docker
+  compose -p dn-<nombre> down` (con `-v` si se confirma borrar los datos) y su carpeta. No deja borrar una app
+  gestionada ni un módulo del catálogo.
+- **PostgreSQL compartido en App desde Git** (`git_app_db` = propia | postgres-compartido): al guardar
+  (`syncSharedDB`) se añade el módulo PostgreSQL si falta, con una base con el nombre de la app, y la app sabe su
+  contenedor y su red; el rol lee la contraseña que generó el módulo, pone en el .env DATABASE_URL, DB_HOST/PORT/
+  NAME/USER/PASSWORD, DB_DATABASE/USERNAME/CONNECTION (Laravel) y POSTGRES_* (las que ponga el usuario mandan) y
+  conecta los contenedores de la app a la red. App desde Git va después de PostgreSQL (`after`). «Publicar» lo
+  activa si en Docker Creator se eligió «PostgreSQL compartido» (y no pone esas variables).
+- **Perfiles por tipo de app** (`profileValue`): Django (DEBUG, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, SECRET_KEY),
+  Laravel (APP_ENV, APP_DEBUG, APP_KEY:laravel, APP_URL, LOG_CHANNEL=stderr), Rails (RAILS_ENV, SECRET_KEY_BASE:hex-64,
+  RAILS_LOG_TO_STDOUT, RAILS_SERVE_STATIC_FILES), Flask/FastAPI, Node (NODE_ENV). En «Publicar» y en «Leer el
+  repositorio» (que ahora reconoce también package.json). Formatos nuevos `:laravel` y `:hex-64`.
+- **Errores traducidos** (`explainError`): a los fallos se les añade «Qué significa: …» para base inexistente,
+  contraseña de la base, host no encontrado, conexión rechazada, clave Fernet, APP_KEY de Laravel, librería de
+  Python o módulo de Node que falta, extensión PHP, ImproperlyConfigured, permisos, puerto ocupado, disco lleno,
+  arquitectura y SQLSTATE de Laravel.
+- Fallos encontrados con las pruebas reales y corregidos:
+  - Docker Creator tomaba **Laravel por una web de Node** (por su package.json de Vite): PHP manda ahora.
+  - Opciones con nombre de secreto (AUTH_PASSWORD_BROKER, …_TIMEOUT, …_TABLE) se generaban al azar: ahora no
+    (`configNameRe`); y una contraseña que el compose no usa (REDIS_PASSWORD, MAIL_PASSWORD) es de otro servicio y no
+    se genera (haría que la app intente entrar con ella).
+  - La subida respetaba el .dockerignore generado, que excluye el compose y el Dockerfile: los ficheros de Docker
+    suben siempre.
+  - «Publicar» solo miraba los puertos de otras apps de Git: ahora todos los de los módulos y los que escuchan en
+    el servidor (última ficha) — el 3000 era de Grafana.
+  - Las apps de Node y Go reciben `PORT` en el compose (si no, «App started on port undefined»).
+- Tests: `TestPerfilesPorTipoDeApp`, `TestErroresTraducidos`, `TestPostgresCompartido`, `TestLaravelNoEsNode`.

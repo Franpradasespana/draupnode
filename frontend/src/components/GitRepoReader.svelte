@@ -55,7 +55,7 @@
       const env = ((values.git_app_env as string[]) ?? []).filter((l) => !keys.has(keyOf(l)))
       values.git_app_env = [...env, ...r.env]
       // Si el .env trae el valor, ya no se genera al azar.
-      values.git_app_env_generate = ((values.git_app_env_generate as string[]) ?? []).filter((k) => !keys.has(k))
+      values.git_app_env_generate = ((values.git_app_env_generate as string[]) ?? []).filter((k) => !keys.has(k.split(':')[0]))
       imported = r
       result = null
       changed()
@@ -68,10 +68,13 @@
   function fill(r: GitInspectResult) {
     const env = [...((values.git_app_env as string[]) ?? [])]
     const gen = [...((values.git_app_env_generate as string[]) ?? [])]
-    const have = new Set([...env.map(keyOf), ...gen])
+    const have = new Set([...env.map(keyOf), ...gen.map((g) => g.split(':')[0])])
     const out: Row[] = []
+    const fw: Record<string, string> = { django: 'Django', laravel: 'Laravel', rails: 'Rails', node: 'Node' }
     for (const v of r.vars) {
       if (have.has(v.key)) out.push({ key: v.key, what: 'ya estaba en las opciones', kind: 'had' })
+      else if (v.generate) { gen.push(v.format ? `${v.key}:${v.format}` : v.key); out.push({ key: v.key, what: `se generará al azar en el servidor${v.format ? ' (formato ' + v.format + ')' : ''}: lo normal en ${fw[r.framework ?? ''] ?? 'esta app'}`, kind: 'gen' }) }
+      else if (v.suggest) { env.push(`${v.key}=${v.suggest}`); out.push({ key: v.key, what: `puesta a «${v.suggest}»: el valor de servidor en ${fw[r.framework ?? ''] ?? 'esta app'}`, kind: 'example' }) }
       else if (v.hasDefault && !v.inExample) out.push({ key: v.key, what: 'opcional: el compose ya le da un valor por defecto', kind: 'optional' })
       else if (v.secret) { gen.push(v.key); out.push({ key: v.key, what: 'se generará al azar en el servidor (una vez)', kind: 'gen' }) }
       else if (v.external) out.push({ key: v.key, what: 'clave de otro servicio: ponla en «Variables secretas con valor tuyo» como ' + v.key + '=valor', kind: 'external' })

@@ -567,6 +567,11 @@ func compose(s Spec) string {
 		b.WriteString("    env_file:\n      - path: .env\n        required: false\n")
 	}
 	env := []string{}
+	// Node y Go suelen escuchar en el puerto que diga PORT (process.env.PORT):
+	// sin ella, muchas apps arrancan «en el puerto undefined».
+	if (s.Stack == StackNode && s.Framework != "spa") || s.Stack == StackGo {
+		env = append(env, fmt.Sprintf("PORT: \"%d\"", s.Port))
+	}
 	dbName := strings.ReplaceAll(s.Name, "-", "_")
 	if usesDB(s) {
 		host, port := "db", "5432"
@@ -588,7 +593,7 @@ func compose(s Spec) string {
 		env = append(env, "REDIS_URL: redis://redis:6379/0")
 	}
 	if len(env) > 0 {
-		b.WriteString("    # Cómo llega la app a sus servicios. Si tu app usa otros nombres de variable,\n    # cámbialos aquí (DATABASE_URL o DB_HOST/DB_NAME…).\n    environment:\n")
+		b.WriteString("    # El puerto en el que escucha y cómo llega a sus servicios. Si tu app usa otros\n    # nombres de variable, cámbialos aquí (PORT, DATABASE_URL o DB_HOST/DB_NAME…).\n    environment:\n")
 		for _, e := range env {
 			b.WriteString("      " + e + "\n")
 		}

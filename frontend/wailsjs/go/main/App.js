@@ -326,6 +326,10 @@ export function ReloadModules() {
   return window['go']['main']['App']['ReloadModules']();
 }
 
+export function RemoveOrphanApp(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['RemoveOrphanApp'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function RunHistory(arg1, arg2, arg3) {
   return window['go']['main']['App']['RunHistory'](arg1, arg2, arg3);
 }

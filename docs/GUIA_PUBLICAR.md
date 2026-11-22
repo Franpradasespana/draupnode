@@ -10,7 +10,7 @@ Necesitas el servidor dado de alta en Servidores (y que responda) y la carpeta d
 
 ## 2 · Crear los ficheros de Docker
 
-Utilidades → Docker Creator → «Elegir carpeta». Draupnode reconoce el lenguaje (Python/Django, Node, Java, PHP/Laravel, Go…), la base de datos que usa y sus variables, también las que lee el código aunque no estén en .env.example, y en qué formato van sus claves (por ejemplo, una clave Fernet). Revisa lo reconocido, pulsa «Siguiente» hasta la vista previa y «Guardar en la carpeta». Si tu proyecto ya tenía Dockerfile o compose, los nuevos se guardan al lado (.draupnode) sin tocar los tuyos.
+Utilidades → Docker Creator → «Elegir carpeta». Draupnode reconoce el lenguaje (Python/Django, Node, Java, PHP/Laravel, Go…), la base de datos que usa y sus variables, también las que lee el código aunque no estén en .env.example, y en qué formato van sus claves (por ejemplo, una clave Fernet). Revisa lo reconocido; en «Servicios», si usa PostgreSQL, puedes elegir «PostgreSQL compartido» (el del servidor, para todas tus apps) en vez de uno propio. Pulsa «Siguiente» hasta la vista previa y «Guardar en la carpeta». Si tu proyecto ya tenía Dockerfile o compose, los nuevos se guardan al lado (.draupnode) sin tocar los tuyos.
 
 ![2 · Crear los ficheros de Docker](../frontend/src/assets/ayuda/docker-vista.webp)
 
@@ -20,7 +20,7 @@ Utilidades → Docker Creator → «Elegir carpeta». Draupnode reconoce el leng
 
 ## 4 · Publicar en un servidor
 
-Debajo, en «Publicar en un servidor», elige el servidor y pulsa «Publicar en el servidor». Draupnode añade la app a los módulos de ese servidor con todo rellenado: de dónde sale el código (esta carpeta), el compose, un puerto libre (solo dentro del servidor, 127.0.0.1), las variables con los valores de servidor típicos (DEBUG=false, la base de datos…), y las contraseñas y claves que se generarán en el servidor, cada una en su formato. Lo que no puede saber (el correo, claves de otros servicios…) te lo lista en «Para revisar». Todavía no instala nada.
+Debajo, en «Publicar en un servidor», elige el servidor y pulsa «Publicar en el servidor». Draupnode añade la app a los módulos de ese servidor con todo rellenado: de dónde sale el código (esta carpeta), el compose, un puerto libre (solo dentro del servidor, 127.0.0.1), las variables con los valores de servidor de su tipo de app (Django: DEBUG=false y sus hosts; Laravel: APP_ENV=production y APP_KEY en su formato; Rails: RAILS_ENV y SECRET_KEY_BASE; Node: NODE_ENV=production…), y las contraseñas y claves que se generarán en el servidor, cada una en su formato. Con «PostgreSQL compartido», Draupnode añade ese módulo al servidor si falta, le crea una base y un usuario con el nombre de la app y le pasa los datos de conexión. Las variables sin valor no se ponen (vacías pisarían el valor por defecto de la app); eso y lo que no puede saber (el correo, contraseñas de otros servicios…) te lo lista en «Para revisar». Todavía no instala nada.
 
 ![4 · Publicar en un servidor](../frontend/src/assets/ayuda/publicar.webp)
 
@@ -44,7 +44,7 @@ Cambia el código en tu equipo y vuelve a pulsar «Aplicar» en los módulos del
 
 ## 9 · Si algo falla
 
-El aviso del final dice en qué paso se paró y por qué (por ejemplo, «la orden después de arrancar falló» con sus últimas líneas). En la ficha → Contenedores tienes el registro de cada contenedor y botones para reiniciarlo. Errores típicos: una variable vacía que pisa el valor por defecto de la app (quítala), un valor de desarrollo (DEBUG=true, NODE_ENV mal escrito) o una clave con el formato equivocado (usa :fernet, :base64-32…).
+El aviso del final dice en qué paso se paró y por qué (por ejemplo, «la orden después de arrancar falló» con sus últimas líneas) y, si reconoce el error, una línea «Qué significa» con la causa probable (una base que no existe, una contraseña que no coincide, un puerto ocupado, una librería que falta, una clave con formato equivocado…). En la ficha → Contenedores tienes el registro de cada contenedor y botones para reiniciarlo. Errores típicos: una variable vacía que pisa el valor por defecto de la app (quítala), un valor de desarrollo (DEBUG=true, NODE_ENV mal escrito) o una clave con el formato equivocado (usa :fernet, :base64-32…).
 
 ## Con GitHub en vez de una carpeta
 

@@ -526,12 +526,17 @@ export interface GitEnvVar {
   secret: boolean
   external: boolean
   hint?: string
+  /** Perfil del tipo de app: valor de servidor típico, o generarla (con su formato). */
+  suggest?: string
+  generate?: boolean
+  format?: string
 }
 
 export interface GitInspectResult extends RunStart {
   /** Orden para preparar la base de datos según el tipo de app, y dónde ejecutarla. */
   postCommand?: string
   postService?: string
+  framework?: string
   commit?: string
   composeFound: boolean
   exampleFile?: string
@@ -699,6 +704,7 @@ interface Backend {
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
   LastOverviews(): Promise<Record<string, CachedOverview>>
   PublishDockerApp(dir: string, spec: DockerSpec, serverId: string): Promise<PublishResult>
+  RemoveOrphanApp(serverId: string, name: string, purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   ContainerAction(serverId: string, name: string, action: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   DockerDiskUsage(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   DockerPrune(serverId: string, what: string[], secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
@@ -1467,6 +1473,10 @@ function mockBackend(): Backend {
     async DockerPrune(_s, what) {
       await wait(900)
       return { status: 'ok', output: what.map((w: string) => (w === 'images' ? '== Imágenes sin usar\nTotal reclaimed space: 1.66GB' : w === 'build' ? '== Caché de construcción\nTotal reclaimed space: 888.4MB' : '== Contenedores parados\nTotal reclaimed space: 0B')).join('\n') }
+    },
+    async RemoveOrphanApp(_s, name, purge) {
+      await wait(700)
+      return { status: 'ok', output: `== Contenedores\nContainer dn-${name}-1 Removed${purge ? '\nVolume dn-' + name + '_db_data Removed' : ''}\n== Carpeta\nborrada /srv/draupnode/apps/${name}` }
     },
     async PublishDockerApp(dir, spec, sid) {
       await wait(500)

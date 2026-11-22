@@ -325,6 +325,8 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 	} else if old, err := a.store.Project(p.ID); err == nil {
 		p.Slug = slugOf(old) // los de antes de la 0.8 se quedan con el de su nombre actual
 	}
+	// Apps con el PostgreSQL compartido: ese módulo y su base.
+	p.Modules = a.syncSharedDB(p.Modules)
 	// Un proyecto recién creado se guarda sin módulos (se eligen después);
 	// para ejecutarlo sí hace falta al menos uno.
 	if len(p.Modules) == 0 {
@@ -656,6 +658,14 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 				secretsMsg = fmt.Sprintf("%d contraseña(s) del servidor guardadas en tu bóveda: míralas en «Contraseñas».", n)
 			}
 			return
+		}
+		// Errores típicos de una app: «Qué significa», en palabras.
+		if e.Kind == "ev" && (e.Ev["ev"] == "failed" || e.Ev["ev"] == "item_failed") {
+			if msg, _ := e.Ev["msg"].(string); msg != "" {
+				if x := explainError(msg); x != "" {
+					e.Ev["msg"] = msg + "\n\nQué significa: " + x
+				}
+			}
 		}
 		lmu.Lock()
 		if lw != nil {

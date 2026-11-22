@@ -34,6 +34,10 @@ type GitEnvVar struct {
 	Secret     bool   `json:"secret"`            // por su nombre, parece una contraseña o clave
 	External   bool   `json:"external"`          // clave o token de otro servicio (Stripe, correo…): solo la tiene el usuario
 	Hint       string `json:"hint,omitempty"`
+	// Perfil del tipo de app: valor de servidor típico, o generarla (con su formato).
+	Suggest  string `json:"suggest,omitempty"`
+	Generate bool   `json:"generate,omitempty"`
+	Format   string `json:"format,omitempty"`
 }
 
 // GitInspectResult es lo que se ha visto en el repositorio.
@@ -46,6 +50,7 @@ type GitInspectResult struct {
 	// Orden para preparar la base de datos según el tipo de app (manage.py → migrate…) y
 	// el servicio donde ejecutarla (el primero que se construye).
 	PostCommand string `json:"postCommand,omitempty"`
+	Framework   string `json:"framework,omitempty"` // django | laravel | rails | node | ""
 	PostService string `json:"postService,omitempty"`
 }
 
@@ -56,7 +61,9 @@ var (
 	gitNameRe    = regexp.MustCompile(`^[a-z][a-z0-9-]{1,30}$`)
 	secretNameRe = regexp.MustCompile(`(?i)(SECRET|PASSWORD|PASSWD|PASSPHRASE|(^|_)PASS($|_)|TOKEN|(^|_)KEY$|PRIVATE|SALT|CREDENTIAL|(^|_)PWD($|_))`)
 	urlNameRe    = regexp.MustCompile(`(?i)(_URL|_URI|_DSN)$`)
-	externalRe   = regexp.MustCompile(`(?i)(API_KEY|APIKEY|ACCESS_KEY|_TOKEN$|^TOKEN$|STRIPE|PAYPAL|SENDGRID|MAILGUN|SMTP|EMAIL_HOST|TWILIO|OPENAI|ANTHROPIC|GOOGLE|GITHUB|AWS_|S3_|SENTRY|RECAPTCHA|VAPID)`)
+	// Opciones con nombre de secreto: no se generan.
+	configNameRe = regexp.MustCompile(`(?i)_(TABLE|TIMEOUT|BROKER|DRIVER|LIFETIME|ROUNDS|PATH|HOST|PORT|NAME|DB|ENABLED|LENGTH|EXPIRES?|TTL|STORE|CONNECTION|CHANNEL|LEVEL|ALGO|ALGORITHM|PREFIX|MODE)$`)
+	externalRe   = regexp.MustCompile(`(?i)(API_KEY|APIKEY|ACCESS_KEY|_TOKEN$|^TOKEN$|STRIPE|PAYPAL|SENDGRID|MAILGUN|SMTP|EMAIL_HOST|TWILIO|OPENAI|ANTHROPIC|GOOGLE|GITHUB|AWS_|S3_|SENTRY|RECAPTCHA|VAPID|^MAIL_|MEMCACHED_|REDIS_PASSWORD)`)
 )
 
 // classifyGitVar decide qué es cada variable por su nombre: una contraseña o
@@ -71,6 +78,8 @@ func classifyGitVar(v *GitEnvVar) {
 	case externalRe.MatchString(k):
 		v.External = true
 		v.Hint = "clave de otro servicio: solo la tienes tú"
+	case configNameRe.MatchString(k):
+		// AUTH_PASSWORD_BROKER, SESSION_LIFETIME…: opciones, aunque lleven «PASSWORD» o «KEY».
 	case secretNameRe.MatchString(k):
 		v.Secret = true
 		v.Hint = "contraseña o clave de la app: se puede generar al azar"
@@ -129,7 +138,7 @@ if os.path.isfile(cp):
             v["hasDefault"] = True
 c = subprocess.run(["git", "-C", root, "log", "-1", "--format=%h %s"], capture_output=True, text=True).stdout.strip()
 known = []
-for f in ("manage.py", "artisan", "bin/rails", "prisma/schema.prisma", "alembic.ini"):
+for f in ("manage.py", "artisan", "bin/rails", "prisma/schema.prisma", "alembic.ini", "package.json"):
     hits = [f] if os.path.isfile(os.path.join(root, f)) else [os.path.join(d, f) for d in sorted(os.listdir(root)) if not d.startswith(".") and os.path.isfile(os.path.join(root, d, f))]
     if hits:
         known.append(f)
@@ -229,8 +238,12 @@ func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName,
 		if res.PostCommand = gitPostSuggestion(known); res.PostCommand != "" {
 			res.PostService = raw.Built
 		}
+		fw := frameworkFromFiles(known)
+		res.Framework = fw
 		for i := range raw.Vars {
-			classifyGitVar(&raw.Vars[i])
+			v := &raw.Vars[i]
+			classifyGitVar(v)
+			v.Suggest, v.Generate, v.Format = profileValue(fw, v.Key, v.Example, "")
 		}
 		sort.Slice(raw.Vars, func(i, j int) bool { return raw.Vars[i].Key < raw.Vars[j].Key })
 		res.Vars = raw.Vars

@@ -2,8 +2,8 @@
   // «Lo que ya hay en este servidor»: plantillas que aplicó Draupnode (aquí o
   // en otro equipo) y que este Draupnode no conoce, para recuperarlas; y
   // programas instalados fuera de las plantillas, con lo que conviene saber.
-  import { ArchiveRestore, PackageSearch } from '@lucide/svelte'
-  import { api, errorText, type Project, type ServerMarker, type ServerOverview } from '../lib/api'
+  import { ArchiveRestore, PackageSearch, Trash2 } from '@lucide/svelte'
+  import { api, errorText, type DockerResult, type Project, type ServerMarker, type ServerOverview } from '../lib/api'
   import { ui, toast, timeAgo, refreshProjects, moduleName, confirmDialog, openDeployment } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
 
@@ -21,6 +21,42 @@
   // si ya tiene módulos, una ficha de otra carpeta no se puede recuperar encima.
   const own = $derived(deployments[0])
   const blocked = (slug: string) => !!own?.modules.length && (own.slug ?? '') !== slug
+
+  // Apps huérfanas: carpetas de /srv/draupnode/apps o proyectos de Docker «dn-…» que
+  // no son de una App desde Git de este servidor ni de un módulo del catálogo
+  // (p. ej. la que se quedó al cambiar el nombre de una app).
+  const managedApps = $derived(new Set((own?.modules ?? []).flatMap((m) => [m.values?.git_app_name, own?.installedValues?.[m.id]?.git_app_name]).filter(Boolean).map(String)))
+  const orphanApps = $derived.by(() => {
+    const names = new Set<string>(ov.draupnode?.appDirs ?? [])
+    for (const c of ov.containers ?? []) if (c.compose?.startsWith('dn-')) names.add(c.compose.slice(3))
+    return [...names].filter((n) => !managedApps.has(n) && !knownMods(n)).sort().map((n) => ({
+      name: n,
+      containers: (ov.containers ?? []).filter((c) => c.compose === 'dn-' + n),
+      dir: (ov.draupnode?.appDirs ?? []).includes(n),
+    }))
+  })
+  async function removeOrphan(name: string) {
+    const ok = await confirmDialog({
+      title: `Borrar la app «${name}»`,
+      message: `Draupnode ya no gestiona esta app. Se paran y borran sus contenedores (dn-${name}) y su carpeta /srv/draupnode/apps/${name}.`,
+      detail: 'Sus datos (volúmenes: la base de datos, ficheros subidos…) se conservan salvo que marques la casilla siguiente.',
+      confirmLabel: 'Borrar la app', danger: true,
+    })
+    if (!ok) return
+    const purge = await confirmDialog({
+      title: '¿Borrar también sus datos?',
+      message: `Sus volúmenes de Docker (la base de datos y lo que guarde «${name}»). No se puede deshacer.`,
+      confirmLabel: 'Sí, borrar los datos', danger: true,
+    })
+    busy = name
+    try {
+      const r = await withConnection<DockerResult>(ui.servers.find((s) => s.id === serverId), (s, a, u) => api.RemoveOrphanApp(serverId, name, purge, s, a, u))
+      if (r?.status === 'ok') toast(`«${name}» borrada${purge ? ' con sus datos' : ' (sus datos se conservan)'}. Pulsa «Actualizar» para verlo.`)
+      else if (r) toast(r.message || 'No se pudo borrar', 'error')
+    } finally {
+      busy = ''
+    }
+  }
 
   const NOTES: Record<string, string> = {
     docker: 'Se puede añadir sin problema: el módulo Docker respeta lo instalado.',
@@ -62,7 +98,7 @@
 
 <section class="card adopt">
     <h2><PackageSearch size={17} /> Lo que ya hay en este servidor</h2>
-    {#if !markers.length && !orphans.length && !outside.length}
+    {#if !markers.length && !orphans.length && !outside.length && !orphanApps.length}
       <p class="muted small">Todo lo que Draupnode instaló aquí ya está en sus módulos. Si abres Draupnode en otro equipo (o pierdes sus datos), aquí saldrá con el botón «Recuperar».</p>
     {/if}
 
@@ -93,6 +129,17 @@
       </div>
     {/each}
 
+    {#each orphanApps as o (o.name)}
+      <div class="item">
+        <Trash2 size={16} class="ic warn" />
+        <div class="txt">
+          <strong>{o.name}</strong>
+          <span class="muted small">App que Draupnode ya no gestiona{o.containers.length ? ` · ${o.containers.length} contenedor(es): ${o.containers.map((c) => `${c.name} (${c.state})`).join(', ')}` : ''}{o.dir ? ` · carpeta /srv/draupnode/apps/${o.name}` : ''}. Suele quedarse al cambiar el nombre de una App desde Git o al quitarla sin desinstalar.</span>
+        </div>
+        <button class="btn sm danger" onclick={() => removeOrphan(o.name)} disabled={!!busy}>{busy === o.name ? 'Borrando…' : 'Borrar…'}</button>
+      </div>
+    {/each}
+
     {#if outside.length}
       <div class="out">
         <p class="small"><strong>Instalado fuera de los módulos de Draupnode:</strong> {outside.map((s) => moduleName(s.module)).join(', ')}.</p>
@@ -109,6 +156,7 @@
   h2 { display: flex; gap: 8px; align-items: center; margin: 0; font-size: 16px; }
   .item { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border-soft); }
   .item :global(.ic) { color: var(--accent); flex: none; }
+  .item :global(.ic.warn) { color: var(--warning); }
   .txt { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13.5px; }
   .small { font-size: 12.5px; margin: 0; }
   .nb { max-width: 260px; text-align: right; }

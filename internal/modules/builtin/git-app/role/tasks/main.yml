@@ -95,7 +95,7 @@
 
 - name: Falta el compose
   ansible.builtin.fail:
-    msg: "El repositorio no tiene {{ git_app_compose }} (en la rama {{ git_app_branch }}). Créalo con Docker Creator y súbelo."
+    msg: "{{ ('El repositorio no tiene ' ~ git_app_compose ~ ' (en la rama ' ~ git_app_branch ~ '). Créalo con Docker Creator y súbelo.') if git_app_from_git | bool else ('No está ' ~ git_app_compose ~ ' en la carpeta subida (' ~ git_app_local_dir ~ '). Guárdalo con Docker Creator en esa carpeta y vuelve a aplicar.') }}"
   when: not ansible_check_mode and not git_app_cf.stat.exists
 
 - name: Valores generados con formato (una vez)
@@ -104,7 +104,7 @@
     f={{ (draupnode_secrets_dir ~ '/' ~ git_app_gen_prefix ~ item.split(':')[0]) | quote }}
     [ -s "$f" ] && exit 0
     umask 077
-    python3 -c 'import base64,os,sys; b=os.urandom(32); f=sys.argv[1]; print({"fernet": base64.urlsafe_b64encode(b).decode(), "base64-32": base64.b64encode(b).decode(), "hex-32": b.hex()}[f])' {{ item.split(':')[1] | quote }} > "$f"
+    python3 -c 'import base64,os,sys; b=os.urandom(32); f=sys.argv[1]; print({"fernet": base64.urlsafe_b64encode(b).decode(), "base64-32": base64.b64encode(b).decode(), "hex-32": b.hex(), "hex-64": os.urandom(64).hex(), "laravel": "base64:" + base64.b64encode(b).decode()}[f])' {{ item.split(':')[1] | quote }} > "$f"
     echo creado
   loop: "{{ git_app_env_generate | select('search', ':') | list }}"
   register: git_app_genfmt
@@ -122,6 +122,30 @@
   no_log: true
   when: not ansible_check_mode
 
+- name: Base de datos en el PostgreSQL compartido
+  # La contraseña la generó el módulo PostgreSQL (mismo fichero y formato): aquí solo se lee.
+  ansible.builtin.set_fact:
+    git_app_shared_db:
+      DATABASE_URL: "postgresql://{{ git_app_dbname }}:{{ git_app_dbpass }}@{{ git_app_db_host }}:5432/{{ git_app_dbname }}"
+      DB_HOST: "{{ git_app_db_host }}"
+      DB_PORT: "5432"
+      DB_NAME: "{{ git_app_dbname }}"
+      DB_USER: "{{ git_app_dbname }}"
+      DB_PASSWORD: "{{ git_app_dbpass }}"
+      DB_DATABASE: "{{ git_app_dbname }}"
+      DB_USERNAME: "{{ git_app_dbname }}"
+      DB_CONNECTION: pgsql
+      POSTGRES_HOST: "{{ git_app_db_host }}"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "{{ git_app_dbname }}"
+      POSTGRES_USER: "{{ git_app_dbname }}"
+      POSTGRES_PASSWORD: "{{ git_app_dbpass }}"
+  vars:
+    git_app_dbname: "{{ git_app_name | replace('-', '_') }}"
+    git_app_dbpass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/postgres_' ~ (git_app_name | replace('-', '_')), chars=['ascii_letters', 'digits'], length=32) if not ansible_check_mode else 'simulacion' }}"
+  no_log: true
+  when: (git_app_db | default('propia')) == 'postgres-compartido'
+
 - name: Contenido del .env
   # En la simulación, los generados aún no existen: se cuentan como «con valor».
   ansible.builtin.set_fact:
@@ -135,6 +159,10 @@
       {% endfor %}
       {% for l in (git_app_env_secret | default('')).split(';') if '=' in l %}
       {{ l | trim }}
+      {% endfor %}
+      {% set mine = (git_app_env | map('regex_replace', '=.*', '') | list) + ((git_app_env_secret | default('')).split(';') | map('regex_replace', '=.*', '') | map('trim') | list) %}
+      {% for k, v in (git_app_shared_db | default({})).items() if k not in mine %}
+      {{ k }}={{ v }}
       {% endfor %}
   no_log: true
 
@@ -327,6 +355,17 @@
   register: git_app_up
   changed_when: "'Started' in git_app_up.stderr or 'Recreated' in git_app_up.stderr or 'Created' in git_app_up.stderr"
   when: not ansible_check_mode
+
+- name: Conectar la app a la red del PostgreSQL compartido
+  ansible.builtin.shell: |
+    for c in $(docker compose -p {{ git_app_project }} -f {{ git_app_compose | quote }} ps -q); do
+      docker network connect {{ git_app_db_network | quote }} "$c" 2>/dev/null && echo conectado || true
+    done
+  args:
+    chdir: "{{ git_app_dir }}"
+  register: git_app_netc
+  changed_when: "'conectado' in git_app_netc.stdout"
+  when: not ansible_check_mode and (git_app_db | default('propia')) == 'postgres-compartido'
 
 - name: Esperar a que arranquen los contenedores
   # Hasta 2 min: todos en marcha y ninguno «arrancando» (healthcheck) ni reiniciándose.

@@ -20,7 +20,9 @@ func TestSubirCarpeta(t *testing.T) {
 		os.MkdirAll(filepath.Join(d, filepath.Dir(f)), 0o755)
 		os.WriteFile(filepath.Join(d, f), []byte("x"), 0o644)
 	}
-	os.WriteFile(filepath.Join(d, ".dockerignore"), []byte("media\n# comentario\ndocs/\n!docs/leeme.md\n"), 0o644)
+	os.WriteFile(filepath.Join(d, ".dockerignore"), []byte("media\n# comentario\ndocs/\n!docs/leeme.md\ndocker-compose*.yml\nDockerfile*\n"), 0o644)
+	os.WriteFile(filepath.Join(d, "docker-compose.yml"), []byte("x"), 0o644)
+	os.WriteFile(filepath.Join(d, "Dockerfile"), []byte("x"), 0o644)
 	var buf bytes.Buffer
 	n, _, err := tarDir(d, &buf)
 	if err != nil {
@@ -39,7 +41,7 @@ func TestSubirCarpeta(t *testing.T) {
 		}
 	}
 	sort.Strings(got)
-	if strings.Join(got, ",") != ".dockerignore,.env.example,app/views.py,manage.py" || n != 4 {
+	if strings.Join(got, ",") != ".dockerignore,.env.example,Dockerfile,app/views.py,docker-compose.yml,manage.py" || n != 6 {
 		t.Fatalf("%d %v", n, got)
 	}
 }

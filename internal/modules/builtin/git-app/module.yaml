@@ -20,6 +20,8 @@ details: |
   Dominio: con Caddy o nginx en el servidor, se añade solo a sus sitios.
   Una app por plantilla: para otra, asocia otra plantilla al mismo servidor.
 depends: [docker]
+# Con «PostgreSQL compartido», después de él (para que la base ya exista).
+after: [postgres]
 # Varias apps en un servidor: «Añadir otra app» crea otra copia (git-app@nombre).
 repeatable: true
 requires:
@@ -88,11 +90,11 @@ variables:
     pattern_help: CLAVE=valor
   - name: git_app_env_generate
     label: Generar en el servidor (secretos al azar)
-    help: "Nombres de variables, uno por línea (SECRET_KEY, DB_PASSWORD…). Se crean una vez y se guardan. Si la app exige un formato, añádelo con «:»: NOMBRE:fernet (clave de cryptography.Fernet), NOMBRE:base64-32 (32 bytes en Base64), NOMBRE:hex-32. Sin nada: 40 letras y números."
+    help: "Nombres de variables, uno por línea (SECRET_KEY, DB_PASSWORD…). Se crean una vez y se guardan. Si la app exige un formato, añádelo con «:»: NOMBRE:fernet (clave de cryptography.Fernet), NOMBRE:base64-32 (32 bytes en Base64), NOMBRE:hex-32, NOMBRE:hex-64 (p. ej. SECRET_KEY_BASE de Rails), NOMBRE:laravel (APP_KEY de Laravel, «base64:…»). Sin nada: 40 letras y números."
     type: list
     default: []
-    pattern: '^[A-Za-z_][A-Za-z0-9_]*(:(fernet|base64-32|hex-32))?$'
-    pattern_help: "NOMBRE o NOMBRE:fernet / :base64-32 / :hex-32"
+    pattern: '^[A-Za-z_][A-Za-z0-9_]*(:(fernet|base64-32|hex-32|hex-64|laravel))?$'
+    pattern_help: "NOMBRE o NOMBRE:fernet / :base64-32 / :hex-32 / :hex-64 / :laravel"
   - name: git_app_env_secret
     label: Variables secretas con valor tuyo
     help: "Tokens o claves que ya tienes: «CLAVE=valor; OTRA=valor». Se guardan cifradas en tu bóveda."
@@ -123,6 +125,22 @@ variables:
     default: 30
     min: 5
     max: 240
+  - name: git_app_db
+    label: Base de datos
+    help: "«propia» = la que traiga el docker-compose (o ninguna). «postgres-compartido» = el PostgreSQL compartido de este servidor: Draupnode lo añade si falta, crea una base y un usuario con el nombre de la app, conecta la app a su red y le pasa los datos (DATABASE_URL, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, POSTGRES_*, DB_DATABASE/DB_USERNAME de Laravel). Las que pongas tú en «Variables (.env)» mandan."
+    type: select
+    options: [propia, postgres-compartido]
+    default: propia
+  - name: git_app_db_host
+    label: Servidor del PostgreSQL compartido
+    type: string
+    default: pg-compartido
+    managed: true
+  - name: git_app_db_network
+    label: Red del PostgreSQL compartido
+    type: string
+    default: apps
+    managed: true
   - name: git_app_port
     label: Puerto de la app en el servidor
     help: El que publica tu compose (para el dominio y la comprobación). 0 = no comprobar.

@@ -15,6 +15,7 @@ func TestClasificarVariables(t *testing.T) {
 		"SECRET_KEY": "gen", "POSTGRES_PASSWORD": "gen", "DB_PASS": "gen", "JWT_SECRET": "gen",
 		"STRIPE_API_KEY": "ext", "GITHUB_TOKEN": "ext", "EMAIL_HOST_PASSWORD": "ext", "AWS_SECRET_ACCESS_KEY": "ext",
 		"DATABASE_URL": "", "DEBUG": "", "ALLOWED_HOSTS": "", "STRIPE_PUBLIC_KEY": "", "AWS_ACCESS_KEY_ID": "",
+		"AUTH_PASSWORD_BROKER": "", "AUTH_PASSWORD_RESET_TOKEN_TABLE": "", "SESSION_LIFETIME": "", "MAIL_PASSWORD": "ext", "REDIS_PASSWORD": "ext", "APP_KEY": "gen",
 	}
 	for k, want := range cases {
 		v := GitEnvVar{Key: k}

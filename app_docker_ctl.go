@@ -96,3 +96,30 @@ func (a *App) DockerPrune(serverID string, what []string, secret, accept, sudoPa
 	res := a.dockerExec(serverID, "{ "+strings.Join(cmds, "; ")+"; } 2>&1 | grep -E '^==|Total reclaimed|untagged' | head -n 80", secret, accept, sudoPassword)
 	return res
 }
+
+// RemoveOrphanApp borra una app que Draupnode ya no gestiona (se quedó al
+// cambiar el nombre o quitar una App desde Git): sus contenedores (proyecto
+// dn-<nombre>), su carpeta /srv/draupnode/apps/<nombre> y, con purge, sus
+// volúmenes (los datos: su base de datos…). No toca ninguna app gestionada.
+func (a *App) RemoveOrphanApp(serverID, name string, purge bool, secret, accept, sudoPassword string) DockerResult {
+	if !gitNameRe.MatchString(name) {
+		return DockerResult{RunStart: RunStart{Status: "error", Message: "nombre de app no válido"}}
+	}
+	if _, ok := a.cat().Get(name); ok {
+		return DockerResult{RunStart: RunStart{Status: "error", Message: "es un módulo del catálogo: desinstálalo desde sus módulos"}}
+	}
+	if p, ok := a.store.ServerProject(serverID); ok {
+		for _, m := range p.Modules {
+			if n, _ := m.Values["git_app_name"].(string); n == name {
+				return DockerResult{RunStart: RunStart{Status: "error", Message: "esa app la gestiona Draupnode: desinstálala desde sus módulos"}}
+			}
+		}
+	}
+	down := "docker compose -p " + bundle.ShellQuote("dn-"+name) + " down --remove-orphans"
+	if purge {
+		down += " -v"
+	}
+	dir := bundle.ShellQuote("/srv/draupnode/apps/" + name)
+	cmd := "echo '== Contenedores'; " + down + " 2>&1; echo '== Carpeta'; rm -rf " + dir + " && echo borrada " + dir
+	return a.dockerExec(serverID, cmd, secret, accept, sudoPassword)
+}
