@@ -1034,3 +1034,8 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
   Docker, Cortafuegos y PostgreSQL con sus datos (18 tareas, 0 fallos), dejó Sistema base, sacó Navidrome de la lista
   y el servidor quedó sin Docker ni temporizadores de Draupnode. Test `TestDesinstalarTodo`.
 - Ayuda: «Desinstalar todo».
+
+## 2026-11-23 · 0.58.1 · «Desinstalar todo» solo si hay algo que quitar
+
+- El botón sale solo cuando `PlanUninstallAll` tiene algo que desinstalar (antes salía con cualquier módulo instalado,
+  y con solo el Sistema base avisaba «No hay nada…» al pulsarlo).

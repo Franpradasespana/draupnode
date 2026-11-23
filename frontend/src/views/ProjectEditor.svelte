@@ -429,6 +429,13 @@
   }
   // «Desinstalar todo»: lo que se puede quitar, con lo que se queda y por qué.
   let allRunId = ''
+  // El botón solo sale si hay algo que de verdad se pueda quitar (no, p. ej., con solo el Sistema base).
+  let canUninstallAll = $state(false)
+  $effect(() => {
+    const key = (stored?.installedModules ?? []).join(',')
+    if (!embedded || !key || !draft.id) { canUninstallAll = false; return }
+    api.PlanUninstallAll(draft.id).then((p) => { canUninstallAll = p.ok && p.remove.length > 0 }).catch(() => { canUninstallAll = false })
+  })
   async function uninstallAll() {
     if (!(await ensureSaved())) return
     const plan = await api.PlanUninstallAll(draft.id)
@@ -553,7 +560,7 @@
         </div>
         <div class="act-btns">
           <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount} title="Muestra qué cambiaría en el servidor sin tocar nada"><Eye size={15} /> Simular</button>
-          {#if embedded && (stored?.installedModules?.length ?? 0) > 0}
+          {#if embedded && canUninstallAll}
             <button class="btn danger" onclick={uninstallAll} disabled={saving || running} title="Quita del servidor todo lo que puso Draupnode y se puede desinstalar"><Trash2 size={15} /> Desinstalar todo…</button>
           {/if}
           {#if pending.length}
