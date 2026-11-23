@@ -39,6 +39,11 @@ func (a *App) CheckUninstall(projectID string, mods []string) UninstallCheck {
 		res.Error = err.Error()
 		return res
 	}
+	return a.checkUninstallOf(p, mods)
+}
+
+func (a *App) checkUninstallOf(p store.Project, mods []string) UninstallCheck {
+	res := UninstallCheck{Modules: []UninstallInfo{}, Selected: []string{}}
 	if srv, err := a.store.Server(p.ServerID); err == nil {
 		res.Server = fmt.Sprintf("%s (%s@%s)", srv.Name, srv.User, srv.Host)
 	}
@@ -163,4 +168,143 @@ func (a *App) UninstallModules(projectID string, mods []string, purge bool, secr
 		ids[i] = s.Key()
 	}
 	return a.launch(p, srv, script, runMode{uninstall: ids}, secret, accept, sudoPassword)
+}
+
+// UninstallAllPlan: lo que haría «Desinstalar todo» en el servidor de un
+// proyecto (sus módulos).
+type UninstallAllPlan struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+	// Remove: los instalados que se desinstalan (en el orden del catálogo).
+	Remove []string `json:"remove"`
+	// Keep: los instalados que se quedan, con el motivo en Warning.
+	Keep []UninstallInfo `json:"keep"`
+	// Unmark: marcados pero nunca instalados; solo se quitan de la lista.
+	Unmark []string `json:"unmark"`
+	// Check: la comprobación de la desinstalación (con Unmark ya quitados).
+	Check UninstallCheck `json:"check"`
+}
+
+// PlanUninstallAll prepara «Desinstalar todo»: todos los módulos instalados
+// que se pueden desinstalar, menos los que necesita uno que se queda (y el
+// SSH, que es la conexión). No toca nada.
+func (a *App) PlanUninstallAll(projectID string) UninstallAllPlan {
+	res := UninstallAllPlan{Remove: []string{}, Keep: []UninstallInfo{}, Unmark: []string{}}
+	p, err := a.store.Project(projectID)
+	if err != nil {
+		res.Error = err.Error()
+		return res
+	}
+	c := a.cat()
+	reason := map[string]string{}
+	cand := map[string]bool{}
+	for _, id := range p.InstalledModules {
+		m, ok := c.Get(id)
+		switch {
+		case !ok:
+			reason[id] = "ya no está en el catálogo"
+		case m.NoUninstall != "":
+			reason[id] = m.NoUninstall
+		case !m.Uninstallable:
+			reason[id] = "todavía no tiene desinstalación"
+		case id == sshModule:
+			vals := p.InstalledValues[id]
+			v, _ := m.Values(vals)
+			if port, _ := v["ssh_port"].(int); port != 22 {
+				reason[id] = fmt.Sprintf("tiene el SSH en el puerto %d; al quitarlo volvería al 22 y se perdería la conexión", port)
+				continue
+			}
+			cand[id] = true
+		default:
+			cand[id] = true
+		}
+	}
+	// Lo que necesita un módulo que se queda, se queda también (hasta que no cambie nada).
+	for changed := true; changed; {
+		changed = false
+		for _, id := range p.InstalledModules {
+			if cand[id] {
+				continue
+			}
+			om, ok := c.Get(id)
+			if !ok {
+				continue
+			}
+			for _, d := range om.Depends {
+				if cand[d] {
+					delete(cand, d)
+					reason[d] = "lo necesita " + om.Name + ", que se queda"
+					changed = true
+				}
+			}
+		}
+	}
+	for _, pm := range p.Modules {
+		if !contains(p.InstalledModules, pm.ID) {
+			res.Unmark = append(res.Unmark, pm.ID)
+		}
+	}
+	var ids []string
+	for id := range cand {
+		ids = append(ids, id)
+	}
+	if len(ids) > 0 {
+		order, _, err := c.Resolve(ids)
+		if err != nil {
+			res.Error = err.Error()
+			return res
+		}
+		for _, id := range order {
+			if cand[id] {
+				res.Remove = append(res.Remove, id)
+			}
+		}
+	}
+	for _, id := range p.InstalledModules {
+		if r, ok := reason[id]; ok {
+			res.Keep = append(res.Keep, UninstallInfo{ID: id, Name: a.moduleName(id), Warning: r})
+		}
+	}
+	res.Check = a.checkUninstallOf(withoutModules(p, res.Unmark), res.Remove)
+	res.OK = true
+	return res
+}
+
+func withoutModules(p store.Project, ids []string) store.Project {
+	var mods []store.ProjectModule
+	for _, m := range p.Modules {
+		if !contains(ids, m.ID) {
+			mods = append(mods, m)
+		}
+	}
+	p.Modules = mods
+	return p
+}
+
+// UninstallAll ejecuta «Desinstalar todo» (lo que dice PlanUninstallAll):
+// quita de la lista los módulos que nunca se instalaron y desinstala el resto.
+func (a *App) UninstallAll(projectID string, purge bool, secret, accept, sudoPassword string) RunStart {
+	plan := a.PlanUninstallAll(projectID)
+	if !plan.OK {
+		return RunStart{Status: "error", Message: plan.Error}
+	}
+	if len(plan.Remove) == 0 {
+		return RunStart{Status: "error", Message: "no hay nada instalado que se pueda desinstalar"}
+	}
+	if !plan.Check.OK {
+		return RunStart{Status: "error", Message: plan.Check.Error}
+	}
+	if a.projectRunning(projectID) {
+		return RunStart{Status: "busy", Message: "ya hay una tarea en marcha con esta plantilla en este servidor"}
+	}
+	if len(plan.Unmark) > 0 {
+		p, err := a.store.Project(projectID)
+		if err != nil {
+			return RunStart{Status: "error", Message: err.Error()}
+		}
+		if _, err := a.store.SaveProject(withoutModules(p, plan.Unmark)); err != nil {
+			return RunStart{Status: "error", Message: err.Error()}
+		}
+	}
+	return a.UninstallModules(projectID, plan.Remove, purge, secret, accept, sudoPassword)
 }

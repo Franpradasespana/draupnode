@@ -298,6 +298,10 @@ export function PingServers() {
   return window['go']['main']['App']['PingServers']();
 }
 
+export function PlanUninstallAll(arg1) {
+  return window['go']['main']['App']['PlanUninstallAll'](arg1);
+}
+
 export function ProjectSecrets(arg1, arg2) {
   return window['go']['main']['App']['ProjectSecrets'](arg1, arg2);
 }
@@ -440,6 +444,10 @@ export function TerminalResize(arg1, arg2, arg3) {
 
 export function TestConnection(arg1, arg2, arg3) {
   return window['go']['main']['App']['TestConnection'](arg1, arg2, arg3);
+}
+
+export function UninstallAll(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UninstallAll'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function UninstallModules(arg1, arg2, arg3, arg4, arg5, arg6) {

@@ -416,7 +416,7 @@
   }
 
   // ---- desinstalar ----
-  let uninstallPrompt = $state<{ check: UninstallCheck; allowRemove: boolean; resolve: (c: UninstallChoice) => void } | null>(null)
+  let uninstallPrompt = $state<{ check: UninstallCheck; allowRemove: boolean; all?: { keep: { name: string; warning?: string }[]; word: string }; resolve: (c: UninstallChoice) => void } | null>(null)
   async function askUninstall(mods: string[], allowRemove: boolean): Promise<UninstallChoice> {
     const check = await api.CheckUninstall(draft.id, mods)
     return new Promise((resolve) => {
@@ -426,6 +426,25 @@
   async function uninstall(mods: string[], purge: boolean) {
     if (!(await ensureSaved())) return
     await launch((s, a, u) => api.UninstallModules(draft.id, mods, purge, s, a, u), (runId) => startRun(draft.id, runId, false, mods))
+  }
+  // «Desinstalar todo»: lo que se puede quitar, con lo que se queda y por qué.
+  let allRunId = ''
+  async function uninstallAll() {
+    if (!(await ensureSaved())) return
+    const plan = await api.PlanUninstallAll(draft.id)
+    if (!plan.ok) { toast(plan.error || 'No se pudo preparar', 'error'); return }
+    if (!plan.remove.length) { toast('No hay nada instalado que se pueda desinstalar'); return }
+    const choice = await new Promise<UninstallChoice>((resolve) => {
+      uninstallPrompt = { check: plan.check, allowRemove: false, all: { keep: plan.keep, word: server?.name ?? 'DESINSTALAR' }, resolve: (c) => { uninstallPrompt = null; resolve(c) } }
+    })
+    if (choice?.action !== 'uninstall') return
+    await launch((s, a, u) => api.UninstallAll(draft.id, choice.purge, s, a, u), (runId) => {
+      allRunId = runId
+      // El backend ya quitó de la lista los que nunca se instalaron.
+      draft.modules = draft.modules.filter((m) => !plan.unmark.includes(m.id))
+      savedKey = contentKey(draft)
+      startRun(draft.id, runId, false, plan.remove)
+    })
   }
   // Al terminar bien una desinstalación, esos módulos salen del borrador
   // (el backend ya los quitó del proyecto; así no se vuelven a guardar).
@@ -439,6 +458,11 @@
       savedKey = contentKey(draft)
       if (openMod && r.uninstall!.includes(openMod)) openMod = null
     })
+    // Tras «Desinstalar todo», también el historial del servidor (si no lo hay, no pasa nada).
+    if (r.runId === allRunId) {
+      const srv = untrack(() => server)
+      if (srv) withConnection(srv, (s, a, u) => api.ServerHistory(srv.id, false, false, s, a, u)).catch(() => {})
+    }
   })
 
   // Lanza una ejecución pidiendo lo que haga falta (contraseña, huella, sudo, bóveda).
@@ -529,6 +553,9 @@
         </div>
         <div class="act-btns">
           <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount} title="Muestra qué cambiaría en el servidor sin tocar nada"><Eye size={15} /> Simular</button>
+          {#if embedded && (stored?.installedModules?.length ?? 0) > 0}
+            <button class="btn danger" onclick={uninstallAll} disabled={saving || running} title="Quita del servidor todo lo que puso Draupnode y se puede desinstalar"><Trash2 size={15} /> Desinstalar todo…</button>
+          {/if}
           {#if pending.length}
             <button class="btn primary" onclick={openWizard} disabled={saving || running || !!errorCount || !needsApply}><Hammer size={15} /> Configurar y aplicar…</button>
           {:else}
@@ -699,7 +726,7 @@
 {/if}
 
 {#if uninstallPrompt}
-  <UninstallDialog check={uninstallPrompt.check} allowRemove={uninstallPrompt.allowRemove} done={uninstallPrompt.resolve} />
+  <UninstallDialog check={uninstallPrompt.check} allowRemove={uninstallPrompt.allowRemove} all={uninstallPrompt.all} done={uninstallPrompt.resolve} />
 {/if}
   {#if after && !openModule}{@render after()}{/if}
 

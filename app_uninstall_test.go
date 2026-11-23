@@ -65,3 +65,47 @@ func TestDesinstalarReglas(t *testing.T) {
 		t.Fatal("la desinstalación marcó módulos como instalados")
 	}
 }
+
+func TestDesinstalarTodo(t *testing.T) {
+	a := newTestApp(t, secrets.Memory{})
+	srv, _ := a.store.SaveServer(store.Server{Name: "k", Host: "203.0.113.21", Port: 22, User: "ubuntu", AuthMethod: store.AuthKey, KeyPath: "/dev/null"})
+	p, err := a.SaveProject(store.Project{Name: "P", ServerID: srv.ID, Modules: []store.ProjectModule{
+		{ID: "postgres", Values: map[string]any{}}, {ID: "ssh", Values: map[string]any{"ssh_port": 2200}}, {ID: "firewall", Values: map[string]any{}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.store.SetLastRun(p.ID, store.RunSummary{OK: true})
+	p, _ = a.store.Project(p.ID)
+	// Marcado después y nunca aplicado: solo se quita de la lista.
+	p.Modules = append(p.Modules, store.ProjectModule{ID: "navidrome", Values: map[string]any{}})
+	p, _ = a.store.SaveProject(p)
+
+	plan := a.PlanUninstallAll(p.ID)
+	if !plan.OK {
+		t.Fatal(plan.Error)
+	}
+	rm := strings.Join(plan.Remove, ",")
+	for _, want := range []string{"postgres", "docker", "firewall"} {
+		if !contains(plan.Remove, want) {
+			t.Fatalf("falta %s en %s", want, rm)
+		}
+	}
+	if contains(plan.Remove, "base") || contains(plan.Remove, "ssh") {
+		t.Fatalf("base y SSH en otro puerto se quedan: %s", rm)
+	}
+	keep := map[string]string{}
+	for _, k := range plan.Keep {
+		keep[k.ID] = k.Warning
+	}
+	if !strings.Contains(keep["ssh"], "2200") || keep["base"] == "" {
+		t.Fatalf("motivos: %+v", plan.Keep)
+	}
+	if !contains(plan.Unmark, "navidrome") || contains(plan.Unmark, "postgres") {
+		t.Fatalf("sin aplicar: %+v", plan.Unmark)
+	}
+	// Su comprobación se hace ya sin los que nunca se instalaron.
+	if !plan.Check.OK || len(plan.Check.Modules) != len(plan.Remove) || !plan.Check.HasData {
+		t.Fatalf("el plan no pasa: %+v", plan.Check)
+	}
+}

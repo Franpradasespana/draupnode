@@ -154,6 +154,8 @@ export function PickKeyFile():Promise<string>;
 
 export function PingServers():Promise<Array<main.ServerPing>>;
 
+export function PlanUninstallAll(arg1:string):Promise<main.UninstallAllPlan>;
+
 export function ProjectSecrets(arg1:string,arg2:string):Promise<Array<main.ProjectSecret>>;
 
 export function ProjectSecretsInfo(arg1:string):Promise<main.ProjectSecretsSummary>;
@@ -225,6 +227,8 @@ export function TerminalOpen(arg1:string,arg2:string,arg3:string,arg4:number,arg
 export function TerminalResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function TestConnection(arg1:string,arg2:string,arg3:string):Promise<main.TestResult>;
+
+export function UninstallAll(arg1:string,arg2:boolean,arg3:string,arg4:string,arg5:string):Promise<main.RunStart>;
 
 export function UninstallModules(arg1:string,arg2:Array<string>,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<main.RunStart>;
 

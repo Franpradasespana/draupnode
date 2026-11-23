@@ -1013,3 +1013,24 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
   La salida de «Instalar actualizaciones» ya no lleva el ruido de «Reading database…».
 - Probado en el servidor de pruebas: el temporizador queda activo y la ficha lee el historial y el uso por app.
 - Ayuda: «Historial y disco lleno» y «Uso por app», con capturas nuevas (servidor-historial, servidor-apps).
+
+## 2026-11-23 · 0.58.0 · «Desinstalar todo» en la ficha del servidor
+
+- Pestaña «Módulos» de la ficha → **«Desinstalar todo…»**: quita del servidor todo lo que puso Draupnode y se puede
+  desinstalar, para dejarlo como recién preparado.
+  - `PlanUninstallAll` decide qué se va y qué se queda con su motivo: lo que no tiene desinstalación o no se puede
+    quitar (Sistema base), «SSH seguro» si usa otro puerto que el 22 (se perdería la conexión) y lo que necesita un
+    módulo que se queda. Los módulos marcados que nunca se instalaron solo salen de la lista. Trae ya la comprobación
+    de la desinstalación (`checkUninstallOf`, sin esos módulos).
+  - `UninstallAll` los quita de la lista y lanza la desinstalación normal (con su progreso). Al terminar bien, la
+    interfaz quita también el historial del servidor.
+  - El diálogo (UninstallDialog con `all`) enseña lo que se va y lo que se queda, trae marcado «Borrar también los
+    datos» y se confirma escribiendo el nombre del servidor.
+  - El sistema y el SSH no se tocan, y el cortafuegos deja abierto el puerto del SSH. Las apps huérfanas siguen en
+    «Lo que ya hay en el servidor». Para reinstalar el sistema entero, el panel del proveedor; en el servidor de
+    pruebas, «Borrar» y «Crear y arrancar».
+- Probado de punta a punta en un servidor desechable (otro contenedor con la imagen de pruebas): aplicados PostgreSQL,
+  Cortafuegos y Docker (1 min 39 s), activado el historial y marcado Navidrome sin aplicar; «Desinstalar todo» quitó
+  Docker, Cortafuegos y PostgreSQL con sus datos (18 tareas, 0 fallos), dejó Sistema base, sacó Navidrome de la lista
+  y el servidor quedó sin Docker ni temporizadores de Draupnode. Test `TestDesinstalarTodo`.
+- Ayuda: «Desinstalar todo».

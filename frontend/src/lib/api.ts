@@ -177,6 +177,17 @@ export interface UninstallCheck {
   selected: string[]
 }
 
+/** «Desinstalar todo»: qué se desinstala, qué se queda (con el motivo en warning) y qué solo sale de la lista. */
+export interface UninstallAllPlan {
+  ok: boolean
+  error?: string
+  remove: string[]
+  keep: { id: string; name: string; warning?: string }[]
+  unmark: string[]
+  /** La comprobación de la desinstalación, ya sin los de unmark. */
+  check: UninstallCheck
+}
+
 export interface Project {
   id: string
   name: string
@@ -694,6 +705,8 @@ interface Backend {
   BackupDownload(projectId: string, snapId: string, paths: string[], dest: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   DefaultBackupFolder(projectId: string): Promise<string>
   CheckUninstall(projectId: string, modules: string[]): Promise<UninstallCheck>
+  PlanUninstallAll(projectId: string): Promise<UninstallAllPlan>
+  UninstallAll(projectId: string, purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   UninstallModules(projectId: string, modules: string[], purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<RunStart>
   ProjectSecretsInfo(projectId: string): Promise<ProjectSecretsSummary>
   ProjectSecrets(projectId: string, master: string): Promise<ProjectSecret[]>
@@ -1163,6 +1176,23 @@ function mockBackend(): Backend {
       return { ok: !bad && !notInst, error: bad ? `${bad.name} no se puede desinstalar: ${bad.noUninstall ?? 'no tiene desinstalación'}` : notInst ? 'no está instalado con esta plantilla en este servidor' : undefined,
         modules: ms.map((m) => ({ id: m.id, name: m.name, warning: m.uninstallWarning, data: m.uninstallData })), hasData: ms.some((m) => !!m.uninstallData),
         server: servers.find((s) => s.id === p?.serverId)?.name ?? '', selected: mods.filter((m) => p?.modules.some((x) => x.id === m)) }
+    },
+    async PlanUninstallAll(id) {
+      const p = projects.find((x) => x.id === id)
+      const inst = p?.installedModules ?? []
+      const mod = (m: string) => MOCK_MODULES.find((x) => x.id === m)
+      const stays = inst.filter((m) => mod(m)?.noUninstall || !mod(m)?.uninstallable)
+      const remove = inst.filter((m) => !stays.includes(m))
+      return { ok: true, remove, unmark: (p?.modules ?? []).map((m) => m.id).filter((m) => !inst.includes(m)),
+        keep: stays.map((m) => ({ id: m, name: mod(m)?.name ?? m, warning: mod(m)?.noUninstall ?? 'todavía no tiene desinstalación' })),
+        check: { ok: remove.length > 0, error: remove.length ? undefined : 'no hay nada que desinstalar', modules: remove.map((m) => ({ id: m, name: mod(m)?.name ?? m, warning: mod(m)?.uninstallWarning, data: mod(m)?.uninstallData })),
+          hasData: remove.some((m) => !!mod(m)?.uninstallData), server: servers.find((s) => s.id === p?.serverId)?.name ?? '', selected: remove } }
+    },
+    async UninstallAll(id, purge, s, a, u) {
+      const plan = await this.PlanUninstallAll(id)
+      const p = projects.find((x) => x.id === id)
+      if (p) p.modules = p.modules.filter((m) => !plan.unmark.includes(m.id))
+      return this.UninstallModules(id, plan.remove, purge, s, a, u)
     },
     async UninstallModules(id, mods) {
       await wait(500)

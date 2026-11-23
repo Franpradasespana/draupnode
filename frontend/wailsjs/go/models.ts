@@ -1615,24 +1615,6 @@ export namespace main {
 	        this.durationMs = source["durationMs"];
 	    }
 	}
-	export class UninstallInfo {
-	    id: string;
-	    name: string;
-	    warning?: string;
-	    data?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new UninstallInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.warning = source["warning"];
-	        this.data = source["data"];
-	    }
-	}
 	export class UninstallCheck {
 	    ok: boolean;
 	    error?: string;
@@ -1673,6 +1655,65 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class UninstallInfo {
+	    id: string;
+	    name: string;
+	    warning?: string;
+	    data?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UninstallInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.warning = source["warning"];
+	        this.data = source["data"];
+	    }
+	}
+	export class UninstallAllPlan {
+	    ok: boolean;
+	    error?: string;
+	    remove: string[];
+	    keep: UninstallInfo[];
+	    unmark: string[];
+	    check: UninstallCheck;
+	
+	    static createFrom(source: any = {}) {
+	        return new UninstallAllPlan(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.error = source["error"];
+	        this.remove = source["remove"];
+	        this.keep = this.convertValues(source["keep"], UninstallInfo);
+	        this.unmark = source["unmark"];
+	        this.check = this.convertValues(source["check"], UninstallCheck);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	
 	export class UpdateInfo {
 	    current: string;

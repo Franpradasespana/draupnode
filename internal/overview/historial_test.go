@@ -43,10 +43,10 @@ func TestHistorial(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	var r struct {
-		HasData   bool        `json:"hasData"`
-		Day       [][]float64 `json:"day"`
-		Month     [][]float64 `json:"month"`
-		Forecast  struct {
+		HasData  bool        `json:"hasData"`
+		Day      [][]float64 `json:"day"`
+		Month    [][]float64 `json:"month"`
+		Forecast struct {
 			Enough bool    `json:"enough"`
 			PerDay float64 `json:"perDay"`
 			Days   float64 `json:"days"`
