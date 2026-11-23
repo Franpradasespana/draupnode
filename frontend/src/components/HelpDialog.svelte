@@ -30,10 +30,10 @@
         <button class:active={h.id === current} onclick={() => go(h.id)}>{h.title}</button>
       {/each}
     </nav>
+    <div class="main">
     <section bind:this={bodyEl}>
       <header>
         <h1>{sec.title}</h1>
-        <button class="btn icon ghost sm" onclick={() => (ui.help = null)} aria-label="Cerrar"><X size={17} /></button>
       </header>
       <p class="intro">{sec.intro}</p>
       <ol>
@@ -50,6 +50,11 @@
       </ol>
       {#if sec.id === 'probar'}<ModuleTests />{/if}
     </section>
+    <footer>
+      <span class="muted">Esc también cierra</span>
+      <button class="btn" onclick={() => (ui.help = null)}><X size={15} /> Cerrar</button>
+    </footer>
+    </div>
   </div>
 </div>
 
@@ -75,7 +80,10 @@
   }
   nav button:hover { background: var(--border-soft); color: var(--text); }
   nav button.active { background: var(--accent-soft); color: var(--text); font-weight: 500; }
-  section { overflow-y: auto; padding: 20px 28px 32px; }
+  .main { display: flex; flex-direction: column; min-height: 0; }
+  section { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 28px 32px; }
+  footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 10px 18px; border-top: 1px solid var(--border); background: var(--panel); font-size: 12.5px; }
+  .muted { color: var(--muted); }
   header { display: flex; justify-content: space-between; align-items: center; }
   .intro { color: var(--muted); margin: 6px 0 18px; line-height: 1.55; }
   ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px; }

@@ -74,3 +74,8 @@ prueba:
   comprobar:
     - "La consulta devuelve 1."
     - "Ficha → Apps y bases → Bases de datos: sale MariaDB con la base «blog»."
+  necesita:
+    - "Las bases que quieres, una por línea (minúsculas, números y _). Cada una con su usuario y contraseña (en Contraseñas)."
+  problemas:
+    - "Una app no conecta → tiene que estar en la red «apps» y usar el host mariadb-compartido."
+    - "«Access denied» con root → la contraseña de root está en Contraseñas (Usuario «root» de MariaDB)."

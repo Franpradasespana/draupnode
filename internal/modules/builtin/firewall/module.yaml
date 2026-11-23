@@ -36,3 +36,9 @@ prueba:
     - "Ficha → Red y seguridad: «El cortafuegos deja pasar» enseña 22/tcp, 80/tcp y 443/tcp."
     - "En «Terminal»: «sudo iptables -S INPUT» tiene las reglas con la etiqueta draupnode y «/etc/iptables/rules.v4» las guarda."
     - "El SSH sigue funcionando (la ficha se sigue leyendo) y el 8080 aparece y desaparece al añadirlo y quitarlo."
+  necesita:
+    - "Los puertos TCP que quieres abiertos, uno por línea. Los que necesitan otros módulos (80/443 de Caddy o nginx, 8000 de Coolify…) se añaden solos al marcarlos."
+    - "Deja siempre el del SSH (22 o el que pongas en «SSH seguro»): Draupnode no te deja quitarlo."
+  problemas:
+    - "Un puerto abierto aquí no se ve desde fuera → el proveedor de nube (Oracle, AWS…) tiene su propio cortafuegos: ábrelo también en su panel (la ficha avisa si lo detecta)."
+    - "Un puerto de Docker se ve desde fuera aunque no esté en la lista → lo que publica Docker se salta iptables; publica las apps solo en 127.0.0.1 (los módulos ya lo hacen) y entra por Caddy/nginx o el túnel."

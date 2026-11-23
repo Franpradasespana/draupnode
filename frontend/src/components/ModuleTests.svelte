@@ -2,7 +2,7 @@
   // Ayuda → «Probar cada módulo»: un desplegable por módulo (agrupados por
   // categoría) con cómo probarlo en el servidor de pruebas y qué debería verse.
   // «Probado: funciona» se recuerda en este equipo, para ir repasándolos todos.
-  import { FlaskConical, CircleCheck, ListOrdered, Eye, SlidersHorizontal } from '@lucide/svelte'
+  import { FlaskConical, CircleCheck, ListOrdered, Eye, SlidersHorizontal, ClipboardList, LifeBuoy } from '@lucide/svelte'
   import ModuleForm from './ModuleForm.svelte'
   import { ui } from '../lib/state.svelte'
   import type { Module } from '../lib/api'
@@ -58,12 +58,20 @@
           {#if done[m.id]}<span class="okt"><CircleCheck size={14} /> probado el {when(done[m.id])}</span>{/if}
         </summary>
         <div class="body">
+          {#if m.prueba?.necesita?.length}
+            <h4><ClipboardList size={14} /> Qué tienes que rellenar</h4>
+            <ul>{#each m.prueba.necesita as n}<li>{n}</li>{/each}</ul>
+          {/if}
           {#if m.prueba?.lab}<p class="lab"><FlaskConical size={14} /> <span><strong>En el servidor de pruebas:</strong> {m.prueba.lab}</span></p>{/if}
           <h4><ListOrdered size={14} /> Pasos</h4>
           <ol>{#each m.prueba?.pasos ?? [] as p}<li>{p}</li>{/each}</ol>
           {#if m.prueba?.comprobar?.length}
             <h4><Eye size={14} /> Cómo queda y qué comprobar</h4>
             <ul>{#each m.prueba.comprobar as c}<li>{c}</li>{/each}</ul>
+          {/if}
+          {#if m.prueba?.problemas?.length}
+            <h4><LifeBuoy size={14} /> Si falla</h4>
+            <ul class="probs">{#each m.prueba.problemas as p}{@const [sin, sol] = p.split(' → ')}<li>{#if sol}<strong>{sin}</strong> → {sol}{:else}{p}{/if}</li>{/each}</ul>
           {/if}
           {#if open[m.id] && forms[m.id]}
             <h4><SlidersHorizontal size={14} /> Su configuración (con los valores por defecto)</h4>
@@ -101,6 +109,8 @@
   h4 { display: flex; gap: 6px; align-items: center; font-size: 12.5px; margin: 10px 0 4px; color: var(--muted); }
   ol, ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
   .form { border: 1px solid var(--border-soft); border-radius: 8px; padding: 10px 12px; background: var(--panel-2); }
+  .lab { margin-top: 10px; }
+  .probs li strong { font-weight: 600; }
   .chk { display: inline-flex; gap: 8px; align-items: center; margin-top: 10px; font-weight: 500; cursor: pointer; }
   .muted { color: var(--muted); }
   .small { font-size: 12.5px; margin-top: 14px; }

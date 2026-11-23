@@ -63,3 +63,8 @@ prueba:
   comprobar:
     - "El panel enseña CPU, memoria, servicios y registros, y su terminal funciona."
     - "Solo escucha en 127.0.0.1 (y en la VPN si la hay): desde fuera no se ve."
+  necesita:
+    - "Nada: se abre con «Abrir (túnel SSH)» y el usuario de Contraseñas. Dominio opcional (con Caddy o nginx)."
+  problemas:
+    - "No deja administrar → activa «Puede administrar (sudo)» y aplica."
+    - "Choca con otra app en el 9090 → cambia su puerto."

@@ -135,7 +135,28 @@ var errHints = []errHint{
 		return "Permisos: la app no puede escribir en una carpeta. Si su imagen no corre como root, pon su UID:GID en «Dueño de la carpeta de la app» (Draupnode lo intenta solo)."
 	}},
 	{regexp.MustCompile(`(?i)(port is already allocated|address already in use)`), func(m []string) string {
-		return "El puerto ya lo usa otra cosa en el servidor. Cambia el puerto de la app (APP_HOST_PORT o la variable que lo controle) y «Puerto de la app»."
+		return "El puerto ya lo usa otra cosa en el servidor (otro módulo u otra app). Cambia el puerto en el módulo: en «Tu app», el que publica el compose (APP_HOST_PORT o la variable que lo controle) y «Puerto de la app en el servidor»."
+	}},
+	{regexp.MustCompile(`(?i)toomanyrequests|too many requests|rate limit`), func(m []string) string {
+		return "El registro de imágenes (Docker Hub o ghcr.io) limita las descargas: espera unos minutos y vuelve a aplicar."
+	}},
+	{regexp.MustCompile(`(?i)pull access denied|manifest unknown|manifest for .* not found`), func(m []string) string {
+		return "La imagen de Docker no existe o es privada: revisa su nombre y su etiqueta (o inicia sesión en el registro)."
+	}},
+	{regexp.MustCompile(`se reinicia sin parar o se ha caído con error`), func(m []string) string {
+		return "Un contenedor no llega a arrancar: sus últimos registros están justo arriba. Suele ser una opción o variable que falta o está mal puesta."
+	}},
+	{regexp.MustCompile(`Hacen falta \d+ MB de RAM`), func(m []string) string {
+		return "El servidor tiene poca memoria para lo que quieres instalar: usa uno más grande o quita módulos pesados (Immich, Coolify, Monitorización…). Más swap (Sistema base) ayuda a arrancar, pero va lento."
+	}},
+	{regexp.MustCompile(`Hacen falta \d+ GB libres`), func(m []string) string {
+		return "Falta disco: Ficha → Contenedores → «Limpiar Docker…» libera espacio, o amplía el disco en tu proveedor."
+	}},
+	{regexp.MustCompile(`Ya hay un contenedor «`), func(m []string) string {
+		return "Ese nombre de contenedor lo usa algo que no es de este servidor en Draupnode (una instalación anterior u otra herramienta): quítalo (Módulos → «Lo que ya hay en el servidor») o cambia el nombre en el módulo."
+	}},
+	{regexp.MustCompile(`(?i)challenge failed|DNS problem|NXDOMAIN|Timeout during connect|could not get certificate|obtaining certificate`), func(m []string) string {
+		return "No se pudo conseguir el certificado HTTPS: el dominio tiene que apuntar a la IP de este servidor y los puertos 80 y 443 estar abiertos (también en el cortafuegos de tu proveedor de nube)."
 	}},
 	{regexp.MustCompile(`(?i)no space left on device`), func(m []string) string {
 		return "El disco del servidor está lleno. Ficha → Contenedores → «Limpiar Docker…» libera imágenes y caché que no se usan."

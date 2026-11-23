@@ -64,3 +64,10 @@ prueba:
   comprobar:
     - "El panel de Coolify carga y entras con tu correo y esa contraseña."
     - "Ficha → Apps y bases: sale «Panel de Coolify»; las apps que publiques en Coolify aparecen ahí con su dirección."
+  necesita:
+    - "Pon tu correo en «Correo del administrador»: si lo dejas vacío, el primero que abra el panel (puerto 8000, abierto a internet) se queda con la cuenta de administrador."
+    - "2 GB de RAM y 30 GB de disco como mínimo. No puede ir con Caddy ni nginx (los tres quieren los puertos 80 y 443)."
+  problemas:
+    - "«Hacen falta 1800 MB de RAM…» → el servidor es pequeño para Coolify."
+    - "El panel no carga desde fuera → abre el 8000 en el cortafuegos del proveedor de nube (el Cortafuegos de Draupnode ya lo abre)."
+    - "«Caddy y Coolify no pueden ir juntos» → quita Caddy/nginx: Coolify trae su propio proxy (Traefik)."

@@ -58,3 +58,8 @@ prueba:
   comprobar:
     - "doubleclick.net devuelve 0.0.0.0 (bloqueado) y example.com su IP real."
     - "El panel de AdGuard carga y cuenta las consultas; las configuraciones de WireGuard llevan DNS = 10.8.0.1."
+  necesita:
+    - "Nada (necesita WireGuard): los dispositivos de la VPN usan su DNS solos. El usuario del panel está en Contraseñas."
+  problemas:
+    - "No bloquea anuncios → el dispositivo no está usando la VPN, o su configuración es anterior a AdGuard: vuelve a importar la de «Ver configuraciones» (lleva DNS = 10.8.0.1)."
+    - "Una web legítima no carga → añádela a la lista blanca en el panel de AdGuard."

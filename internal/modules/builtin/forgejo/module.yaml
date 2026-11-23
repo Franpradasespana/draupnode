@@ -80,3 +80,8 @@ prueba:
   comprobar:
     - "Forgejo carga, entras como administrador y el repositorio guarda tus commits."
     - "El registro de usuarios está cerrado (solo el administrador crea cuentas)."
+  necesita:
+    - "Nada: el administrador se crea solo (en Contraseñas). Dominio opcional; el puerto SSH para git (2222) se abre en el Cortafuegos."
+  problemas:
+    - "Falla con «Bind for 127.0.0.1:3000 failed: port is already allocated» → chocaba con Grafana; desde la 0.60 su puerto por defecto es el 3001 y Draupnode avisa de puertos repetidos. Cambia «Puerto en el servidor (solo local)»."
+    - "git push por SSH no funciona → usa el puerto SSH de Forgejo (2222 por defecto) y ábrelo en el proveedor de nube."

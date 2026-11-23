@@ -45,3 +45,8 @@ prueba:
     - "En «Terminal», haz algo que deje rastro (por ejemplo «sudo true» o reiniciar un contenedor)."
   comprobar:
     - "Salen los registros de los contenedores y del sistema (SSH, sudo, servicios), y lo que hiciste aparece al momento."
+  necesita:
+    - "Nada (necesita Monitorización). 2 GB de RAM; guarda 14 días por defecto."
+  problemas:
+    - "No salen registros del sistema → activa «Registros del sistema (journald)»."
+    - "El disco se llena → baja «Días de registros que se guardan»."

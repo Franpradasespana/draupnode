@@ -114,3 +114,11 @@ prueba:
   comprobar:
     - "Las copias del origen aparecen en el destino."
     - "Desde el origen no se pueden borrar las del destino (modo solo añadir): un intruso en el origen no las destruye."
+  necesita:
+    - "Nada a mano: se configura desde el servidor que hace las copias (Copias → «Guardar también en otro servidor»), que pone el certificado y las contraseñas."
+    - "10 GB libres como mínimo, y el puerto (8000 por defecto) abierto en el cortafuegos del proveedor para el servidor de origen."
+  problemas:
+    - "«Clave privada HTTPS: lo pone Draupnode…» en rojo → no lo añadas a mano, usa «Guardar también en otro servidor»."
+    - "El origen no llega («connection refused», «timeout») → el puerto está cerrado en el proveedor de nube del destino."
+    - "Cambió la IP del destino → vuelve a usar «Guardar también en otro servidor»: el certificado va ligado a la dirección."
+    - "Choca con Coolify en el 8000 → cambia el puerto del destino."

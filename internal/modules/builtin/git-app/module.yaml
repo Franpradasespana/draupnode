@@ -83,7 +83,7 @@ variables:
     pattern_help: Ruta a un .yml
   - name: git_app_env
     label: Variables (.env)
-    help: "Las de tu app que no son secretas, una por fila (nombre y valor). Las resaltadas hay que completarlas o revisarlas antes de aplicar. Las contraseñas no van aquí: en «Generar en el servidor» o en «Variables secretas»."
+    help: "Las de tu app que no son secretas, una por fila (nombre y valor). Las resaltadas hay que completarlas o revisarlas antes de aplicar. Las contraseñas no van aquí: en «Generar en el servidor (secretos al azar)» o en «Variables secretas»."
     type: list
     default: []
     pattern: '^[A-Za-z_][A-Za-z0-9_]*=.*$'
@@ -186,3 +186,13 @@ prueba:
     - "La app responde en el navegador y, si tiene base de datos, ha hecho sus migraciones."
     - "Ficha → Apps y bases → Uso por app: sale con su CPU y memoria."
     - "Cambia algo en tu proyecto, vuelve a aplicar y se actualiza."
+  necesita:
+    - "De dónde sale el código: «git» con la dirección del repositorio (y un token de solo lectura o una deploy key si es privado) o «carpeta» con la de tu equipo. Tiene que tener un docker-compose.yml."
+    - "«Nombre de la app» (su carpeta y sus contenedores) y «Puerto de la app en el servidor»: el que publica tu compose en 127.0.0.1 (0 = no comprobar). Cada app del servidor, con un nombre y un puerto distintos."
+    - "Las variables de su .env («Leer el repositorio» o Docker Creator las rellenan); las contraseñas, en «Generar en el servidor (secretos al azar)». Si usa base de datos, «postgres-compartido» o la suya del compose."
+  problemas:
+    - "«Permission denied» → la imagen no corre como root: pon su UID:GID en «Dueño de la carpeta de la app»."
+    - "Responde pero da errores de base de datos → falta preparar la base: pon «Orden después de arrancar» (./manage.py migrate, php artisan migrate --force…)."
+    - "«port is already allocated» o el puerto en rojo → otra app usa ese puerto: cambia el del compose y «Puerto de la app en el servidor»."
+    - "La construcción se corta → tarda más de «Tiempo máximo para construir (minutos)» o pasa 10 minutos sin escribir nada (modo desarrollo o watch en el Dockerfile)."
+    - "Debajo de un error de la app sale «Qué significa» con la causa más probable (falta una librería, una variable, la extensión de la base de datos…)."

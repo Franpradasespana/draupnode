@@ -82,3 +82,10 @@ prueba:
   comprobar:
     - "wg show enseña la interfaz wg0 con 10.8.0.1 y un peer por dispositivo."
     - "En un servidor público: con la app WireGuard del móvil y el QR, conectas y «ping 10.8.0.1» responde."
+  necesita:
+    - "Los dispositivos, uno por línea (portatil, movil…): cada uno tendrá su configuración y su QR en «Ver configuraciones»."
+    - "El puerto UDP 51820 abierto en el cortafuegos del proveedor de nube (el de Draupnode solo maneja TCP)."
+    - "«Dirección pública del servidor»: vacía = la que usa Draupnode para entrar; si entras por una IP privada o un túnel, pon la pública."
+  problemas:
+    - "El móvil conecta pero no hay tráfico («handshake» que no llega) → el 51820/UDP está cerrado en el proveedor de nube, o la dirección pública no es la buena."
+    - "Sin internet con la VPN puesta → «Todo el tráfico por la VPN» necesita que el servidor salga a internet; desactívalo si solo quieres llegar a los paneles."

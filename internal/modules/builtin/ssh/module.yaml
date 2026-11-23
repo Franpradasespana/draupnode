@@ -94,3 +94,10 @@ prueba:
     - "Draupnode sigue entrando con la clave (la ficha se lee)."
     - "El intento con contraseña se rechaza («Permission denied (publickey)»)."
     - "Ficha → Red y seguridad: sale fail2ban activo; en «Terminal», «sudo fail2ban-client status sshd» lo confirma."
+  necesita:
+    - "Nada para empezar: sin contraseñas, sin root y fail2ban activado."
+    - "Si cambias el puerto: ábrelo antes en el cortafuegos del proveedor de nube. «Solo pueden entrar estos usuarios», uno por línea; vacío = cualquiera con clave."
+  problemas:
+    - "Después de aplicar no entra nadie con contraseña → es lo esperado: entra con tu clave SSH."
+    - "Cambiaste el puerto y Draupnode ya no conecta → el proveedor de nube lo tiene cerrado; ábrelo en su panel o vuelve al 22 desde su consola."
+    - "fail2ban te ha bloqueado tu propia IP → pon tu IP en «IPs que nunca se bloquean»; mientras, entra desde otra red o espera al tiempo de bloqueo (1 h)."

@@ -1113,3 +1113,24 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
     Tests `TestRevisionTrucos` y `TestSoloWebs`.
 - **Configuración en «Probar cada módulo»**: cada desplegable enseña el formulario de verdad del módulo con sus valores
   por defecto (solo para ver, `inert`), en vez de capturas que se quedarían viejas.
+
+## 2026-11-23 · 0.61.0 · Qué rellenar y qué hacer si falla, en la ayuda; «Cerrar» de la ayuda abajo
+
+- Cada módulo trae en su bloque `prueba:` dos apartados más, que salen en Ayuda → «Probar cada módulo»:
+  - `necesita` → **«Qué tienes que rellenar»**: los parámetros que hacen falta para que funcione y su formato (casi
+    nada es obligatorio a secas: depende del caso, p. ej. repositorio o carpeta en «Tu app», correo con HTTPS en nginx,
+    puertos del proveedor de nube…).
+  - `problemas` → **«Si falla»**: «síntoma → qué hacer», con lo encontrado en la regresión (Vaultwarden sin dominio,
+    Forgejo en el 3000, toomanyrequests de ghcr.io en Immich, Destino de copias a mano) y lo conocido de cada uno
+    (certificados, cortafuegos del proveedor, UDP de WireGuard y Syncthing, /start en Telegram, permisos…).
+  - `TestGuiasDePrueba` exige los dos en todos los módulos incluidos. Las opciones citadas se han comprobado contra
+    las etiquetas reales de cada formulario.
+- Ayuda → **«Si algo falla»** (sección nueva, tras «Probar cada módulo»): dónde mirar (recuadro de la ejecución con
+  «Qué significa» y «Registro completo», Actividad reciente, registro de cada contenedor) y los fallos habituales:
+  falta de RAM o disco, puerto ocupado, contenedor de otra instalación, contenedor que se reinicia sin parar,
+  toomanyrequests, «NO responde todavía», cortafuegos del proveedor, certificado HTTPS, contraseñas/bóveda/sudo y por
+  qué una segunda aplicación puede cambiar algo.
+- **«Qué significa»** (explicación bajo un error al aplicar) reconoce también: límite de descargas del registro de
+  imágenes, imagen que no existe o es privada, contenedor que no arranca (`no_reinicia`), falta de RAM y de disco,
+  contenedor con el mismo nombre y certificado HTTPS que no sale. El del puerto ocupado ya no habla solo de «Tu app».
+- La ventana de ayuda tiene el botón **«Cerrar» en un pie** (siempre visible, aunque bajes); la ✕ de arriba se quita.

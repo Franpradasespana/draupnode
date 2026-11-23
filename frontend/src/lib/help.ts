@@ -16,7 +16,7 @@ export interface HelpStep {
 }
 
 export interface HelpSection {
-  id: View | 'general' | 'publicar' | 'probar'
+  id: View | 'general' | 'publicar' | 'probar' | 'fallos'
   title: string
   intro: string
   steps: HelpStep[]
@@ -123,6 +123,24 @@ export const HELP: HelpSection[] = [
       { title: 'Lo que necesitas a mano', text: 'Las contraseñas que genera cada módulo están en su página → Contraseñas. Las apps se abren con «Abrir (túnel SSH)» sin publicarlas en internet. Para comprobar cosas dentro del servidor, «Terminal».' },
       { title: 'Empezar de cero', text: 'Entre prueba y prueba: Módulos → «Desinstalar todo…» (con sus datos), o en «Servidor de pruebas», «Borrar» y «Crear y arrancar».' },
       { title: 'Lo que no se puede probar aquí', text: 'Los certificados de Let\'s Encrypt (Caddy y nginx), conectar un móvil por la VPN o sincronizar con Syncthing necesitan un servidor accesible desde internet. Cada módulo lo dice en su desplegable.' },
+    ],
+  },
+  {
+    id: 'fallos',
+    title: 'Si algo falla',
+    intro: 'Dónde mirar cuando algo no va, y los fallos más habituales con su solución. Cada módulo tiene además los suyos en «Probar cada módulo» → «Si falla».',
+    steps: [
+      { title: 'Dónde mirar', text: 'Al aplicar, el recuadro de la ejecución dice en qué tarea falló y, debajo del error, «Qué significa» con la causa más probable; «Registro completo» enseña todo. Las ejecuciones anteriores están en la ficha del servidor (Resumen → Actividad reciente, o Registros): pulsa una línea. Para una app, Contenedores → «Registro» en la fila de su contenedor; para un servicio caído, Resumen → Necesita atención → «ver registro».' },
+      { title: '«Hacen falta N MB de RAM» o «N GB libres»', text: 'El servidor es pequeño para lo que quieres instalar. Para el disco: Contenedores → «Limpiar Docker…». Para la memoria: un servidor más grande, quitar módulos pesados (Immich pide 4 GB, Coolify 2 GB, Registros 2 GB) o más swap en Sistema base (arranca, pero va lento).' },
+      { title: '«port is already allocated» o un puerto en rojo', text: 'Dos cosas quieren el mismo puerto (por ejemplo, Grafana y otra app en el 3000). Draupnode avisa antes de aplicar si son dos módulos; si es algo que no instaló Draupnode, cambia el puerto en el módulo.' },
+      { title: '«Ya hay un contenedor … que no es de este proyecto»', text: 'Quedó de una instalación anterior o de otra herramienta. No se toca nada: quítalo en Módulos → «Lo que ya hay en el servidor» (apps que Draupnode ya no gestiona) o cambia el nombre en el módulo.' },
+      { title: '«se reinicia sin parar o se ha caído con error»', text: 'La app no llega a arrancar. Debajo salen sus últimos registros: casi siempre es una opción o una variable que falta o está mal (en «Tu app», mira las variables resaltadas). Arregla y vuelve a aplicar.' },
+      { title: '«toomanyrequests»', text: 'Docker Hub o el registro de GitHub (ghcr.io) limitan las descargas de imágenes. Espera unos minutos y vuelve a aplicar.' },
+      { title: '«NO responde todavía» en la nota final', text: 'La app arrancó pero aún no contesta: las pesadas (Immich, Paperless, Jellyfin) tardan la primera vez. Espera un poco y pulsa «Abrir»; si sigue sin responder, mira el registro de su contenedor.' },
+      { title: 'Desde fuera no se llega (y desde el servidor sí)', text: 'El proveedor de nube (Oracle, AWS, Hetzner…) tiene su propio cortafuegos, aparte del de Draupnode: abre allí el puerto (TCP o UDP). La ficha avisa cuando lo detecta. WireGuard (51820/UDP) y Syncthing (22000) suelen ser los olvidados.' },
+      { title: 'El certificado HTTPS no sale', text: 'Caddy y nginx (certbot) necesitan que el dominio apunte a la IP de este servidor y los puertos 80 y 443 abiertos también en el proveedor de nube. En el servidor de pruebas no puede salir (no es accesible desde internet): usa un dominio .localhost o desactiva HTTPS.' },
+      { title: 'Pide la contraseña, la bóveda o sudo', text: 'Si la contraseña de la clave o de sudo no está guardada, Draupnode la pide en cada conexión; «Actualizar sola» no puede pedirla. Las contraseñas generadas se guardan en la bóveda cifrada: si está bloqueada al aplicar, vuelve a aplicar con ella abierta para traerlas.' },
+      { title: 'La segunda vez que aplicas cambia algo', text: 'Lo normal es que una segunda aplicación diga 0 cambios. Algunos módulos actualizan su imagen al aplicar («Actualizar … al aplicar»): si hay versión nueva, se recrea el contenedor y cuenta como cambio.' },
     ],
   },
   {

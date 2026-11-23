@@ -72,3 +72,8 @@ prueba:
     - "La consulta devuelve 1."
     - "Ficha → Apps y bases → Bases de datos: sale pg-compartido con la base «tienda» y lo que pesa."
     - "Si desinstalas sin «borrar datos» y vuelves a instalar, la base y su contraseña siguen ahí."
+  necesita:
+    - "Las bases que quieres, una por línea (minúsculas, números y _; empezando por letra). Cada una tendrá un usuario con su nombre y su contraseña (en Contraseñas)."
+  problemas:
+    - "Una app no conecta → tiene que estar en la red «apps» y usar el host pg-compartido (con «Tu app», elige «postgres-compartido» y lo hace solo)."
+    - "Quitaste una base de la lista y sigue ahí → no se borran bases para no perder datos; bórrala a mano si quieres."

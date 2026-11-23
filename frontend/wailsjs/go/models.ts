@@ -1874,6 +1874,8 @@ export namespace modules {
 	    lab?: string;
 	    pasos: string[];
 	    comprobar: string[];
+	    necesita?: string[];
+	    problemas?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Prueba(source);
@@ -1884,6 +1886,8 @@ export namespace modules {
 	        this.lab = source["lab"];
 	        this.pasos = source["pasos"];
 	        this.comprobar = source["comprobar"];
+	        this.necesita = source["necesita"];
+	        this.problemas = source["problemas"];
 	    }
 	}
 	export class SecretFile {

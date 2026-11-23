@@ -78,3 +78,10 @@ prueba:
   comprobar:
     - "Con vault.localhost devuelve 200; con un dominio que no conoce, nginx corta la conexión (000)."
     - "«curl -sI -H 'Host: vault.localhost' http://127.0.0.1» no enseña la versión de nginx y trae las cabeceras de seguridad."
+  necesita:
+    - "Los sitios, uno por línea: «dominio destino» (127.0.0.1:PUERTO o /carpeta)."
+    - "Con HTTPS activado, el correo es obligatorio (certbot) y el dominio tiene que apuntar al servidor con el 80 y el 443 abiertos."
+  problemas:
+    - "certbot falla («Challenge failed», «DNS problem») → el dominio aún no apunta aquí o el 80 está cerrado en el proveedor; para probar sin dominio, desactiva HTTPS."
+    - "Un dominio que no está en la lista no responde → es a propósito: nginx corta las conexiones a dominios que no conoce."
+    - "Subir ficheros grandes da «413» → sube «Tamaño máximo de subida (MB)»."

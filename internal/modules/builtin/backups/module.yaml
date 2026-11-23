@@ -164,3 +164,11 @@ prueba:
     - "Salen las copias con su fecha y tamaño, y el volcado de cada base (postgres-…/tienda.dump)."
     - "La base restaurada tiene los mismos datos que la original."
     - "«Traer copias al equipo» descarga la copia a tu equipo."
+  necesita:
+    - "Nada para la copia local diaria (bases de datos, apps, Coolify y la carpeta de secretos). Añade en «Carpetas que copiar» las tuyas (rutas absolutas)."
+    - "Para guardar también fuera: el tipo (sftp, rest-server o s3) y la dirección (p. ej. sftp: usuario@203.0.113.40:/srv/copias/web). Lo más fácil: «Guardar también en otro servidor» desde la pestaña Copias."
+    - "5 GB libres como mínimo."
+  problemas:
+    - "La copia remota por SFTP falla con «Permission denied (publickey)» → añade en el otro servidor la clave pública que sale en Contraseñas («Clave pública para el servidor de copias (SFTP)»)."
+    - "Aviso «La última copia es de hace más de 26 h» → mira el registro de la copia (pestaña Copias) y que el servidor tenga la hora sincronizada."
+    - "Sin la contraseña de las copias (restic) no se pueden restaurar: haz «Exportar copia…» (Ajustes) de Draupnode y guárdala fuera del equipo."

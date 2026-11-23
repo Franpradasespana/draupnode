@@ -131,6 +131,10 @@ type Prueba struct {
 	Pasos []string `yaml:"pasos" json:"pasos"`
 	// Comprobar: cómo queda y qué mirar para saber que funciona.
 	Comprobar []string `yaml:"comprobar" json:"comprobar"`
+	// Necesita: lo que hay que rellenar para que funcione (y su formato), o que no hace falta nada.
+	Necesita []string `yaml:"necesita" json:"necesita,omitempty"`
+	// Problemas: fallos conocidos, «síntoma → qué hacer».
+	Problemas []string `yaml:"problemas" json:"problemas,omitempty"`
 }
 
 // Link es un enlace a la web de un programa.

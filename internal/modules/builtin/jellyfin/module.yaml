@@ -69,3 +69,8 @@ prueba:
     - "Pulsa «Abrir (túnel SSH)», sigue el asistente y añade la biblioteca /media."
   comprobar:
     - "El vídeo aparece en la biblioteca y se reproduce en el navegador."
+  necesita:
+    - "Nada: la carpeta de vídeos es /srv/media (dentro de Jellyfin, /media). 1,5 GB de RAM."
+  problemas:
+    - "No ve los vídeos → están en otra carpeta: cambia «Carpeta de los vídeos», o cópialos a /srv/media, y añade la biblioteca /media en Jellyfin."
+    - "Los vídeos van a saltos → el servidor no da para convertirlos al vuelo; usa formatos que el dispositivo reproduzca directamente."

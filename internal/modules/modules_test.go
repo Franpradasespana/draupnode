@@ -152,8 +152,8 @@ func TestGuiasDePrueba(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, m := range c.All() {
-		if m.Prueba == nil || m.Prueba.Lab == "" || len(m.Prueba.Pasos) < 2 || len(m.Prueba.Comprobar) < 1 {
-			t.Errorf("%s: le falta la guía de prueba (prueba: lab, al menos 2 pasos y algo que comprobar)", m.ID)
+		if m.Prueba == nil || m.Prueba.Lab == "" || len(m.Prueba.Pasos) < 2 || len(m.Prueba.Comprobar) < 1 || len(m.Prueba.Necesita) < 1 || len(m.Prueba.Problemas) < 1 {
+			t.Errorf("%s: le falta la guía de prueba (prueba: lab, al menos 2 pasos, algo que comprobar, qué necesita y problemas conocidos)", m.ID)
 		}
 	}
 }

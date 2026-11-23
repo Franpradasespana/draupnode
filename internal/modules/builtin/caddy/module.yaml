@@ -67,3 +67,10 @@ prueba:
     - "La orden devuelve 200: Caddy sirve la app por HTTPS."
     - "Ficha → Apps y bases: sale el sitio vault.localhost (Caddy)."
     - "Un segundo «Aplicar» no cambia nada."
+  necesita:
+    - "Los sitios, uno por línea: «dominio destino». Destino = 127.0.0.1:PUERTO (una app) o /carpeta (web estática). Los módulos de apps con dominio se añaden solos."
+    - "Para HTTPS de verdad: el dominio tiene que apuntar a la IP del servidor y los puertos 80 y 443 abiertos (también en el cortafuegos del proveedor). Correo opcional, para avisos de renovación."
+  problemas:
+    - "El certificado no sale («obtaining certificate» / «challenge failed») → el dominio no apunta a este servidor todavía, o el 80/443 están cerrados en el proveedor de nube."
+    - "«Caddy y nginx no pueden ir juntos» → elige uno de los dos."
+    - "Responde 502 → la app de destino no está escuchando en ese puerto (míralo en Apps y bases → Uso por app)."

@@ -72,3 +72,10 @@ prueba:
   comprobar:
     - "La web de Bitwarden carga, te registras y la contraseña se guarda."
     - "Con un dominio (Caddy o nginx), las apps y extensiones de Bitwarden conectan a https://tu-dominio."
+  necesita:
+    - "Nada para probarlo: «Abrir (túnel SSH)». Para usarlo de verdad con las apps y extensiones de Bitwarden: un dominio con Caddy o nginx (HTTPS)."
+    - "Deja «Permitir registrarse» activado hasta crear vuestras cuentas; luego desactívalo y aplica."
+  problemas:
+    - "Se reinicia sin parar con «DOMAIN variable needs to contain the protocol» → era un fallo de Draupnode anterior a la 0.60 (mandaba el dominio vacío): actualiza y vuelve a aplicar."
+    - "Las apps de Bitwarden no conectan → necesitan https://tu-dominio; por el túnel solo funciona la web."
+    - "El panel /admin pide un token → está en Contraseñas."

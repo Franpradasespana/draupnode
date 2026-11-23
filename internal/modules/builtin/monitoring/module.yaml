@@ -88,3 +88,9 @@ prueba:
   comprobar:
     - "Grafana carga y los paneles «Recursos» (CPU, RAM, disco), contenedores y PostgreSQL tienen datos."
     - "Grafana no se ve desde fuera: solo escucha en 127.0.0.1 del servidor."
+  necesita:
+    - "Nada. 1,5 GB de RAM y 5 GB de disco. Para ver PostgreSQL, el PostgreSQL compartido instalado."
+  problemas:
+    - "Los paneles de contenedores están vacíos → activa «Almacenamiento clásico overlay2» en Docker y aplica (con el almacenamiento nuevo de containerd, cAdvisor no ve los contenedores)."
+    - "Choca con otra app en el 3000 → cambia «Puerto de Grafana en el servidor» (Draupnode avisa de puertos repetidos)."
+    - "«Abrir Grafana» no carga → el túnel SSH necesita la contraseña de la conexión guardada o la bóveda abierta."

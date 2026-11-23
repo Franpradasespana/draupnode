@@ -31,10 +31,16 @@ func TestPerfilesPorTipoDeApp(t *testing.T) {
 
 func TestErroresTraducidos(t *testing.T) {
 	cases := map[string]string{
-		`FATAL:  database "prueba" does not exist`:                         "«prueba» no existe",
-		`Bind for 127.0.0.1:3000 failed: port is already allocated`:        "El puerto ya lo usa",
-		`ModuleNotFoundError: No module named 'psycopg'`:                   "«psycopg»",
-		`ValueError: Fernet key must be 32 url-safe base64-encoded bytes.`: "NOMBRE:fernet",
+		`FATAL:  database "prueba" does not exist`:                                                                        "«prueba» no existe",
+		`Bind for 127.0.0.1:3000 failed: port is already allocated`:                                                       "El puerto ya lo usa",
+		`ModuleNotFoundError: No module named 'psycopg'`:                                                                  "«psycopg»",
+		`ValueError: Fernet key must be 32 url-safe base64-encoded bytes.`:                                                "NOMBRE:fernet",
+		`Error response from daemon: toomanyrequests: retry-after: 527µs`:                                                 "limita las descargas",
+		`dn-vaultwarden no arranca: dn-vaultwarden se reinicia sin parar o se ha caído con error. Sus últimos registros:`: "no llega a arrancar",
+		`Hacen falta 4000 MB de RAM y el servidor tiene 1900 MB.`:                                                         "poca memoria",
+		`Hacen falta 10 GB libres en / y hay 3 GB.`:                                                                       "Limpiar Docker",
+		`Ya hay un contenedor «dn-forgejo» que no es de este proyecto`:                                                    "Lo que ya hay en el servidor",
+		`Challenge failed for domain tienda.ejemplo.com`:                                                                  "certificado HTTPS",
 		`todo bien`: "",
 	}
 	for in, want := range cases {

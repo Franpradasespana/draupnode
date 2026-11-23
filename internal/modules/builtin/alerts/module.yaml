@@ -132,3 +132,11 @@ prueba:
     - "El aviso de prueba llega al móvil."
     - "«Qué ve ahora» enseña disco, memoria, copias y contenedores con su estado."
     - "Al parar el contenedor llega un aviso, y otro cuando lo vuelves a arrancar."
+  necesita:
+    - "Con ntfy: nada (el tema secreto se genera solo). Luego «Suscribirse en el móvil» con la app ntfy."
+    - "Con Telegram: el token del bot (te lo da @BotFather) y tu número de chat (escríbele al bot y míralo con @userinfobot)."
+    - "Opcional: umbrales de disco y RAM, y otros servidores que vigilar («IP:puerto», uno por línea)."
+  problemas:
+    - "No llega nada → pulsa «Enviar aviso de prueba»; si tampoco llega, el servidor no sale a internet o el tema/token está mal."
+    - "En Telegram no llega → escríbele antes /start a tu bot (los bots no pueden escribir a quien no les ha hablado)."
+    - "Llegan avisos repetidos → se repiten cada «Recordar un problema que sigue cada (horas)» mientras siga mal; súbelo si molesta."

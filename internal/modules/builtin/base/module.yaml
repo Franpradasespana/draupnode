@@ -53,3 +53,9 @@ prueba:
     - "La aplicación termina con 0 fallos y la segunda simulación dice 0 cambios (todo está como se pidió)."
     - "En «Terminal»: «timedatectl» enseña Europe/Madrid y «htop --version» responde."
     - "«systemctl status unattended-upgrades» está activo (actualizaciones de seguridad automáticas)."
+  necesita:
+    - "Nada: funciona con los valores por defecto. Revisa la zona horaria (formato Región/Ciudad, p. ej. Europe/Madrid)."
+    - "Swap: 2048 MB por defecto; en servidores con poca RAM (1 GB) súbelo. 0 = no crear."
+  problemas:
+    - "Tarda o se queda en «Esperar a que apt quede libre» → un servidor recién creado se está actualizando solo; espera unos minutos y vuelve a aplicar."
+    - "«Swap omitido: el servidor es un contenedor» → normal en el servidor de pruebas; en un VPS de verdad sí se crea."
