@@ -192,6 +192,8 @@ export function SaveUserModuleFile(arg1:string,arg2:string,arg3:string):Promise<
 
 export function SecretsInfo():Promise<main.SecretsInfo>;
 
+export function ServerHistory(arg1:string,arg2:boolean,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<main.DockerResult>;
+
 export function ServerLive(arg1:string):Promise<main.ServerLive>;
 
 export function ServerLogs(arg1:string,arg2:string,arg3:string,arg4:number,arg5:string,arg6:string,arg7:string):Promise<main.ServerLogsResult>;

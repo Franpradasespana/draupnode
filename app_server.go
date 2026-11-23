@@ -50,6 +50,7 @@ func (a *App) ServerOverview(serverID, secret, accept, sudoPassword string) Serv
 		if err := json.Unmarshal([]byte(lastJSONLine(out)), &ov); err != nil {
 			return RunStart{Status: "error", Message: "respuesta no válida del servidor: " + err.Error()}
 		}
+		markHistoryOutdated(ov)
 		res.Overview = ov
 		a.refreshFacts(serverID, ov)
 		a.saveOverview(serverID, ov)

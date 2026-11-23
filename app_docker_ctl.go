@@ -98,7 +98,7 @@ func (a *App) DockerPrune(serverID string, what []string, secret, accept, sudoPa
 }
 
 // RemoveOrphanApp borra una app que Draupnode ya no gestiona (se quedó al
-// cambiar el nombre o quitar una App desde Git): sus contenedores (proyecto
+// cambiar el nombre o quitar una «Tu app»): sus contenedores (proyecto
 // dn-<nombre>), su carpeta /srv/draupnode/apps/<nombre> y, con purge, sus
 // volúmenes (los datos: su base de datos…). No toca ninguna app gestionada.
 func (a *App) RemoveOrphanApp(serverID, name string, purge bool, secret, accept, sudoPassword string) DockerResult {
@@ -127,7 +127,7 @@ func (a *App) RemoveOrphanApp(serverID, name string, purge bool, secret, accept,
 // ServerUpgrade instala las actualizaciones pendientes del sistema (apt).
 func (a *App) ServerUpgrade(serverID, secret, accept, sudoPassword string) DockerResult {
 	cmd := "export DEBIAN_FRONTEND=noninteractive; apt-get update -q >/dev/null 2>&1; " +
-		"apt-get -y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade 2>&1 | tail -n 25; " +
+		"apt-get -y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade 2>&1 | grep -v -e 'Reading database' -e '^debconf:' | tail -n 25; " +
 		"[ -f /var/run/reboot-required ] && echo '== Hace falta reiniciar el servidor para terminar.' || true"
 	return a.dockerExec(serverID, cmd, secret, accept, sudoPassword)
 }

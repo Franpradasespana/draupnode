@@ -35,7 +35,7 @@ func TestDosAppsDeGit(t *testing.T) {
 	for _, m := range p.Modules {
 		ids = append(ids, m.ID)
 	}
-	if !strings.Contains(strings.Join(ids, ","), "git-app@blog") || a.moduleName("git-app@blog") != "App desde Git (Docker Compose) · blog" {
+	if !strings.Contains(strings.Join(ids, ","), "git-app@blog") || a.moduleName("git-app@blog") != "Tu app (Git o carpeta) · blog" {
 		t.Fatalf("copias: %v", ids)
 	}
 	if _, err := a.SaveProject(store.Project{ID: p.ID, ServerID: srv.ID, Name: "web", Modules: []store.ProjectModule{{ID: "docker@otra", Values: map[string]any{}}}}); err == nil {

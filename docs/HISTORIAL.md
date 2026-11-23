@@ -988,3 +988,28 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
     (o sin HTTPS), hora sin sincronizar, y muchos intentos de SSH sin fail2ban.
   - Red y seguridad: intentos de SSH con las IPs que más insisten, caducidad de cada certificado, y las
     actualizaciones con «Instalar actualizaciones…» (`ServerUpgrade`) y «Reiniciar el servidor…» (`ServerReboot`).
+
+## 2026-11-23 · 0.57.0 · Historial de CPU/memoria/disco con previsión del disco lleno, uso por app y «Tu app»
+
+- **Historial del servidor** (Resumen de la ficha): «Empezar a guardar el historial» instala en el servidor
+  `internal/overview/historial.py` como `/usr/local/lib/draupnode/historial.py` y el temporizador
+  `draupnode-historial` (cada 5 minutos, `Nice=10`), que guarda en `/var/lib/draupnode/historial/`:
+  - `muestras.jsonl`: CPU (media desde la muestra anterior), memoria, disco `/` y CPU/memoria de cada app; 48 h.
+  - `horas.jsonl`: resumen de cada hora (medias, máximos y el último disco); 1 año.
+  - Funciona aunque Draupnode esté cerrado. La ficha lo lee con el mismo código (overview.py lleva historial.py delante).
+  - Gráficas de 24 horas o 30 días (en 30 días, la banda clara es el máximo de cada hora), con guía y valor al pasar el ratón.
+  - **Previsión del disco**: recta por mínimos cuadrados con lo usado en los últimos 7 días (al menos 12 h de muestras;
+    si se amplía el disco, solo cuenta lo del tamaño nuevo). Crecer menos de 50 MB al día es «estable». Si se llena
+    antes de 14 días sale en «Necesita atención» y en los avisos (rojo a menos de 3).
+  - Avisa si el temporizador está parado o el recolector del servidor es de una versión anterior (y lo actualiza).
+    «Dejar de guardar…» lo quita y borra lo guardado. `ServerHistory` en app_metrics.go.
+- **Uso por app** (Apps y bases): los contenedores sumados por app (proyecto de Compose, app de Coolify o contenedor
+  suelto; la misma clave que el historial) con CPU y memoria de ahora y, con historial, una minigráfica de 24 h
+  con la media y el máximo. La ficha trae ahora `cpuP`/`memB` numéricos y `app` en cada contenedor.
+- El módulo «App desde Git» se llama ahora **«Tu app (Git o carpeta)»** (el id sigue siendo `git-app`).
+- Servidor de pruebas: el contenedor se crea con `--restart unless-stopped` (y los ya creados se actualizan al
+  arrancar), así «Reiniciar el servidor» lo para y vuelve solo como una máquina de verdad. Probados en él
+  «Instalar actualizaciones» (2 paquetes en 7 s) y «Reiniciar» (vuelve en 8 s con todas las apps).
+  La salida de «Instalar actualizaciones» ya no lleva el ruido de «Reading database…».
+- Probado en el servidor de pruebas: el temporizador queda activo y la ficha lee el historial y el uso por app.
+- Ayuda: «Historial y disco lleno» y «Uso por app», con capturas nuevas (servidor-historial, servidor-apps).

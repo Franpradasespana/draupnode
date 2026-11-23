@@ -1,5 +1,5 @@
 id: git-app
-name: App desde Git (Docker Compose)
+name: Tu app (Git o carpeta)
 version: 1.0.0
 category: 3 · Plataformas
 description: Despliega tu app con su docker-compose.yml (por ejemplo, el que genera Docker Creator), desde un repositorio de Git o desde una carpeta de este equipo. Al aplicar, la actualiza.

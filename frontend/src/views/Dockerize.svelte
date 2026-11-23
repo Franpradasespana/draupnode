@@ -247,7 +247,7 @@
   const upCmd = $derived('docker compose' + (spec?.sideBySide ? ' -f ' + composeName : '') + ' up -d --build')
   const canNext = $derived(step === 0 ? !!spec && !analyzing : !!spec?.stack)
 
-  // ---- Publicar en un servidor (App desde Git que sale de esta carpeta)
+  // ---- Publicar en un servidor (Tu app que sale de esta carpeta)
   let pubServer = $state('')
   let publishing = $state(false)
   let pubResult = $state<PublishResult | null>(null)

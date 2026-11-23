@@ -13,7 +13,7 @@
   } = $props()
   // Otra copia de un módulo repetible («git-app@blog»): sus datos secretos llevan «@blog».
   const inst = $derived(m.id.includes('@') ? m.id.slice(m.id.indexOf('@') + 1) : '')
-  // App desde Git: solo los campos de donde sale el código (repositorio o carpeta de este equipo).
+  // Tu app: solo los campos de donde sale el código (repositorio o carpeta de este equipo).
   const isGit = $derived(m.id.split('@')[0] === 'git-app')
   const GIT_ONLY = ['git_app_repo', 'git_app_token', 'git_app_branch', 'git_app_update']
   function shown(name: string): boolean {

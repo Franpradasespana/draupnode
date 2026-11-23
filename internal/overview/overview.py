@@ -2,7 +2,7 @@
 # Saca un JSON con: sistema, CPU, memoria, discos, contenedores (con su uso),
 # bases de datos y su tamaño, apps de Coolify, sitios de nginx/Caddy,
 # servicios caídos, copias de Draupnode, actualizaciones, hora, intentos de SSH,
-# caducidad de los certificados, puertos escuchando y lo que deja pasar el cortafuegos. Cada parte es independiente: si una
+# caducidad de los certificados, historial (historial.py va delante), puertos escuchando y lo que deja pasar el cortafuegos. Cada parte es independiente: si una
 # falla, las demás siguen.
 import glob, json, os, re, shutil, socket, subprocess, time
 
@@ -74,7 +74,8 @@ def _():
     for l in run("docker", "stats", "--no-stream", "--format", "{{.ID}}|{{.CPUPerc}}|{{.MemUsage}}", timeout=30).splitlines():
         p = l.split("|")
         if len(p) == 3:
-            stats[p[0][:12]] = {"cpu": p[1], "mem": p[2].split("/")[0].strip()}
+            mem = p[2].split("/")[0].strip()
+            stats[p[0][:12]] = {"cpu": p[1], "mem": mem, "cpuP": hist_pct(p[1]), "memB": hist_bytes(mem)}
     res = []
     for c in json.loads(run("docker", "inspect", *ids, timeout=30) or "[]"):
         lab = (c.get("Config") or {}).get("Labels") or {}
@@ -83,7 +84,9 @@ def _():
             for b in binds or []:
                 ports.append(f"{b.get('HostIp') or '0.0.0.0'}:{b.get('HostPort')}->{cp}")
         st = c.get("State") or {}
+        coolify = lab.get("coolify.name", "") or lab.get("coolify.serviceName", "")
         res.append({"id": c["Id"][:12], "name": c["Name"].lstrip("/"), "image": (c.get("Config") or {}).get("Image", ""),
+                    "app": hist_app_key(lab.get("com.docker.compose.project", ""), coolify, c["Name"].lstrip("/")),
                     "state": st.get("Status", ""), "health": (st.get("Health") or {}).get("Status", ""),
                     "started": st.get("StartedAt", ""), "restarts": c.get("RestartCount", 0),
                     "compose": lab.get("com.docker.compose.project", ""), "draupnode": lab.get("draupnode.proyecto", ""),
@@ -363,6 +366,21 @@ def _():
     }
     active = {"nginx": svc("nginx"), "caddy": svc("caddy"), "docker": svc("docker")}
     return [{"module": k, "active": active.get(k, True)} for k, v in found.items() if v]
+
+@part("history")
+def _():
+    # Lo guarda el temporizador draupnode-historial (historial.py, que va delante de este script).
+    h = leer_historial()
+    # La versión y si está activo los dice el del servidor, no el que va aquí delante.
+    h["version"] = 0
+    try:
+        m = re.search(r"^HIST_VERSION = (\d+)", open("/usr/local/lib/draupnode/historial.py").read(), re.M)
+        h["version"] = int(m.group(1)) if m else 0
+        h["installed"] = True
+    except OSError:
+        h["installed"] = False
+    h["timer"] = run("systemctl", "is-active", "draupnode-historial.timer").strip() == "active"
+    return h
 
 out["at"] = int(time.time())
 print(json.dumps(out))

@@ -76,7 +76,7 @@ func CodeEnvKeys(dir string, known []string) []string {
 	return out
 }
 
-// Formatos de los valores que se generan al azar (los entiende el módulo App desde Git).
+// Formatos de los valores que se generan al azar (los entiende el módulo «Tu app»).
 const (
 	FormatText      = ""          // 40 letras y números
 	FormatFernet    = "fernet"    // 32 bytes en Base64 para URL (cryptography.Fernet)

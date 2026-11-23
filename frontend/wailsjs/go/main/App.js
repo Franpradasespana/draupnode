@@ -374,6 +374,10 @@ export function SecretsInfo() {
   return window['go']['main']['App']['SecretsInfo']();
 }
 
+export function ServerHistory(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['ServerHistory'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function ServerLive(arg1) {
   return window['go']['main']['App']['ServerLive'](arg1);
 }

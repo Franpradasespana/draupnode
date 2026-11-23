@@ -23,7 +23,7 @@
   const blocked = (slug: string) => !!own?.modules.length && (own.slug ?? '') !== slug
 
   // Apps huérfanas: carpetas de /srv/draupnode/apps o proyectos de Docker «dn-…» que
-  // no son de una App desde Git de este servidor ni de un módulo del catálogo
+  // no son de una «Tu app» de este servidor ni de un módulo del catálogo
   // (p. ej. la que se quedó al cambiar el nombre de una app).
   const managedApps = $derived(new Set((own?.modules ?? []).flatMap((m) => [m.values?.git_app_name, own?.installedValues?.[m.id]?.git_app_name]).filter(Boolean).map(String)))
   const orphanApps = $derived.by(() => {
@@ -134,7 +134,7 @@
         <Trash2 size={16} class="ic warn" />
         <div class="txt">
           <strong>{o.name}</strong>
-          <span class="muted small">App que Draupnode ya no gestiona{o.containers.length ? ` · ${o.containers.length} contenedor(es): ${o.containers.map((c) => `${c.name} (${c.state})`).join(', ')}` : ''}{o.dir ? ` · carpeta /srv/draupnode/apps/${o.name}` : ''}. Suele quedarse al cambiar el nombre de una App desde Git o al quitarla sin desinstalar.</span>
+          <span class="muted small">App que Draupnode ya no gestiona{o.containers.length ? ` · ${o.containers.length} contenedor(es): ${o.containers.map((c) => `${c.name} (${c.state})`).join(', ')}` : ''}{o.dir ? ` · carpeta /srv/draupnode/apps/${o.name}` : ''}. Suele quedarse al cambiar el nombre de una «Tu app» o al quitarla sin desinstalar.</span>
         </div>
         <button class="btn sm danger" onclick={() => removeOrphan(o.name)} disabled={!!busy}>{busy === o.name ? 'Borrando…' : 'Borrar…'}</button>
       </div>

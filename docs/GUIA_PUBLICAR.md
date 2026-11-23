@@ -26,7 +26,7 @@ Debajo, en «Publicar en un servidor», elige el servidor y pulsa «Publicar en 
 
 ## 5 · Revisar su configuración
 
-«Ir a sus módulos y aplicar» te lleva a la ficha del servidor → Módulos. Abre «App desde Git»: «De dónde sale el código» = carpeta (con «Elegir…» para cambiarla). En «Variables (.env)», una fila por variable: las resaltadas son las que hay que completar o revisar, con el motivo. Las contraseñas no van ahí: «Generar en el servidor» (NOMBRE, o NOMBRE:fernet / :base64-32 / :hex-32 si la app exige formato) o «Variables secretas» (las que solo tienes tú: correo, claves de pago…). Si la imagen no prepara la base de datos al arrancar, pon «Orden después de arrancar» (por ejemplo, python3 manage.py migrate).
+«Ir a sus módulos y aplicar» te lleva a la ficha del servidor → Módulos. Abre «Tu app (Git o carpeta)»: «De dónde sale el código» = carpeta (con «Elegir…» para cambiarla). En «Variables (.env)», una fila por variable: las resaltadas son las que hay que completar o revisar, con el motivo. Las contraseñas no van ahí: «Generar en el servidor» (NOMBRE, o NOMBRE:fernet / :base64-32 / :hex-32 si la app exige formato) o «Variables secretas» (las que solo tienes tú: correo, claves de pago…). Si la imagen no prepara la base de datos al arrancar, pon «Orden después de arrancar» (por ejemplo, python3 manage.py migrate).
 
 ![5 · Revisar su configuración](../frontend/src/assets/ayuda/publicar-modulo.webp)
 
@@ -48,4 +48,4 @@ El aviso del final dice en qué paso se paró y por qué (por ejemplo, «la orde
 
 ## Con GitHub en vez de una carpeta
 
-Si tu proyecto está en GitHub (u otro Git), en «App desde Git» elige «git», pon la dirección del repositorio y, si es privado, un token de solo lectura. «Leer el repositorio» saca sus variables y el tipo de app. Cada vez que apliques, baja lo último de la rama.
+Si tu proyecto está en GitHub (u otro Git), en «Tu app (Git o carpeta)» elige «git», pon la dirección del repositorio y, si es privado, un token de solo lectura. «Leer el repositorio» saca sus variables y el tipo de app. Cada vez que apliques, baja lo último de la rama.

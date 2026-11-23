@@ -1,5 +1,5 @@
 <script lang="ts">
-  // «Variables (.env)» de la App desde Git, en filas: nombre a la izquierda,
+  // «Variables (.env)» de «Tu app», en filas: nombre a la izquierda,
   // valor a la derecha. Las que hay que completar o revisar salen resaltadas,
   // con el motivo debajo (las mismas reglas que los avisos de antes de aplicar,
   // y alguna más que solo se puede ver aquí: valores de ejemplo, localhost…).

@@ -170,7 +170,7 @@ func explainError(msg string) string {
 	return strings.Join(out, " ")
 }
 
-// syncSharedDB: las App desde Git con «postgres-compartido» necesitan el
+// syncSharedDB: las apps «Tu app» con «postgres-compartido» necesitan el
 // módulo PostgreSQL compartido (se añade si falta) con una base con el nombre
 // de la app; y saben a qué contenedor y red conectarse.
 func (a *App) syncSharedDB(mods []store.ProjectModule) []store.ProjectModule {

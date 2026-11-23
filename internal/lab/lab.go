@@ -415,12 +415,15 @@ func (l *Lab) Start(ctx context.Context, out func(string)) error {
 		out("==> El contenedor ya está en marcha")
 	case st.Exists:
 		out("==> Arrancando el contenedor")
+		// Los creados antes de la 0.57 no volvían solos tras «Reiniciar el servidor».
+		_ = l.dockerCmd(ctx, nil, func(string) {}, "update", "--restart", "unless-stopped", Container)
 		if err := l.dockerCmd(ctx, nil, out, "start", Container); err != nil {
 			return err
 		}
 	default:
 		out("==> Creando el contenedor")
 		err := l.dockerCmd(ctx, nil, out, "run", "-d", "--name", Container, "--hostname", "servidor-prueba",
+			"--restart", "unless-stopped", // «Reiniciar el servidor» lo para: así vuelve solo, como una máquina
 			"--privileged", "--cgroupns=host", "-v", "/sys/fs/cgroup:/sys/fs/cgroup:rw",
 			"--tmpfs", "/run", "--tmpfs", "/run/lock",
 			"-v", Volume+":/var/lib/docker",

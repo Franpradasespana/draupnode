@@ -22,7 +22,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// App desde Git con «carpeta»: el código sale de una carpeta de este equipo y
+// Tu app con «carpeta»: el código sale de una carpeta de este equipo y
 // Draupnode lo sube al servidor (tar por SSH) justo antes de aplicar. Se sube
 // sin lo que no debe ir: .git, .env, entornos virtuales, node_modules… ni lo
 // que diga su .dockerignore.
@@ -136,7 +136,7 @@ func tarDir(dir string, w io.Writer) (files int, size int64, err error) {
 	return files, size, err
 }
 
-// localApps: las App desde Git del servidor que salen de una carpeta de este equipo.
+// localApps: las apps «Tu app» del servidor que salen de una carpeta de este equipo.
 func localApps(p store.Project) []store.ProjectModule {
 	var out []store.ProjectModule
 	for _, m := range p.Modules {
@@ -147,7 +147,7 @@ func localApps(p store.Project) []store.ProjectModule {
 	return out
 }
 
-// uploadLocalApps sube al servidor el código de cada App desde Git con «carpeta».
+// uploadLocalApps sube al servidor el código de cada «Tu app» con «carpeta».
 // simDir: dónde se sube la carpeta en una simulación (no toca la app; se borra al terminar).
 func simDir(slug string) string { return "/var/lib/draupnode/simulacion/" + slug }
 

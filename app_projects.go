@@ -174,7 +174,7 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 		_, inst := modules.SplitID(id)
 		sel = append(sel, bundle.Selection{Module: m, Values: v, ID: id, Instance: inst})
 	}
-	// App desde Git: según de dónde sale el código, el repositorio o la carpeta.
+	// Tu app: según de dónde sale el código, el repositorio o la carpeta.
 	for _, s := range sel {
 		if s.Module.ID != "git-app" {
 			continue
@@ -620,7 +620,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "progress", "text": line}})
 		})
 	}()
-	// App desde Git con «carpeta»: subir el código antes. En la simulación, a una
+	// Tu app con «carpeta»: subir el código antes. En la simulación, a una
 	// carpeta aparte (simDir) para revisarlo sin tocar la app; se borra al terminar.
 	if len(rm.uninstall) == 0 && len(localApps(p)) > 0 {
 		dest, stage := "/srv/draupnode/apps", "Subiendo el código de este equipo"

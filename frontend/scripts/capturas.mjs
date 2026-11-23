@@ -51,6 +51,11 @@ const ALL_SHOTS = [
   { name: 'proyecto', view: 'projects', act: [['click', 'button.main', 'Coolify producción'], ['wait', 900]] },
   { name: 'plantilla-cambios', view: 'projects', act: [['click', 'button.main', 'Coolify producción'], ['wait', 900], ['click', 'button.mc', 'Vaultwarden'], ['wait', 1200]] },
   { name: 'servidor', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 600]] },
+  { name: 'servidor-historial', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 600],
+    ['js', `document.querySelector('.charts')?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300],
+    ['js', `(() => { const p = document.querySelector('.charts .plot'); const r = p.getBoundingClientRect(); p.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left + r.width * 0.62, clientY: r.top + 40, bubbles: true })) })()`], ['wait', 300]] },
+  { name: 'servidor-apps', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Apps y bases'], ['wait', 600],
+    ['js', `document.querySelector('table.usage')?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300]] },
   { name: 'servidor-red', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Red y seguridad'], ['wait', 600]] },
   { name: 'despliegue', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 1200]] },
   { name: 'catalogo', view: 'catalog', act: [['wait', 1200], ['click', 'button.mod', 'Coolify'], ['wait', 700]] },
@@ -64,7 +69,7 @@ const ALL_SHOTS = [
   { name: 'publicar-modulo', view: 'servers', seed: (d) => {
       d.projects.push({ id: 'pg', name: 'x', serverId: 'demo1', modules: [{ id: 'base', values: {} }, { id: 'docker', values: {} }, { id: 'git-app', values: { git_app_source: 'carpeta', git_app_local_dir: '/home/usuario/proyectos/tienda', git_app_name: 'tienda', git_app_compose: 'docker-compose.draupnode.yml', git_app_env: ['DB_ENGINE=postgres', 'DJANGO_DEBUG=false', 'DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1', 'EMAIL_HOST='], git_app_env_generate: ['DB_PASSWORD', 'DJANGO_SECRET_KEY', 'FIELD_ENCRYPTION_KEY:fernet'] } }], installedModules: ['base', 'docker'], appliedAt: ago(60) })
     },
-    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 1000], ['click', 'button.mmain', 'App desde Git'], ['wait', 900], ['js', "document.querySelector('.rows')?.scrollIntoView({block:'start'})"], ['wait', 300]] },
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 1000], ['click', 'button.mmain', 'Tu app'], ['wait', 900], ['js', "document.querySelector('.rows')?.scrollIntoView({block:'start'})"], ['wait', 300]] },
   { name: 'destino-copias', view: 'servers', seed: (d) => {
       d.servers.push({ id: 'demo2', name: 'Servidor de copias', host: '203.0.113.40', port: 22, user: 'ubuntu', authMethod: 'key', keyPath: '/home/demo/.ssh/id_ed25519', keyEncrypted: true, secretStore: 'keyring', hasSecret: true, notes: '', createdAt: ago(100) })
       d.projects.push({ id: 'p4', name: 'Tienda', serverId: 'demo1', slug: 'tienda', modules: [{ id: 'base', values: {} }, { id: 'backups', values: { backups_time: '03:30', backups_remote_type: 'no' } }],

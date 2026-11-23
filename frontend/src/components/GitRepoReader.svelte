@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Módulo «App desde Git»: «Leer el repositorio» baja el repositorio en el
+  // Módulo «Tu app (Git o carpeta)»: «Leer el repositorio» baja el repositorio en el
   // servidor y mira qué variables usa la app (.env.example y ${…} del
   // compose). Rellena las opciones: contraseñas de la app → «Generar en el
   // servidor»; el resto → «Variables (.env)» con el valor de ejemplo o vacío.

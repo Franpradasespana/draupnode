@@ -77,7 +77,7 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 	}
 	m, ok := a.cat().Get("git-app")
 	if !ok {
-		return res, errors.New("falta el módulo App desde Git")
+		return res, errors.New("falta el módulo «Tu app»")
 	}
 
 	// Nombre de la app (carpeta y contenedores en el servidor) y de la copia del módulo.

@@ -7,7 +7,7 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
-    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole,
+    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole, Gauge,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectEditor from './ProjectEditor.svelte'
@@ -19,6 +19,8 @@
   import { sameValues } from '../lib/modules'
   import { withConnection } from '../lib/connect'
   import BackupsPanel from '../components/BackupsPanel.svelte'
+  import HistoryPanel from '../components/HistoryPanel.svelte'
+  import Sparkline from '../components/Sparkline.svelte'
   import { alerts, rememberOverview, serverFindings } from '../lib/alerts.svelte'
 
   let { id }: { id: string } = $props()
@@ -142,6 +144,33 @@
   // Lo que publica Docker no pasa por la cadena INPUT: se salta el cortafuegos.
   const dockerPorts = $derived(publicPorts.filter((p) => p.process === 'docker-proxy').map((p) => `${p.port}/${p.proto}`))
   const blockedPorts = $derived(publicPorts.filter((p) => p.process !== 'docker-proxy' && !(p.proto === 'tcp' ? ov?.firewall?.tcp : ov?.firewall?.udp)?.some((s) => inRange(s, p.port))).map((p) => `${p.port}/${p.proto}`))
+  // ---- Uso por app: los contenedores sumados por app (la misma clave que el historial)
+  const MODULE_OF: Record<string, string> = { 'draupnode-monitor': 'monitoring', 'draupnode-logs': 'logs', 'draupnode-postgres': 'postgres', 'draupnode-mariadb': 'mariadb', 'draupnode-destino-copias': 'backup-target' }
+  function appLabel(k: string): { name: string; via: string } {
+    if (k.startsWith('coolify:')) return { name: k.slice(8), via: 'Coolify' }
+    if (MODULE_OF[k]) return { name: moduleName(MODULE_OF[k]), via: 'Draupnode' }
+    if (k.startsWith('dn-')) {
+      const x = k.slice(3)
+      if (ui.modules?.modules.some((m) => m.id === x)) return { name: moduleName(x), via: 'Draupnode' }
+      return { name: x, via: 'Tu app' }
+    }
+    return { name: k, via: (ov?.containers ?? []).some((c) => c.compose === k) ? 'Docker Compose' : 'contenedor' }
+  }
+  const appUsage = $derived.by(() => {
+    const by = new Map<string, { key: string; name: string; via: string; total: number; running: number; cpu: number; mem: number }>()
+    for (const c of ov?.containers ?? []) {
+      const key = c.app || (c.coolify ? 'coolify:' + c.coolify : c.compose || c.name)
+      let a = by.get(key)
+      if (!a) { a = { key, ...appLabel(key), total: 0, running: 0, cpu: 0, mem: 0 }; by.set(key, a) }
+      a.total++
+      if (c.state === 'running') a.running++
+      a.cpu += c.cpuP ?? (parseFloat(c.cpu ?? '') || 0)
+      a.mem += c.memB ?? 0
+    }
+    return [...by.values()].sort((x, y) => y.mem - x.mem)
+  })
+  const appMemTop = $derived(Math.max(1, ...Object.values(ov?.history?.apps ?? {}).map((a) => a.memMax)))
+  const appCpuTop = $derived(Math.max(5, ...Object.values(ov?.history?.apps ?? {}).map((a) => a.cpuMax)))
   const badContainers = $derived((ov?.containers ?? []).filter((c) => c.state !== 'running' || c.health === 'unhealthy'))
 
   // ---- Pestañas (se recuerda la última abierta)
@@ -378,6 +407,8 @@
     </section>
     {/if}
 
+    {#if ov}<HistoryPanel {server} history={ov.history} {loading} onchange={load} />{/if}
+
     <div class="two">
       <section class="card block">
         <div class="h2row"><h2><Blocks size={17} /> Módulos</h2><button class="btn sm ghost" onclick={() => setTab('modulos')}>Gestionar <ArrowRight size={13} /></button></div>
@@ -474,6 +505,32 @@
           {/each}
         </tbody>
       </table>
+    </section>
+
+    <section class="card block">
+      <h2><Gauge size={17} /> Uso por app {#if ov?.history?.hasData}<span class="muted small">· ahora y en las últimas 24 h</span>{/if}</h2>
+      {#if !ov}<p class="muted">{loading ? 'Leyendo…' : '—'}</p>
+      {:else if !ov.docker || !appUsage.length}<p class="muted">No hay apps en contenedores.</p>
+      {:else}
+        <table class="tbl usage">
+          <thead><tr><th>App</th><th class="r">CPU ahora</th><th class="r">Memoria ahora</th>{#if ov.history?.hasData}<th>CPU 24 h</th><th>Memoria 24 h</th>{/if}</tr></thead>
+          <tbody>
+            {#each appUsage as a (a.key)}
+              {@const h = ov.history?.apps?.[a.key]}
+              <tr>
+                <td><strong>{a.name}</strong><br /><span class="muted small">{a.via} · {a.running === a.total ? `${a.total} contenedor${a.total === 1 ? '' : 'es'}` : `${a.running} de ${a.total} en marcha`}</span></td>
+                <td class="r mono small">{a.running ? `${a.cpu.toFixed(a.cpu < 10 ? 1 : 0)} %` : '—'}</td>
+                <td class="r mono small">{a.running ? fmt(a.mem) : '—'}{#if sys && a.mem}<br /><span class="muted">{((a.mem / sys.memTotal) * 100).toFixed(1)} % del total</span>{/if}</td>
+                {#if ov.history?.hasData}
+                  <td>{#if h}<Sparkline values={h.series.map((p) => p[1])} times={h.series.map((p) => p[0])} top={appCpuTop} format={(v) => `${v.toFixed(1)} %`} label="CPU de {a.name} en 24 h" /><br /><span class="muted small">media {h.cpuAvg.toFixed(1)} % · máx. {h.cpuMax.toFixed(1)} %</span>{:else}<span class="muted small">sin datos aún</span>{/if}</td>
+                  <td>{#if h}<Sparkline values={h.series.map((p) => p[2])} times={h.series.map((p) => p[0])} top={appMemTop} format={fmt} label="Memoria de {a.name} en 24 h" /><br /><span class="muted small">máx. {fmt(h.memMax)}</span>{:else}<span class="muted small">sin datos aún</span>{/if}</td>
+                {/if}
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        {#if !ov.history?.hasData}<p class="muted small">Para ver cómo ha ido cada app en las últimas 24 h, activa el historial en el Resumen.</p>{/if}
+      {/if}
     </section>
 
     <section class="card block">
@@ -766,6 +823,8 @@
   .tbl th { text-align: left; font-size: 11.5px; color: var(--muted); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--border); }
   .tbl td { padding: 7px 8px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
   .tbl td.r { text-align: right; white-space: nowrap; }
+  .tbl th.r { text-align: right; }
+  .usage td { vertical-align: top; }
   .acts { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
   .lnk { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-align: left; }
   .lnk:hover { text-decoration: underline; }

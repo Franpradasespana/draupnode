@@ -18,7 +18,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// «Leer el repositorio» (módulo App desde Git): se baja el repositorio en el
+// «Leer el repositorio» (módulo «Tu app»): se baja el repositorio en el
 // servidor (con el token o la deploy key si es privado), se miran
 // .env.example y el docker-compose y se devuelven las variables que usa la
 // app, para rellenar las opciones del módulo. Nunca se leen ficheros .env
@@ -394,7 +394,7 @@ func (a *App) ChooseEnvFile() (string, error) {
 	})
 }
 
-// GitAppImportEnv lee un .env de este equipo para el módulo App desde Git:
+// GitAppImportEnv lee un .env de este equipo para el módulo «Tu app»:
 // las variables que parecen contraseñas o claves se guardan cifradas en la
 // bóveda (junto a las que ya hubiera); el resto vuelve como CLAVE=valor.
 // El fichero no se copia a ningún sitio.

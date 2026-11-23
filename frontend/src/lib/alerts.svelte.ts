@@ -163,6 +163,8 @@ export async function loadAlerts() {
 
 // Umbrales de los avisos sacados de la ficha del servidor.
 export const DISK_WARN = 85
+/** Avisar si, a este ritmo, el disco se llena antes de estos días. */
+export const DISK_FULL_DAYS = 14
 export const BACKUP_HOURS = 26
 
 /** Lo que conviene mirar en la última ficha leída de un servidor. */
@@ -171,6 +173,12 @@ export function serverFindings(ov: ServerOverview): { id: string; text: string; 
   for (const d of ov.disks ?? []) {
     const pct = d.size ? Math.round((d.used / d.size) * 100) : 0
     if (pct >= DISK_WARN) out.push({ id: 'disk:' + d.mount, text: `Disco ${d.mount} al ${pct} %`, bad: pct >= 95 })
+  }
+  // Previsión del historial: a este ritmo, cuándo se llena el disco.
+  const fc = ov.history?.forecast
+  if (fc?.days !== undefined && fc.days < DISK_FULL_DAYS) {
+    const when = fc.days < 1 ? 'en menos de un día' : `en unos ${Math.round(fc.days)} días`
+    out.push({ id: 'diskfull', text: `A este ritmo, el disco se llena ${when} (crece ${((fc.perDay ?? 0) / 1024 ** 3).toFixed(1)} GB al día)`, bad: fc.days < 3 })
   }
   const sick = (ov.containers ?? []).filter((c) => ['restarting', 'dead'].includes(c.state) || c.health === 'unhealthy')
   if (sick.length) out.push({ id: 'ctr:' + sick.map((c) => c.name).sort().join(','), text: `${sick.length === 1 ? 'Contenedor con problemas' : sick.length + ' contenedores con problemas'}: ${sick.map((c) => c.name).join(', ')}`, bad: true })
