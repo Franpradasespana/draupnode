@@ -992,6 +992,7 @@ export namespace main {
 	    tasks: string[];
 	    commands: string[];
 	    hosts: string[];
+	    images: string[];
 	    depends: string[];
 	    conflict: string;
 	
@@ -1016,6 +1017,7 @@ export namespace main {
 	        this.tasks = source["tasks"];
 	        this.commands = source["commands"];
 	        this.hosts = source["hosts"];
+	        this.images = source["images"];
 	        this.depends = source["depends"];
 	        this.conflict = source["conflict"];
 	    }

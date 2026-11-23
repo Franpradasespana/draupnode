@@ -108,8 +108,8 @@ links:
 prueba:
   lab: "Hacen falta dos servidores: el de pruebas como destino y otro (un segundo Ubuntu, o un VPS) como origen. Con uno solo, comprueba solo que el destino arranca."
   pasos:
-    - "En el servidor que guardará las copias, añade «Destino de copias» y aplica."
-    - "En el servidor de origen, Copias → «Guardar también en otro servidor» y elige el destino: Draupnode configura los dos."
+    - "No se añade a mano: en el servidor de origen (con «Copias de seguridad»), pestaña Copias → «Guardar también en otro servidor» y elige el destino."
+    - "Draupnode añade este módulo al destino con su certificado y configura las copias del origen; pulsa «Aplicar los dos ahora»."
     - "En el origen, «Hacer copia ahora» y luego «Ver copias remotas»."
   comprobar:
     - "Las copias del origen aparecen en el destino."

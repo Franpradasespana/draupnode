@@ -58,6 +58,14 @@
   failed_when: false
   when: not ansible_check_mode
 
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-forgejo
+  when: not ansible_check_mode
+
 - name: Usuario «admin» (la primera vez)
   ansible.builtin.shell: |
     # («admin» es un nombre reservado en Forgejo)

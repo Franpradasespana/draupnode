@@ -2,7 +2,8 @@
   // Ayuda → «Probar cada módulo»: un desplegable por módulo (agrupados por
   // categoría) con cómo probarlo en el servidor de pruebas y qué debería verse.
   // «Probado: funciona» se recuerda en este equipo, para ir repasándolos todos.
-  import { FlaskConical, CircleCheck, ListOrdered, Eye } from '@lucide/svelte'
+  import { FlaskConical, CircleCheck, ListOrdered, Eye, SlidersHorizontal } from '@lucide/svelte'
+  import ModuleForm from './ModuleForm.svelte'
   import { ui } from '../lib/state.svelte'
   import type { Module } from '../lib/api'
 
@@ -29,6 +30,14 @@
     }
     return [...by.entries()]
   })
+  // Su configuración (el formulario de verdad, solo para ver), al abrir el desplegable.
+  let open = $state<Record<string, boolean>>({})
+  const defaults = (m: Module) => Object.fromEntries((m.variables ?? []).map((v) => [v.name, structuredClone($state.snapshot(v.default))]))
+  const forms = $state<Record<string, Record<string, unknown>>>({})
+  function toggled(m: Module, isOpen: boolean) {
+    if (isOpen && !forms[m.id]) forms[m.id] = defaults(m)
+    open[m.id] = isOpen
+  }
   const count = $derived(mods.filter((m) => done[m.id]).length)
   const when = (iso: string) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 </script>
@@ -42,7 +51,7 @@
   {#each groups as [cat, list] (cat)}
     <h3 class="cat">{cat}</h3>
     {#each list as m (m.id)}
-      <details class:done={!!done[m.id]}>
+      <details class:done={!!done[m.id]} ontoggle={(e) => toggled(m, (e.currentTarget as HTMLDetailsElement).open)}>
         <summary>
           <span class="name">{m.name}</span>
           {#if m.source === 'user'}<span class="tag">propio</span>{/if}
@@ -55,6 +64,10 @@
           {#if m.prueba?.comprobar?.length}
             <h4><Eye size={14} /> Cómo queda y qué comprobar</h4>
             <ul>{#each m.prueba.comprobar as c}<li>{c}</li>{/each}</ul>
+          {/if}
+          {#if open[m.id] && forms[m.id]}
+            <h4><SlidersHorizontal size={14} /> Su configuración (con los valores por defecto)</h4>
+            <div class="form" inert><ModuleForm {m} bind:values={forms[m.id]} projectId="" /></div>
           {/if}
           <label class="chk"><input type="checkbox" checked={!!done[m.id]} onchange={(e) => toggle(m.id, (e.currentTarget as HTMLInputElement).checked)} /> Probado: funciona</label>
         </div>
@@ -87,6 +100,7 @@
   .lab :global(svg) { flex: none; margin-top: 3px; color: var(--accent); }
   h4 { display: flex; gap: 6px; align-items: center; font-size: 12.5px; margin: 10px 0 4px; color: var(--muted); }
   ol, ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+  .form { border: 1px solid var(--border-soft); border-radius: 8px; padding: 10px 12px; background: var(--panel-2); }
   .chk { display: inline-flex; gap: 8px; align-items: center; margin-top: 10px; font-weight: 500; cursor: pointer; }
   .muted { color: var(--muted); }
   .small { font-size: 12.5px; margin-top: 14px; }

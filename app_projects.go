@@ -166,6 +166,9 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 		for _, sv := range m.SecretVars() {
 			if sv.Required && !sv.Managed && !recipe && (p.ID == "" || !a.vault.Has(varName(p.ID, secretKey(id, sv.Name)))) {
 				errs[sv.Name] = "falta: escríbelo (se guarda cifrado en la bóveda)"
+				if sv.Name == "backup_target_tls_key" {
+					errs[sv.Name] = "lo pone Draupnode: en el servidor que hace las copias, Copias → «Guardar también en otro servidor» y elige este"
+				}
 			}
 		}
 		if len(errs) > 0 {
@@ -226,6 +229,7 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 			res.Warnings = append(res.Warnings, gitEnvWarnings(a.moduleName(s.Key()), s.Values)...)
 		}
 	}
+	portClashes(sel, &res, a.moduleName)
 	res.Warnings = append(res.Warnings, missingPorts(sel)...)
 	res.Warnings = append(res.Warnings, syncProxySites(sel)...)
 	syncVPNDNS(sel)
@@ -930,6 +934,82 @@ func (a *App) followProgress(ctx context.Context, c *ssh.Client, su runner.Sudo,
 		for _, l := range parts[:len(parts)-1] {
 			if l = strings.TrimRight(l, "\r"); strings.TrimSpace(l) != "" {
 				line(l)
+			}
+		}
+	}
+}
+
+// portClashes: dos módulos del servidor que quieren el mismo puerto TCP (p. ej.
+// Grafana y Forgejo en el 3000). Al aplicar, el segundo no arrancaría.
+func portClashes(sel []bundle.Selection, res *ProjectCheck, name func(string) string) {
+	type use struct{ key, varName, label string }
+	used := map[int]use{}
+	conflicts := func(a, b string) bool {
+		ma, mb := a, b
+		if i := strings.Index(ma, "@"); i >= 0 {
+			ma = ma[:i]
+		}
+		if i := strings.Index(mb, "@"); i >= 0 {
+			mb = mb[:i]
+		}
+		for _, s := range sel {
+			if s.Module.ID == ma && contains(s.Module.Conflicts, mb) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, s := range sel {
+		udp := map[string]bool{}
+		for _, u := range s.Module.UDPPortsFrom {
+			udp[u] = true
+		}
+		var mine []use
+		var ports []int
+		for _, v := range s.Module.Variables {
+			if v.Type != "int" || !strings.HasSuffix(v.Name, "_port") || udp[v.Name] {
+				continue
+			}
+			n, ok := s.Values[v.Name].(int)
+			if !ok || n <= 0 {
+				continue
+			}
+			mine = append(mine, use{s.Key(), v.Name, v.Label})
+			ports = append(ports, n)
+		}
+		for _, n := range s.Module.FirewallPorts {
+			mine = append(mine, use{s.Key(), "", ""})
+			ports = append(ports, n)
+		}
+		for i, n := range ports {
+			u := mine[i]
+			prev, dup := used[n]
+			if !dup {
+				used[n] = u
+				continue
+			}
+			if prev.key == u.key || conflicts(prev.key, u.key) {
+				continue
+			}
+			msg := fmt.Sprintf("el puerto %d ya lo usa %s", n, name(prev.key))
+			if prev.label != "" {
+				msg += " («" + prev.label + "»)"
+			}
+			msg += ": elige otro"
+			if u.varName != "" {
+				if res.Errors[u.key] == nil {
+					res.Errors[u.key] = map[string]string{}
+				}
+				if _, has := res.Errors[u.key][u.varName]; !has {
+					res.Errors[u.key][u.varName] = msg
+				}
+			} else if prev.varName != "" {
+				if res.Errors[prev.key] == nil {
+					res.Errors[prev.key] = map[string]string{}
+				}
+				res.Errors[prev.key][prev.varName] = fmt.Sprintf("el puerto %d lo necesita %s: elige otro", n, name(u.key))
+			} else {
+				res.General = append(res.General, fmt.Sprintf("%s y %s necesitan los dos el puerto %d", name(prev.key), name(u.key), n))
 			}
 		}
 	}

@@ -1,0 +1,35 @@
+---
+# Después de arrancar una app: si alguno de sus contenedores se reinicia sin
+# parar o se ha caído con error, la aplicación falla y enseña sus últimos
+# registros (sin esto, «no responde todavía» pasaba por bueno un contenedor
+# que no llega a arrancar nunca). Uso, desde el rol de un módulo:
+#   - ansible.builtin.include_role: { name: draupnode_preflight, tasks_from: no_reinicia }
+#     vars: { dn_compose_project: dn-miapp }
+- name: Estado de los contenedores de {{ dn_compose_project }}
+  ansible.builtin.shell: |
+    ids=$(docker ps -aq --filter "label=com.docker.compose.project={{ dn_compose_project }}")
+    [ -n "$ids" ] || exit 0
+    docker inspect $ids | python3 -c '
+    import json, sys
+    for c in json.load(sys.stdin):
+        st, pol = c["State"], (c.get("HostConfig") or {}).get("RestartPolicy", {}).get("Name", "")
+        caido = st.get("Status") == "exited" and st.get("ExitCode", 0) != 0 and pol in ("always", "unless-stopped", "on-failure")
+        if st.get("Restarting") or st.get("Status") == "dead" or caido:
+            print(c["Name"].lstrip("/"))'
+  register: dn_no_reinicia
+  changed_when: false
+
+- name: Últimos registros de los que no arrancan
+  ansible.builtin.shell: |
+    for c in {{ dn_no_reinicia.stdout_lines | map('quote') | join(' ') }}; do
+      echo "== $c ($(docker inspect -f '{{ '{{' }}.State.Status{{ '}}' }}, {{ '{{' }}.RestartCount{{ '}}' }} reinicios' "$c"))"
+      docker logs --tail 15 "$c" 2>&1 | tail -n 15
+    done
+  register: dn_no_reinicia_log
+  changed_when: false
+  when: dn_no_reinicia.stdout_lines | length > 0
+
+- name: Un contenedor se reinicia sin parar
+  ansible.builtin.fail:
+    msg: "{{ dn_compose_project }} no arranca: {{ dn_no_reinicia.stdout_lines | join(', ') }} se reinicia sin parar o se ha caído con error. Sus últimos registros:\n{{ dn_no_reinicia_log.stdout | default('') }}"
+  when: dn_no_reinicia.stdout_lines | length > 0

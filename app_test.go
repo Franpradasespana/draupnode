@@ -250,3 +250,25 @@ func TestCheckProjectSinNulls(t *testing.T) {
 		t.Fatalf("Coolify debe declarar sus puertos: %v", m.FirewallPorts)
 	}
 }
+
+func TestPuertosRepetidos(t *testing.T) {
+	a := newTestApp(t, secrets.Memory{})
+	p := store.Project{Name: "x", Modules: []store.ProjectModule{
+		{ID: "monitoring", Values: map[string]any{}},
+		{ID: "forgejo", Values: map[string]any{"forgejo_port": 3000}},
+	}}
+	c := a.CheckProject(p)
+	// El aviso va en el que se resuelve el segundo (cualquiera de los dos).
+	if !strings.Contains(c.Errors["forgejo"]["forgejo_port"]+c.Errors["monitoring"]["monitoring_grafana_port"], "puerto 3000 ") {
+		t.Fatalf("no avisa del 3000 repetido: %+v", c.Errors)
+	}
+	p.Modules[1].Values["forgejo_port"] = 3001
+	if c := a.CheckProject(p); len(c.Errors["forgejo"])+len(c.Errors["monitoring"]) > 0 {
+		t.Fatalf("con otro puerto no debería quejarse: %+v", c.Errors)
+	}
+	// Coolify ocupa el 8000 (fijo): una app en el 8000 choca.
+	p.Modules = []store.ProjectModule{{ID: "coolify", Values: map[string]any{"coolify_admin_email": "a@example.com"}}, {ID: "backup-target", Values: map[string]any{}}}
+	if c := a.CheckProject(p); !strings.Contains(c.Errors["backup-target"]["backup_target_port"]+strings.Join(c.General, " "), "8000") {
+		t.Fatalf("coolify y destino de copias en el 8000: %+v %v", c.Errors, c.General)
+	}
+}

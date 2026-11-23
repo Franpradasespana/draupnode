@@ -8,7 +8,8 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: "0750"
+    # La de PostgreSQL la deja la imagen en 0700: no se toca (si no, cambiaría en cada aplicación).
+    mode: "{{ omit if item.endswith('/pgdata') else '0750' }}"
   loop:
     - "{{ paperless_dir }}"
     - "{{ paperless_dir }}/data"
@@ -64,6 +65,14 @@
   retries: 100
   delay: 3
   failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-paperless
   when: not ansible_check_mode
 
 - name: Nota

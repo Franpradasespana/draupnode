@@ -1078,3 +1078,38 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
   esqueleto de módulo nuevo trae un ejemplo). Test `TestGuiasDePrueba`: todo módulo incluido tiene la suya.
 - El catálogo de la demo (MOCK_MODULES) se ha vuelto a volcar del catálogo real (estaba desfasado en variables y
   detalles de 15 módulos).
+
+## 2026-11-23 · 0.60.0 · Regresión de los 26 módulos, puertos repetidos, importar más seguro y configuración en la ayuda
+
+- **Regresión de todos los módulos** con esta versión, en un Ubuntu desechable (con la app por dentro): para cada uno,
+  aplicar, aplicar otra vez, desinstalar con sus datos y mirar que no queden contenedores; al final «Desinstalar
+  todo». 50 minutos. Primera pasada: 23 de 26 bien (Forgejo falló, Destino de copias no se pudo añadir, y Vaultwarden, Paperless e Immich cambiaban algo al reaplicar). Tras los arreglos, segunda pasada de los afectados: todos se instalan, responden, se reaplican sin cambios y se desinstalan sin restos (Immich, tras un «demasiadas peticiones» de ghcr.io, al repetirlo). «Desinstalar todo»
+  deja el servidor sin contenedores. Lo que salió y se ha arreglado:
+  - **Forgejo y Grafana usaban los dos el puerto 3000**: Forgejo no arrancaba en un servidor con Monitorización.
+    Forgejo pasa al 3001 por defecto (los instalados conservan el suyo) y **la comprobación de los módulos avisa de
+    puertos TCP repetidos** entre módulos del servidor (variables `*_port` y puertos fijos como los de Coolify; no los
+    UDP ni los de módulos que ya no pueden ir juntos): `portClashes`, test `TestPuertosRepetidos`.
+  - **Destino de copias** no se puede añadir a mano (necesita el certificado que crea «Guardar también en otro
+    servidor»): su campo en rojo ahora explica cómo se hace, y su guía de prueba lo cuenta bien.
+  - **Vaultwarden no arrancaba sin dominio** (se reiniciaba en bucle): la versión 1.37 ya no acepta `DOMAIN` vacío.
+    Ahora solo se manda si hay dominio. La regresión lo daba por bueno porque «Esperar a que responda» no falla (las
+    apps pesadas pueden tardar), solo deja la nota «NO responde todavía».
+  - Por eso, **tarea común `no_reinicia`** en el rol `draupnode_preflight` (va en todas las instalaciones): después de
+    arrancar, si un contenedor de la app se reinicia sin parar o se ha caído con error, la aplicación falla y enseña
+    sus últimos registros. La usan Vaultwarden, Paperless, Immich, Forgejo, Navidrome, Jellyfin, Syncthing y Destino
+    de copias («Tu app» ya tenía la suya). Los módulos propios también pueden usarla (`include_role` con
+    `tasks_from: no_reinicia` y `dn_compose_project`).
+  - **Paperless e Immich cambiaban algo en cada aplicación**: la carpeta de PostgreSQL, que la imagen deja en 0700 y
+    Ansible volvía a poner en 0750. Ya no se tocan sus permisos.
+- **Importar módulos, más seguro**:
+  - Draupnode solo abre direcciones http/https (`safeWebURL` en `OpenURL`): otro esquema (file:, smb:, el de un
+    programa) podría abrir algo del equipo. Los enlaces del catálogo ya solo admitían https://.
+  - Lo que vuelve del servidor al aplicar (valores generados) tiene un tope de 500 ficheros.
+  - La revisión avisa también de ficheros que no son texto (podrían ser programas), caracteres invisibles o que
+    cambian el sentido del texto («Trojan Source»), líneas larguísimas, descargas de software (get_url, unarchive,
+    git, pip, npm, script), contenedores con la red/procesos del servidor o permisos especiales y montar todo el disco;
+    y enseña las **imágenes de Docker** que descargará. El diálogo dice claro que importar no ejecuta nada en este
+    equipo, que en el servidor se ejecuta como root y que la revisión no garantiza que sea inofensivo.
+    Tests `TestRevisionTrucos` y `TestSoloWebs`.
+- **Configuración en «Probar cada módulo»**: cada desplegable enseña el formulario de verdad del módulo con sus valores
+  por defecto (solo para ver, `inert`), en vez de capturas que se quedarían viejas.

@@ -30,7 +30,7 @@ variables:
     label: Puerto en el servidor (solo local)
     help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
     type: int
-    default: 3000
+    default: 3001
     min: 1024
     max: 65535
   - name: forgejo_domain

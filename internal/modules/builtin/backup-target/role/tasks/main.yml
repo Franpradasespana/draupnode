@@ -70,6 +70,15 @@
   when: not ansible_check_mode
 
 # ---------------------------------------------------------------- rotación
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: draupnode-destino-copias
+  when: not ansible_check_mode
+
 - name: Rotación (datos)
   ansible.builtin.set_fact:
     backup_target_keydir: "{{ draupnode_secrets_dir }}/.rotacion"

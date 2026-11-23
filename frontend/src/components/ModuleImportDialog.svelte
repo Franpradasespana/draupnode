@@ -3,7 +3,7 @@
   // carga bien, qué hace (tareas, órdenes, sitios de internet) y lo delicado.
   // Un módulo se ejecuta como root en tus servidores: hay que leerlo antes.
   import { untrack } from 'svelte'
-  import { ShieldCheck, ShieldAlert, CircleX, TriangleAlert, FileCode, Download, Globe, SquareTerminal, ListChecks } from '@lucide/svelte'
+  import { ShieldCheck, ShieldAlert, CircleX, TriangleAlert, FileCode, Download, Globe, SquareTerminal, ListChecks, Box, Info } from '@lucide/svelte'
   import Modal from './Modal.svelte'
   import CodeEditor from './CodeEditor.svelte'
   import type { ModuleImportReport } from '../lib/api'
@@ -27,6 +27,7 @@
     {#if report.ok}
       <p class="ok"><ShieldCheck size={16} /> <span><strong>El fichero está entero y el módulo se carga bien.</strong>
         {report.integrity ? 'Cada fichero coincide con su huella (SHA-256).' : ''} No dice quién lo hizo: impórtalo solo si te fías de quien te lo pasó.</span></p>
+      <p class="info"><Info size={16} /> <span>Importarlo no ejecuta nada en este equipo. Se ejecutará en un servidor cuando lo añadas y pulses «Aplicar», y allí <strong>como root</strong>: puede hacer cualquier cosa en ese servidor. Esta revisión ayuda a ver qué hace, pero no puede garantizar que sea inofensivo.</span></p>
     {:else}
       <p class="bad"><CircleX size={16} /> <span><strong>No se puede importar.</strong></span></p>
       {#each report.problems as p}<p class="bad sub">· {p}</p>{/each}
@@ -47,6 +48,10 @@
         {#if report.commands.length}
           <h4><SquareTerminal size={13} /> Órdenes que ejecuta</h4>
           <ul class="cmds">{#each report.commands as c}<li class="mono">{c}</li>{/each}</ul>
+        {/if}
+        {#if report.images.length}
+          <h4><Box size={13} /> Imágenes de Docker que descargará</h4>
+          <p class="chips">{#each report.images as i}<span class="chip mono">{i}</span>{/each}</p>
         {/if}
         {#if report.hosts.length}
           <h4><Globe size={13} /> Sitios de internet que aparecen</h4>
@@ -104,6 +109,8 @@
   .head p { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 8px; font-size: 13.5px; }
   .head :global(svg) { flex: none; margin-top: 2px; }
   .ok { color: var(--text); }
+  .info { color: var(--muted); }
+  .info :global(svg) { color: var(--accent); }
   .ok :global(svg), :global(.ok-i) { color: var(--success); }
   .bad { color: var(--danger); }
   .sub { margin-left: 24px !important; }

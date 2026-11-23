@@ -158,6 +158,7 @@ type ModuleImportReport struct {
 	Tasks       []string           `json:"tasks"`    // tipos de tarea: «apt × 3»
 	Commands    []string           `json:"commands"` // órdenes de shell/command
 	Hosts       []string           `json:"hosts"`    // sitios de internet que aparecen
+	Images      []string           `json:"images"`   // imágenes de Docker que descargará (cada una es software que se ejecuta)
 	Depends     []string           `json:"depends"`
 	// Conflict: "" | "user" (ya tienes uno con ese id) | "builtin" (es el de un módulo incluido).
 	Conflict string `json:"conflict"`
@@ -256,7 +257,7 @@ func safeModPath(rel string) bool {
 }
 
 func (a *App) inspectModulePath(p string) ModuleImportReport {
-	r := ModuleImportReport{File: p, Files: []ModuleImportFile{}, Problems: []string{}, Warnings: []string{}, Tasks: []string{}, Commands: []string{}, Hosts: []string{}, Depends: []string{}}
+	r := ModuleImportReport{File: p, Files: []ModuleImportFile{}, Problems: []string{}, Warnings: []string{}, Tasks: []string{}, Commands: []string{}, Hosts: []string{}, Images: []string{}, Depends: []string{}}
 	man, files, err := readModulePack(p)
 	if err != nil {
 		r.Problems = append(r.Problems, err.Error())
@@ -415,7 +416,16 @@ var modRisks = []struct {
 	{regexp.MustCompile(`(?m)^\s*-?\s*(ansible\.builtin\.)?(cron|systemd_timer):\s*$|crontab`), "programa tareas periódicas"},
 	{regexp.MustCompile(`(?i)privileged:\s*true|--privileged`), "arranca contenedores con todos los permisos del servidor (privileged)"},
 	{regexp.MustCompile(`/var/run/docker\.sock`), "da a un contenedor el control de Docker (docker.sock)"},
+	{regexp.MustCompile(`(?m)^\s*-?\s*(ansible\.builtin\.)?(get_url|unarchive|git|pip|npm|ansible\.builtin\.script):|\bpip3?\s+install\b|\bnpm\s+(i|install)\b`), "descarga e instala software de internet (además de las imágenes de Docker)"},
+	{regexp.MustCompile(`(?i)network_mode:\s*"?host|pid:\s*"?host|cap_add:`), "da a un contenedor acceso a la red, los procesos o permisos especiales del servidor"},
+	{regexp.MustCompile(`(?m)^\s*-\s*"?/:/`), "monta todo el disco del servidor dentro de un contenedor"},
 }
+
+// Caracteres invisibles o que cambian el sentido del texto: sirven para que el
+// código que se lee no sea el que se ejecuta («Trojan Source»).
+var hiddenRunes = regexp.MustCompile("[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]")
+
+var imageRe = regexp.MustCompile(`(?m)^\s*-?\s*image:\s*["']?([^"'\s#]+)`)
 
 var (
 	modURLRe = regexp.MustCompile(`https?://([A-Za-z0-9.-]+\.[A-Za-z]{2,})`)
@@ -488,10 +498,29 @@ func reviewModule(r *ModuleImportReport, files map[string][]byte) {
 				walk(tasks, f)
 			}
 		}
-		if !utf8.Valid(b) {
+		if !utf8.Valid(b) || bytes.IndexByte(b, 0) >= 0 {
+			if !seenWarn["bin:"+f] {
+				seenWarn["bin:"+f] = true
+				r.Warnings = append(r.Warnings, fmt.Sprintf("no es texto y no se puede revisar (podría ser un programa) (%s)", f))
+			}
 			continue
 		}
 		s := string(b)
+		if hiddenRunes.MatchString(s) {
+			r.Warnings = append(r.Warnings, fmt.Sprintf("tiene caracteres invisibles o que cambian el sentido del texto: lo que lees podría no ser lo que se ejecuta (%s)", f))
+		}
+		for _, l := range strings.Split(s, "\n") {
+			if len(l) > 1000 {
+				r.Warnings = append(r.Warnings, fmt.Sprintf("tiene líneas larguísimas, donde es fácil esconder código (%s)", f))
+				break
+			}
+		}
+		for _, m := range imageRe.FindAllStringSubmatch(s, -1) {
+			if img := m[1]; !seenHost["img:"+img] {
+				seenHost["img:"+img] = true
+				r.Images = append(r.Images, img)
+			}
+		}
 		for _, rk := range modRisks {
 			if rk.re.MatchString(s) && !seenWarn[rk.msg] {
 				seenWarn[rk.msg] = true
@@ -524,6 +553,7 @@ func reviewModule(r *ModuleImportReport, files map[string][]byte) {
 		r.Tasks = append(r.Tasks, fmt.Sprintf("%s × %d", x.k, x.n))
 	}
 	sort.Strings(r.Hosts)
+	sort.Strings(r.Images)
 }
 
 // ImportModuleFile importa un módulo revisado con InspectModuleFile.

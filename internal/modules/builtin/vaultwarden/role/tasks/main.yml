@@ -50,6 +50,14 @@
   failed_when: false
   when: not ansible_check_mode
 
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-vaultwarden
+  when: not ansible_check_mode
+
 - name: Nota
   ansible.builtin.debug:
     msg: >-

@@ -10,8 +10,8 @@ services:
     labels:
       draupnode.proyecto: "{{ draupnode_project }}"
     environment:
-      DOMAIN: "{{ ('https://' ~ vaultwarden_domain) if vaultwarden_domain else '' }}"
-      SIGNUPS_ALLOWED: "{{ 'true' if vaultwarden_signups | bool else 'false' }}"
+{% if vaultwarden_domain %}      DOMAIN: "https://{{ vaultwarden_domain }}"
+{% endif %}      SIGNUPS_ALLOWED: "{{ 'true' if vaultwarden_signups | bool else 'false' }}"
       ADMIN_TOKEN: "{{ vaultwarden_admin_token }}"
       WEBSOCKET_ENABLED: "true"
     volumes:

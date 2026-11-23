@@ -16,7 +16,7 @@ func TestDosAppsDeGit(t *testing.T) {
 	srv, _ := a.SaveServer(srvPassword(), "", false, "")
 	mods := []store.ProjectModule{
 		{ID: "git-app", Values: map[string]any{"git_app_repo": "https://ejemplo.org/tienda.git", "git_app_name": "tienda"}},
-		{ID: "git-app@blog", Values: map[string]any{"git_app_repo": "https://ejemplo.org/blog.git", "git_app_name": "tienda"}},
+		{ID: "git-app@blog", Values: map[string]any{"git_app_repo": "https://ejemplo.org/blog.git", "git_app_name": "tienda", "git_app_port": 8001}},
 	}
 	p, err := a.SaveProject(store.Project{Name: "web", ServerID: srv.ID})
 	if err != nil {

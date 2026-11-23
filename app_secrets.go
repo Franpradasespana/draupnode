@@ -202,7 +202,11 @@ func (a *App) storeGenerated(projectID, b64 string) (int, error) {
 			return 0, err
 		}
 		tr := tar.NewReader(gz)
-		for {
+		for n := 0; ; n++ {
+			// Un servidor comprometido no puede llenar la bóveda: como mucho 500 ficheros.
+			if n > 500 {
+				return 0, errors.New("el servidor devolvió demasiados valores generados")
+			}
 			h, err := tr.Next()
 			if err == io.EOF {
 				break

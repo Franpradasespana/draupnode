@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"draupnode/internal/lab"
@@ -168,7 +169,22 @@ func (a *App) LabRegister() (ServerView, error) {
 
 // OpenURL abre una dirección en el navegador.
 func (a *App) OpenURL(url string) {
+	// Solo webs: otro esquema (file:, smb:, el de un programa…) podría abrir
+	// algo de este equipo si la dirección viene de un módulo o de un servidor.
+	if !safeWebURL(url) {
+		return
+	}
 	if a.ctx != nil {
 		runtime.BrowserOpenURL(a.ctx, url)
 	}
+}
+
+// safeWebURL: http:// o https:// con un host, sin espacios ni comillas.
+func safeWebURL(u string) bool {
+	low := strings.ToLower(u)
+	if !strings.HasPrefix(low, "http://") && !strings.HasPrefix(low, "https://") {
+		return false
+	}
+	rest := u[strings.Index(u, "://")+3:]
+	return rest != "" && !strings.HasPrefix(rest, "/") && !strings.ContainsAny(u, " \"'<>\\\n\r\t")
 }

@@ -123,3 +123,35 @@ func TestImportarModuloMalo(t *testing.T) {
 		t.Fatal("importó algo que no pasa la revisión")
 	}
 }
+
+func TestRevisionTrucos(t *testing.T) {
+	files := map[string][]byte{
+		"module.yaml":                   []byte("id: x\n"),
+		"role/tasks/main.yml":           []byte("---\n- name: Ver\n  ansible.builtin.debug:\n    msg: \"hola \u202e;rm -rf ~ \u202c\"\n- name: Bajar\n  ansible.builtin.get_url:\n    url: https://descargas.example.net/x\n    dest: /tmp/x\n"),
+		"role/files/programa":           {0x7f, 'E', 'L', 'F', 0, 0, 1},
+		"role/templates/compose.yml.j2": []byte("services:\n  a:\n    image: ghcr.io/ejemplo/app:1.2\n    network_mode: host\n  b:\n    image: \"postgres:16\"\n"),
+	}
+	r := ModuleImportReport{}
+	reviewModule(&r, files)
+	w := strings.Join(r.Warnings, " | ")
+	for _, want := range []string{"no es texto", "caracteres invisibles", "descarga e instala", "acceso a la red"} {
+		if !strings.Contains(w, want) {
+			t.Errorf("falta el aviso «%s»: %s", want, w)
+		}
+	}
+	if strings.Join(r.Images, ",") != "ghcr.io/ejemplo/app:1.2,postgres:16" {
+		t.Errorf("imágenes: %v", r.Images)
+	}
+}
+
+func TestSoloWebs(t *testing.T) {
+	for u, ok := range map[string]bool{
+		"https://ejemplo.org/x": true, "http://127.0.0.1:41234/": true, "HTTPS://Ejemplo.org": true,
+		"file:///etc/passwd": false, "smb://servidor/x": false, "javascript:alert(1)": false, "ms-settings:": false,
+		"https:///x": false, "https://a b": false, "": false,
+	} {
+		if safeWebURL(u) != ok {
+			t.Errorf("%q: %v", u, !ok)
+		}
+	}
+}
