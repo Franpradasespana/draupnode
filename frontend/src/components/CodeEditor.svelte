@@ -11,7 +11,8 @@
   import { shell } from '@codemirror/legacy-modes/mode/shell'
   import { indentWithTab } from '@codemirror/commands'
 
-  let { value, file, onchange, onsave }: { value: string; file: string; onchange: (v: string) => void; onsave: () => void } = $props()
+  // readonly: solo para leer (p. ej. un módulo antes de importarlo).
+  let { value, file, onchange = () => {}, onsave = () => {}, readonly = false }: { value: string; file: string; onchange?: (v: string) => void; onsave?: () => void; readonly?: boolean } = $props()
 
   let el: HTMLDivElement
   let view: EditorView | undefined
@@ -46,6 +47,7 @@
           lang.of(langFor(file)),
           theme,
           EditorState.tabSize.of(2),
+          ...(readonly ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []),
           EditorView.updateListener.of((u) => { if (u.docChanged) onchange(u.state.doc.toString()) }),
         ],
       }),

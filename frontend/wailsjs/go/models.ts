@@ -960,6 +960,84 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ModuleImportFile {
+	    path: string;
+	    size: number;
+	    text?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModuleImportFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.size = source["size"];
+	        this.text = source["text"];
+	    }
+	}
+	export class ModuleImportReport {
+	    file: string;
+	    ok: boolean;
+	    id: string;
+	    name: string;
+	    version: string;
+	    description: string;
+	    draupnode: string;
+	    exported: string;
+	    integrity: boolean;
+	    files: ModuleImportFile[];
+	    problems: string[];
+	    warnings: string[];
+	    tasks: string[];
+	    commands: string[];
+	    hosts: string[];
+	    depends: string[];
+	    conflict: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModuleImportReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.ok = source["ok"];
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.description = source["description"];
+	        this.draupnode = source["draupnode"];
+	        this.exported = source["exported"];
+	        this.integrity = source["integrity"];
+	        this.files = this.convertValues(source["files"], ModuleImportFile);
+	        this.problems = source["problems"];
+	        this.warnings = source["warnings"];
+	        this.tasks = source["tasks"];
+	        this.commands = source["commands"];
+	        this.hosts = source["hosts"];
+	        this.depends = source["depends"];
+	        this.conflict = source["conflict"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ModulesInfo {
 	    modules: modules.Module[];
 	    errors: string[];
@@ -1790,6 +1868,22 @@ export namespace modules {
 	        this.url = source["url"];
 	    }
 	}
+	export class Prueba {
+	    lab?: string;
+	    pasos: string[];
+	    comprobar: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Prueba(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lab = source["lab"];
+	        this.pasos = source["pasos"];
+	        this.comprobar = source["comprobar"];
+	    }
+	}
 	export class SecretFile {
 	    file: string;
 	    label: string;
@@ -1894,6 +1988,7 @@ export namespace modules {
 	    uninstallWarning?: string;
 	    uninstallData?: string;
 	    noUninstall?: string;
+	    prueba?: Prueba;
 	    source: string;
 	    files: string[];
 	
@@ -1926,6 +2021,7 @@ export namespace modules {
 	        this.uninstallWarning = source["uninstallWarning"];
 	        this.uninstallData = source["uninstallData"];
 	        this.noUninstall = source["noUninstall"];
+	        this.prueba = this.convertValues(source["prueba"], Prueba);
 	        this.source = source["source"];
 	        this.files = source["files"];
 	    }
@@ -1948,6 +2044,7 @@ export namespace modules {
 		    return a;
 		}
 	}
+	
 	
 	
 	

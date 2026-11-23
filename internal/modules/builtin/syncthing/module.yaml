@@ -46,3 +46,13 @@ links:
     url: https://syncthing.net
   - label: "Código fuente"
     url: https://github.com/syncthing/syncthing
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí. Para sincronizar de verdad con tu equipo, el servidor tiene que ser accesible (puerto 22000)."
+  pasos:
+    - "Añade «Syncthing» y aplica."
+    - "Pulsa «Abrir (túnel SSH)»: es el panel de Syncthing del servidor."
+  comprobar:
+    - "El panel carga y enseña el ID de este dispositivo, para añadirlo en el Syncthing de tu equipo."
+    - "En un servidor público, al añadirlo en tu equipo y compartir una carpeta, los ficheros aparecen en el servidor."

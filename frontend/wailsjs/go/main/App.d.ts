@@ -92,6 +92,8 @@ export function ExportBackup(arg1:string,arg2:boolean):Promise<string>;
 
 export function ExportProject(arg1:string):Promise<string>;
 
+export function ExportUserModule(arg1:string):Promise<string>;
+
 export function FetchBackups(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.BackupResult>;
 
 export function FetchProjectSecrets(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.FetchSecretsResult>;
@@ -110,9 +112,13 @@ export function GitAppInspect(arg1:string,arg2:string,arg3:string,arg4:string,ar
 
 export function ImportBackup(arg1:string,arg2:string):Promise<main.ImportResult>;
 
+export function ImportModuleFile(arg1:string,arg2:string,arg3:boolean):Promise<main.UserModule>;
+
 export function InspectBackup(arg1:string,arg2:string):Promise<copia.Manifest>;
 
 export function InspectKey(arg1:string):Promise<main.KeyResult>;
+
+export function InspectModuleFile():Promise<main.ModuleImportReport>;
 
 export function LabAction(arg1:string):Promise<void>;
 

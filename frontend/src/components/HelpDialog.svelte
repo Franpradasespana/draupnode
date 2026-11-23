@@ -2,6 +2,7 @@
   import { X } from '@lucide/svelte'
   import { HELP, helpFor, shot } from '../lib/help'
   import { ui } from '../lib/state.svelte'
+  import ModuleTests from './ModuleTests.svelte'
 
   let current = $state(helpFor(ui.help).id)
   const sec = $derived(HELP.find((h) => h.id === current) ?? HELP[0])
@@ -47,6 +48,7 @@
           </li>
         {/each}
       </ol>
+      {#if sec.id === 'probar'}<ModuleTests />{/if}
     </section>
   </div>
 </div>

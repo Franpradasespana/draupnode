@@ -83,3 +83,14 @@ links:
     url: https://github.com/openssh/openssh-portable
   - label: "fail2ban"
     url: https://github.com/fail2ban/fail2ban
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí. Déjalo en el puerto 22 en el servidor de pruebas para no perder la conexión."
+  pasos:
+    - "Añade «SSH seguro + fail2ban» con el puerto 22, sin contraseñas y sin root, y aplica."
+    - "Desde una terminal de tu equipo, intenta entrar con contraseña: «ssh -p 2222 -o PubkeyAuthentication=no ubuntu@127.0.0.1»."
+  comprobar:
+    - "Draupnode sigue entrando con la clave (la ficha se lee)."
+    - "El intento con contraseña se rechaza («Permission denied (publickey)»)."
+    - "Ficha → Red y seguridad: sale fail2ban activo; en «Terminal», «sudo fail2ban-client status sshd» lo confirma."

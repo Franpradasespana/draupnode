@@ -53,3 +53,14 @@ links:
     url: https://coolify.io/docs
   - label: "Código fuente"
     url: https://github.com/coollabsio/coolify
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí. Necesita 2 GB de RAM y 30 GB de disco; en el servidor de pruebas su panel está en http://127.0.0.1:18000."
+  pasos:
+    - "Añade «Coolify» (trae Docker y el Cortafuegos), pon tu correo como administrador y aplica (tarda unos minutos)."
+    - "Mira la contraseña del administrador en la página del módulo → Contraseñas."
+    - "Abre http://127.0.0.1:18000 desde tu navegador."
+  comprobar:
+    - "El panel de Coolify carga y entras con tu correo y esa contraseña."
+    - "Ficha → Apps y bases: sale «Panel de Coolify»; las apps que publiques en Coolify aparecen ahí con su dirección."

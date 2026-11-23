@@ -63,3 +63,14 @@ links:
     url: https://mariadb.com/kb/
   - label: "Código fuente"
     url: https://github.com/MariaDB/server
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «MariaDB compartido» con una base, por ejemplo «blog», y aplica."
+    - "Mira su usuario y contraseña en la página del módulo → Contraseñas."
+    - "En «Terminal»: «docker exec -it mariadb-compartido mariadb -u blog -p blog -e 'select 1'» (pega la contraseña)."
+  comprobar:
+    - "La consulta devuelve 1."
+    - "Ficha → Apps y bases → Bases de datos: sale MariaDB con la base «blog»."

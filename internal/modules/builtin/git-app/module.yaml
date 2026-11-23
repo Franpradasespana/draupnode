@@ -173,3 +173,16 @@ links:
     url: https://docs.docker.com/compose/
   - label: "Código de Compose"
     url: https://github.com/docker/compose
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí: es justo para lo que está el servidor de pruebas. Prueba con un repositorio público o con una carpeta de tu equipo."
+  pasos:
+    - "Con una carpeta de tu equipo: en Docker Creator elige la carpeta, «Guardar en la carpeta» y «Publicar en el servidor» con el servidor de pruebas; «Tu app» queda añadida con sus variables (la guía «Publicar tu app paso a paso» lo cuenta entero)."
+    - "Con Git: añade «Tu app (Git o carpeta)» con «git» y un repositorio público, y pulsa «Leer el repositorio» para rellenar sus variables."
+    - "Revisa las variables resaltadas y pulsa «Simular» (comprueba el compose, las variables y los puertos sin tocar la app)."
+    - "Pulsa «Aplicar» y luego «Abrir (túnel SSH)»."
+  comprobar:
+    - "La app responde en el navegador y, si tiene base de datos, ha hecho sus migraciones."
+    - "Ficha → Apps y bases → Uso por app: sale con su CPU y memoria."
+    - "Cambia algo en tu proyecto, vuelve a aplicar y se actualiza."

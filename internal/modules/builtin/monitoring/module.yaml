@@ -77,3 +77,14 @@ links:
     url: https://github.com/prometheus/node_exporter
   - label: "cAdvisor"
     url: https://github.com/google/cadvisor
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (necesita 1,5 GB de RAM)."
+  pasos:
+    - "Añade «Monitorización (métricas)» y aplica."
+    - "Pulsa «Abrir Grafana» (en la página del módulo o en Apps y bases): se abre por un túnel SSH."
+    - "Entra con el usuario admin y la contraseña de Contraseñas."
+  comprobar:
+    - "Grafana carga y los paneles «Recursos» (CPU, RAM, disco), contenedores y PostgreSQL tienen datos."
+    - "Grafana no se ve desde fuera: solo escucha en 127.0.0.1 del servidor."

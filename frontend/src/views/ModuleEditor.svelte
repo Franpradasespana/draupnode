@@ -2,10 +2,11 @@
   // Editor de módulos propios: crearlos (vacíos o copiando uno incluido),
   // editar sus ficheros con resaltado, comprobarlos al guardar y borrarlos.
   import { onMount } from 'svelte'
-  import { Plus, Save, Trash2, FolderOpen, FileCode, FilePlus, CircleCheck, TriangleAlert, CircleX, Puzzle } from '@lucide/svelte'
+  import { Plus, Save, Trash2, FolderOpen, FileCode, FilePlus, CircleCheck, TriangleAlert, CircleX, Puzzle, Upload, Download } from '@lucide/svelte'
+  import ModuleImportDialog from '../components/ModuleImportDialog.svelte'
   import CodeEditor from '../components/CodeEditor.svelte'
   import Modal from '../components/Modal.svelte'
-  import { api, errorText, type UserModule } from '../lib/api'
+  import { api, errorText, type ModuleImportReport, type UserModule } from '../lib/api'
   import { ui, toast, confirmDialog, ask, refreshModules } from '../lib/state.svelte'
 
   let list = $state<UserModule[]>([])
@@ -80,6 +81,42 @@
     }
   }
 
+  // ---- Compartir: exportar a un fichero e importar uno revisándolo antes
+  async function exportModule() {
+    if (!cur) return
+    if (dirty && !(await confirmDialog({ title: 'Cambios sin guardar', message: `«${file}» tiene cambios sin guardar: se exportará lo guardado. ¿Seguir?`, confirmLabel: 'Exportar lo guardado' }))) return
+    try {
+      const p = await api.ExportUserModule(cur.id)
+      if (p) toast('Módulo exportado: ' + p)
+    } catch (e) {
+      toast(errorText(e), 'error')
+    }
+  }
+  let importing = $state<ModuleImportReport | null>(null)
+  async function inspectImport() {
+    if (!(await guard())) return
+    try {
+      const r = await api.InspectModuleFile()
+      if (r.file) importing = r
+    } catch (e) {
+      toast(errorText(e), 'error')
+    }
+  }
+  async function doImport(newId: string, overwrite: boolean) {
+    if (!importing) return
+    try {
+      const m = await api.ImportModuleFile(importing.file, newId, overwrite)
+      importing = null
+      await refreshModules()
+      cur = null
+      file = ''
+      await load(m.id)
+      toast(`«${m.name}» importado: ya aparece en el Catálogo`)
+    } catch (e) {
+      toast(errorText(e), 'error')
+    }
+  }
+
   async function newFile() {
     if (!cur || !(await guard())) return
     const f = await ask('Fichero nuevo', 'Ruta dentro del módulo, por ejemplo role/templates/config.j2 o role/handlers/main.yml.', 'Ruta', false)
@@ -128,7 +165,10 @@
     <h1>Editor de módulos</h1>
     <p class="muted">Tus propios módulos: un formulario (<code>module.yaml</code>) y un rol de Ansible (<code>role/</code>). Empieza con un ejemplo o copiando uno incluido. Al guardar se comprueban y aparecen en el Catálogo y en las plantillas.</p>
   </div>
-  <button class="btn primary" onclick={() => (creating = { id: '', from: '' })}><Plus size={15} /> Nuevo módulo</button>
+  <div class="hbtns">
+    <button class="btn" onclick={inspectImport} title="Importar un módulo que te han pasado (.draupnode-modulo); se revisa antes"><Upload size={15} /> Importar…</button>
+    <button class="btn primary" onclick={() => (creating = { id: '', from: '' })}><Plus size={15} /> Nuevo módulo</button>
+  </div>
 </div>
 
 <div class="layout">
@@ -162,6 +202,7 @@
         {#if file !== 'module.yaml' && file !== 'role/tasks/main.yml'}<button class="btn sm ghost" onclick={delFile}><Trash2 size={14} /> Borrar fichero</button>{/if}
         <div class="spacer"></div>
         <button class="btn sm ghost" onclick={() => api.OpenUserModuleDir(cur!.id)}><FolderOpen size={14} /> Abrir carpeta</button>
+        <button class="btn sm" onclick={exportModule} disabled={cur.problems.length > 0} title={cur.problems.length ? 'Arregla sus problemas antes de exportarlo' : 'Guardarlo en un fichero para pasárselo a otra persona'}><Download size={14} /> Exportar…</button>
         <button class="btn sm danger" onclick={delModule}><Trash2 size={14} /> Borrar módulo</button>
       </div>
       <div class="state">
@@ -172,6 +213,10 @@
     </section>
   {/if}
 </div>
+
+{#if importing}
+  <ModuleImportDialog report={importing} onimport={doImport} onclose={() => (importing = null)} />
+{/if}
 
 {#if creating}
   <Modal title="Nuevo módulo" width={520} onclose={() => (creating = null)}>
@@ -193,6 +238,7 @@
 <style>
   .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
   .head h1 { margin: 0 0 4px; }
+  .hbtns { display: flex; gap: 8px; }
   .head p { max-width: 760px; }
   .layout { display: grid; grid-template-columns: 240px 1fr; gap: 14px; align-items: start; }
   .mods { display: flex; flex-direction: column; gap: 2px; padding: 8px; }

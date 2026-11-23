@@ -58,3 +58,13 @@ links:
     url: https://www.navidrome.org
   - label: "Código fuente"
     url: https://github.com/navidrome/navidrome
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Navidrome» con la carpeta de música por defecto (/srv/musica) y aplica."
+    - "En «Terminal», copia un MP3 a /srv/musica."
+    - "Pulsa «Abrir (túnel SSH)» y crea el administrador (el primero que entra)."
+  comprobar:
+    - "La canción aparece y se escucha en el navegador (Navidrome revisa la carpeta cada hora; para no esperar, reinicia su contenedor en la pestaña Contenedores)."

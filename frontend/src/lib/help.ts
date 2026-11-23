@@ -16,7 +16,7 @@ export interface HelpStep {
 }
 
 export interface HelpSection {
-  id: View | 'general' | 'publicar'
+  id: View | 'general' | 'publicar' | 'probar'
   title: string
   intro: string
   steps: HelpStep[]
@@ -111,6 +111,18 @@ export const HELP: HelpSection[] = [
       { title: 'Ficha de un módulo', text: 'Qué hace, de qué depende, qué requisitos tiene (sistema, memoria, disco) y qué datos se pueden configurar.', img: 'catalogo' },
       { title: 'Ficheros del rol', text: 'Puedes leer las tareas de Ansible que ejecutará cada módulo.' },
       { title: 'Módulos propios', text: '«Mis módulos» abre la carpeta de módulos propios: copia uno, cámbialo y pulsa «Recargar».' },
+      { title: 'Probar un módulo', text: 'En «Probar cada módulo» (aquí, en la Ayuda) tienes, para cada uno, cómo probarlo en el servidor de pruebas y qué deberías ver si funciona.' },
+    ],
+  },
+  {
+    id: 'probar',
+    title: 'Probar cada módulo',
+    intro: 'Cómo comprobar que cada módulo funciona, en el servidor de pruebas (un Ubuntu en Docker en tu equipo) y sin tocar tus servidores de verdad. Abre un módulo para ver sus pasos y qué deberías ver; marca «Probado: funciona» y Draupnode lo recuerda en este equipo.',
+    steps: [
+      { title: 'Prepara el servidor de pruebas', text: 'En «Servidor de pruebas»: «Crear y arrancar» y «Dar de alta en Draupnode». Abre su ficha → Módulos: ahí añades el módulo, pulsas «Simular» (qué cambiaría, sin tocar nada) y «Aplicar».' },
+      { title: 'Lo que necesitas a mano', text: 'Las contraseñas que genera cada módulo están en su página → Contraseñas. Las apps se abren con «Abrir (túnel SSH)» sin publicarlas en internet. Para comprobar cosas dentro del servidor, «Terminal».' },
+      { title: 'Empezar de cero', text: 'Entre prueba y prueba: Módulos → «Desinstalar todo…» (con sus datos), o en «Servidor de pruebas», «Borrar» y «Crear y arrancar».' },
+      { title: 'Lo que no se puede probar aquí', text: 'Los certificados de Let\'s Encrypt (Caddy y nginx), conectar un móvil por la VPN o sincronizar con Syncthing necesitan un servidor accesible desde internet. Cada módulo lo dice en su desplegable.' },
     ],
   },
   {
@@ -173,6 +185,8 @@ export const HELP: HelpSection[] = [
       { title: 'Editar', text: 'Cada fichero es una pestaña. El editor resalta YAML, plantillas Jinja2 (.j2) y shell. Ctrl+S guarda. «Nuevo» añade un fichero (por ejemplo role/templates/config.j2).' },
       { title: 'Comprobar', text: 'Al guardar se comprueba: la sintaxis YAML de cada fichero y lo mismo que mira el Catálogo (variables con su prefijo, tipos, puertos…). Abajo verás en rojo lo que impide usarlo y en ámbar los avisos. Para probarlo de verdad, ponlo en una plantilla y aplícala en el servidor de pruebas.' },
       { title: 'Borrar', text: 'Solo si ninguna plantilla lo usa. Lo que ya instaló en tus servidores no se toca.' },
+      { title: 'Exportar', text: '«Exportar…» guarda el módulo en un único fichero .draupnode-modulo para pasárselo a otra persona (por correo, en un USB…). Lleva sus ficheros y la huella SHA-256 de cada uno. Solo se exportan módulos sin problemas.' },
+      { title: 'Importar y revisar', img: 'modulo-importar', text: '«Importar…» abre un .draupnode-modulo y, antes de copiar nada, lo revisa: que esté entero (huellas), que no traiga rutas raras ni enlaces, que se cargue bien y qué hace en el servidor (tipos de tarea, órdenes de shell, sitios de internet) con avisos de lo delicado: descargar y ejecutar scripts, tocar claves SSH, sudo o el cortafuegos, borrar desde la raíz, contenedores con todos los permisos… Puedes leer cada fichero. Un módulo se ejecuta como root en tus servidores: impórtalo solo si te fías de quien te lo pasó (la huella dice que no se ha cambiado por el camino, no quién lo hizo). Si ya tienes uno con ese nombre, eliges sustituirlo o importarlo con otro; si es el de un módulo incluido, siempre con otro nombre.' },
     ],
   },
   {

@@ -41,3 +41,15 @@ links:
     url: https://www.debian.org
   - label: "Actualizaciones automáticas (unattended-upgrades)"
     url: https://github.com/mvo5/unattended-upgrades
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí. En un contenedor no se crea el swap (usa el del equipo) y lo dice en una nota."
+  pasos:
+    - "En «Servidor de pruebas», «Crear y arrancar» y «Dar de alta en Draupnode». Abre su ficha → Módulos."
+    - "Añade «Sistema base» (Europe/Madrid, paquetes por defecto) y pulsa «Simular»: deben salir cambios y 0 fallos."
+    - "Pulsa «Aplicar». Después, «Simular» otra vez."
+  comprobar:
+    - "La aplicación termina con 0 fallos y la segunda simulación dice 0 cambios (todo está como se pidió)."
+    - "En «Terminal»: «timedatectl» enseña Europe/Madrid y «htop --version» responde."
+    - "«systemctl status unattended-upgrades» está activo (actualizaciones de seguridad automáticas)."

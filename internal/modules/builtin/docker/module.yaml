@@ -35,3 +35,13 @@ links:
     url: https://docs.docker.com
   - label: "Código fuente (Moby)"
     url: https://github.com/moby/moby
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (Docker dentro de Docker, con sus datos en un volumen aparte)."
+  pasos:
+    - "Añade «Docker» y aplica."
+    - "En «Terminal»: «docker run --rm hello-world»."
+  comprobar:
+    - "El contenedor de prueba dice «Hello from Docker!» sin usar sudo (tu usuario está en el grupo docker)."
+    - "La ficha enseña la pestaña Contenedores con su contador y «Limpiar Docker…»."

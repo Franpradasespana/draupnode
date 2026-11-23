@@ -69,3 +69,14 @@ links:
     url: https://forgejo.org
   - label: "Código fuente"
     url: https://codeberg.org/forgejo/forgejo
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Forgejo» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y entra con el administrador de Contraseñas."
+    - "Crea un repositorio y súbele algo con git."
+  comprobar:
+    - "Forgejo carga, entras como administrador y el repositorio guarda tus commits."
+    - "El registro de usuarios está cerrado (solo el administrador crea cuentas)."

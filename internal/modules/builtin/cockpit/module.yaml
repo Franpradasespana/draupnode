@@ -53,3 +53,13 @@ links:
     url: https://cockpit-project.org
   - label: "Código fuente"
     url: https://github.com/cockpit-project/cockpit
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Cockpit» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y entra con el usuario de Contraseñas."
+  comprobar:
+    - "El panel enseña CPU, memoria, servicios y registros, y su terminal funciona."
+    - "Solo escucha en 127.0.0.1 (y en la VPN si la hay): desde fuera no se ve."

@@ -67,3 +67,14 @@ links:
     url: https://github.com/nginx/nginx
   - label: "certbot (Let's Encrypt)"
     url: https://certbot.eff.org
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, pero sin certbot (el servidor de pruebas no es accesible desde internet): desactiva HTTPS para la prueba. Con un dominio real se prueba en un servidor público."
+  pasos:
+    - "Instala antes algo que escuche, por ejemplo «Vaultwarden» (puerto 8222)."
+    - "Añade «nginx» con el sitio «vault.localhost 127.0.0.1:8222», HTTPS desactivado, y aplica."
+    - "En «Terminal»: «curl -s -H 'Host: vault.localhost' http://127.0.0.1 -o /dev/null -w '%{http_code}\\n'» y lo mismo con otro dominio."
+  comprobar:
+    - "Con vault.localhost devuelve 200; con un dominio que no conoce, nginx corta la conexión (000)."
+    - "«curl -sI -H 'Host: vault.localhost' http://127.0.0.1» no enseña la versión de nginx y trae las cabeceras de seguridad."

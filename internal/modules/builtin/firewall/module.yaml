@@ -25,3 +25,14 @@ links:
     url: https://www.netfilter.org/projects/iptables/
   - label: "Código fuente"
     url: https://git.netfilter.org/iptables/
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (el contenedor de pruebas tiene iptables)."
+  pasos:
+    - "Añade «Cortafuegos» con los puertos 22, 80 y 443 y aplica."
+    - "Añade después otro puerto (por ejemplo 8080), aplica, y luego quítalo y aplica otra vez."
+  comprobar:
+    - "Ficha → Red y seguridad: «El cortafuegos deja pasar» enseña 22/tcp, 80/tcp y 443/tcp."
+    - "En «Terminal»: «sudo iptables -S INPUT» tiene las reglas con la etiqueta draupnode y «/etc/iptables/rules.v4» las guarda."
+    - "El SSH sigue funcionando (la ficha se sigue leyendo) y el 8080 aparece y desaparece al añadirlo y quitarlo."

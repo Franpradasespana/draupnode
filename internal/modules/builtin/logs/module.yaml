@@ -35,3 +35,13 @@ links:
     url: https://github.com/grafana/loki
   - label: "Grafana Alloy"
     url: https://github.com/grafana/alloy
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (necesita Monitorización y 2 GB de RAM)."
+  pasos:
+    - "Con Monitorización instalada, añade «Registros (Loki)» y aplica."
+    - "En Grafana, abre el panel «Registros» o Explore → Loki."
+    - "En «Terminal», haz algo que deje rastro (por ejemplo «sudo true» o reiniciar un contenedor)."
+  comprobar:
+    - "Salen los registros de los contenedores y del sistema (SSH, sudo, servicios), y lo que hiciste aparece al momento."

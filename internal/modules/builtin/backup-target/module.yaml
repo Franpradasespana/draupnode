@@ -103,3 +103,14 @@ links:
     url: https://github.com/restic/rest-server
   - label: "restic"
     url: https://restic.net
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Hacen falta dos servidores: el de pruebas como destino y otro (un segundo Ubuntu, o un VPS) como origen. Con uno solo, comprueba solo que el destino arranca."
+  pasos:
+    - "En el servidor que guardará las copias, añade «Destino de copias» y aplica."
+    - "En el servidor de origen, Copias → «Guardar también en otro servidor» y elige el destino: Draupnode configura los dos."
+    - "En el origen, «Hacer copia ahora» y luego «Ver copias remotas»."
+  comprobar:
+    - "Las copias del origen aparecen en el destino."
+    - "Desde el origen no se pueden borrar las del destino (modo solo añadir): un intruso en el origen no las destruye."

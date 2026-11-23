@@ -55,3 +55,15 @@ links:
     url: https://caddyserver.com/docs/
   - label: "Código fuente"
     url: https://github.com/caddyserver/caddy
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, pero sin Let's Encrypt (el servidor de pruebas no es accesible desde internet): usa un dominio .localhost y Caddy firma su propio certificado. Con un dominio real, el certificado de verdad se prueba en un servidor público."
+  pasos:
+    - "Instala antes algo que escuche, por ejemplo «Vaultwarden» (puerto 8222)."
+    - "Añade «Caddy» con el sitio «vault.localhost 127.0.0.1:8222» y aplica."
+    - "En «Terminal»: «curl -sk --resolve vault.localhost:443:127.0.0.1 https://vault.localhost -o /dev/null -w '%{http_code}\\n'»."
+  comprobar:
+    - "La orden devuelve 200: Caddy sirve la app por HTTPS."
+    - "Ficha → Apps y bases: sale el sitio vault.localhost (Caddy)."
+    - "Un segundo «Aplicar» no cambia nada."

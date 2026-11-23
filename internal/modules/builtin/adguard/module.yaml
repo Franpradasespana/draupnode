@@ -47,3 +47,14 @@ links:
     url: https://adguard.com/adguard-home/overview.html
   - label: "Código fuente"
     url: https://github.com/AdguardTeam/AdGuardHome
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (necesita WireGuard)."
+  pasos:
+    - "Con WireGuard instalado, añade «AdGuard Home» y aplica."
+    - "En «Terminal»: «sudo apt-get install -y dnsutils», luego «dig +short @10.8.0.1 doubleclick.net» y «dig +short @10.8.0.1 example.com»."
+    - "Pulsa «Abrir (túnel SSH)» y entra con el usuario de Contraseñas."
+  comprobar:
+    - "doubleclick.net devuelve 0.0.0.0 (bloqueado) y example.com su IP real."
+    - "El panel de AdGuard carga y cuenta las consultas; las configuraciones de WireGuard llevan DNS = 10.8.0.1."

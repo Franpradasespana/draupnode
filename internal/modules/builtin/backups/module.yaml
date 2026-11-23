@@ -152,3 +152,15 @@ links:
     url: https://restic.readthedocs.io
   - label: "Código fuente"
     url: https://github.com/restic/restic
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Con «PostgreSQL compartido» instalado, añade «Copias de seguridad» con «Hacer la primera copia al aplicar» y aplica."
+    - "Ficha → pestaña Copias: pulsa «Ver copias» y luego «Hacer copia ahora»."
+    - "Prueba a restaurar: en una copia, «Restaurar base…» → «Restaurar en la base nueva» (no en su sitio)."
+  comprobar:
+    - "Salen las copias con su fecha y tamaño, y el volcado de cada base (postgres-…/tienda.dump)."
+    - "La base restaurada tiene los mismos datos que la original."
+    - "«Traer copias al equipo» descarga la copia a tu equipo."

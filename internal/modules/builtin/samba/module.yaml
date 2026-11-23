@@ -46,3 +46,13 @@ links:
     url: https://www.samba.org
   - label: "Código fuente"
     url: https://gitlab.com/samba-team/samba
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (necesita WireGuard, o una interfaz de red en «Interfaces»)."
+  pasos:
+    - "Con WireGuard instalado, añade «Samba» con la carpeta «compartido /srv/compartido» y aplica."
+    - "En «Terminal»: «sudo apt-get install -y smbclient» y «smbclient //10.8.0.1/compartido -U compartir» (contraseña de Contraseñas); dentro, «put /etc/hostname prueba.txt» y «ls»."
+  comprobar:
+    - "Sube y lista el fichero; con otro usuario da LOGON_FAILURE."
+    - "Escucha en 10.8.0.1 y 127.0.0.1, nunca en la IP pública."

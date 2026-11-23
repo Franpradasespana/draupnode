@@ -302,6 +302,14 @@ variables:
 #   - label: "Web oficial"
 #     url: https://ejemplo.org
 uninstall_warning: "Quita los paquetes y el mensaje del día."
+# Cómo probarlo (sale en Ayuda → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "En el servidor de pruebas → Módulos, añade este módulo y pulsa «Aplicar»."
+    - "Abre «Terminal» (se conecta de nuevo y enseña el mensaje del día)."
+  comprobar:
+    - "Sale tu mensaje al entrar y «htop --version» responde."
 `),
 		"role/tasks/main.yml": []byte(`---
 # Tareas de Ansible que se ejecutan en el servidor (como root) al Aplicar.

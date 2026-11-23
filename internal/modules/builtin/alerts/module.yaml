@@ -120,3 +120,15 @@ links:
     url: https://github.com/binwiederhier/ntfy
   - label: "Bots de Telegram"
     url: https://core.telegram.org/bots
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, con ntfy (sin cuenta): el aviso llega al móvil aunque el servidor sea el de pruebas, porque es él quien llama a ntfy.sh. Telegram necesita un bot (@BotFather) y tu chat id."
+  pasos:
+    - "Añade «Alertas al móvil» con el canal ntfy y aplica."
+    - "En la página del módulo: «Suscribirse en el móvil» (código QR para la app ntfy) y «Enviar aviso de prueba»."
+    - "Pulsa «Qué ve ahora». Para forzar un aviso, para un contenedor en la pestaña Contenedores y espera 5 minutos."
+  comprobar:
+    - "El aviso de prueba llega al móvil."
+    - "«Qué ve ahora» enseña disco, memoria, copias y contenedores con su estado."
+    - "Al parar el contenedor llega un aviso, y otro cuando lo vuelves a arrancar."

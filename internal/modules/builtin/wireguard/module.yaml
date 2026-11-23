@@ -71,3 +71,14 @@ links:
     url: https://www.wireguard.com/install/
   - label: "Código fuente"
     url: https://git.zx2c4.com/wireguard-tools/
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí: el contenedor de pruebas usa el núcleo de tu equipo, que trae WireGuard. Para conectar de verdad desde un dispositivo hace falta un servidor accesible desde fuera (puerto UDP 51820)."
+  pasos:
+    - "Añade «WireGuard (VPN)» con los dispositivos portatil y movil y aplica."
+    - "En la página del módulo, «Ver configuraciones»: está la de cada dispositivo y su código QR."
+    - "En «Terminal»: «sudo wg show»."
+  comprobar:
+    - "wg show enseña la interfaz wg0 con 10.8.0.1 y un peer por dispositivo."
+    - "En un servidor público: con la app WireGuard del móvil y el QR, conectas y «ping 10.8.0.1» responde."

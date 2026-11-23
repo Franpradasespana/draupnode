@@ -61,3 +61,12 @@ links:
     url: https://docs.paperless-ngx.com
   - label: "Código fuente"
     url: https://github.com/paperless-ngx/paperless-ngx
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (necesita 2 GB de RAM)."
+  pasos:
+    - "Añade «Paperless-ngx» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con admin (contraseña en Contraseñas) y sube un PDF."
+  comprobar:
+    - "El documento aparece y, tras unos segundos, se puede buscar por el texto que contiene (OCR en español e inglés)."

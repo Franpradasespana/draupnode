@@ -1049,3 +1049,32 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
 - Las 31 capturas rehechas con la versión actual (salían «App desde Git» y pantallas viejas). La de «Tu app» se
   buscaba por el nombre antiguo.
 - La demo del navegador ya no dice «v0.2.0»: pone «demo navegador».
+
+## 2026-11-23 · 0.59.0 · README con imágenes, compartir módulos y guía para probar cada módulo
+
+- **README**: GIF con un recorrido por la app (`docs/img/draupnode.gif`, 8 pantallas, 678 KB; `make gif` lo rehace con
+  `herramientas/gif_readme.py` a partir de las capturas de la ayuda) y una galería de 6 capturas. «Qué hace» reescrito
+  con el modelo actual (módulos del servidor, plantillas como atajo, ficha por pestañas, historial, uso por app,
+  «Tu app» con carpeta, Desinstalar todo).
+- **Compartir módulos** (Editor de módulos, `app_modshare.go`):
+  - «Exportar…»: un fichero `<id>.draupnode-modulo` (tar.gz) con sus ficheros y `draupnode-modulo.json` (formato,
+    id, versión, Draupnode que lo exportó y la huella SHA-256 de cada fichero). Solo módulos sin problemas.
+  - «Importar…» lo revisa antes de copiar nada (`InspectModuleFile`): límites de tamaño y número de ficheros, solo
+    ficheros normales (ni enlaces ni rutas con `..`, absolutas o fuera de `module.yaml`/`role/`), huellas, YAML, que
+    el catálogo lo cargue (con tus módulos, por si depende de alguno), choque de id (tuyo: sustituir u otro nombre;
+    incluido: siempre otro nombre, renombrando el prefijo de sus variables). Y qué hace: tipos de tarea, órdenes de
+    shell, sitios de internet y avisos de lo delicado (descargar y ejecutar scripts, claves SSH, sudoers,
+    /etc/shadow, configuración del SSH, vaciar el cortafuegos, chmod 777, base64/eval, shells hacia fuera, usuarios,
+    tareas periódicas, contenedores privileged o con docker.sock). Si hay avisos, hay que marcar «He leído lo que
+    hace…». Se puede leer cada fichero (CodeEditor de solo lectura).
+  - `ImportModuleFile` lo vuelve a revisar y lo escribe aparte antes de cambiarlo de golpe (carpetas ocultas
+    `.id.importando`/`.id.anterior`, que el catálogo no carga).
+  - Tests: ida y vuelta, choque con el tuyo y con uno incluido, renombrar, huella cambiada, rutas peligrosas,
+    enlace simbólico, sin manifiesto.
+- **Probar cada módulo** (Ayuda, después de Catálogo): los 26 módulos traen en su `module.yaml` un bloque `prueba:`
+  (`lab`: si se puede probar en el servidor de pruebas y qué tener en cuenta; `pasos`; `comprobar`: cómo queda).
+  La ayuda enseña un desplegable por módulo, por categorías, con «Probado: funciona» que se recuerda en este equipo
+  (localStorage `dn-modulos-probados`) y el contador «X de 26». Los módulos propios pueden traer su guía (el
+  esqueleto de módulo nuevo trae un ejemplo). Test `TestGuiasDePrueba`: todo módulo incluido tiene la suya.
+- El catálogo de la demo (MOCK_MODULES) se ha vuelto a volcar del catálogo real (estaba desfasado en variables y
+  detalles de 15 módulos).

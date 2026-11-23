@@ -174,6 +174,10 @@ export function ExportProject(arg1) {
   return window['go']['main']['App']['ExportProject'](arg1);
 }
 
+export function ExportUserModule(arg1) {
+  return window['go']['main']['App']['ExportUserModule'](arg1);
+}
+
 export function FetchBackups(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['FetchBackups'](arg1, arg2, arg3, arg4, arg5);
 }
@@ -210,12 +214,20 @@ export function ImportBackup(arg1, arg2) {
   return window['go']['main']['App']['ImportBackup'](arg1, arg2);
 }
 
+export function ImportModuleFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ImportModuleFile'](arg1, arg2, arg3);
+}
+
 export function InspectBackup(arg1, arg2) {
   return window['go']['main']['App']['InspectBackup'](arg1, arg2);
 }
 
 export function InspectKey(arg1) {
   return window['go']['main']['App']['InspectKey'](arg1);
+}
+
+export function InspectModuleFile() {
+  return window['go']['main']['App']['InspectModuleFile']();
 }
 
 export function LabAction(arg1) {

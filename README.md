@@ -5,9 +5,12 @@
 > **Draupnode** hace lo mismo con servidores: describes una vez lo que quieres y lo forja en cualquier máquina Linux, de cero.
 
 Aplicación de escritorio (Windows, macOS y Linux) para preparar y vigilar servidores Linux:
-das de alta tus servidores por SSH, preparas **plantillas** con los módulos que quieres (Docker, Caddy o nginx, copias
-con restic, WireGuard, tus apps desde Git, Vaultwarden, Immich…), las asocias a uno o varios servidores y Draupnode lo
-instala con **Ansible**, o te genera **un único `instalar.sh`**.
+das de alta tus servidores por SSH, eliges los **módulos** que quieres en cada uno (Docker, Caddy o nginx, copias con
+restic, WireGuard, tus apps desde Git o desde una carpeta, Vaultwarden, Immich…) y Draupnode los instala con
+**Ansible**, o te genera **un único `instalar.sh`**. Luego te enseña cómo está cada servidor y te avisa de lo que
+conviene mirar.
+
+<p align="center"><img src="docs/img/draupnode.gif" alt="Recorrido por Draupnode: panel, ficha del servidor con su historial y el uso por app, módulos, catálogo, Docker Creator y terminal" width="900"></p>
 
 **Todo es local.** No hay servidor de Draupnode: la configuración vive en tu equipo, las contraseñas en el llavero del
 sistema o en una bóveda cifrada, y lo único que sale es la conexión SSH a *tus* servidores (y, si lo dejas activado,
@@ -31,24 +34,46 @@ En macOS: clic derecho sobre Draupnode → Abrir. En Windows: «Más informació
 
 ## Qué hace
 
-- **Servidores**: alta por SSH (clave OpenSSH, PEM o PuTTY, con o sin contraseña, o usuario y contraseña), huellas
-  verificadas, y una **ficha** de cada uno con su estado en vivo: CPU, memoria, discos, contenedores y sus registros,
-  bases de datos y lo que pesan, apps y direcciones (también las de Coolify y los sitios de nginx/Caddy), puertos que
-  escuchan y que deja pasar el cortafuegos, historial de ejecuciones y contraseñas.
-- **Plantillas**: lo que quieres instalar y cómo, sin servidor. Se asocian a servidores, se previsualizan y se aplican;
-  cada servidor puede tener lo suyo (dominio, destino de copias…). Si cambias la plantilla, sus servidores lo ven como
-  «cambios sin aplicar».
-- **Catálogo** de módulos con su web oficial y su código, y **editor de módulos propios** (CodeMirror) para crear los
-  tuyos o copiar uno incluido.
+- **Servidores**: alta por SSH (clave OpenSSH, PEM o PuTTY, con o sin contraseña, o usuario y contraseña) con huellas
+  verificadas, y una **ficha** de cada uno por pestañas:
+  - **Resumen**: CPU, memoria, disco, contenedores, actualizaciones, reinicio pendiente, intentos de SSH, hora,
+    certificados y lo que «Necesita atención».
+  - **Historial**: un temporizador en el servidor guarda cada 5 minutos CPU, memoria, disco y lo que gasta cada app
+    (aunque Draupnode esté cerrado). Gráficas de 24 horas o 30 días y **cuándo se llenará el disco** a este ritmo.
+  - **Apps y bases**: direcciones (también las de Coolify y los sitios de nginx/Caddy), **uso de cada app** (sus
+    contenedores sumados) y bases de datos con lo que pesan.
+  - **Contenedores** (parar, arrancar, ver registros, limpiar Docker), **Copias**, **Red y seguridad** (puertos,
+    cortafuegos, IPs que intentan entrar, «Instalar actualizaciones» y «Reiniciar») y **Registros**.
+- **Módulos del servidor**: marcas lo que quieres, lo **simulas** (qué cambiaría, sin tocar nada) y lo **aplicas**.
+  Las contraseñas se generan en el propio servidor. Cada módulo se puede desinstalar, con o sin sus datos, y
+  **«Desinstalar todo»** deja el servidor como recién preparado.
+- **Plantillas**: conjuntos de módulos con su configuración para añadirlos de una vez a cualquier servidor.
+- **Catálogo** de 26 módulos de código abierto, con su web y su código, y una **guía para probar cada uno** en el
+  servidor de pruebas (pasos y qué deberías ver), con una lista para ir marcando los que ya has comprobado.
+- **Editor de módulos propios** (CodeMirror) para crear los tuyos o copiar uno incluido, y **exportarlos e importarlos**
+  (un fichero `.draupnode-modulo`): al importar, Draupnode comprueba que esté entero y te enseña qué hace en el
+  servidor (tareas, órdenes, descargas y lo delicado) antes de aceptarlo.
+- **Tus apps**: el módulo «Tu app» despliega tu `docker-compose.yml` desde un repositorio de Git o **desde una carpeta
+  de tu equipo** (sin saber git), lee las variables que necesita y genera sus claves. **Docker Creator** te hace el
+  Dockerfile y el compose de tu proyecto (Python, Node, Java, PHP, Go, web) y lo prueba en un **servidor de pruebas**
+  (Ubuntu en Docker en tu equipo).
 - **Copias**: restic diario, «Traer copias al equipo», destino en otro servidor (rest-server en modo solo añadir, con
-  rotación) y aviso si hace tiempo que no las traes.
+  rotación) y restaurar desde la app.
+- **Avisos** en un solo sitio: servidores que no responden, disco que se va a llenar, contenedores o servicios que
+  fallan, copias atrasadas, módulos sin aplicar, versión nueva.
 - **Terminal SSH** integrada, con pestañas.
-- **Adoptar** lo que ya hay: al aplicar deja en el servidor una ficha de la plantilla (sin contraseñas), así otro
-  Draupnode (o este tras perder la configuración) puede recuperarla.
+- **Adoptar** lo que ya hay: al aplicar deja en el servidor una ficha (sin contraseñas), así otro Draupnode (o este
+  tras perder la configuración) puede recuperarla; y detecta las apps que ya no gestiona.
 - **Copia de Draupnode**: exporta todo (servidores, plantillas, bóveda, claves) a un fichero cifrado e impórtalo en otro equipo.
-- **Avisos** en un solo sitio: copias sin traer, aplicaciones que fallaron, copia de Draupnode pendiente, versión nueva.
-- **Docker Creator**: genera el Dockerfile y el docker-compose de tu proyecto (Python, Node, Java, PHP, Go, web) y lo
-  prueba en un **servidor de pruebas** (Ubuntu en Docker en tu equipo).
+
+| | |
+|---|---|
+| ![Ficha del servidor](frontend/src/assets/ayuda/servidor.webp) | ![Historial y previsión del disco](frontend/src/assets/ayuda/servidor-historial.webp) |
+| **Ficha del servidor**: su estado y lo que necesita atención | **Historial**: CPU, memoria y disco, y cuándo se llena |
+| ![Uso por app](frontend/src/assets/ayuda/servidor-apps.webp) | ![Módulos del servidor](frontend/src/assets/ayuda/despliegue.webp) |
+| **Apps y bases**: lo que gasta cada app | **Módulos**: simular, aplicar y desinstalar |
+| ![Docker Creator](frontend/src/assets/ayuda/docker-vista.webp) | ![Avisos](frontend/src/assets/ayuda/avisos-caido.webp) |
+| **Docker Creator**: el Dockerfile y el compose de tu proyecto | **Avisos**: todo lo que conviene mirar, en un sitio |
 
 La ayuda de cada pantalla (botón «Ayuda») lo explica paso a paso, con capturas.
 
@@ -75,6 +100,7 @@ make doctor       # wails doctor
 | `make dev` | App de escritorio con recarga en caliente |
 | `make demo` | Solo la interfaz en el navegador, con datos simulados |
 | `make capturas` | Rehace las capturas de la ayuda (necesita Chrome o Chromium) |
+| `make gif` | Rehace el GIF del README con esas capturas (necesita Pillow) |
 | `make build` | Ejecutable en `build/bin/draupnode` |
 | `make install-linux` | Instala en tu usuario, sin sudo: menú de aplicaciones e icono en el dock |
 
@@ -98,12 +124,12 @@ internal/sshx            Conexión SSH, huellas y comprobación del servidor
 internal/modules         Catálogo: module.yaml + roles de Ansible (builtin/ va dentro del ejecutable)
 internal/bundle          Genera el instalar.sh único (playbook + roles + callback, empaquetados)
 internal/runner          Sube y ejecuta el instalar.sh por SSH, con eventos en directo
-internal/overview        Script que lee el estado del servidor para su ficha (solo lectura)
+internal/overview        Scripts de la ficha del servidor (solo lectura) y del historial (temporizador)
 internal/dockerize       Docker Creator
 internal/lab             Servidor de pruebas
 frontend/src/views       Pantallas
 frontend/src/components  Piezas reutilizables
-docs/                    PLAN.md (fases) e HISTORIAL.md (cambios)
+docs/                    PLAN.md (fases), HISTORIAL.md (cambios), GUIA_PUBLICAR.md e img/ (el GIF del README)
 ```
 
 ## Dónde guarda las cosas
@@ -115,7 +141,7 @@ docs/                    PLAN.md (fases) e HISTORIAL.md (cambios)
 | Contraseñas | Llavero del sistema (servicio `draupnode`) o `vault.json` cifrado en la carpeta de configuración |
 | Módulos propios | `modules/` en la carpeta de configuración |
 | Registros de cada ejecución | `runs/` en la carpeta de configuración (los 60 últimos por plantilla y servidor) |
-| En cada servidor | `/etc/draupnode/secretos/<plantilla>/` (contraseñas generadas, solo root), `/etc/draupnode/plantillas/` (ficha sin contraseñas), `/srv/draupnode/apps/` (datos de las apps) |
+| En cada servidor | `/etc/draupnode/secretos/<plantilla>/` (contraseñas generadas, solo root), `/etc/draupnode/plantillas/` (ficha sin contraseñas), `/srv/draupnode/apps/` (datos de las apps), `/var/lib/draupnode/historial/` (historial, si lo activas) |
 
 ## Publicar tu app
 

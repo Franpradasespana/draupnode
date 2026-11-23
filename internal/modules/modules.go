@@ -114,10 +114,23 @@ type Module struct {
 	UninstallData    string `yaml:"uninstall_data" json:"uninstallData,omitempty"`
 	// NoUninstall explica por qué un módulo no se puede desinstalar.
 	NoUninstall string `yaml:"no_uninstall" json:"noUninstall,omitempty"`
+	// Prueba: cómo probarlo en el servidor de pruebas y qué debería verse
+	// (la Ayuda del Catálogo enseña un desplegable por módulo).
+	Prueba *Prueba `yaml:"prueba" json:"prueba,omitempty"`
 
 	Source string   `yaml:"-" json:"source"` // builtin | user
 	Files  []string `yaml:"-" json:"files"`  // ficheros del rol (para verlos)
 	role   fs.FS
+}
+
+// Prueba es la guía para comprobar que un módulo funciona.
+type Prueba struct {
+	// Lab: si se puede probar en el servidor de pruebas (Ubuntu en Docker) y qué tener en cuenta.
+	Lab string `yaml:"lab" json:"lab,omitempty"`
+	// Pasos: qué hacer, en orden.
+	Pasos []string `yaml:"pasos" json:"pasos"`
+	// Comprobar: cómo queda y qué mirar para saber que funciona.
+	Comprobar []string `yaml:"comprobar" json:"comprobar"`
 }
 
 // Link es un enlace a la web de un programa.

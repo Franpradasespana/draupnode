@@ -60,3 +60,15 @@ links:
     url: https://www.postgresql.org/docs/
   - label: "Código fuente"
     url: https://github.com/postgres/postgres
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «PostgreSQL compartido» con una base, por ejemplo «tienda», y aplica."
+    - "Mira el usuario y la contraseña de «tienda» en la página del módulo → Contraseñas."
+    - "En «Terminal»: «docker exec -it pg-compartido psql -U tienda -d tienda -c 'select 1'»."
+  comprobar:
+    - "La consulta devuelve 1."
+    - "Ficha → Apps y bases → Bases de datos: sale pg-compartido con la base «tienda» y lo que pesa."
+    - "Si desinstalas sin «borrar datos» y vuelves a instalar, la base y su contraseña siguen ahí."

@@ -144,3 +144,16 @@ func TestFormatoNuevo(t *testing.T) {
 		t.Fatal("secretos del módulo")
 	}
 }
+
+// Cada módulo incluido trae su guía de prueba (Ayuda → «Probar cada módulo»).
+func TestGuiasDePrueba(t *testing.T) {
+	c, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range c.All() {
+		if m.Prueba == nil || m.Prueba.Lab == "" || len(m.Prueba.Pasos) < 2 || len(m.Prueba.Comprobar) < 1 {
+			t.Errorf("%s: le falta la guía de prueba (prueba: lab, al menos 2 pasos y algo que comprobar)", m.ID)
+		}
+	}
+}
