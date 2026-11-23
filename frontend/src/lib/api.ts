@@ -912,7 +912,7 @@ function mockBackend(): Backend {
 
   return {
     async AppInfo() {
-      return { version: '0.2.0 (demo navegador)', configDir: '(simulado)', os: 'browser' }
+      return { version: 'demo navegador', configDir: '(simulado)', os: 'browser' }
     },
     async SecretsInfo() {
       return info()

@@ -89,6 +89,8 @@
   // La terminal se monta la primera vez que se abre y ya no se desmonta.
   let termSeen = $state(false)
   $effect(() => { if (ui.view === 'terminal') termSeen = true })
+  // «v0.58.1» en la app; en la demo, solo «demo navegador».
+  const verText = (v?: string) => (!v ? '…' : /^\d/.test(v) ? 'v' + v : v)
 </script>
 
 <div class="shell">
@@ -158,7 +160,7 @@
         <CircleHelp size={17} strokeWidth={1.8} />
         <span>Ayuda</span>
       </button>
-      <div class="ver">v{ui.info?.version ?? '…'}</div>
+      <div class="ver">{verText(ui.info?.version)}</div>
     </div>
   </aside>
 

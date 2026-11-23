@@ -1039,3 +1039,13 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
 
 - El botón sale solo cuando `PlanUninstallAll` tiene algo que desinstalar (antes salía con cualquier módulo instalado,
   y con solo el Sistema base avisaba «No hay nada…» al pulsarlo).
+
+## 2026-11-23 · 0.58.2 · Ayuda revisada y capturas al día
+
+- Revisada la ayuda contra las pantallas: todas tienen su apartado. Nuevos «Red y seguridad» y «La campana»;
+  «Lo que se ve en la ficha del servidor» (Avisos) ahora lista todos los avisos (disco lleno a este ritmo, reinicio,
+  actualizaciones de seguridad, certificados, hora, intentos de SSH). Las capturas servidor-red, avisos-caido y
+  avisos-campana se sacaban pero no salían en la ayuda; ahora sí.
+- Las 31 capturas rehechas con la versión actual (salían «App desde Git» y pantallas viejas). La de «Tu app» se
+  buscaba por el nombre antiguo.
+- La demo del navegador ya no dice «v0.2.0»: pone «demo navegador».
