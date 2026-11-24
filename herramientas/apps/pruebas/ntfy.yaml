@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (para el móvil hace falta dominio con HTTPS)."
+  pasos:
+    - "Añade «ntfy» y aplica."
+    - "En «Terminal»: «curl -H 'Authorization: Bearer TOKEN' -d hola http://127.0.0.1:2586/prueba» (el token está en «Contraseñas») y lo mismo sin la cabecera."
+  comprobar:
+    - "Con el token responde 200; sin él, 403 (está cerrado)."
+    - "Con dominio, la app ntfy del móvil (servidor https://tu-dominio, usuario «admin») recibe el «hola» del tema «prueba»."
+  necesita:
+    - "Nada para instalarlo. Para el móvil, un dominio con Caddy o nginx."
+  problemas:
+    - "En iPhone los avisos llegan tarde → activa «Avisos instantáneos en iPhone»."
+    - "Las Alertas no llegan → en el módulo Alertas pon tu servidor https://tu-dominio y el token de «Contraseñas»."

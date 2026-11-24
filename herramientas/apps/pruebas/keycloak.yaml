@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, si el servidor de pruebas tiene 1,5 GB libres (tarda un minuto en arrancar)."
+  pasos:
+    - "Añade «Keycloak» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra en la consola con «admin» y la contraseña de «Contraseñas», y crea un realm y un usuario."
+  comprobar:
+    - "La consola de administración abre y deja crear realms, usuarios y clientes."
+    - "En «Terminal», el token responde 200: «curl -s -o /dev/null -w '%{http_code}' -d grant_type=password -d client_id=admin-cli -d username=admin -d password=CONTRASEÑA http://127.0.0.1:8180/realms/master/protocol/openid-connect/token»."
+  necesita:
+    - "Nada para probarlo. Para que tus apps lo usen, un dominio con Caddy o nginx."
+  problemas:
+    - "Avisa de que «admin» es temporal → es lo esperado: crea tu propio administrador en el realm master y borra «admin»."
+    - "Las apps dicen «invalid redirect_uri» o «HTTPS required» → ponle dominio con HTTPS y usa esa dirección en los clientes."

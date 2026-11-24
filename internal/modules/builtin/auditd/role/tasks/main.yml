@@ -1,0 +1,95 @@
+---
+- name: ¿Es un contenedor?
+  ansible.builtin.command: systemd-detect-virt --container
+  register: auditd_ctr
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: En un contenedor no hay auditoría del núcleo
+  ansible.builtin.assert:
+    that: auditd_ctr.rc != 0
+    fail_msg: "Este servidor es un contenedor ({{ auditd_ctr.stdout }}): no puede usar la auditoría del núcleo. Quita el módulo."
+    quiet: true
+
+- name: Instalar auditd
+  ansible.builtin.apt:
+    name: auditd
+    state: present
+    lock_timeout: 600
+
+- name: Tamaño y rotación de los registros
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: "^{{ item.k }}\\s*="
+    line: "{{ item.k }} = {{ item.v }}"
+  loop:
+    - { k: max_log_file, v: "{{ auditd_log_mb }}" }
+    - { k: num_logs, v: "5" }
+    - { k: max_log_file_action, v: ROTATE }
+  register: auditd_conf
+
+- name: Reglas de Draupnode
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/90-draupnode.rules
+    mode: "0640"
+    content: |
+      ## Generado por Draupnode (módulo auditd)
+      -w /etc/passwd -p wa -k draupnode-usuarios
+      -w /etc/shadow -p wa -k draupnode-usuarios
+      -w /etc/group -p wa -k draupnode-usuarios
+      -w /etc/gshadow -p wa -k draupnode-usuarios
+      -w /etc/sudoers -p wa -k draupnode-sudo
+      -w /etc/sudoers.d/ -p wa -k draupnode-sudo
+      -w /usr/bin/sudo -p x -k draupnode-sudo
+      -w /etc/ssh/sshd_config -p wa -k draupnode-ssh
+      -w /etc/ssh/sshd_config.d/ -p wa -k draupnode-ssh
+      -w /root/.ssh/ -p wa -k draupnode-ssh
+      -w /etc/crontab -p wa -k draupnode-cron
+      -w /etc/cron.d/ -p wa -k draupnode-cron
+      -w /var/spool/cron/ -p wa -k draupnode-cron
+      -w /etc/systemd/system/ -p wa -k draupnode-servicios
+      -a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k draupnode-hora
+      -w /etc/localtime -p wa -k draupnode-hora
+      -a always,exit -F arch=b64 -S init_module,finit_module,delete_module -k draupnode-modulos
+      -w /etc/docker/ -p wa -k draupnode-docker
+      -w /usr/bin/docker -p x -k draupnode-docker
+      -w /var/run/docker.sock -p rw -k draupnode-docker
+  register: auditd_rules
+
+- name: Bloquear (o no) las reglas
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/99-draupnode-bloqueo.rules
+    mode: "0640"
+    content: "## Generado por Draupnode: las reglas no se pueden cambiar sin reiniciar\n-e 2\n"
+  register: auditd_lock
+  when: auditd_immutable | bool
+
+- name: Sin bloqueo
+  ansible.builtin.file:
+    path: /etc/audit/rules.d/99-draupnode-bloqueo.rules
+    state: absent
+  register: auditd_unlock
+  when: not auditd_immutable | bool
+
+- name: Arrancado y al iniciar
+  ansible.builtin.systemd:
+    name: auditd
+    state: started
+    enabled: true
+  when: not ansible_check_mode
+
+- name: Cargar las reglas
+  ansible.builtin.shell: |
+    if auditctl -s | grep -q 'enabled 2'; then echo bloqueadas; exit 0; fi
+    augenrules --load >/dev/null && echo cargadas
+  register: auditd_load
+  changed_when: "'cargadas' in auditd_load.stdout"
+  when: not ansible_check_mode and (auditd_rules.changed or auditd_lock.changed or auditd_unlock.changed or auditd_conf.changed)
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      auditd apunta los cambios en usuarios, sudo, SSH, cron, servicios, hora, módulos y Docker.
+      Busca con: sudo ausearch -k draupnode-usuarios -i (o aureport --summary).
+      {{ 'Las reglas estaban bloqueadas: los cambios se aplican al reiniciar.' if 'bloqueadas' in (auditd_load.stdout | default('')) else '' }}

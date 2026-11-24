@@ -1,0 +1,30 @@
+# Generado por Draupnode (módulo umami). No lo edites a mano: se reescribe al aplicar.
+name: dn-umami
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    container_name: dn-umami-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: "{{ umami_db_pass }}"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+  umami:
+    image: ghcr.io/umami-software/umami:latest
+    {% if umami_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-umami
+    restart: unless-stopped
+    depends_on: [db]
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      DATABASE_URL: "postgresql://umami:{{ umami_db_pass }}@db:5432/umami"
+      APP_SECRET: "{{ umami_app_secret }}"
+      DISABLE_TELEMETRY: "1"
+    ports:
+      - "127.0.0.1:{{ umami_port }}:3000"
+{% if (umami_public_port | default(0) | int) > 0 %}      - "{{ umami_public_port }}:3000"
+{% endif %}

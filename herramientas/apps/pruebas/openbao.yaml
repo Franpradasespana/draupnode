@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «OpenBao» (con «Desbloquear solo») y aplica."
+    - "En «Terminal»: «sudo docker restart dn-openbao» y luego «sudo systemctl start draupnode-openbao» (lo mismo que hace al arrancar el servidor)."
+  comprobar:
+    - "«Contraseñas» tiene la clave de desbloqueo y el token raíz; con «Abrir (túnel SSH)», /ui deja entrar con el token."
+    - "Tras reiniciar el contenedor queda bloqueado («curl -s http://127.0.0.1:8200/v1/sys/seal-status» dice sealed true) y el servicio lo desbloquea."
+  necesita:
+    - "Nada. Copia la clave de desbloqueo y el token raíz a tu gestor de contraseñas."
+  problemas:
+    - "Después de reiniciar el servidor está bloqueado → sin «Desbloquear solo» hay que desbloquearlo a mano en /ui con la clave."
+    - "Has perdido la clave de desbloqueo → los datos no se pueden recuperar: por eso hay que copiarla fuera del servidor."

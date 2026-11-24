@@ -1,0 +1,24 @@
+---
+- name: Parar el servicio del panel
+  ansible.builtin.shell: |
+    systemctl disable --now draupnode-argocd.service 2>/dev/null || true
+    rm -f /etc/systemd/system/draupnode-argocd.service
+    systemctl daemon-reload
+  when: not ansible_check_mode
+
+- name: Quitar Argo CD del clúster
+  ansible.builtin.shell: |
+    command -v k3s >/dev/null || exit 0
+    k3s kubectl delete ns argocd --ignore-not-found --wait=true --timeout=300s >/dev/null
+    k3s kubectl get crd -o name | grep argoproj.io | xargs -r k3s kubectl delete >/dev/null
+    k3s kubectl get clusterrole,clusterrolebinding -o name | grep argocd | xargs -r k3s kubectl delete >/dev/null
+  when: not ansible_check_mode
+
+- name: Borrar su contraseña
+  ansible.builtin.file:
+    path: "{{ draupnode_secrets_dir }}/argocd_admin"
+    state: absent
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Argo CD {{ 'se quitará' if ansible_check_mode else 'quitado' }} del clúster."

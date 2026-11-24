@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí. Para sincronizar de verdad con tu equipo, el servidor tiene que ser accesible (puerto 22000)."
+  pasos:
+    - "Añade «Syncthing» y aplica."
+    - "Pulsa «Abrir (túnel SSH)»: es el panel de Syncthing del servidor."
+  comprobar:
+    - "El panel carga y enseña el ID de este dispositivo, para añadirlo en el Syncthing de tu equipo."
+    - "En un servidor público, al añadirlo en tu equipo y compartir una carpeta, los ficheros aparecen en el servidor."
+  necesita:
+    - "Nada: «Abrir (túnel SSH)» para su panel. Para sincronizar, el puerto 22000 (TCP y UDP) abierto en el proveedor de nube."
+  problemas:
+    - "Los equipos no se conectan → el 22000 está cerrado en el proveedor de nube (el Cortafuegos de Draupnode solo abre el TCP)."
+    - "No puede escribir en una carpeta → usa carpetas dentro de las que crea el módulo (son del usuario 1000)."

@@ -1,0 +1,23 @@
+---
+- name: Quitar chrony y volver a systemd-timesyncd
+  ansible.builtin.apt:
+    name: [chrony]
+    state: absent
+    purge: "{{ draupnode_uninstall_purge | bool }}"
+    lock_timeout: 600
+
+- name: Quitar los servidores de Draupnode
+  ansible.builtin.file:
+    path: /etc/chrony/sources.d/draupnode.sources
+    state: absent
+
+- name: systemd-timesyncd (el de serie)
+  ansible.builtin.apt:
+    name: systemd-timesyncd
+    state: present
+    lock_timeout: 600
+  failed_when: false
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "chrony {{ 'se quitará' if ansible_check_mode else 'quitado' }}; la hora la ajusta systemd-timesyncd."

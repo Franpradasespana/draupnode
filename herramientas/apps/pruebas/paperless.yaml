@@ -1,0 +1,13 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (necesita 2 GB de RAM)."
+  pasos:
+    - "Añade «Paperless-ngx» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con admin (contraseña en Contraseñas) y sube un PDF."
+  comprobar:
+    - "El documento aparece y, tras unos segundos, se puede buscar por el texto que contiene (OCR en español e inglés)."
+  necesita:
+    - "Nada: el usuario admin está en Contraseñas. 2 GB de RAM. Idioma del OCR: spa+eng por defecto."
+  problemas:
+    - "No encuentra el texto de un documento → espera a que termine el OCR (Tareas en su panel) o cambia el idioma del OCR."
+    - "Se queda sin memoria → necesita 2 GB; con menos, sube el swap en Sistema base."

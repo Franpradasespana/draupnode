@@ -1,0 +1,74 @@
+id: keycloak
+name: "Keycloak (inicio de sesión único)"
+version: 1.0.0
+category: 8 · Seguridad
+description: "Un solo usuario y contraseña (con doble factor) para todas tus apps: inicio de sesión único con OpenID Connect y SAML, como «Entrar con Google» pero tuyo."
+details: |
+  Keycloak 26 en Docker, con su propio PostgreSQL. Draupnode crea el
+  administrador temporal «admin» (en «Contraseñas»): entra, crea tu
+  propio usuario administrador en el realm «master» y borra «admin»
+  (Keycloak te lo recuerda).
+  Para que tus apps lo usen necesita dominio con HTTPS (Caddy o nginx).
+  Es pesado: pide 1,2 GB de RAM y tarda un minuto en arrancar.
+  Sus datos están en /srv/draupnode/apps/keycloak (entran en las copias del
+  módulo Copias). Licencia: Apache-2.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 1200
+firewall_ports_from: [keycloak_public_port]
+proxy_site:
+  domain: keycloak_domain
+  port: keycloak_port
+secrets:
+  - file: keycloak_admin
+    label: Administrador temporal de Keycloak
+uninstall_warning: "Para y quita los contenedores de Keycloak."
+uninstall_data: "Borrar también sus datos (usuarios, realms, clientes y su base de datos). No se puede deshacer."
+variables:
+  - name: keycloak_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8180
+    min: 1024
+    max: 65535
+  - name: keycloak_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: keycloak_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: keycloak_update
+    label: Actualizar Keycloak al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://www.keycloak.org
+  - label: "Código fuente"
+    url: https://github.com/keycloak/keycloak
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, si el servidor de pruebas tiene 1,5 GB libres (tarda un minuto en arrancar)."
+  pasos:
+    - "Añade «Keycloak» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra en la consola con «admin» y la contraseña de «Contraseñas», y crea un realm y un usuario."
+  comprobar:
+    - "La consola de administración abre y deja crear realms, usuarios y clientes."
+    - "En «Terminal», el token responde 200: «curl -s -o /dev/null -w '%{http_code}' -d grant_type=password -d client_id=admin-cli -d username=admin -d password=CONTRASEÑA http://127.0.0.1:8180/realms/master/protocol/openid-connect/token»."
+  necesita:
+    - "Nada para probarlo. Para que tus apps lo usen, un dominio con Caddy o nginx."
+  problemas:
+    - "Avisa de que «admin» es temporal → es lo esperado: crea tu propio administrador en el realm master y borra «admin»."
+    - "Las apps dicen «invalid redirect_uri» o «HTTPS required» → ponle dominio con HTTPS y usa esa dirección en los clientes."

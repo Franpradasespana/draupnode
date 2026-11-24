@@ -1,0 +1,52 @@
+id: clamav
+name: ClamAV (antivirus)
+version: 1.0.0
+category: 8 · Seguridad
+description: Busca virus y programas maliciosos cada noche en las carpetas que digas (por ejemplo, lo que suben los usuarios a tus apps), con la base de firmas siempre al día.
+details: |
+  ClamAV (GPL-2.0), el antivirus libre de Cisco Talos. freshclam
+  actualiza las firmas varias veces al día; la revisión es una orden
+  aparte, a la hora indicada y con prioridad baja para no molestar.
+  Solo avisa: no borra ni mueve nada. Lo encontrado queda en
+  /var/lib/draupnode/clamav/encontrado.txt y en la nota de la revisión.
+  Durante la revisión usa ~1,5 GB de RAM (carga todas las firmas).
+depends: [base]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 2000
+uninstall_warning: Quita ClamAV y su revisión diaria.
+uninstall_data: Borrar también la base de firmas (~300 MB) y los informes.
+variables:
+  - name: clamav_paths
+    label: Carpetas a revisar
+    help: Una por línea. Las de los datos de tus apps y las de los usuarios. No pongas «/» entera (tardaría horas).
+    type: list
+    default: ["/srv", "/home"]
+    pattern: '^/[A-Za-z0-9._/ -]*$'
+    pattern_help: Ruta absoluta
+  - name: clamav_hour
+    label: Hora de la revisión diaria
+    type: int
+    default: 3
+    min: 0
+    max: 23
+links:
+  - label: "Web oficial"
+    url: https://www.clamav.net
+  - label: "Código fuente"
+    url: https://github.com/Cisco-Talos/clamav
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, si el servidor de pruebas tiene 2 GB libres. La primera descarga de firmas (~300 MB) tarda unos minutos."
+  pasos:
+    - "Añade «ClamAV» con las carpetas de serie y aplica."
+    - "En «Terminal», deja el fichero de prueba EICAR (inofensivo): «echo 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' | sudo tee /srv/eicar.txt» y lanza «sudo systemctl start draupnode-clamav»."
+  comprobar:
+    - "«systemctl status clamav-freshclam» está activo y «ls /var/lib/clamav» tiene main, daily y bytecode."
+    - "Tras la prueba, «sudo cat /var/lib/draupnode/clamav/encontrado.txt» lista /srv/eicar.txt (bórralo después)."
+  necesita:
+    - "Las carpetas a revisar (las de serie valen) y la hora."
+  problemas:
+    - "La revisión falla por memoria → el servidor necesita 2 GB de RAM; añade «Memoria de intercambio» o quita el módulo."
+    - "freshclam no descarga («403» o «cool-down») → la red de tu proveedor está bloqueada por el servidor de firmas: espera unas horas."

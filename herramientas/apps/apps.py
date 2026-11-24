@@ -12,11 +12,11 @@ APPS['vaultwarden'] = dict(
     id='vaultwarden', name='Vaultwarden (contraseñas)', short='Vaultwarden', license='AGPL-3.0',
     description='Tu gestor de contraseñas, compatible con las apps y extensiones de Bitwarden. Tus contraseñas, en tu servidor.',
     details="""Vaultwarden (servidor libre compatible con Bitwarden) en Docker.
-Necesita HTTPS: ponle dominio (con Caddy o nginx en el proyecto) o entra
+Necesita HTTPS: ponle dominio (con Caddy o nginx en el servidor) o entra
 por la VPN/«Abrir» (127.0.0.1 también vale como seguro).
 Crea tu cuenta y, cuando estéis todos, desactiva «Permitir registrarse»
 y vuelve a aplicar. El panel /admin usa el «Token de administración»
-(en «Contraseñas del proyecto»).""",
+(en «Contraseñas»).""",
     port=8222, cport=80, data_desc='la bóveda cifrada de todos los usuarios', dirs=['data'],
     secrets=[('vaultwarden_admin_token', 'Token del panel /admin de Vaultwarden')],
     generate=[dict(file='vaultwarden_admin_token', var='admin_token', len=48)],
@@ -36,8 +36,8 @@ y vuelve a aplicar. El panel /admin usa el «Token de administración»
     labels:
       draupnode.proyecto: "{{ draupnode_project }}"
     environment:
-      DOMAIN: "{{ ('https://' ~ vaultwarden_domain) if vaultwarden_domain else '' }}"
-      SIGNUPS_ALLOWED: "{{ 'true' if vaultwarden_signups | bool else 'false' }}"
+{% if vaultwarden_domain %}      DOMAIN: "https://{{ vaultwarden_domain }}"
+{% endif %}      SIGNUPS_ALLOWED: "{{ 'true' if vaultwarden_signups | bool else 'false' }}"
       ADMIN_TOKEN: "{{ vaultwarden_admin_token }}"
       WEBSOCKET_ENABLED: "true"
     volumes:
@@ -185,11 +185,11 @@ APPS['forgejo'] = dict(
     description='Tu propio GitHub: repositorios Git, incidencias, revisiones de código y paquetes, en tu servidor.',
     details="""Forgejo 15 en Docker, con su base SQLite (sin servidor de base de
 datos aparte). Draupnode crea el usuario «administrador» con una contraseña
-generada en el servidor (en «Contraseñas del proyecto»).
+generada en el servidor (en «Contraseñas»).
 Git por SSH en el puerto indicado (se abre en el Cortafuegos):
 git clone ssh://git@servidor:PUERTO/usuario/repo.git
 El registro de usuarios nuevos está cerrado salvo que lo abras.""",
-    port=3000, cport=3000, ram=700, data_desc='todos los repositorios, usuarios e incidencias', dirs=['data'],
+    port=3001, cport=3000, ram=700, data_desc='todos los repositorios, usuarios e incidencias', dirs=['data'],
     fw_extra=['forgejo_ssh_port'],
     secrets=[('forgejo_admin', 'Administrador de Forgejo')],
     generate=[dict(file='.forgejo_admin_pass', var='admin_pass', len=24)],
@@ -269,12 +269,12 @@ APPS['paperless'] = dict(
     links=[('Documentación', 'https://docs.paperless-ngx.com'), ('Código fuente', 'https://github.com/paperless-ngx/paperless-ngx')],
     id='paperless', name='Paperless-ngx (documentos)', short='Paperless-ngx', license='GPL-3.0',
     description='Escanea o sube tus papeles (facturas, contratos, recibos…) y encuéntralos al momento: lee el texto (OCR), los etiqueta y los archiva.',
-    details="""Paperless-ngx en Docker, con su propio PostgreSQL y Redis. Draupnode
+    details="""Paperless-ngx en Docker, con su propio PostgreSQL y Valkey (compatible con Redis). Draupnode
 crea el usuario «admin» con una contraseña generada en el servidor (en
-«Contraseñas del proyecto»). Lo que dejes en la carpeta «consume» (por
+«Contraseñas»). Lo que dejes en la carpeta «consume» (por
 ejemplo con Syncthing o desde el escáner) se importa solo.
 La primera vez tarda unos minutos en arrancar.""",
-    port=8010, cport=8000, ram=2000, data_desc='todos los documentos, su base de datos y sus etiquetas', dirs=['data', 'media', 'export', 'consume', 'pgdata'],
+    port=8010, cport=8000, ram=2000, data_desc='todos los documentos, su base de datos y sus etiquetas', dirs=['data', 'media', 'export', 'consume', 'pgdata'], db_dir='pgdata',
     secrets=[('paperless_admin', 'Usuario «admin» de Paperless-ngx')],
     generate=[dict(file='paperless_admin', var='admin_pass', len=24), dict(file='.paperless_secret_key', var='secret_key', len=50), dict(file='.paperless_db', var='db_pass', len=32)],
     vars=[
@@ -286,7 +286,8 @@ La primera vez tarda unos minutos en arrancar.""",
         UPDATE('paperless', 'Paperless-ngx'),
     ],
     compose="""  broker:
-    image: redis:7-alpine
+    # Valkey (BSD-3) en vez de Redis: desde la 7.4, Redis ya no es software libre.
+    image: docker.io/valkey/valkey:9
     container_name: dn-paperless-redis
     restart: unless-stopped
   db:
@@ -341,7 +342,7 @@ En el móvil, la app de Immich con la dirección del servidor (mejor con
 dominio y HTTPS, o por la VPN).
 Las fotos están en /srv/draupnode/apps/immich/library (entran en las
 copias: pueden ocupar mucho).""",
-    port=2283, cport=2283, ram=4000, data_desc='todas las fotos y vídeos subidos y su base de datos', dirs=['library', 'postgres'],
+    port=2283, cport=2283, ram=4000, data_desc='todas las fotos y vídeos subidos y su base de datos', dirs=['library', 'postgres'], db_dir='postgres',
     generate=[dict(file='.immich_db', var='db_pass', len=32)],
     vars=[UPDATE('immich', 'Immich')],
     compose="""  immich-server:

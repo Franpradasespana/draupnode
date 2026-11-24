@@ -35,6 +35,9 @@ const (
 	Container   = "draupnode-prueba"
 	Image       = "draupnode/servidor-prueba:24.04"
 	Volume      = "draupnode-prueba-docker"
+	// VolumeK3s: los datos de Kubernetes (módulo k3s) fuera del overlay del
+	// contenedor; si no, k3s tiene que copiar cada imagen entera y va muy lento.
+	VolumeK3s = "draupnode-prueba-k3s"
 	Host        = "127.0.0.1"
 	SSHPort     = 2222
 	CoolifyPort = 18000
@@ -427,6 +430,7 @@ func (l *Lab) Start(ctx context.Context, out func(string)) error {
 			"--privileged", "--cgroupns=host", "-v", "/sys/fs/cgroup:/sys/fs/cgroup:rw",
 			"--tmpfs", "/run", "--tmpfs", "/run/lock",
 			"-v", Volume+":/var/lib/docker",
+			"-v", VolumeK3s+":/var/lib/rancher",
 			"-p", fmt.Sprintf("%s:%d:22", Host, SSHPort),
 			"-p", fmt.Sprintf("%s:%d:8000", Host, CoolifyPort),
 			Image)
@@ -500,5 +504,6 @@ func (l *Lab) Remove(ctx context.Context, out func(string)) error {
 	}
 	out("==> Borrando el volumen de Docker interno")
 	_ = l.dockerCmd(ctx, nil, out, "volume", "rm", Volume)
+	_ = l.dockerCmd(ctx, nil, func(string) {}, "volume", "rm", VolumeK3s)
 	return nil
 }

@@ -5,6 +5,7 @@ import os, sys, textwrap, json
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from apps import APPS
+import nuevas  # noqa: F401  (añade sus fichas a APPS)
 
 def module_yaml(a):
     p = a['id'].replace('-', '_')
@@ -16,9 +17,10 @@ def module_yaml(a):
     default: {a['port']}
     min: 1024
     max: 65535""")
-    v.append(f"""  - name: {p}_domain
+    if not a.get('no_proxy'):
+      v.append(f"""  - name: {p}_domain
     label: Dominio
-    help: {json.dumps(a.get('domain_help', 'Opcional. Con Caddy o nginx en el proyecto, se publica en https://dominio.'), ensure_ascii=False)}
+    help: {json.dumps(a.get('domain_help', 'Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio.'), ensure_ascii=False)}
     type: string
     default: ""
     pattern: '^(([a-z0-9]([a-z0-9-]{{0,61}}[a-z0-9])?\\.)+[a-z]{{2,}})?$'
@@ -37,25 +39,24 @@ def module_yaml(a):
     fwl = ([f"{p}_public_port"] if not a.get('no_public') else []) + a.get('fw_extra', [])
     fw = f"firewall_ports_from: [{', '.join(fwl)}]\n" if fwl else ""
     extra_top = a.get('top', '')
+    pr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pruebas', a['id'] + '.yaml')
+    prueba = ("\n" + open(pr).read()) if os.path.exists(pr) else ""
     return f"""id: {a['id']}
 name: {json.dumps(a['name'], ensure_ascii=False)}
 version: 1.0.0
-category: 7 · Apps
+category: {a.get('category', '7 · Apps')}
 description: {json.dumps(a['description'], ensure_ascii=False)}
 details: |
 {textwrap.indent(a['details'].strip(), '  ')}
   Sus datos están en /srv/draupnode/apps/{a['id']} (entran en las copias del
   módulo Copias). Licencia: {a['license']}.
-depends: [docker]
+depends: [{', '.join(a.get('depends', ['docker']))}]
 requires:
   os: [ubuntu, debian]
-{('  min_ram_mb: ' + str(a['ram']) + chr(10)) if a.get('ram') else ''}{fw}proxy_site:
-  domain: {p}_domain
-  port: {p}_port
-{extra_top}{('secrets:' + chr(10) + secrets + chr(10)) if secrets else ''}uninstall_warning: {json.dumps('Para y quita los contenedores de ' + a['short'] + '.', ensure_ascii=False)}
+{('  min_ram_mb: ' + str(a['ram']) + chr(10)) if a.get('ram') else ''}{fw}{'' if a.get('no_proxy') else f"proxy_site:{chr(10)}  domain: {p}_domain{chr(10)}  port: {p}_port{chr(10)}"}{extra_top}{('secrets:' + chr(10) + secrets + chr(10)) if secrets else ''}uninstall_warning: {json.dumps('Para y quita los contenedores de ' + a['short'] + '.', ensure_ascii=False)}
 uninstall_data: {json.dumps('Borrar también sus datos (' + a['data_desc'] + '). No se puede deshacer.', ensure_ascii=False)}
 variables:
-""" + "\n".join(v) + "\n" + ("links:\n" + "".join(f"  - label: {json.dumps(l, ensure_ascii=False)}\n    url: {u}\n" for l, u in a.get('links', [])) if a.get('links') else "")
+""" + "\n".join(v) + "\n" + ("links:\n" + "".join(f"  - label: {json.dumps(l, ensure_ascii=False)}\n    url: {u}\n" for l, u in a.get('links', [])) if a.get('links') else "") + prueba
 
 def tasks(a):
     p = a['id'].replace('-', '_')
@@ -71,22 +72,61 @@ def tasks(a):
 """
     dirs = "\n".join(f"    - \"{{{{ {p}_dir }}}}/{d}\"" for d in a.get('dirs', []))
     pre = a.get('pre_tasks', '')
+    if a.get('db_dir'):
+        mode = ("    # La de PostgreSQL la deja la imagen en 0700: no se toca (si no, cambiaría en cada aplicación).\n"
+                f"    mode: \"{{{{ omit if item.endswith('/{a['db_dir']}') else '0750' }}}}\"")
+    else:
+        mode = '    mode: "0750"'
     post = a.get('post_tasks', '')
+    mid = a.get('mid_tasks', '')
+    if a.get('no_proxy'):
+        url = f"127.0.0.1:{{{{ {p}_port }}}} (solo en el servidor)"
+    else:
+        url = f"{{{{ ('https://' ~ {p}_domain) if {p}_domain else ('http://127.0.0.1:' ~ {p}_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}}}"
+    if a.get('probe') == 'tcp':
+        wait = f"""- name: Esperar a que escuche
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{{{ {p}_port }}}}"
+    timeout: {a.get('retries', 40) * 3}
+  register: {p}_tcp
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: ¿Escucha?
+  ansible.builtin.set_fact:
+    {p}_http: "{{{{ {{'status': 200 if ({p}_tcp.state | default('')) == 'started' else 0}} }}}}"
+  when: not ansible_check_mode
+
+"""
+    else:
+        wait = f"""- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{{{ {p}_port }}}}{a.get('check', '/')}"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: {p}_http
+  until: {p}_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: {a.get('retries', 40)}
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+"""
     return f"""---
 - name: Carpeta de {a['short']}
   ansible.builtin.set_fact:
     {p}_dir: /srv/draupnode/apps/{a['id']}
-    {p}_url: "{{{{ ('https://' ~ {p}_domain) if {p}_domain else ('http://127.0.0.1:' ~ {p}_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}}}"
+    {p}_url: "{url}"
 {pre}
 - name: Carpetas
   ansible.builtin.file:
     path: "{{{{ item }}}}"
     state: directory
-    mode: "0750"
+{mode}
   loop:
     - "{{{{ {p}_dir }}}}"
 {dirs}
-{gen_tasks}
+{gen_tasks}{mid}
 - name: docker-compose.yml
   ansible.builtin.template:
     src: docker-compose.yml.j2
@@ -106,16 +146,13 @@ def tasks(a):
   changed_when: "'Started' in {p}_up.stderr or 'Created' in {p}_up.stderr or 'Recreated' in {p}_up.stderr"
   when: not ansible_check_mode
 
-- name: Esperar a que responda
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{{{ {p}_port }}}}{a.get('check', '/')}"
-    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
-    follow_redirects: none
-  register: {p}_http
-  until: {p}_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
-  retries: {a.get('retries', 40)}
-  delay: 3
-  failed_when: false
+{wait}
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-{a['id']}
   when: not ansible_check_mode
 {post}
 - name: Nota
@@ -140,7 +177,7 @@ def uninstall(a):
     chdir: /srv/draupnode/apps/{a['id']}
   when: {p}_cf.stat.exists and not ansible_check_mode
 
-- name: Borrar sus datos
+{a.get('uninstall_extra', '')}- name: Borrar sus datos
   ansible.builtin.shell: rm -rf /srv/draupnode/apps/{a['id']} {sec}
   when: draupnode_uninstall_purge | bool and not ansible_check_mode
 

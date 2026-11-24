@@ -1,0 +1,56 @@
+---
+- name: Instalar AIDE
+  ansible.builtin.apt:
+    name: [aide, aide-common]
+    state: present
+    install_recommends: false
+    lock_timeout: 600
+
+- name: Lo que no se vigila (cambia solo)
+  ansible.builtin.copy:
+    dest: /etc/aide/aide.conf.d/99_draupnode
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo aide)
+      !/srv/draupnode
+      !/var/lib/draupnode
+      !/var/lib/docker
+      !/var/lib/containerd
+      !/var/lib/rancher
+      !/var/lib/kubelet
+      !/var/log
+      !/opt/draupnode
+      !/etc/draupnode/secretos
+      {% for p in aide_exclude %}
+      !{{ p }}
+      {% endfor %}
+  register: aide_conf
+
+- name: ¿Hay foto?
+  ansible.builtin.stat:
+    path: /var/lib/aide/aide.db
+  register: aide_db
+
+- name: Tomar la foto (la primera vez tarda unos minutos)
+  ansible.builtin.shell: |
+    set -e
+    nice -n 10 aideinit --yes --force >/dev/null 2>&1 || nice -n 10 aide --init --config /etc/aide/aide.conf >/dev/null
+    [ -f /var/lib/aide/aide.db.new ] && mv -f /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+    ls /var/lib/aide/aide.db
+  when: not ansible_check_mode and (not aide_db.stat.exists or aide_conf.changed or aide_rebase_on_apply | bool)
+  changed_when: not aide_db.stat.exists or aide_conf.changed
+
+- name: Comprobación diaria
+  ansible.builtin.systemd:
+    name: dailyaidecheck.timer
+    enabled: true
+    state: started
+  register: aide_timer
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      AIDE tiene la foto de los ficheros del sistema{{ ' (rehecha ahora)' if aide_rebase_on_apply | bool else '' }}.
+      {{ 'Se compara cada día; el resultado queda en /var/log/aide/aide.log.' if not (aide_timer.failed | default(false)) and (aide_timer.msg | default('')) == '' else 'Este sistema no trae dailyaidecheck.timer: compruébalo con «sudo aide --check --config /etc/aide/aide.conf».' }}

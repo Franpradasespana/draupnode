@@ -1,0 +1,95 @@
+---
+- name: Carpeta de Nextcloud
+  ansible.builtin.set_fact:
+    nextcloud_dir: /srv/draupnode/apps/nextcloud
+    nextcloud_url: "{{ ('https://' ~ nextcloud_domain) if nextcloud_domain else ('http://127.0.0.1:' ~ nextcloud_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    # La de PostgreSQL la deja la imagen en 0700: no se toca (si no, cambiaría en cada aplicación).
+    mode: "{{ omit if item.endswith('/pgdata') else '0750' }}"
+  loop:
+    - "{{ nextcloud_dir }}"
+    - "{{ nextcloud_dir }}/html"
+    - "{{ nextcloud_dir }}/pgdata"
+
+- name: Contraseña «.nextcloud_admin_pass» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    nextcloud_admin_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.nextcloud_admin_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Contraseña «.nextcloud_db» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    nextcloud_db_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.nextcloud_db', chars=['ascii_letters', 'digits'], length=32) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ nextcloud_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Nextcloud
+  ansible.builtin.command: docker compose -p dn-nextcloud up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ nextcloud_dir }}"
+  register: nextcloud_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: nextcloud_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in nextcloud_up.stderr or 'Created' in nextcloud_up.stderr or 'Recreated' in nextcloud_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ nextcloud_port }}/status.php"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: nextcloud_http
+  until: nextcloud_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 150
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-nextcloud
+  when: not ansible_check_mode
+
+- name: Dominio y tareas en segundo plano por cron
+  ansible.builtin.shell: |
+    occ() { docker exec -u www-data dn-nextcloud php occ "$@"; }
+    for i in $(seq 60); do occ status --output=json 2>/dev/null | grep -q '"installed":true' && break; sleep 5; done
+    occ status --output=json 2>/dev/null | grep -q '"installed":true' || { echo "Nextcloud aún se está instalando"; exit 0; }
+    [ "$(occ config:app:get core backgroundjobs_mode)" = cron ] || { occ background:cron >/dev/null; echo cambiado; }
+    {% if nextcloud_domain %}
+    [ "$(occ config:system:get trusted_domains 2)" = "{{ nextcloud_domain }}" ] || { occ config:system:set trusted_domains 2 --value="{{ nextcloud_domain }}" >/dev/null; echo cambiado; }
+    [ "$(occ config:system:get overwrite.cli.url)" = "https://{{ nextcloud_domain }}" ] || { occ config:system:set overwrite.cli.url --value="https://{{ nextcloud_domain }}" >/dev/null; occ config:system:set overwriteprotocol --value=https >/dev/null; echo cambiado; }
+    {% endif %}
+  register: nextcloud_occ
+  changed_when: "'cambiado' in nextcloud_occ.stdout"
+  when: not ansible_check_mode
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/nextcloud_admin"
+    mode: "0600"
+    content: "Usuario: admin\nContraseña: {{ nextcloud_admin_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Nextcloud {{ 'responde' if (nextcloud_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-nextcloud logs, en ' ~ nextcloud_dir ~ ')' }} en {{ nextcloud_url }}.
+      Entra con «admin» (contraseña en «Contraseñas»). La primera vez tarda unos minutos en instalarse.

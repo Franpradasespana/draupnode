@@ -1,0 +1,92 @@
+---
+- name: Carpeta de Registro de Docker
+  ansible.builtin.set_fact:
+    registry_dir: /srv/draupnode/apps/registry
+    registry_url: "{{ ('https://' ~ registry_domain) if registry_domain else ('http://127.0.0.1:' ~ registry_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ registry_dir }}"
+    - "{{ registry_dir }}/data"
+    - "{{ registry_dir }}/auth"
+
+- name: Contraseña «.registry_pass» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    registry_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.registry_pass', chars=['ascii_letters', 'digits'], length=32) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Usuario del registro (htpasswd con bcrypt; solo cambia si cambian usuario o contraseña)
+  ansible.builtin.shell: |
+    set -e
+    f=/srv/draupnode/apps/registry/auth/htpasswd
+    huella=$(printf '%s:%s' "$U" "$P" | sha256sum | cut -d' ' -f1)
+    [ -f "$f" ] && [ "$(cat "$f.huella" 2>/dev/null)" = "$huella" ] && exit 0
+    docker run --rm --entrypoint htpasswd docker.io/library/httpd:2.4-alpine -Bbn "$U" "$P" > "$f.tmp"
+    chmod 644 "$f.tmp"; mv "$f.tmp" "$f"
+    echo "$huella" > "$f.huella"; chmod 600 "$f.huella"
+    echo cambiado
+  environment:
+    U: "{{ registry_user }}"
+    P: "{{ registry_pass }}"
+  register: registry_htpasswd
+  changed_when: "'cambiado' in registry_htpasswd.stdout"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ registry_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Registro de Docker
+  ansible.builtin.command: docker compose -p dn-registry up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ registry_dir }}"
+  register: registry_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: registry_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in registry_up.stderr or 'Created' in registry_up.stderr or 'Recreated' in registry_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ registry_port }}/v2/"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: registry_http
+  until: registry_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 40
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-registry
+  when: not ansible_check_mode
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/registry_usuario"
+    mode: "0600"
+    content: "Usuario: {{ registry_user }}\nContraseña: {{ registry_pass }}\nEntrar: docker login {{ registry_domain if registry_domain else (\"127.0.0.1:\" ~ registry_port) }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Registro de Docker {{ 'responde' if (registry_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-registry logs, en ' ~ registry_dir ~ ')' }} en {{ registry_url }}.
+      Usuario {{ registry_user }} (contraseña en «Contraseñas»). Desde otros equipos: ponle dominio y «docker login {{ registry_domain if registry_domain else 'tu-dominio' }}».

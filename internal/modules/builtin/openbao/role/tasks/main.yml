@@ -1,0 +1,167 @@
+---
+- name: Carpeta de OpenBao
+  ansible.builtin.set_fact:
+    openbao_dir: /srv/draupnode/apps/openbao
+    openbao_url: "{{ ('https://' ~ openbao_domain) if openbao_domain else ('http://127.0.0.1:' ~ openbao_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ openbao_dir }}"
+    - "{{ openbao_dir }}/data"
+    - "{{ openbao_dir }}/config"
+
+- name: Configuración de OpenBao
+  ansible.builtin.copy:
+    dest: /srv/draupnode/apps/openbao/config/config.hcl
+    mode: "0644"
+    content: |
+      ui = true
+      disable_mlock = true
+      api_addr = "http://127.0.0.1:8200"
+      cluster_addr = "http://127.0.0.1:8201"
+      # Almacenamiento integrado (raft) de un solo nodo: el que recomienda OpenBao 2.
+      storage "raft" {
+        path    = "/openbao/file"
+        node_id = "draupnode"
+      }
+      listener "tcp" {
+        address     = "0.0.0.0:8200"
+        tls_disable = true
+      }
+  when: not ansible_check_mode
+
+- name: Las carpetas son del usuario de la imagen (OpenBao no corre como root)
+  ansible.builtin.shell: |
+    u=$(docker run --rm --entrypoint id quay.io/openbao/openbao:2 -u)
+    g=$(docker run --rm --entrypoint id quay.io/openbao/openbao:2 -g)
+    c=0
+    for d in /srv/draupnode/apps/openbao/data /srv/draupnode/apps/openbao/config; do
+      [ "$(stat -c %u:%g "$d")" = "$u:$g" ] || { chown -R "$u:$g" "$d"; c=1; }
+    done
+    [ $c = 1 ] && echo cambiado || true
+  register: openbao_own
+  changed_when: "'cambiado' in openbao_own.stdout"
+  when: not ansible_check_mode
+
+- name: Script para iniciar y desbloquear OpenBao
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/draupnode-openbao
+    mode: "0700"
+    content: |
+      #!/usr/bin/env python3
+      # Inicia OpenBao la primera vez (una clave) y lo desbloquea. Uso: draupnode-openbao [iniciar|desbloquear]
+      import json, os, sys, time, urllib.request
+      URL = "http://127.0.0.1:{{ openbao_port }}"
+      SECRETOS = {{ draupnode_secrets_dir | to_json }}
+      INIT = os.path.join(SECRETOS, ".openbao_init.json")
+      def api(ruta, datos=None):
+          req = urllib.request.Request(URL + ruta, data=None if datos is None else json.dumps(datos).encode(), method="GET" if datos is None else "PUT")
+          return json.load(urllib.request.urlopen(req, timeout=15))
+      for _ in range(60):
+          try:
+              st = api("/v1/sys/seal-status"); break
+          except Exception:
+              time.sleep(3)
+      else:
+          sys.exit("OpenBao no responde en " + URL)
+      orden = sys.argv[1] if len(sys.argv) > 1 else "desbloquear"
+      if not st.get("initialized"):
+          if not orden.startswith("iniciar"):
+              sys.exit("OpenBao está sin iniciar: aplica el módulo desde Draupnode")
+          r = api("/v1/sys/init", {"secret_shares": 1, "secret_threshold": 1})
+          fd = os.open(INIT, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+          os.write(fd, json.dumps(r).encode()); os.close(fd)
+          print("iniciado")
+          st = api("/v1/sys/seal-status")
+      if os.path.exists(INIT):
+          r = json.load(open(INIT))
+          fd = os.open(os.path.join(SECRETOS, "openbao_claves"), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+          os.write(fd, ("Clave de desbloqueo: %s\nToken raíz: %s\n" % (r["keys_base64"][0], r["root_token"])).encode()); os.close(fd)
+      if st.get("sealed") and orden in ("iniciar", "desbloquear") and os.path.exists(INIT):
+          st = api("/v1/sys/unseal", {"key": json.load(open(INIT))["keys_base64"][0]})
+          print("desbloqueado" if not st.get("sealed") else "sigue bloqueado")
+      elif st.get("sealed"):
+          print("bloqueado")
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ openbao_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: false
+
+- name: Arrancar OpenBao
+  ansible.builtin.command: docker compose -p dn-openbao up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ openbao_dir }}"
+  register: openbao_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: openbao_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in openbao_up.stderr or 'Created' in openbao_up.stderr or 'Recreated' in openbao_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ openbao_port }}/v1/sys/seal-status"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: openbao_http
+  until: openbao_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 40
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-openbao
+  when: not ansible_check_mode
+
+- name: Iniciar (la primera vez) y desbloquear
+  ansible.builtin.command: /usr/local/sbin/draupnode-openbao {{ 'iniciar' if openbao_auto_unseal | bool else 'iniciar-sin-desbloquear' }}
+  register: openbao_init
+  changed_when: "'iniciado' in openbao_init.stdout or 'desbloqueado' in openbao_init.stdout"
+  when: not ansible_check_mode
+
+- name: Desbloquear al arrancar el servidor
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/draupnode-openbao.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Desbloquear OpenBao (Draupnode)
+      After=docker.service
+      Wants=docker.service
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/draupnode-openbao desbloquear
+      [Install]
+      WantedBy=multi-user.target
+  when: openbao_auto_unseal | bool and not ansible_check_mode
+
+- name: Activar (o quitar) el desbloqueo al arrancar
+  ansible.builtin.shell: |
+    if [ "{{ openbao_auto_unseal | bool }}" = True ]; then
+      systemctl daemon-reload; systemctl is-enabled -q draupnode-openbao.service || { systemctl enable -q draupnode-openbao.service; echo cambiado; }
+    elif [ -f /etc/systemd/system/draupnode-openbao.service ]; then
+      systemctl disable -q draupnode-openbao.service; rm -f /etc/systemd/system/draupnode-openbao.service; systemctl daemon-reload; echo cambiado
+    fi
+  register: openbao_unit
+  changed_when: "'cambiado' in openbao_unit.stdout"
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      OpenBao {{ 'responde' if (openbao_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-openbao logs, en ' ~ openbao_dir ~ ')' }} en {{ openbao_url }}.
+      Clave de desbloqueo y token raíz en «Contraseñas»: cópialos a tu gestor de contraseñas. Panel en /ui. {{ 'Se desbloquea solo al arrancar.' if openbao_auto_unseal | bool else 'Al reiniciar queda bloqueado: desbloquéalo en /ui con la clave.' }}

@@ -1,0 +1,26 @@
+# Generado por Draupnode (módulo vikunja). No lo edites a mano: se reescribe al aplicar.
+name: dn-vikunja
+
+services:
+  vikunja:
+    image: docker.io/vikunja/vikunja:latest
+    {% if vikunja_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-vikunja
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+{% if vikunja_domain %}      VIKUNJA_SERVICE_PUBLICURL: "https://{{ vikunja_domain }}/"
+{% endif %}      # La web y la API van juntas (mismo origen): sin CORS no hace falta saber la dirección.
+      VIKUNJA_CORS_ENABLE: "false"
+      VIKUNJA_SERVICE_SECRET: "{{ vikunja_jwt }}"
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: "{{ 'true' if vikunja_registration | bool else 'false' }}"
+      VIKUNJA_DATABASE_TYPE: sqlite
+      VIKUNJA_DATABASE_PATH: /db/vikunja.db
+    volumes:
+      - ./files:/app/vikunja/files
+      - ./db:/db
+    ports:
+      - "127.0.0.1:{{ vikunja_port }}:3456"
+{% if (vikunja_public_port | default(0) | int) > 0 %}      - "{{ vikunja_public_port }}:3456"
+{% endif %}

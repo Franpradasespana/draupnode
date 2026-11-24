@@ -657,7 +657,9 @@ func compose(s Spec) string {
 		}
 	}
 	if s.Redis {
-		b.WriteString("\n  redis:\n    image: redis:7-alpine\n    restart: unless-stopped\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 12\n")
+		// Valkey (BSD-3): la continuación libre de Redis, compatible (Redis dejó de ser libre en la 7.4).
+		// El servicio se sigue llamando «redis» para que la app no note el cambio.
+		b.WriteString("\n  redis:\n    image: valkey/valkey:9-alpine\n    restart: unless-stopped\n    healthcheck:\n      test: [\"CMD\", \"valkey-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 12\n")
 	}
 	if len(vols) > 0 {
 		b.WriteString("\nvolumes:\n")

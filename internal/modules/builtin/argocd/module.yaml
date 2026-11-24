@@ -1,0 +1,65 @@
+id: argocd
+name: Argo CD (despliegue continuo en Kubernetes)
+version: 1.0.0
+category: 9 · Kubernetes e IaC
+description: "GitOps: le dices qué repositorio Git describe tus aplicaciones de Kubernetes y Argo CD mantiene el clúster igual que el repositorio, con un panel para verlo todo."
+details: |
+  Argo CD (Apache-2.0, CNCF) con su instalación oficial en el espacio de
+  nombres «argocd» del Kubernetes de este servidor (módulo k3s).
+  El panel se abre con «Abrir» (túnel SSH), por la VPN o con dominio
+  (Caddy o nginx): un servicio del servidor lo deja en 127.0.0.1.
+  Usuario «admin»; su contraseña inicial está en «Contraseñas».
+  Pide ~1 GB de RAM además de k3s.
+depends: [k3s]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 2500
+proxy_site:
+  domain: argocd_domain
+  port: argocd_port
+secrets:
+  - file: argocd_admin
+    label: Usuario «admin» de Argo CD
+uninstall_warning: Quita Argo CD del clúster. Las aplicaciones que haya desplegado se quedan en Kubernetes (ya sin vigilar).
+variables:
+  - name: argocd_port
+    label: Puerto en el servidor (solo local)
+    help: "El panel escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8081
+    min: 1024
+    max: 65535
+  - name: argocd_domain
+    label: Dominio
+    help: Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio.
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: argocd_version
+    label: Versión
+    help: "«stable» = la última estable. O una concreta, como v3.2.0."
+    type: string
+    default: stable
+    pattern: '^(stable|v[0-9]+\.[0-9]+\.[0-9]+)$'
+    pattern_help: stable o vX.Y.Z
+links:
+  - label: "Web oficial"
+    url: https://argo-cd.readthedocs.io
+  - label: "Código fuente"
+    url: https://github.com/argoproj/argo-cd
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, si el servidor de pruebas tiene 3 GB de RAM libres (k3s + Argo CD)."
+  pasos:
+    - "Añade «Argo CD» (añade k3s solo) y aplica; tarda unos minutos."
+    - "Pulsa «Abrir (túnel SSH)», entra con «admin» y crea una aplicación de ejemplo: repositorio https://github.com/argoproj/argocd-example-apps.git, ruta «guestbook», clúster «in-cluster», espacio «default»."
+  comprobar:
+    - "El panel abre y deja entrar con la contraseña de «Contraseñas»."
+    - "La aplicación «guestbook» llega a «Synced» y «Healthy», y «kubectl get pods» enseña sus pods."
+  necesita:
+    - "Nada: se instala con lo de serie. Dominio opcional (con Caddy o nginx)."
+  problemas:
+    - "El panel no abre → mira «systemctl status draupnode-argocd» (el servicio que lo deja en 127.0.0.1) y «kubectl -n argocd get pods»."
+    - "Se queda sin memoria → el servidor necesita unos 3 GB: añade «Memoria de intercambio» o usa uno más grande."

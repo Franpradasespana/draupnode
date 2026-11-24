@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, si el servidor de pruebas tiene 2 GB libres (la primera vez tarda unos minutos)."
+  pasos:
+    - "Añade «Nextcloud» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con «admin» y la contraseña de «Contraseñas» y sube un fichero."
+  comprobar:
+    - "El fichero se ve en la web y en /srv/draupnode/apps/nextcloud/html/data/admin/files."
+    - "En «Terminal»: «sudo docker exec -u www-data dn-nextcloud php occ status» dice installed: true y «… occ config:app:get core backgroundjobs_mode» dice cron."
+  necesita:
+    - "Nada para probarlo. Para las apps de escritorio y móvil, un dominio con Caddy o nginx."
+  problemas:
+    - "«Acceso mediante un dominio no fiable» → aplica con el dominio puesto (Draupnode lo añade a los dominios de confianza)."
+    - "La primera aplicación dice que aún se está instalando → espera unos minutos y vuelve a aplicar."

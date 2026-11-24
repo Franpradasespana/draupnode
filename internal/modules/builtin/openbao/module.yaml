@@ -1,0 +1,80 @@
+id: openbao
+name: "OpenBao (caja fuerte de secretos)"
+version: 1.0.0
+category: 8 · Seguridad
+description: "Guarda y reparte las contraseñas, claves y certificados de tus apps de forma segura, con permisos y registro de quién lee qué. La continuación libre de HashiCorp Vault."
+details: |
+  OpenBao 2 en Docker (Vault dejó de ser software libre en 2023).
+  Draupnode lo inicia la primera vez con una sola clave de desbloqueo y
+  guarda la clave y el token raíz en «Contraseñas»: CÓPIALOS a tu gestor
+  de contraseñas; sin la clave, los datos no se pueden recuperar.
+  Al reiniciarse, OpenBao arranca bloqueado. Con «Desbloquear solo»,
+  el servidor lo desbloquea al arrancar usando la clave guardada en él
+  (cómodo, pero quien entre como root al servidor puede leerlo todo).
+  Panel web en /ui (entra con el token raíz).
+  Sus datos están en /srv/draupnode/apps/openbao (entran en las copias del
+  módulo Copias). Licencia: MPL-2.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [openbao_public_port]
+proxy_site:
+  domain: openbao_domain
+  port: openbao_port
+secrets:
+  - file: openbao_claves
+    label: Clave de desbloqueo y token raíz de OpenBao
+uninstall_warning: "Para y quita los contenedores de OpenBao."
+uninstall_data: "Borrar también sus datos (todos los secretos guardados (cifrados)). No se puede deshacer."
+variables:
+  - name: openbao_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8200
+    min: 1024
+    max: 65535
+  - name: openbao_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: openbao_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: openbao_auto_unseal
+    label: Desbloquear solo
+    help: Al arrancar el servidor (y al aplicar) lo desbloquea con la clave guardada en el servidor. Sin esto, lo desbloqueas tú en /ui con la clave.
+    type: bool
+    default: true
+  - name: openbao_update
+    label: Actualizar OpenBao al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://openbao.org
+  - label: "Código fuente"
+    url: https://github.com/openbao/openbao
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «OpenBao» (con «Desbloquear solo») y aplica."
+    - "En «Terminal»: «sudo docker restart dn-openbao» y luego «sudo systemctl start draupnode-openbao» (lo mismo que hace al arrancar el servidor)."
+  comprobar:
+    - "«Contraseñas» tiene la clave de desbloqueo y el token raíz; con «Abrir (túnel SSH)», /ui deja entrar con el token."
+    - "Tras reiniciar el contenedor queda bloqueado («curl -s http://127.0.0.1:8200/v1/sys/seal-status» dice sealed true) y el servicio lo desbloquea."
+  necesita:
+    - "Nada. Copia la clave de desbloqueo y el token raíz a tu gestor de contraseñas."
+  problemas:
+    - "Después de reiniciar el servidor está bloqueado → sin «Desbloquear solo» hay que desbloquearlo a mano en /ui con la clave."
+    - "Has perdido la clave de desbloqueo → los datos no se pueden recuperar: por eso hay que copiarla fuera del servidor."

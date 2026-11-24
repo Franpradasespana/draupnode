@@ -1,0 +1,22 @@
+# Generado por Draupnode (módulo adminer). No lo edites a mano: se reescribe al aplicar.
+name: dn-adminer
+
+services:
+  adminer:
+    image: docker.io/library/adminer:latest
+    {% if adminer_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-adminer
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      ADMINER_DEFAULT_SERVER: pg-compartido
+    networks: [{{ adminer_network }}]
+    ports:
+      - "127.0.0.1:{{ adminer_port }}:8080"
+{% if (adminer_public_port | default(0) | int) > 0 %}      - "{{ adminer_public_port }}:8080"
+{% endif %}
+
+networks:
+  {{ adminer_network }}:
+    external: true

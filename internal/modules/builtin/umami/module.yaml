@@ -1,0 +1,73 @@
+id: umami
+name: "Umami (estadísticas de tus webs)"
+version: 1.0.0
+category: 7 · Apps
+description: "Cuántas visitas tienen tus webs, desde dónde y qué páginas, sin cookies ni rastrear a nadie. Una alternativa libre y respetuosa a Google Analytics."
+details: |
+  Umami en Docker, con su propio PostgreSQL. Draupnode cambia la
+  contraseña del usuario «admin» (de serie es «umami») por una generada
+  en el servidor (en «Contraseñas»).
+  Añade tu web en Umami y pega su etiqueta <script> en tus páginas. Para
+  recibir visitas de internet necesita dominio con HTTPS.
+  Sus datos están en /srv/draupnode/apps/umami (entran en las copias del
+  módulo Copias). Licencia: MIT.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 400
+firewall_ports_from: [umami_public_port]
+proxy_site:
+  domain: umami_domain
+  port: umami_port
+secrets:
+  - file: umami_admin
+    label: Usuario «admin» de Umami
+uninstall_warning: "Para y quita los contenedores de Umami."
+uninstall_data: "Borrar también sus datos (todas las estadísticas y su base de datos). No se puede deshacer."
+variables:
+  - name: umami_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 3004
+    min: 1024
+    max: 65535
+  - name: umami_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: umami_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: umami_update
+    label: Actualizar Umami al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://umami.is
+  - label: "Código fuente"
+    url: https://github.com/umami-software/umami
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Umami» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y entra con «admin» y la contraseña de «Contraseñas»; añade una web."
+  comprobar:
+    - "La contraseña de serie («umami») ya no vale; la de «Contraseñas», sí."
+    - "Umami te da la etiqueta <script> para tu web."
+  necesita:
+    - "Nada para probarlo. Para contar visitas reales, un dominio con Caddy o nginx."
+  problemas:
+    - "No cuenta visitas → tu web debe cargar el script desde https://tu-dominio-de-umami (sin HTTPS los navegadores lo bloquean)."
+    - "Los bloqueadores de anuncios lo bloquean → es normal en parte de los visitantes."

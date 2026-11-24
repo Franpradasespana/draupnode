@@ -1,0 +1,77 @@
+id: k3s
+name: Kubernetes (k3s)
+version: 1.0.0
+category: 9 · Kubernetes e IaC
+description: Kubernetes completo y ligero en tu servidor (k3s, certificado por la CNCF), con Helm para instalar aplicaciones de Kubernetes con una orden.
+details: |
+  k3s (Apache-2.0) de SUSE/Rancher: un Kubernetes de un solo binario,
+  pensado para servidores pequeños (pide ~1 GB de RAM). Se instala con su
+  instalador oficial y su configuración en /etc/rancher/k3s/config.yaml.
+  Por defecto SIN su Traefik ni su balanceador, para que no ocupen los
+  puertos 80/443 de Caddy, nginx o Coolify: publica tus servicios con un
+  dominio en Caddy/nginx apuntando a un NodePort, o activa Traefik si el
+  servidor es solo para Kubernetes.
+  Helm (Apache-2.0) se instala desde get.helm.sh comprobando su suma SHA-256.
+  En la Terminal: kubectl get pods -A (con sudo, o como tu usuario si
+  marcas «kubectl para tu usuario»).
+  Puede ir junto a Docker: cada uno tiene sus propios contenedores.
+depends: [base]
+after: [docker, firewall, wireguard]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 1000
+uninstall_warning: Desinstala k3s con su propio desinstalador. SE BORRA TODO lo que haya en el clúster (pods, volúmenes, secretos). Helm y tu kubeconfig también se quitan.
+variables:
+  - name: k3s_channel
+    label: Versión
+    help: "«stable» = la recomendada por k3s. «latest» = la última."
+    type: select
+    options: [stable, latest]
+    default: stable
+  - name: k3s_update
+    label: Actualizar k3s al aplicar
+    help: Vuelve a pasar el instalador oficial, que lo lleva a la última versión del canal elegido.
+    type: bool
+    default: false
+  - name: k3s_traefik
+    label: Usar Traefik y el balanceador de k3s
+    help: Ocupan los puertos 80 y 443. Solo si el servidor es solo para Kubernetes (no con Caddy, nginx ni Coolify).
+    type: bool
+    default: false
+  - name: k3s_public_api
+    label: Abrir la API (6443) a internet
+    help: "Para usar kubectl desde tu equipo sin túnel. Mejor no: usa la VPN o un túnel SSH (ssh -L 6443:127.0.0.1:6443)."
+    type: bool
+    default: false
+  - name: k3s_helm
+    label: Instalar Helm
+    type: bool
+    default: true
+  - name: k3s_user_kubeconfig
+    label: kubectl para tu usuario
+    help: Copia el acceso al clúster a ~/.kube/config de tu usuario SSH (si no es root), para usar kubectl sin sudo.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://k3s.io
+  - label: "Código fuente"
+    url: https://github.com/k3s-io/k3s
+  - label: "Helm"
+    url: https://helm.sh
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí. Si el servidor de pruebas se creó antes de la 0.63 va muy lento (k3s copia cada imagen entera): bórralo y vuelve a crearlo para que tenga su volumen para Kubernetes."
+  pasos:
+    - "Añade «Kubernetes (k3s)» con Helm y aplica (unos 2 minutos)."
+    - "En «Terminal»: «kubectl create deployment hola --image=nginx --port=80» y, al rato, «kubectl get pods»."
+  comprobar:
+    - "La nota de la aplicación dice que el nodo está «Ready» con su versión."
+    - "«kubectl get nodes» y «kubectl get pods -A» funcionan como tu usuario (sin sudo) y «helm version» responde."
+    - "El pod «hola-…» llega a «Running» (bórralo con «kubectl delete deployment hola»)."
+  necesita:
+    - "Nada: lo de serie (sin Traefik, API cerrada, con Helm) vale junto a Caddy, nginx o Coolify."
+  problemas:
+    - "Los pods no llegan a otros servicios o a la API (CrashLoop en coredns) → el cortafuegos bloquea la red de los pods: vuelve a aplicar k3s, que abre cni0 y las redes 10.42/10.43."
+    - "Traefik no arranca → los puertos 80/443 están ocupados por Caddy, nginx o Coolify: desactiva «Usar Traefik»."

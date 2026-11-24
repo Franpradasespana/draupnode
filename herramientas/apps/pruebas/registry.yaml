@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Registro de imágenes Docker» y aplica."
+    - "En «Terminal»: «sudo docker login 127.0.0.1:5000 -u draupnode» (contraseña en «Contraseñas»), «sudo docker pull busybox», «sudo docker tag busybox 127.0.0.1:5000/prueba/busybox:1» y «sudo docker push 127.0.0.1:5000/prueba/busybox:1»."
+  comprobar:
+    - "«docker login» dice «Login Succeeded» y el push termina."
+    - "«curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5000/v2/_catalog» sin usuario devuelve 401."
+  necesita:
+    - "Nada para probarlo en el servidor. Para usarlo desde otros equipos, un dominio con Caddy o nginx (Docker exige HTTPS)."
+  problemas:
+    - "«http: server gave HTTP response to HTTPS client» desde otro equipo → ponle dominio (Caddy/nginx) y usa «docker login tu-dominio»."
+    - "Al subir imágenes grandes por nginx falla con «413» → sube el tamaño máximo de petición en nginx."

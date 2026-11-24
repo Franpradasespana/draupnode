@@ -1,0 +1,72 @@
+id: portainer
+name: "Portainer (panel de Docker)"
+version: 1.0.0
+category: 2 · Contenedores
+description: "Un panel web para ver y manejar Docker: contenedores, imágenes, volúmenes, redes, registros y stacks de Compose."
+details: |
+  Portainer Community Edition (la libre) en Docker. Draupnode crea el
+  usuario «admin» con una contraseña generada en el servidor (en
+  «Contraseñas»).
+  OJO: Portainer maneja Docker entero, que equivale a ser root en el
+  servidor. Mejor sin dominio: entra con «Abrir» (túnel SSH) o por la VPN.
+  Sus datos están en /srv/draupnode/apps/portainer (entran en las copias del
+  módulo Copias). Licencia: zlib (edición Community).
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [portainer_public_port]
+proxy_site:
+  domain: portainer_domain
+  port: portainer_port
+secrets:
+  - file: portainer_admin
+    label: Usuario «admin» de Portainer
+uninstall_warning: "Para y quita los contenedores de Portainer."
+uninstall_data: "Borrar también sus datos (su configuración, usuarios y stacks guardados (tus contenedores no se tocan)). No se puede deshacer."
+variables:
+  - name: portainer_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 9010
+    min: 1024
+    max: 65535
+  - name: portainer_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: portainer_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: portainer_update
+    label: Actualizar Portainer al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Documentación"
+    url: https://docs.portainer.io
+  - label: "Código fuente"
+    url: https://github.com/portainer/portainer
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Portainer» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y entra con «admin» y la contraseña de «Contraseñas»."
+  comprobar:
+    - "El panel enseña el entorno «local» con los contenedores del servidor (los dn-…)."
+    - "Desde Portainer puedes ver los registros de un contenedor y reiniciarlo."
+  necesita:
+    - "Nada: el usuario «admin» y su contraseña los crea Draupnode."
+  problemas:
+    - "Pide crear el administrador o dice que ha caducado → Portainer solo lee la contraseña la primera vez: desinstálalo con «borrar también los datos» y vuelve a aplicar."
+    - "Maneja todo Docker (es como ser root): no le pongas dominio sin necesidad; entra por el túnel o la VPN."

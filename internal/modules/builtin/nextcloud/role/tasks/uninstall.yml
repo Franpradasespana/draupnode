@@ -1,0 +1,19 @@
+---
+- name: ¿Está Nextcloud?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/nextcloud/docker-compose.yml
+  register: nextcloud_cf
+
+- name: Parar y quitar Nextcloud
+  ansible.builtin.command: docker compose -p dn-nextcloud down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/nextcloud
+  when: nextcloud_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/nextcloud {{ draupnode_secrets_dir | quote }}/nextcloud_admin
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Nextcloud {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/nextcloud: si lo reinstalas, vuelve todo.' }}"

@@ -4,7 +4,7 @@ version: 1.0.0
 category: 7 · Apps
 description: "Escanea o sube tus papeles (facturas, contratos, recibos…) y encuéntralos al momento: lee el texto (OCR), los etiqueta y los archiva."
 details: |
-  Paperless-ngx en Docker, con su propio PostgreSQL y Redis. Draupnode
+  Paperless-ngx en Docker, con su propio PostgreSQL y Valkey (compatible con Redis). Draupnode
   crea el usuario «admin» con una contraseña generada en el servidor (en
   «Contraseñas»). Lo que dejes en la carpeta «consume» (por
   ejemplo con Syncthing o desde el escáner) se importa solo.

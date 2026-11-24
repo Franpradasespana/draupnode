@@ -1,0 +1,21 @@
+# Generado por Draupnode (módulo dozzle). No lo edites a mano: se reescribe al aplicar.
+name: dn-dozzle
+
+services:
+  dozzle:
+    image: docker.io/amir20/dozzle:latest
+    {% if dozzle_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-dozzle
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      DOZZLE_AUTH_PROVIDER: simple
+      DOZZLE_NO_ANALYTICS: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data:/data
+    ports:
+      - "127.0.0.1:{{ dozzle_port }}:8080"
+{% if (dozzle_public_port | default(0) | int) > 0 %}      - "{{ dozzle_public_port }}:8080"
+{% endif %}

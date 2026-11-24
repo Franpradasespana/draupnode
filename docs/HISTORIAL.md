@@ -1152,3 +1152,50 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
   solo queda `main.go`. La interfaz llama ahora a `window.go.app.App`. `OnStartup`/`OnShutdown` son funciones del paquete
   (no métodos) para que Wails no las ofrezca a la interfaz. `make test` y el workflow de pruebas pasan `./...` con la
   etiqueta webkit2_41; el de publicar lee la versión de `internal/app/app.go`.
+
+## 2026-11-24 · 0.63.0 · 24 módulos nuevos (50 en total): seguridad, Kubernetes e IaC, y más apps
+
+Petición del usuario: más módulos (Kubernetes, Terraform, seguridad…), unos 50, todos de software libre.
+Cada uno se ha probado en un Ubuntu desechable: aplicar, comprobar que funciona de verdad (iniciar sesión, subir
+algo, conectarse…), volver a aplicar (0 cambios), desinstalar con sus datos y mirar que no quede nada.
+
+- **Seguridad (categoría nueva «8 · Seguridad»)**:
+  - **CrowdSec** (MIT): repositorio oficial + bloqueador de iptables (también la cadena DOCKER-USER si hay Docker);
+    lista blanca con tu IP al aplicar; colecciones para SSH, nginx y Caddy si están; «Lista de la comunidad» desactivable.
+  - **Lynis** (GPL-3.0): revisión al aplicar y semanal (temporizador), índice de seguridad en la nota.
+  - **ClamAV** (GPL-2.0): freshclam + revisión diaria de carpetas con prioridad baja; probado con EICAR.
+  - **AIDE** (GPL-2.0): foto de los ficheros del sistema (sin datos de apps, Docker ni registros), comprobación diaria
+    (dailyaidecheck) y «Tomar la foto al aplicar». Va detrás de todos los módulos para que la foto incluya lo aplicado.
+  - **auditd** (GPL-2.0): reglas para usuarios, sudo, SSH, cron, servicios, hora, módulos del núcleo y Docker; opción
+    de bloquear las reglas (-e 2). En un contenedor se niega con un mensaje claro.
+  - **Trivy** (Apache-2.0): revisión semanal de las imágenes de los contenedores en marcha (gravedad elegible, solo con
+    arreglo); va detrás de todos los módulos que arrancan contenedores. Cada imagen se revisa una sola vez.
+  - **Keycloak** (Apache-2.0) con su PostgreSQL y **OpenBao** (MPL-2.0, la continuación libre de Vault) con almacenamiento
+    raft, iniciado por Draupnode (clave y token raíz en Contraseñas) y desbloqueo al arrancar opcional.
+- **Kubernetes e IaC (categoría «9 · Kubernetes e IaC»)**:
+  - **k3s** (Apache-2.0) con su instalador oficial y config.yaml; sin Traefik ni balanceador por defecto (no chocan
+    con Caddy/nginx/Coolify); reglas de cortafuegos para la red de pods (Oracle rechaza por defecto); API 6443
+    cerrada salvo que se pida; kubeconfig para tu usuario; **Helm** desde get.helm.sh comprobando su SHA-256.
+    Dentro de un contenedor sobre overlay usa el almacenamiento «native». El servidor de pruebas lleva ahora un
+    volumen para /var/lib/rancher (si no, k3s va muy lento: hay que rehacerlo si se creó antes).
+  - **Argo CD** (Apache-2.0) con el manifiesto oficial; panel sin TLS propio en 127.0.0.1 con un servicio
+    (port-forward), dominio opcional; contraseña inicial de admin en Contraseñas.
+  - **OpenTofu** (MPL-2.0; Terraform es BUSL desde 2023): repositorio oficial y, opcionalmente, una carpeta de trabajo
+    desde Git (https con token o file:///): init + plan al aplicar y «Aplicar el plan» opcional; variables secretas
+    «A=1; B=2» en la bóveda; el estado queda en /srv/draupnode/apps/opentofu (entra en las copias).
+- **Sistema**: **Hora exacta (chrony)**. (Swap, zona horaria y actualizaciones automáticas ya las tenía «Base»: no se
+  duplican.)
+- **Apps en Docker (generador)**: Portainer CE, Registro de imágenes (distribution 3 con htpasswd bcrypt), Dozzle (con
+  usuario), Valkey compartido (red «apps»), Adminer, Uptime Kuma 2, ntfy (cerrado, usuario + token para las
+  Alertas), Healthchecks, Nextcloud (PostgreSQL + Valkey + cron; dominio de confianza al aplicar), Wiki.js, Vikunja,
+  Umami (cambia la contraseña de serie «umami»).
+- **Solo software libre**: Paperless y Docker Creator usan ahora Valkey en vez de Redis (Redis 7.4+ no es libre); el
+  servicio de Docker Creator se sigue llamando «redis».
+- **Generador** (`herramientas/apps`): al día con los arreglos a mano de la 0.60 (vuelve a dar los mismos ficheros);
+  fichas nuevas en `nuevas.py`, guías en `pruebas/<id>.yaml`; opciones `category`, `depends`, `no_proxy`,
+  `probe: tcp`, `db_dir`, `mid_tasks`, `uninstall_extra`.
+- Catálogo de la demo (MOCK_MODULES) volcado otra vez del real (50). README con el catálogo por categorías.
+- Fallos que salieron al probar y ya están arreglados: Healthchecks no tiene `createsuperuser --noinput` (se crea
+  por su shell de Django); OpenBao 2 no corre como root y ya no admite almacenamiento «file»; Vikunja exige su
+  dirección si CORS está activo (desactivado: web y API van juntas); `kubectl` de k3s no lee ~/.kube/config
+  (KUBECONFIG en /etc/profile.d).

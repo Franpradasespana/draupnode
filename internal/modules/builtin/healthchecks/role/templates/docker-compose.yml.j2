@@ -1,0 +1,26 @@
+# Generado por Draupnode (módulo healthchecks). No lo edites a mano: se reescribe al aplicar.
+name: dn-healthchecks
+
+services:
+  healthchecks:
+    image: docker.io/healthchecks/healthchecks:latest
+    {% if healthchecks_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-healthchecks
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      DB: sqlite
+      DB_NAME: /data/hc.sqlite
+      SECRET_KEY: "{{ healthchecks_secret_key }}"
+      SITE_ROOT: "{{ ('https://' ~ healthchecks_domain) if healthchecks_domain else ('http://127.0.0.1:' ~ healthchecks_port) }}"
+      SITE_NAME: Healthchecks
+      ALLOWED_HOSTS: "*"
+      REGISTRATION_OPEN: "{{ 'True' if healthchecks_registration | bool else 'False' }}"
+      DEBUG: "False"
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:{{ healthchecks_port }}:8000"
+{% if (healthchecks_public_port | default(0) | int) > 0 %}      - "{{ healthchecks_public_port }}:8000"
+{% endif %}

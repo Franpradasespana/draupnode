@@ -1,0 +1,53 @@
+id: auditd
+name: auditd (registro de auditoría)
+version: 1.0.0
+category: 8 · Seguridad
+description: Apunta quién toca lo importante del servidor (usuarios, sudo, SSH, la hora, módulos del núcleo, Docker) para poder investigar después si pasa algo.
+details: |
+  El sistema de auditoría del núcleo de Linux (auditd, GPL-2.0) con un
+  juego de reglas razonable para un servidor: cambios en usuarios y
+  contraseñas, sudoers, configuración del SSH, cron, hora del sistema,
+  módulos del núcleo y Docker, y cada uso de sudo.
+  Buscar en la Terminal: sudo ausearch -k draupnode-usuarios -i
+  (claves: draupnode-usuarios, -sudo, -ssh, -cron, -hora, -modulos,
+  -docker) o un resumen con sudo aureport --summary.
+  Con «Bloquear las reglas» nadie (ni root) puede cambiarlas sin
+  reiniciar: más seguro, pero para quitar el módulo hay que reiniciar.
+depends: [base]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: Quita auditd y sus reglas. Si las reglas estaban bloqueadas, se quitan del todo al reiniciar.
+uninstall_data: Borrar también los registros de auditoría (/var/log/audit).
+variables:
+  - name: auditd_immutable
+    label: Bloquear las reglas
+    help: Nadie puede cambiarlas ni apagar la auditoría sin reiniciar el servidor.
+    type: bool
+    default: false
+  - name: auditd_log_mb
+    label: Tamaño de cada registro (MB)
+    help: Se guardan 5; al llenarse, se rota.
+    type: int
+    default: 50
+    min: 8
+    max: 1024
+links:
+  - label: "Documentación"
+    url: https://github.com/linux-audit/audit-documentation/wiki
+  - label: "Código fuente"
+    url: https://github.com/linux-audit/audit-userspace
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "No: un contenedor no puede usar la auditoría del núcleo. Pruébalo en una máquina virtual o en un servidor."
+  pasos:
+    - "Añade «auditd» y aplica."
+    - "En «Terminal», haz algo vigilado: «sudo useradd prueba-audit && sudo userdel prueba-audit»."
+  comprobar:
+    - "«sudo auditctl -l» enseña las reglas con las claves draupnode-…"
+    - "«sudo ausearch -k draupnode-usuarios -i | tail» enseña el alta y la baja del usuario de prueba."
+  necesita:
+    - "Nada."
+  problemas:
+    - "Falla al cargar las reglas («Operation not permitted») → estaban bloqueadas: reinicia el servidor y vuelve a aplicar."
+    - "Falla en un contenedor o en VPS antiguas (OpenVZ/LXC) → ahí no hay auditoría del núcleo: quita el módulo."

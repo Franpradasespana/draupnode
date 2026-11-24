@@ -1,0 +1,159 @@
+---
+- name: Carpeta de datos de k3s
+  ansible.builtin.file:
+    path: /var/lib/rancher
+    state: directory
+    mode: "0755"
+
+- name: ¿Está sobre overlay? (dentro de un contenedor; entonces k3s no puede usar overlay encima)
+  ansible.builtin.command: stat -f -c %T /var/lib/rancher
+  register: k3s_fs
+  changed_when: false
+  check_mode: false
+
+- name: Con Traefik, los puertos 80 y 443 tienen que estar libres
+  ansible.builtin.shell: |
+    ss -Hltn '( sport = :80 or sport = :443 )' | grep -v -e traefik -e k3s | grep -q . && echo ocupados || true
+  register: k3s_ports
+  changed_when: false
+  check_mode: false
+  when: k3s_traefik | bool
+
+- name: Puertos 80/443 libres
+  ansible.builtin.assert:
+    that: "'ocupados' not in (k3s_ports.stdout | default(''))"
+    fail_msg: "Los puertos 80/443 ya los usa otro programa (Caddy, nginx o Coolify): desactiva «Usar Traefik y el balanceador de k3s»."
+    quiet: true
+  when: k3s_traefik | bool and not ansible_check_mode
+
+- name: Carpeta de configuración
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: "0755"
+
+- name: Configuración de k3s
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/config.yaml
+    # Sin secretos: legible para que kubectl no avise al usarlo sin sudo.
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo k3s)
+      write-kubeconfig-mode: "0600"
+      {% if not k3s_traefik | bool %}
+      disable:
+        - traefik
+        - servicelb
+      {% endif %}
+      {% if k3s_fs.stdout in ['overlayfs', 'overlay'] %}
+      snapshotter: native
+      {% endif %}
+  register: k3s_conf
+
+- name: ¿Está k3s?
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_bin
+
+- name: Instalador oficial de k3s
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/lib/draupnode-k3s-install.sh
+    mode: "0700"
+    force: true
+  when: not k3s_bin.stat.exists or k3s_update | bool
+
+- name: Instalar (o actualizar) k3s
+  ansible.builtin.command: /usr/local/lib/draupnode-k3s-install.sh
+  environment:
+    INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
+  register: k3s_install
+  when: (not k3s_bin.stat.exists or k3s_update | bool) and not ansible_check_mode
+
+- name: Reiniciar k3s si ha cambiado la configuración
+  ansible.builtin.systemd:
+    name: k3s
+    state: restarted
+  when: k3s_conf.changed and k3s_bin.stat.exists and k3s_install is skipped and not ansible_check_mode
+
+- name: Red de los pods en el cortafuegos (si INPUT rechaza por defecto, como en Oracle)
+  ansible.builtin.shell: |
+    command -v iptables >/dev/null || { echo sin-iptables; exit 0; }
+    c=0
+    for r in "-i cni0" "-s 10.42.0.0/16" "-s 10.43.0.0/16"; do
+      iptables -C INPUT $r -m comment --comment draupnode-k3s -j ACCEPT 2>/dev/null && continue
+      iptables -I INPUT $r -m comment --comment draupnode-k3s -j ACCEPT; c=1
+    done
+    if [ "{{ k3s_public_api | bool }}" = True ]; then
+      iptables -C INPUT -p tcp --dport 6443 -m comment --comment draupnode-k3s-api -j ACCEPT 2>/dev/null || { iptables -I INPUT -p tcp --dport 6443 -m comment --comment draupnode-k3s-api -j ACCEPT; c=1; }
+    else
+      while iptables -D INPUT -p tcp --dport 6443 -m comment --comment draupnode-k3s-api -j ACCEPT 2>/dev/null; do c=1; done
+    fi
+    [ $c = 1 ] && { command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1; echo cambiado; } || true
+  register: k3s_fw
+  changed_when: "'cambiado' in k3s_fw.stdout"
+  when: not ansible_check_mode
+
+- name: Esperar a que el nodo esté listo
+  ansible.builtin.shell: |
+    for i in $(seq 90); do
+      k3s kubectl get nodes --no-headers 2>/dev/null | grep -qw Ready && { k3s kubectl get nodes --no-headers | awk '{print $1" "$2" "$5}'; exit 0; }
+      sleep 4
+    done
+    echo "El nodo no está listo tras 6 minutos (mira: sudo journalctl -u k3s -n 50)" >&2; exit 1
+  register: k3s_node
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: kubectl para tu usuario
+  ansible.builtin.shell: |
+    set -e
+    u={{ draupnode_ssh_user | quote }}
+    h=$(getent passwd "$u" | cut -d: -f6)
+    [ -n "$h" ] && [ "$u" != root ] || exit 0
+    install -d -m 700 -o "$u" -g "$(id -gn "$u")" "$h/.kube"
+    if ! cmp -s /etc/rancher/k3s/k3s.yaml "$h/.kube/config"; then
+      install -m 600 -o "$u" -g "$(id -gn "$u")" /etc/rancher/k3s/k3s.yaml "$h/.kube/config"; echo cambiado
+    fi
+  register: k3s_kc
+  changed_when: "'cambiado' in k3s_kc.stdout"
+  when: k3s_user_kubeconfig | bool and not ansible_check_mode
+
+- name: kubectl y helm usan ~/.kube/config si existe (el kubectl de k3s, si no, lee el de root)
+  ansible.builtin.copy:
+    dest: /etc/profile.d/draupnode-k3s.sh
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo k3s)
+      if [ -z "${KUBECONFIG:-}" ] && [ -r "$HOME/.kube/config" ]; then export KUBECONFIG="$HOME/.kube/config"; fi
+
+- name: Instalar Helm (comprobando su SHA-256)
+  ansible.builtin.shell: |
+    set -e
+    command -v helm >/dev/null && exit 0
+    case "$(uname -m)" in x86_64) a=amd64 ;; aarch64|arm64) a=arm64 ;; *) echo "Arquitectura sin Helm: $(uname -m)" >&2; exit 1 ;; esac
+    v=$(curl -fsSL https://get.helm.sh/helm-latest-version)
+    t=$(mktemp -d); trap 'rm -rf "$t"' EXIT
+    curl -fsSL -o "$t/helm.tgz" "https://get.helm.sh/helm-$v-linux-$a.tar.gz"
+    curl -fsSL -o "$t/helm.sha" "https://get.helm.sh/helm-$v-linux-$a.tar.gz.sha256sum"
+    (cd "$t" && echo "$(cut -d' ' -f1 helm.sha)  helm.tgz" | sha256sum -c --quiet)
+    tar -xzf "$t/helm.tgz" -C "$t"
+    install -m 755 "$t/linux-$a/helm" /usr/local/bin/helm
+    echo "instalado $v"
+  register: k3s_helm_inst
+  changed_when: "'instalado' in k3s_helm_inst.stdout"
+  when: k3s_helm | bool and not ansible_check_mode
+
+- name: Sin Helm
+  ansible.builtin.file:
+    path: /usr/local/bin/helm
+    state: absent
+  when: not k3s_helm | bool
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Kubernetes listo: nodo {{ k3s_node.stdout | default('?') }}.
+      {{ 'kubectl funciona con tu usuario (sin sudo).' if k3s_user_kubeconfig | bool and draupnode_ssh_user != 'root' else 'Usa «sudo kubectl».' }}
+      {{ 'Helm instalado.' if k3s_helm | bool else '' }}
+      {{ 'API abierta en el 6443.' if k3s_public_api | bool else 'API solo local: kubectl desde tu equipo con «ssh -L 6443:127.0.0.1:6443» y el kubeconfig de /etc/rancher/k3s/k3s.yaml.' }}

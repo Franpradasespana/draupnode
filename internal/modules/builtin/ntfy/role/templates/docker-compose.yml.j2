@@ -1,0 +1,25 @@
+# Generado por Draupnode (módulo ntfy). No lo edites a mano: se reescribe al aplicar.
+name: dn-ntfy
+
+services:
+  ntfy:
+    image: docker.io/binwiederhier/ntfy:latest
+    {% if ntfy_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-ntfy
+    restart: unless-stopped
+    command: serve
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      NTFY_BASE_URL: "{{ ('https://' ~ ntfy_domain) if ntfy_domain else ('http://127.0.0.1:' ~ ntfy_port) }}"
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/lib/ntfy/user.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      NTFY_BEHIND_PROXY: "true"
+{% if ntfy_ios_push | bool %}      NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
+{% endif %}    volumes:
+      - ./data:/var/lib/ntfy
+    ports:
+      - "127.0.0.1:{{ ntfy_port }}:80"
+{% if (ntfy_public_port | default(0) | int) > 0 %}      - "{{ ntfy_public_port }}:80"
+{% endif %}

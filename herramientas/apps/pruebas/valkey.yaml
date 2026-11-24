@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Valkey» y aplica."
+    - "En «Terminal»: «sudo docker run --rm --network apps valkey/valkey:9 valkey-cli -h valkey-compartido -a CONTRASEÑA ping» (la contraseña está en «Contraseñas»)."
+  comprobar:
+    - "La orden de prueba responde «PONG»; sin contraseña responde «NOAUTH»."
+    - "Solo escucha en 127.0.0.1:6379 y en la red de Docker «apps»: desde fuera no se ve."
+  necesita:
+    - "Nada. En tus apps: redis://:CONTRASEÑA@valkey-compartido:6379/0, conectando su contenedor a la red «apps»."
+  problemas:
+    - "Tu app no lo encuentra → su contenedor tiene que estar en la red «apps» (la misma que «Red de Docker»)."
+    - "Aviso «Memory overcommit must be enabled» en sus registros → es solo un aviso; si quieres quitarlo: «vm.overcommit_memory = 1» en /etc/sysctl.d/."

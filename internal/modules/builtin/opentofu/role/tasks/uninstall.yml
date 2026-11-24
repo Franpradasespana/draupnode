@@ -1,0 +1,22 @@
+---
+- name: Quitar OpenTofu
+  ansible.builtin.apt:
+    name: tofu
+    state: absent
+    lock_timeout: 600
+
+- name: Quitar el repositorio
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/apt/sources.list.d/opentofu.list, /etc/apt/keyrings/opentofu.gpg, /etc/apt/keyrings/opentofu-repo.asc]
+
+- name: Borrar la carpeta de trabajo y el estado
+  ansible.builtin.file:
+    path: /srv/draupnode/apps/opentofu
+    state: absent
+  when: draupnode_uninstall_purge | bool
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "OpenTofu {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También la carpeta de trabajo y el estado.' if draupnode_uninstall_purge | bool else ' La carpeta de trabajo y el estado siguen en /srv/draupnode/apps/opentofu.' }}"

@@ -1,0 +1,49 @@
+id: lynis
+name: Lynis (revisión de seguridad)
+version: 1.0.0
+category: 8 · Seguridad
+description: Revisa la seguridad del servidor (cientos de comprobaciones) y te da una nota de 0 a 100 con consejos concretos para mejorarla. Cada semana, sola.
+details: |
+  Lynis (GPL-3.0) de CISOfy, el auditor de seguridad libre de referencia.
+  Solo mira: no cambia nada. Al aplicar hace una revisión (1-2 minutos)
+  y, si quieres, otra cada semana.
+  El informe queda en /var/lib/draupnode/lynis/informe.txt; los consejos
+  («Suggestions») y avisos («Warnings») son lo que hay que mirar.
+  Muchos consejos los resuelven otros módulos: SSH seguro, Cortafuegos,
+  Actualizaciones automáticas, auditd, AIDE…
+depends: [base]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: Quita Lynis y su revisión semanal.
+uninstall_data: Borrar también los informes guardados.
+variables:
+  - name: lynis_weekly
+    label: Revisar cada semana
+    help: Los domingos de madrugada. El informe de la última revisión queda en el servidor.
+    type: bool
+    default: true
+  - name: lynis_run_now
+    label: Revisar al aplicar
+    help: Tarda 1-2 minutos. Así ves la nota en la nota de la aplicación.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://cisofy.com/lynis/
+  - label: "Código fuente"
+    url: https://github.com/CISOfy/lynis
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (la nota sale más baja que en un servidor de verdad: un contenedor no tiene núcleo propio)."
+  pasos:
+    - "Añade «Lynis» con «Revisar al aplicar» y aplica."
+    - "Añade después «SSH seguro» o «Actualizaciones automáticas», aplica y vuelve a aplicar Lynis."
+  comprobar:
+    - "La nota de la aplicación dice «Índice de seguridad: N/100» y cuántos avisos y consejos hay."
+    - "En «Terminal»: «sudo less /var/lib/draupnode/lynis/informe.txt» tiene el informe y «systemctl list-timers draupnode-lynis.timer» la próxima revisión."
+    - "Tras añadir otros módulos de seguridad, la nota sube."
+  necesita:
+    - "Nada."
+  problemas:
+    - "La nota parece baja → es normal la primera vez: mira los consejos, muchos se arreglan con otros módulos de Seguridad. No hace falta llegar a 100."

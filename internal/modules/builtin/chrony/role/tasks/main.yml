@@ -1,0 +1,41 @@
+---
+- name: Instalar chrony (sustituye a systemd-timesyncd)
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+    lock_timeout: 600
+
+- name: Servidores de hora
+  ansible.builtin.copy:
+    dest: /etc/chrony/sources.d/draupnode.sources
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo chrony)
+      {% for s in chrony_servers %}
+      {{ 'pool' if 'pool' in s else 'server' }} {{ s }} iburst
+      {% endfor %}
+  register: chrony_src
+
+- name: Recargar los servidores
+  ansible.builtin.shell: chronyc reload sources >/dev/null 2>&1 || systemctl restart chrony
+  when: chrony_src.changed and not ansible_check_mode
+
+- name: Arrancado y al iniciar
+  ansible.builtin.systemd:
+    name: chrony
+    state: started
+    enabled: true
+  when: not ansible_check_mode
+
+- name: ¿Está sincronizada?
+  ansible.builtin.shell: |
+    for i in $(seq 15); do chronyc -n sources 2>/dev/null | grep -q '^\^[*+]' && { echo si; exit 0; }; sleep 2; done
+    echo todavia-no
+  register: chrony_sync
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      chrony {{ 'ya sincroniza la hora' if (chrony_sync.stdout | default('')) == 'si' else 'aún no ha elegido servidor (mira «chronyc sources» en un minuto; si sigue igual, el 123/UDP de salida está cerrado)' }}.

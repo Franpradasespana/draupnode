@@ -1,0 +1,77 @@
+id: opentofu
+name: OpenTofu (infraestructura como código)
+version: 1.0.0
+category: 9 · Kubernetes e IaC
+description: La alternativa libre a Terraform. Describe en ficheros tu infraestructura (DNS, servidores en la nube, buckets, cuentas…) y OpenTofu la crea y la mantiene igual. Lee los mismos ficheros .tf.
+details: |
+  OpenTofu (MPL-2.0, Linux Foundation) desde su repositorio oficial.
+  Terraform dejó de ser software libre en 2023 (licencia BUSL); OpenTofu
+  es su continuación libre y usa los mismos ficheros y proveedores.
+  Solo instala la orden «tofu», o además, con un repositorio Git, prepara
+  una carpeta de trabajo: al aplicar trae el código, hace «tofu init» y
+  «tofu plan» y te enseña el resumen del plan. Con «Aplicar el plan» lo
+  ejecuta («tofu apply»); si no, lo aplicas tú en la Terminal.
+  El estado (terraform.tfstate) queda en /srv/draupnode/apps/opentofu y
+  entra en las copias del módulo Copias.
+  Las claves de los proveedores (API de tu DNS, de tu nube…) van en
+  «Variables secretas»: se guardan cifradas en tu bóveda.
+depends: [base]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: Quita la orden «tofu». La infraestructura que haya creado NO se borra (para eso, «tofu destroy» antes).
+uninstall_data: Borrar también la carpeta de trabajo con el estado (terraform.tfstate). Sin el estado, OpenTofu ya no sabe qué creó.
+variables:
+  - name: opentofu_repo
+    label: Repositorio Git con tus ficheros .tf
+    help: Opcional. https://… (público o con token), o file:///ruta para una carpeta Git del propio servidor. Vacío = solo instala «tofu».
+    type: string
+    default: ""
+    pattern: '^((https://|file:///)[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+)?$'
+    pattern_help: https://… o file:///… o vacío
+  - name: opentofu_token
+    label: Token de acceso (repositorio privado)
+    help: Para un repositorio privado por https (con permiso de solo lectura). Vacío si es público.
+    type: secret
+  - name: opentofu_branch
+    label: Rama
+    type: string
+    default: main
+    pattern: '^[A-Za-z0-9._/-]+$'
+    pattern_help: Nombre de rama
+  - name: opentofu_subdir
+    label: Carpeta dentro del repositorio
+    help: Donde están los .tf. Vacío = la raíz.
+    type: string
+    default: ""
+    pattern: '^([A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)?$'
+    pattern_help: Ruta relativa, sin «..»
+  - name: opentofu_env
+    label: Variables secretas
+    help: "Las que piden tus proveedores, separadas por «;»: CLOUDFLARE_API_TOKEN=xxx; TF_VAR_clave=yyy"
+    type: secret
+  - name: opentofu_apply
+    label: Aplicar el plan
+    help: Además de planear, ejecuta «tofu apply» (crea, cambia o BORRA lo que diga el plan). Mira antes el plan con esto desmarcado.
+    type: bool
+    default: false
+links:
+  - label: "Web oficial"
+    url: https://opentofu.org
+  - label: "Código fuente"
+    url: https://github.com/opentofu/opentofu
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «OpenTofu» sin repositorio y aplica: solo instala «tofu»."
+    - "En «Terminal» crea un repositorio de prueba: «sudo mkdir -p /srv/tf && cd /srv/tf && sudo git init -q -b main && echo 'resource \"terraform_data\" \"hola\" { input = \"mundo\" }' | sudo tee main.tf && sudo git add . && sudo git -c user.email=a@b -c user.name=prueba commit -qm uno». Pon «file:///srv/tf» como repositorio y aplica; luego marca «Aplicar el plan» y aplica otra vez."
+  comprobar:
+    - "«tofu version» responde en la Terminal."
+    - "La primera aplicación con repositorio dice «Plan: 1 to add»; con «Aplicar el plan», «Apply complete! Resources: 1 added», y la siguiente «No changes»."
+    - "El estado está en /srv/draupnode/apps/opentofu/trabajo (terraform.tfstate)."
+  necesita:
+    - "Nada para tener solo «tofu». Para la carpeta de trabajo: el repositorio con tus .tf y, si tus proveedores las piden, sus claves en «Variables secretas»."
+  problemas:
+    - "«tofu init» falla al descargar un proveedor → el registro de OpenTofu (registry.opentofu.org) no responde o el proveedor no existe con ese nombre: revisa el bloque required_providers."
+    - "El plan pide variables → ponlas como TF_VAR_nombre=valor en «Variables secretas», o con valor por defecto en tus .tf."

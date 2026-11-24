@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Portainer» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y entra con «admin» y la contraseña de «Contraseñas»."
+  comprobar:
+    - "El panel enseña el entorno «local» con los contenedores del servidor (los dn-…)."
+    - "Desde Portainer puedes ver los registros de un contenedor y reiniciarlo."
+  necesita:
+    - "Nada: el usuario «admin» y su contraseña los crea Draupnode."
+  problemas:
+    - "Pide crear el administrador o dice que ha caducado → Portainer solo lee la contraseña la primera vez: desinstálalo con «borrar también los datos» y vuelve a aplicar."
+    - "Maneja todo Docker (es como ser root): no le pongas dominio sin necesidad; entra por el túnel o la VPN."

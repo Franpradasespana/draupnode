@@ -1,0 +1,80 @@
+id: ntfy
+name: "ntfy (tu servidor de avisos)"
+version: 1.0.0
+category: 6 · Monitorización
+description: "Tu propio servidor de notificaciones push: manda avisos al móvil (app ntfy) con una simple petición HTTP. Lo pueden usar las Alertas."
+details: |
+  ntfy en Docker, cerrado: nadie lee ni publica sin usuario. Draupnode
+  crea el usuario «admin» y un token (en «Contraseñas»).
+  Para las Alertas de Draupnode: en el módulo Alertas pon como servidor
+  https://tu-dominio y el token. En la app ntfy del móvil, añade tu
+  servidor con el usuario y la contraseña.
+  Necesita dominio con HTTPS para usarlo desde el móvil.
+  Sus datos están en /srv/draupnode/apps/ntfy (entran en las copias del
+  módulo Copias). Licencia: Apache-2.0 o GPL-2.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [ntfy_public_port]
+proxy_site:
+  domain: ntfy_domain
+  port: ntfy_port
+secrets:
+  - file: ntfy_admin
+    label: Usuario «admin» y token de ntfy
+uninstall_warning: "Para y quita los contenedores de ntfy."
+uninstall_data: "Borrar también sus datos (usuarios, tokens y mensajes guardados). No se puede deshacer."
+variables:
+  - name: ntfy_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 2586
+    min: 1024
+    max: 65535
+  - name: ntfy_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: ntfy_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: ntfy_ios_push
+    label: Avisos instantáneos en iPhone
+    help: En iPhone los avisos llegan al momento solo si tu servidor pide a ntfy.sh que despierte la app (manda un identificador, nunca el mensaje).
+    type: bool
+    default: false
+  - name: ntfy_update
+    label: Actualizar ntfy al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://ntfy.sh
+  - label: "Documentación"
+    url: https://docs.ntfy.sh
+  - label: "Código fuente"
+    url: https://github.com/binwiederhier/ntfy
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (para el móvil hace falta dominio con HTTPS)."
+  pasos:
+    - "Añade «ntfy» y aplica."
+    - "En «Terminal»: «curl -H 'Authorization: Bearer TOKEN' -d hola http://127.0.0.1:2586/prueba» (el token está en «Contraseñas») y lo mismo sin la cabecera."
+  comprobar:
+    - "Con el token responde 200; sin él, 403 (está cerrado)."
+    - "Con dominio, la app ntfy del móvil (servidor https://tu-dominio, usuario «admin») recibe el «hola» del tema «prueba»."
+  necesita:
+    - "Nada para instalarlo. Para el móvil, un dominio con Caddy o nginx."
+  problemas:
+    - "En iPhone los avisos llegan tarde → activa «Avisos instantáneos en iPhone»."
+    - "Las Alertas no llegan → en el módulo Alertas pon tu servidor https://tu-dominio y el token de «Contraseñas»."

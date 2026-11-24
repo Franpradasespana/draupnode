@@ -1,0 +1,57 @@
+id: trivy
+name: Trivy (vulnerabilidades en tus contenedores)
+version: 1.0.0
+category: 8 · Seguridad
+description: Revisa cada semana las imágenes de los contenedores que tienes en marcha y te dice cuáles tienen fallos de seguridad conocidos (CVE) y si ya hay versión arreglada.
+details: |
+  Trivy (Apache-2.0) de Aqua Security, desde su repositorio oficial.
+  Revisa las imágenes de todos los contenedores en marcha (también los de
+  Coolify y tus apps). Solo informa: actualizar es cosa tuya (en cada app,
+  «Actualizar al aplicar» y aplicar; en las tuyas, reconstruir la imagen).
+  El informe queda en /var/lib/draupnode/trivy/informe.txt.
+  La primera vez descarga su base de vulnerabilidades (~1 GB en disco).
+depends: [docker]
+# Después de todo lo que arranca contenedores: así los revisa al aplicar.
+after: [adguard, adminer, alerts, argocd, auditd, backup-target, backups, base, caddy, chrony, clamav, cockpit, coolify, crowdsec, docker, dozzle, firewall, forgejo, git-app, healthchecks, immich, jellyfin, k3s, keycloak, logs, lynis, mariadb, monitoring, navidrome, nextcloud, nginx, ntfy, openbao, opentofu, paperless, portainer, postgres, registry, samba, ssh, syncthing, umami, uptime-kuma, valkey, vaultwarden, vikunja, wikijs, wireguard]
+requires:
+  os: [ubuntu, debian]
+  min_disk_gb: 3
+uninstall_warning: Quita Trivy y su revisión semanal.
+uninstall_data: Borrar también su base de vulnerabilidades (~1 GB) y los informes.
+variables:
+  - name: trivy_severity
+    label: Gravedad mínima
+    help: Qué fallos se cuentan. Con «CRITICAL» solo los más graves.
+    type: select
+    options: ["CRITICAL", "HIGH,CRITICAL", "MEDIUM,HIGH,CRITICAL"]
+    default: "HIGH,CRITICAL"
+  - name: trivy_ignore_unfixed
+    label: Solo los que ya tienen arreglo
+    help: Oculta los fallos para los que aún no hay versión corregida (no puedes hacer nada con ellos).
+    type: bool
+    default: true
+  - name: trivy_run_now
+    label: Revisar al aplicar
+    help: La primera vez tarda varios minutos (descarga la base de vulnerabilidades).
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://trivy.dev
+  - label: "Código fuente"
+    url: https://github.com/aquasecurity/trivy
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (con algún contenedor en marcha, por ejemplo una app del catálogo)."
+  pasos:
+    - "Añade una app (por ejemplo «Uptime Kuma») y «Trivy» con «Revisar al aplicar», y aplica."
+    - "Cambia la gravedad a «CRITICAL» y aplica otra vez."
+  comprobar:
+    - "La nota de la aplicación dice cuántas imágenes ha revisado y cuántos fallos hay por imagen."
+    - "En «Terminal»: «sudo less /var/lib/draupnode/trivy/informe.txt» tiene la tabla de fallos y «systemctl list-timers draupnode-trivy.timer» la próxima revisión."
+  necesita:
+    - "Nada: lo de serie (graves y críticos, solo con arreglo) es lo útil."
+  problemas:
+    - "Falla al descargar la base («TOOMANYREQUESTS» de ghcr.io) → espera un rato y vuelve a aplicar."
+    - "Salen muchos fallos → actualiza las apps (en cada una, «Actualizar al aplicar») y vuelve a revisar."

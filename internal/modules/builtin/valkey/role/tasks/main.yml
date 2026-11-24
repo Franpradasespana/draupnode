@@ -1,0 +1,88 @@
+---
+- name: Carpeta de Valkey
+  ansible.builtin.set_fact:
+    valkey_dir: /srv/draupnode/apps/valkey
+    valkey_url: "127.0.0.1:{{ valkey_port }} (solo en el servidor)"
+
+- name: Red de Docker compartida «{{ valkey_network }}» (la de las bases de datos)
+  ansible.builtin.shell: docker network inspect {{ valkey_network | quote }} >/dev/null 2>&1 || { docker network create {{ valkey_network | quote }} >/dev/null && echo creada; }
+  register: red_compartida
+  changed_when: "'creada' in red_compartida.stdout"
+  when: not ansible_check_mode
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ valkey_dir }}"
+    - "{{ valkey_dir }}/data"
+
+- name: Contraseña «valkey_password» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    valkey_password: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/valkey_password', chars=['ascii_letters', 'digits'], length=32) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Configuración de Valkey
+  ansible.builtin.copy:
+    dest: /srv/draupnode/apps/valkey/valkey.conf
+    # Se lee dentro del contenedor con otro usuario; la carpeta de fuera es solo de root.
+    mode: "0644"
+    content: |
+      requirepass {{ valkey_password }}
+      appendonly yes
+      {% if valkey_maxmemory_mb | int > 0 %}maxmemory {{ valkey_maxmemory_mb }}mb
+      maxmemory-policy allkeys-lru
+      {% endif %}
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ valkey_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Valkey
+  ansible.builtin.command: docker compose -p dn-valkey up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ valkey_dir }}"
+  register: valkey_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: valkey_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in valkey_up.stderr or 'Created' in valkey_up.stderr or 'Recreated' in valkey_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que escuche
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ valkey_port }}"
+    timeout: 120
+  register: valkey_tcp
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: ¿Escucha?
+  ansible.builtin.set_fact:
+    valkey_http: "{{ {'status': 200 if (valkey_tcp.state | default('')) == 'started' else 0} }}"
+  when: not ansible_check_mode
+
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-valkey
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Valkey {{ 'responde' if (valkey_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-valkey logs, en ' ~ valkey_dir ~ ')' }} en {{ valkey_url }}.
+      En tus apps: redis://:CONTRASEÑA@valkey-compartido:6379/0 (red «{{ valkey_network }}»), o 127.0.0.1:{{ valkey_port }} desde el servidor. Contraseña en «Contraseñas».

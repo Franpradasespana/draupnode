@@ -1,0 +1,17 @@
+# Generado por Draupnode (módulo uptime-kuma). No lo edites a mano: se reescribe al aplicar.
+name: dn-uptime-kuma
+
+services:
+  uptime-kuma:
+    image: docker.io/louislam/uptime-kuma:2
+    {% if uptime_kuma_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-uptime-kuma
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:{{ uptime_kuma_port }}:3001"
+{% if (uptime_kuma_public_port | default(0) | int) > 0 %}      - "{{ uptime_kuma_public_port }}:3001"
+{% endif %}

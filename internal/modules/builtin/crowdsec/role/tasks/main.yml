@@ -1,0 +1,122 @@
+---
+- name: Clave del repositorio de CrowdSec
+  ansible.builtin.get_url:
+    url: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+    dest: /etc/apt/keyrings/crowdsec.asc
+    mode: "0644"
+
+- name: Repositorio de CrowdSec
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/crowdsec.list
+    mode: "0644"
+    content: "deb [signed-by=/etc/apt/keyrings/crowdsec.asc] https://packagecloud.io/crowdsec/crowdsec/any/ any main\n"
+  register: crowdsec_repo
+
+- name: Instalar CrowdSec y el bloqueador de iptables
+  ansible.builtin.apt:
+    name: [crowdsec, crowdsec-firewall-bouncer-iptables]
+    state: present
+    update_cache: "{{ crowdsec_repo.changed }}"
+    lock_timeout: 600
+
+- name: IPs que nunca se bloquean
+  ansible.builtin.copy:
+    dest: /etc/crowdsec/parsers/s02-enrich/draupnode-whitelist.yaml
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo crowdsec)
+      name: draupnode/whitelist
+      description: "IPs que Draupnode no deja bloquear"
+      whitelist:
+        reason: "Draupnode: tu IP y la lista blanca"
+        ip: {{ (['127.0.0.1', '::1'] + ([lookup('ansible.builtin.env', 'DRAUPNODE_CLIENT_IP')] | select | list) + (crowdsec_whitelist | reject('search', '/') | list)) | unique | to_json }}
+        cidr: {{ (crowdsec_whitelist | select('search', '/') | list) | to_json }}
+  register: crowdsec_wl
+
+- name: ¿Hay nginx, Caddy o Docker?
+  ansible.builtin.shell: |
+    [ -d /var/log/nginx ] && echo nginx
+    command -v caddy >/dev/null && echo caddy
+    iptables -nL DOCKER-USER >/dev/null 2>&1 && echo docker
+    true
+  register: crowdsec_hay
+  changed_when: false
+  check_mode: false
+
+- name: Colecciones para lo que hay en el servidor
+  ansible.builtin.shell: |
+    set -e
+    cscli hub update >/dev/null 2>&1 || true
+    for c in crowdsecurity/linux crowdsecurity/sshd {{ 'crowdsecurity/nginx' if 'nginx' in crowdsec_hay.stdout_lines else '' }} {{ 'crowdsecurity/caddy' if 'caddy' in crowdsec_hay.stdout_lines else '' }}; do
+      cscli collections list -o raw 2>/dev/null | grep -q "^$c," && continue
+      cscli collections install "$c" >/dev/null && echo "instalada $c"
+    done
+  register: crowdsec_col
+  changed_when: "'instalada' in crowdsec_col.stdout"
+  when: not ansible_check_mode
+
+- name: Registros de nginx (si está)
+  ansible.builtin.copy:
+    dest: /etc/crowdsec/acquis.d/draupnode-nginx.yaml
+    mode: "0644"
+    content: |
+      filenames:
+        - /var/log/nginx/*.log
+      labels:
+        type: nginx
+  register: crowdsec_acq
+  when: "'nginx' in crowdsec_hay.stdout_lines"
+
+- name: Proteger también los puertos de Docker (cadena DOCKER-USER)
+  ansible.builtin.replace:
+    path: /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+    regexp: '^#?(\s*)- DOCKER-USER'
+    replace: '\1- DOCKER-USER'
+  register: crowdsec_docker
+  when: "'docker' in crowdsec_hay.stdout_lines and not ansible_check_mode"
+
+- name: Lista de la comunidad
+  ansible.builtin.shell: |
+    f=/etc/crowdsec/online_api_credentials.yaml
+    if [ "{{ crowdsec_community | bool }}" = True ]; then
+      [ -s "$f" ] && grep -q login "$f" && exit 0
+      cscli capi register >/dev/null && echo cambiado
+    else
+      [ -s "$f" ] || exit 0
+      : > "$f"; echo cambiado
+    fi
+  register: crowdsec_capi
+  changed_when: "'cambiado' in crowdsec_capi.stdout"
+  when: not ansible_check_mode
+
+- name: Reiniciar CrowdSec si ha cambiado algo
+  ansible.builtin.systemd:
+    name: crowdsec
+    state: restarted
+    enabled: true
+  when: not ansible_check_mode and (crowdsec_wl.changed or crowdsec_col.changed or crowdsec_acq.changed or crowdsec_capi.changed)
+
+- name: Reiniciar el bloqueador si ha cambiado
+  ansible.builtin.systemd:
+    name: crowdsec-firewall-bouncer
+    state: "{{ 'restarted' if crowdsec_docker.changed else 'started' }}"
+    enabled: true
+  when: not ansible_check_mode
+
+- name: ¿Funciona?
+  ansible.builtin.shell: |
+    for i in $(seq 20); do cscli lapi status >/dev/null 2>&1 && break; sleep 2; done
+    cscli lapi status >/dev/null 2>&1 && echo api-ok
+    cscli bouncers list -o raw 2>/dev/null | tail -n +2 | grep -c . || true
+  register: crowdsec_ok
+  changed_when: false
+  failed_when: "'api-ok' not in crowdsec_ok.stdout"
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      CrowdSec vigila {{ (['SSH y el sistema'] + (['nginx'] if 'nginx' in crowdsec_hay.stdout_lines else []) + (['Caddy'] if 'caddy' in crowdsec_hay.stdout_lines else [])) | join(', ') }}
+      y bloquea en iptables{{ ' (también los puertos de Docker)' if 'docker' in crowdsec_hay.stdout_lines else '' }}.
+      {{ 'Con la lista de la comunidad.' if crowdsec_community | bool else 'Sin la lista de la comunidad.' }}
+      IPs bloqueadas: sudo cscli decisions list.

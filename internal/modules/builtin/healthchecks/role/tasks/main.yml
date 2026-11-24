@@ -1,0 +1,107 @@
+---
+- name: Carpeta de Healthchecks
+  ansible.builtin.set_fact:
+    healthchecks_dir: /srv/draupnode/apps/healthchecks
+    healthchecks_url: "{{ ('https://' ~ healthchecks_domain) if healthchecks_domain else ('http://127.0.0.1:' ~ healthchecks_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ healthchecks_dir }}"
+    - "{{ healthchecks_dir }}/data"
+
+- name: Contraseña «.healthchecks_admin_pass» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    healthchecks_admin_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.healthchecks_admin_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Contraseña «.healthchecks_secret» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    healthchecks_secret_key: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.healthchecks_secret', chars=['ascii_letters', 'digits'], length=50) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: La carpeta de datos es del usuario de la imagen
+  ansible.builtin.shell: |
+    u=$(docker run --rm --entrypoint id docker.io/healthchecks/healthchecks:latest -u)
+    [ "$(stat -c %u /srv/draupnode/apps/healthchecks/data)" = "$u" ] && exit 0
+    chown "$u" /srv/draupnode/apps/healthchecks/data && echo cambiado
+  register: healthchecks_own
+  changed_when: "'cambiado' in healthchecks_own.stdout"
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ healthchecks_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Healthchecks
+  ansible.builtin.command: docker compose -p dn-healthchecks up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ healthchecks_dir }}"
+  register: healthchecks_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: healthchecks_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in healthchecks_up.stderr or 'Created' in healthchecks_up.stderr or 'Recreated' in healthchecks_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ healthchecks_port }}/"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: healthchecks_http
+  until: healthchecks_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 60
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-healthchecks
+  when: not ansible_check_mode
+
+- name: Administrador (la primera vez)
+  ansible.builtin.shell: |
+    for i in $(seq 30); do docker exec dn-healthchecks ./manage.py check >/dev/null 2>&1 && break; sleep 2; done
+    docker exec -e P="$P" dn-healthchecks ./manage.py shell -c "
+    import os, sys
+    from django.contrib.auth.models import User
+    if User.objects.filter(email='admin@localhost').exists(): sys.exit(0)
+    from hc.accounts.views import _make_user
+    u = _make_user('admin@localhost')
+    u.set_password(os.environ['P']); u.is_staff = True; u.is_superuser = True; u.save()
+    print('creado')
+    " 2>/dev/null | grep -x creado || true
+  environment:
+    P: "{{ healthchecks_admin_pass }}"
+  register: healthchecks_user
+  changed_when: "'creado' in healthchecks_user.stdout"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/healthchecks_admin"
+    mode: "0600"
+    content: "Usuario: admin@localhost\nContraseña: {{ healthchecks_admin_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Healthchecks {{ 'responde' if (healthchecks_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-healthchecks logs, en ' ~ healthchecks_dir ~ ')' }} en {{ healthchecks_url }}.
+      Entra con admin@localhost (contraseña en «Contraseñas»). Cada tarea: curl -fsS -m 10 --retry 5 <dirección de ping> al terminar.

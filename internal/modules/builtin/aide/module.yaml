@@ -1,0 +1,53 @@
+id: aide
+name: AIDE (vigilar ficheros del sistema)
+version: 1.0.0
+category: 8 · Seguridad
+description: Guarda una «foto» de los ficheros importantes del sistema (programas, configuración) y cada día te dice si alguno ha cambiado sin que tú lo hayas hecho.
+details: |
+  AIDE (GPL-2.0), el vigilante de integridad de ficheros de Debian/Ubuntu.
+  Al aplicar toma la foto (la primera vez tarda unos minutos). Cada día
+  la compara y deja el resultado en /var/log/aide/aide.log.
+  Los cambios que hagas tú con Draupnode no deberían saltar: con «Tomar
+  la foto al aplicar», después de cada aplicación la foto se rehace.
+  No vigila lo que cambia solo: datos de las apps, Docker, registros.
+  Tras actualizar el sistema verás cambios en programas: es normal.
+depends: [base]
+# Al final de todo: así la foto incluye lo que cambia esta misma aplicación.
+after: [adguard, adminer, alerts, argocd, auditd, backup-target, backups, base, caddy, chrony, clamav, cockpit, coolify, crowdsec, docker, dozzle, firewall, forgejo, git-app, healthchecks, immich, jellyfin, k3s, keycloak, logs, lynis, mariadb, monitoring, navidrome, nextcloud, nginx, ntfy, openbao, opentofu, paperless, portainer, postgres, registry, samba, ssh, syncthing, trivy, umami, uptime-kuma, valkey, vaultwarden, vikunja, wikijs, wireguard]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: Quita AIDE y su revisión diaria.
+uninstall_data: Borrar también la foto guardada y los registros.
+variables:
+  - name: aide_rebase_on_apply
+    label: Tomar la foto al aplicar
+    help: Después de aplicar (cambios que has hecho tú) rehace la foto, para que solo te avise de lo que no has hecho tú.
+    type: bool
+    default: true
+  - name: aide_exclude
+    label: Carpetas que no se vigilan
+    help: Además de las de serie (datos de apps, Docker, registros). Una por línea.
+    type: list
+    default: []
+    pattern: '^/[A-Za-z0-9._/-]*$'
+    pattern_help: Ruta absoluta
+links:
+  - label: "Web oficial"
+    url: https://aide.github.io
+  - label: "Código fuente"
+    url: https://github.com/aide/aide
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (la primera foto tarda unos minutos)."
+  pasos:
+    - "Añade «AIDE» y aplica."
+    - "En «Terminal», cambia un fichero vigilado: «echo '# prueba' | sudo tee -a /etc/hosts» y lanza la comprobación: «sudo systemctl start dailyaidecheck»."
+  comprobar:
+    - "«ls -lh /var/lib/aide/aide.db» existe."
+    - "Tras la prueba, «sudo tail -n 40 /var/log/aide/aide.log» enseña /etc/hosts como cambiado. Si vuelves a aplicar AIDE, deja de salir (foto nueva)."
+  necesita:
+    - "Nada. Opcional: carpetas tuyas que cambian solas y no quieres vigilar."
+  problemas:
+    - "Avisa de muchos cambios tras actualizar el sistema → es normal: aplica AIDE otra vez para tomar la foto nueva."
+    - "La primera aplicación tarda mucho → en discos lentos la foto puede tardar 10-20 minutos; espera."

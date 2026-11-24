@@ -1,0 +1,21 @@
+# Generado por Draupnode (módulo openbao). No lo edites a mano: se reescribe al aplicar.
+name: dn-openbao
+
+services:
+  openbao:
+    image: quay.io/openbao/openbao:2
+    {% if openbao_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-openbao
+    restart: unless-stopped
+    command: server
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+    volumes:
+      - ./config:/openbao/config:ro
+      - ./data:/openbao/file
+    ports:
+      - "127.0.0.1:{{ openbao_port }}:8200"
+{% if (openbao_public_port | default(0) | int) > 0 %}      - "{{ openbao_public_port }}:8200"
+{% endif %}

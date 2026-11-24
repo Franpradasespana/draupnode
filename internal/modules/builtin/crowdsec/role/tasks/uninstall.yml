@@ -1,0 +1,21 @@
+---
+- name: Quitar CrowdSec y su bloqueador
+  ansible.builtin.apt:
+    name: [crowdsec-firewall-bouncer-iptables, crowdsec]
+    state: absent
+    purge: "{{ draupnode_uninstall_purge | bool }}"
+    lock_timeout: 600
+
+- name: Quitar el repositorio
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/apt/sources.list.d/crowdsec.list, /etc/apt/keyrings/crowdsec.asc]
+
+- name: Borrar su configuración y sus datos
+  ansible.builtin.shell: rm -rf /etc/crowdsec /var/lib/crowdsec
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "CrowdSec {{ 'se quitará' if ansible_check_mode else 'quitado' }}."

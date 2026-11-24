@@ -3,7 +3,8 @@ name: dn-paperless
 
 services:
   broker:
-    image: redis:7-alpine
+    # Valkey (BSD-3) en vez de Redis: desde la 7.4, Redis ya no es software libre.
+    image: docker.io/valkey/valkey:9
     container_name: dn-paperless-redis
     restart: unless-stopped
   db:

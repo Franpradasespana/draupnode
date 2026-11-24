@@ -1,0 +1,26 @@
+---
+- name: Quitar las reglas de Draupnode
+  ansible.builtin.shell: |
+    rm -f /etc/audit/rules.d/90-draupnode.rules /etc/audit/rules.d/99-draupnode-bloqueo.rules
+    auditctl -s 2>/dev/null | grep -q 'enabled 2' && { echo bloqueadas; exit 0; }
+    augenrules --load >/dev/null 2>&1 || true
+  register: auditd_un
+  when: not ansible_check_mode
+
+- name: Quitar auditd
+  ansible.builtin.apt:
+    name: auditd
+    state: absent
+    purge: "{{ draupnode_uninstall_purge | bool }}"
+    lock_timeout: 600
+  when: "'bloqueadas' not in (auditd_un.stdout | default(''))"
+
+- name: Borrar los registros de auditoría
+  ansible.builtin.file:
+    path: /var/log/audit
+    state: absent
+  when: draupnode_uninstall_purge | bool and 'bloqueadas' not in (auditd_un.stdout | default(''))
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "{{ 'Las reglas estaban bloqueadas: reinicia el servidor y vuelve a desinstalar para quitar auditd del todo.' if 'bloqueadas' in (auditd_un.stdout | default('')) else ('auditd ' ~ ('se quitará' if ansible_check_mode else 'quitado') ~ '.') }}"

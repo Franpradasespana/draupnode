@@ -1,0 +1,33 @@
+# Generado por Draupnode (módulo wikijs). No lo edites a mano: se reescribe al aplicar.
+name: dn-wikijs
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    container_name: dn-wikijs-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wiki
+      POSTGRES_USER: wikijs
+      POSTGRES_PASSWORD: "{{ wikijs_db_pass }}"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+  wiki:
+    image: ghcr.io/requarks/wiki:2
+    {% if wikijs_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-wikijs
+    restart: unless-stopped
+    depends_on: [db]
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: wikijs
+      DB_PASS: "{{ wikijs_db_pass }}"
+      DB_NAME: wiki
+    ports:
+      - "127.0.0.1:{{ wikijs_port }}:3000"
+{% if (wikijs_public_port | default(0) | int) > 0 %}      - "{{ wikijs_public_port }}:3000"
+{% endif %}

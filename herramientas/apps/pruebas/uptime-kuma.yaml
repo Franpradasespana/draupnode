@@ -1,0 +1,13 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Uptime Kuma» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», crea el administrador y añade una comprobación HTTP (por ejemplo https://ejemplo.com)."
+  comprobar:
+    - "La comprobación sale en verde con su tiempo de respuesta y se repite cada minuto."
+    - "Si pones una dirección que no existe, sale en rojo y avisa (si has configurado un aviso)."
+  necesita:
+    - "Nada al instalarlo. Dentro: qué vigilar y por dónde avisar (Telegram, ntfy, correo…)."
+  problemas:
+    - "Vigila webs de este mismo servidor y no avisa cuando se cae → instálalo en OTRO servidor."

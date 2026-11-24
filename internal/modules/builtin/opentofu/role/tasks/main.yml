@@ -1,0 +1,95 @@
+---
+- name: Claves del repositorio de OpenTofu
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { url: "https://get.opentofu.org/opentofu.gpg", dest: /etc/apt/keyrings/opentofu.gpg }
+    - { url: "https://packages.opentofu.org/opentofu/tofu/gpgkey", dest: /etc/apt/keyrings/opentofu-repo.asc }
+
+- name: Repositorio de OpenTofu
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/opentofu.list
+    mode: "0644"
+    content: "deb [signed-by=/etc/apt/keyrings/opentofu.gpg,/etc/apt/keyrings/opentofu-repo.asc] https://packages.opentofu.org/opentofu/tofu/any/ any main\n"
+  register: opentofu_repo_list
+
+- name: Instalar OpenTofu (y git)
+  ansible.builtin.apt:
+    name: [tofu, git]
+    state: present
+    update_cache: "{{ opentofu_repo_list.changed }}"
+    lock_timeout: 600
+
+- name: Versión
+  ansible.builtin.command: tofu version
+  register: opentofu_ver
+  changed_when: false
+  check_mode: false
+
+- name: Carpeta de trabajo
+  ansible.builtin.file:
+    path: /srv/draupnode/apps/opentofu
+    state: directory
+    mode: "0700"
+  when: opentofu_repo | length > 0
+
+- name: Traer el código, init y plan
+  ansible.builtin.shell: |
+    set -e
+    d=/srv/draupnode/apps/opentofu/trabajo
+    if [ -n "${TOKEN:-}" ]; then
+      auth=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
+      export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: Basic $auth"
+    fi
+    export GIT_TERMINAL_PROMPT=0
+    if [ -d "$d/.git" ] && [ "$(git -C "$d" remote get-url origin)" = "$REPO" ]; then
+      timeout 120 git -C "$d" fetch -q origin "$RAMA"
+      git -C "$d" checkout -q -B "$RAMA" "origin/$RAMA"
+    else
+      # Otra dirección: se guarda el estado antes de volver a clonar.
+      [ -f "$d/$SUB/terraform.tfstate" ] && cp "$d/$SUB/terraform.tfstate" "/srv/draupnode/apps/opentofu/estado-anterior-$(date +%Y%m%d%H%M%S).tfstate"
+      rm -rf "$d"
+      timeout 300 git clone -q --branch "$RAMA" "$REPO" "$d"
+    fi
+    cd "$d/$SUB"
+    # Variables secretas «A=1; B=2» → entorno solo de estas órdenes.
+    IFS=';'; for kv in ${VARS:-}; do kv=$(echo "$kv" | sed 's/^ *//; s/ *$//'); [ -n "$kv" ] && export "$kv"; done; unset IFS
+    export TF_IN_AUTOMATION=1
+    tofu init -input=false -no-color >/dev/null
+    set +e
+    tofu plan -input=false -no-color -detailed-exitcode -out=/srv/draupnode/apps/opentofu/plan.bin > /srv/draupnode/apps/opentofu/plan.txt 2>&1
+    rc=$?
+    set -e
+    [ $rc = 1 ] && { tail -n 30 /srv/draupnode/apps/opentofu/plan.txt >&2; exit 1; }
+    grep -E '^(Plan:|No changes\.)' /srv/draupnode/apps/opentofu/plan.txt | head -n1
+    if [ $rc = 2 ] && [ "$APLICAR" = True ]; then
+      tofu apply -input=false -no-color /srv/draupnode/apps/opentofu/plan.bin > /srv/draupnode/apps/opentofu/apply.txt 2>&1 || { tail -n 30 /srv/draupnode/apps/opentofu/apply.txt >&2; exit 1; }
+      grep -E '^Apply complete!' /srv/draupnode/apps/opentofu/apply.txt | head -n1
+      echo aplicado
+    fi
+  environment:
+    REPO: "{{ opentofu_repo }}"
+    RAMA: "{{ opentofu_branch }}"
+    SUB: "{{ opentofu_subdir }}"
+    TOKEN: "{{ opentofu_token | default('') }}"
+    VARS: "{{ opentofu_env | default('') }}"
+    APLICAR: "{{ opentofu_apply | bool }}"
+  register: opentofu_run
+  changed_when: "'aplicado' in opentofu_run.stdout"
+  no_log: true
+  when: opentofu_repo | length > 0 and not ansible_check_mode
+
+- name: Si ha fallado, el motivo
+  ansible.builtin.fail:
+    msg: "{{ opentofu_run.stderr | default('') }}"
+  when: opentofu_run is failed
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {{ opentofu_ver.stdout_lines[0] | default('OpenTofu') }} instalado.
+      {% if opentofu_repo %}{{ opentofu_run.stdout_lines | default([]) | reject('equalto', 'aplicado') | join(' · ') }}
+      Plan completo: /srv/draupnode/apps/opentofu/plan.txt.
+      {{ '' if opentofu_apply | bool else 'Para aplicarlo: marca «Aplicar el plan» y aplica, o en la Terminal: cd /srv/draupnode/apps/opentofu/trabajo/' ~ opentofu_subdir ~ ' && sudo tofu apply.' }}{% endif %}

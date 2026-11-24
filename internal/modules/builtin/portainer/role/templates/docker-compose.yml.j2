@@ -1,0 +1,20 @@
+# Generado por Draupnode (módulo portainer). No lo edites a mano: se reescribe al aplicar.
+name: dn-portainer
+
+services:
+  portainer:
+    image: portainer/portainer-ce:lts
+    {% if portainer_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-portainer
+    restart: unless-stopped
+    command: --admin-password-file /run/draupnode/admin_pass
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data
+      - ./admin_pass:/run/draupnode/admin_pass:ro
+    ports:
+      - "127.0.0.1:{{ portainer_port }}:9000"
+{% if (portainer_public_port | default(0) | int) > 0 %}      - "{{ portainer_public_port }}:9000"
+{% endif %}

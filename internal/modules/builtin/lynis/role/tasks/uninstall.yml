@@ -1,0 +1,30 @@
+---
+- name: Parar la revisión semanal
+  ansible.builtin.systemd:
+    name: draupnode-lynis.timer
+    enabled: false
+    state: stopped
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Quitar el script y las unidades
+  ansible.builtin.shell: |
+    rm -f /usr/local/sbin/draupnode-lynis /etc/systemd/system/draupnode-lynis.service /etc/systemd/system/draupnode-lynis.timer
+    systemctl daemon-reload
+  when: not ansible_check_mode
+
+- name: Quitar Lynis
+  ansible.builtin.apt:
+    name: lynis
+    state: absent
+    lock_timeout: 600
+
+- name: Borrar los informes
+  ansible.builtin.file:
+    path: /var/lib/draupnode/lynis
+    state: absent
+  when: draupnode_uninstall_purge | bool
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Lynis {{ 'se quitará' if ansible_check_mode else 'quitado' }}."

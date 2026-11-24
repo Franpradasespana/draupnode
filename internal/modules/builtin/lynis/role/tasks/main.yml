@@ -1,0 +1,73 @@
+---
+- name: Instalar Lynis
+  ansible.builtin.apt:
+    name: lynis
+    state: present
+    lock_timeout: 600
+
+- name: Carpeta de informes
+  ansible.builtin.file:
+    path: /var/lib/draupnode/lynis
+    state: directory
+    mode: "0700"
+
+- name: Script de la revisión
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/draupnode-lynis
+    mode: "0700"
+    content: |
+      #!/bin/sh
+      # Generado por Draupnode (módulo lynis): revisión y resumen.
+      set -e
+      d=/var/lib/draupnode/lynis
+      nice -n 10 lynis audit system --no-colors --quiet --report-file "$d/informe.dat" --log-file "$d/lynis.log" > "$d/informe.txt" 2>&1 || true
+      i=$(sed -n 's/^hardening_index=//p' "$d/informe.dat" | tail -n1)
+      w=$(grep -c '^warning\[\]=' "$d/informe.dat" || true)
+      s=$(grep -c '^suggestion\[\]=' "$d/informe.dat" || true)
+      printf 'Índice de seguridad: %s/100 · %s avisos · %s consejos · %s\n' "${i:-?}" "$w" "$s" "$(date '+%Y-%m-%d %H:%M')" > "$d/resumen.txt"
+      cat "$d/resumen.txt"
+
+- name: Servicio y temporizador semanal
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    mode: "0644"
+    content: "{{ item.content }}"
+  loop:
+    - name: draupnode-lynis.service
+      content: |
+        [Unit]
+        Description=Revisión de seguridad con Lynis (Draupnode)
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/draupnode-lynis
+    - name: draupnode-lynis.timer
+      content: |
+        [Unit]
+        Description=Revisión semanal de seguridad con Lynis (Draupnode)
+        [Timer]
+        OnCalendar=Sun *-*-* 05:15:00
+        RandomizedDelaySec=30min
+        Persistent=true
+        [Install]
+        WantedBy=timers.target
+
+- name: Activar (o parar) la revisión semanal
+  ansible.builtin.systemd:
+    name: draupnode-lynis.timer
+    daemon_reload: true
+    enabled: "{{ lynis_weekly | bool }}"
+    state: "{{ 'started' if lynis_weekly | bool else 'stopped' }}"
+  when: not ansible_check_mode
+
+- name: Revisar ahora (1-2 minutos)
+  ansible.builtin.command: /usr/local/sbin/draupnode-lynis
+  register: lynis_now
+  changed_when: false
+  when: lynis_run_now | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {{ lynis_now.stdout if (lynis_now.stdout | default('')) else 'Lynis instalado.' }}
+      Informe: /var/lib/draupnode/lynis/informe.txt.
+      {{ 'Se revisa cada domingo.' if lynis_weekly | bool else '' }}

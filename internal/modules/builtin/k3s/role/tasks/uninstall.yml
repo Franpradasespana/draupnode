@@ -1,0 +1,25 @@
+---
+- name: Desinstalar k3s (borra todo el clúster)
+  ansible.builtin.shell: |
+    [ -x /usr/local/bin/k3s-uninstall.sh ] && /usr/local/bin/k3s-uninstall.sh >/dev/null 2>&1 || true
+    rm -rf /etc/rancher /usr/local/lib/draupnode-k3s-install.sh /usr/local/bin/helm /etc/profile.d/draupnode-k3s.sh
+  when: not ansible_check_mode
+
+- name: Quitar el kubeconfig de tu usuario
+  ansible.builtin.shell: |
+    h=$(getent passwd {{ draupnode_ssh_user | quote }} | cut -d: -f6)
+    [ -n "$h" ] && [ {{ draupnode_ssh_user | quote }} != root ] || exit 0
+    rm -rf "$h/.kube/config" "$h/.kube/cache"
+    rmdir "$h/.kube" 2>/dev/null || true
+  when: not ansible_check_mode
+
+- name: Quitar las reglas del cortafuegos
+  ansible.builtin.shell: |
+    command -v iptables >/dev/null || exit 0
+    iptables -S INPUT | grep -- 'draupnode-k3s' | sed 's/^-A /-D /' | while read -r r; do eval iptables $r; done
+    command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1 || true
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "k3s {{ 'se quitará (con todo lo que hay en el clúster)' if ansible_check_mode else 'quitado, con todo lo que había en el clúster' }}."

@@ -1,0 +1,13 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Vikunja» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», regístrate, crea un proyecto y una tarea. Después desactiva «Permitir registrarse» y aplica."
+  comprobar:
+    - "La tarea se guarda y se ve en lista y en tablero."
+    - "Con el registro cerrado, la página ya no deja crear cuentas nuevas."
+  necesita:
+    - "Nada."
+  problemas:
+    - "Las apps del móvil no conectan → ponle dominio con HTTPS (así Vikunja sabe su dirección pública)."

@@ -1,0 +1,54 @@
+# Generado por Draupnode (módulo nextcloud). No lo edites a mano: se reescribe al aplicar.
+name: dn-nextcloud
+
+services:
+  db:
+    image: docker.io/library/postgres:17-alpine
+    container_name: dn-nextcloud-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: "{{ nextcloud_db_pass }}"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+  redis:
+    image: docker.io/valkey/valkey:9
+    container_name: dn-nextcloud-redis
+    restart: unless-stopped
+  nextcloud:
+    image: docker.io/library/nextcloud:stable
+    {% if nextcloud_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-nextcloud
+    restart: unless-stopped
+    depends_on: [db, redis]
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment: &nc
+      POSTGRES_HOST: db
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: "{{ nextcloud_db_pass }}"
+      NEXTCLOUD_ADMIN_USER: admin
+      NEXTCLOUD_ADMIN_PASSWORD: "{{ nextcloud_admin_pass }}"
+      NEXTCLOUD_TRUSTED_DOMAINS: "127.0.0.1 localhost {{ nextcloud_domain }}"
+      REDIS_HOST: redis
+      TRUSTED_PROXIES: "172.16.0.0/12 127.0.0.1"
+      PHP_UPLOAD_LIMIT: 4G
+{% if nextcloud_domain %}      OVERWRITEPROTOCOL: https
+{% endif %}    volumes:
+      - ./html:/var/www/html
+    ports:
+      - "127.0.0.1:{{ nextcloud_port }}:80"
+{% if (nextcloud_public_port | default(0) | int) > 0 %}      - "{{ nextcloud_public_port }}:80"
+{% endif %}
+  cron:
+    image: docker.io/library/nextcloud:stable
+    {% if nextcloud_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-nextcloud-cron
+    restart: unless-stopped
+    entrypoint: /cron.sh
+    depends_on: [nextcloud]
+    environment: *nc
+    volumes:
+      - ./html:/var/www/html

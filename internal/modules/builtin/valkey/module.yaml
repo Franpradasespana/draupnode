@@ -1,0 +1,68 @@
+id: valkey
+name: "Valkey (caché compatible con Redis)"
+version: 1.0.0
+category: 4 · Bases de datos
+description: "Caché y colas en memoria, compatible con Redis, para tus apps. Es la continuación libre de Redis (que dejó de ser software libre en la 7.4)."
+details: |
+  Valkey 9 en Docker, compartido por tus apps: escucha en 127.0.0.1 y,
+  dentro de Docker, como «valkey-compartido» en la red indicada (la de
+  PostgreSQL y MariaDB compartidos). Con contraseña (en «Contraseñas»).
+  En tus apps: redis://:CONTRASEÑA@valkey-compartido:6379/0
+  Guarda los datos en disco (appendonly) para no perderlos al reiniciar.
+  Sus datos están en /srv/draupnode/apps/valkey (entran en las copias del
+  módulo Copias). Licencia: BSD-3-Clause.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+secrets:
+  - file: valkey_password
+    label: Contraseña de Valkey
+uninstall_warning: "Para y quita los contenedores de Valkey."
+uninstall_data: "Borrar también sus datos (lo que tus apps guardan en Valkey). No se puede deshacer."
+variables:
+  - name: valkey_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 6379
+    min: 1024
+    max: 65535
+  - name: valkey_network
+    label: Red de Docker
+    help: La misma que la de PostgreSQL/MariaDB compartidos («apps» si no la has cambiado). Las apps de esa red llegan a este contenedor por su nombre.
+    type: string
+    default: apps
+    pattern: '^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}$'
+    pattern_help: Letras, números, punto, guion y guion bajo
+  - name: valkey_maxmemory_mb
+    label: Memoria máxima (MB)
+    help: 0 = sin límite. Si se llena, borra las claves menos usadas (modo caché).
+    type: int
+    default: 0
+    min: 0
+    max: 65536
+  - name: valkey_update
+    label: Actualizar Valkey al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://valkey.io
+  - label: "Código fuente"
+    url: https://github.com/valkey-io/valkey
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Valkey» y aplica."
+    - "En «Terminal»: «sudo docker run --rm --network apps valkey/valkey:9 valkey-cli -h valkey-compartido -a CONTRASEÑA ping» (la contraseña está en «Contraseñas»)."
+  comprobar:
+    - "La orden de prueba responde «PONG»; sin contraseña responde «NOAUTH»."
+    - "Solo escucha en 127.0.0.1:6379 y en la red de Docker «apps»: desde fuera no se ve."
+  necesita:
+    - "Nada. En tus apps: redis://:CONTRASEÑA@valkey-compartido:6379/0, conectando su contenedor a la red «apps»."
+  problemas:
+    - "Tu app no lo encuentra → su contenedor tiene que estar en la red «apps» (la misma que «Red de Docker»)."
+    - "Aviso «Memory overcommit must be enabled» en sus registros → es solo un aviso; si quieres quitarlo: «vm.overcommit_memory = 1» en /etc/sysctl.d/."

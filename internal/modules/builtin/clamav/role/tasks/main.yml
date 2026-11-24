@@ -1,0 +1,91 @@
+---
+- name: Instalar ClamAV y freshclam
+  ansible.builtin.apt:
+    name: [clamav, clamav-freshclam]
+    state: present
+    install_recommends: false
+    lock_timeout: 600
+
+- name: freshclam actualiza las firmas
+  ansible.builtin.systemd:
+    name: clamav-freshclam
+    state: started
+    enabled: true
+  when: not ansible_check_mode
+
+- name: Esperar a la primera descarga de firmas (hasta 10 minutos)
+  ansible.builtin.shell: |
+    for i in $(seq 120); do ls /var/lib/clamav/daily.c[lv]d >/dev/null 2>&1 && ls /var/lib/clamav/main.c[lv]d >/dev/null 2>&1 && { echo listas; exit 0; }; sleep 5; done
+    echo sin-firmas
+  register: clamav_db
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Carpeta de informes
+  ansible.builtin.file:
+    path: /var/lib/draupnode/clamav
+    state: directory
+    mode: "0700"
+
+- name: Script de la revisión
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/draupnode-clamav
+    mode: "0700"
+    content: |
+      #!/bin/sh
+      # Generado por Draupnode (módulo clamav): revisa las carpetas y deja lo encontrado.
+      d=/var/lib/draupnode/clamav
+      rutas=""
+      {% for p in clamav_paths %}[ -e {{ p | quote }} ] && rutas="$rutas {{ p | quote }}"
+      {% endfor %}
+      [ -n "$rutas" ] || { echo "Ninguna carpeta existe todavía" > "$d/resumen.txt"; exit 0; }
+      # Sin entrar en lo de Docker (capas de imágenes): las apps guardan sus datos en /srv.
+      nice -n 19 ionice -c3 clamscan -r -i --no-summary --exclude-dir='^/var/lib/(docker|containerd)' $rutas > "$d/encontrado.tmp" 2> "$d/errores.txt"
+      rc=$?
+      grep ' FOUND$' "$d/encontrado.tmp" > "$d/encontrado.txt" || true
+      rm -f "$d/encontrado.tmp"
+      n=$(grep -c . "$d/encontrado.txt" || true)
+      case $rc in
+        0|1) printf 'Revisado %s: %s fichero(s) sospechoso(s) · %s\n' "$rutas" "$n" "$(date '+%Y-%m-%d %H:%M')" > "$d/resumen.txt" ;;
+        *) printf 'La revisión falló (código %s): mira %s/errores.txt · %s\n' "$rc" "$d" "$(date '+%Y-%m-%d %H:%M')" > "$d/resumen.txt" ;;
+      esac
+      cat "$d/resumen.txt"
+      [ "$rc" -le 1 ]
+
+- name: Servicio y temporizador diario
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    mode: "0644"
+    content: "{{ item.content }}"
+  loop:
+    - name: draupnode-clamav.service
+      content: |
+        [Unit]
+        Description=Revisión con ClamAV (Draupnode)
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/draupnode-clamav
+    - name: draupnode-clamav.timer
+      content: |
+        [Unit]
+        Description=Revisión diaria con ClamAV (Draupnode)
+        [Timer]
+        OnCalendar=*-*-* {{ '%02d' | format(clamav_hour | int) }}:20:00
+        RandomizedDelaySec=20min
+        Persistent=true
+        [Install]
+        WantedBy=timers.target
+
+- name: Activar la revisión diaria
+  ansible.builtin.systemd:
+    name: draupnode-clamav.timer
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Firmas descargadas.' if (clamav_db.stdout | default('')) == 'listas' else 'Las firmas aún se están descargando (freshclam sigue en segundo plano).' }}
+      Revisión diaria a las {{ clamav_hour }}:20 de {{ clamav_paths | join(', ') }}; lo encontrado queda en /var/lib/draupnode/clamav/encontrado.txt.

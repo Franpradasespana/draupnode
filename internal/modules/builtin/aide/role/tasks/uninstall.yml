@@ -1,0 +1,28 @@
+---
+- name: Parar la comprobación diaria
+  ansible.builtin.systemd:
+    name: dailyaidecheck.timer
+    enabled: false
+    state: stopped
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Quitar AIDE
+  ansible.builtin.apt:
+    name: [aide, aide-common]
+    state: absent
+    purge: "{{ draupnode_uninstall_purge | bool }}"
+    lock_timeout: 600
+
+- name: Quitar los ajustes de Draupnode
+  ansible.builtin.file:
+    path: /etc/aide/aide.conf.d/99_draupnode
+    state: absent
+
+- name: Borrar la foto y los registros
+  ansible.builtin.shell: rm -rf /var/lib/aide /var/log/aide
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "AIDE {{ 'se quitará' if ansible_check_mode else 'quitado' }}."

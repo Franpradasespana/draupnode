@@ -1,0 +1,42 @@
+id: chrony
+name: Hora exacta (chrony)
+version: 1.0.0
+category: 1 · Sistema
+description: Mantiene la hora del servidor exacta al segundo. Importa para los certificados, los registros, las copias y el doble factor (códigos TOTP).
+details: |
+  Instala chrony (GPL-2.0), el cliente de hora de Red Hat, Debian y las
+  Ubuntu nuevas: sustituye a systemd-timesyncd y corrige la hora poco a
+  poco, sin saltos. Usa los servidores de hora indicados además de los
+  que trae el sistema.
+  Opcional: cambia la zona horaria del servidor (vacío = no la toca).
+depends: [base]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: Quita chrony y vuelve a dejar systemd-timesyncd (el de serie de Ubuntu) para que la hora se siga ajustando.
+variables:
+  - name: chrony_servers
+    label: Servidores de hora
+    help: Uno por línea. Los «pool» de ntp.org reparten entre muchos servidores voluntarios.
+    type: list
+    default: ["es.pool.ntp.org", "pool.ntp.org"]
+    pattern: '^[A-Za-z0-9.-]+$'
+    pattern_help: Un nombre de servidor (time.ejemplo.com)
+links:
+  - label: "Web oficial"
+    url: https://chrony-project.org
+  - label: "Código fuente"
+    url: https://gitlab.com/chrony/chrony
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "No: dentro del contenedor de pruebas chrony cambiaría la hora de TU equipo (comparten reloj). Pruébalo en una máquina virtual o en un servidor."
+  pasos:
+    - "Añade «Hora exacta» con los servidores de serie y aplica."
+    - "Cambia los servidores de hora (por ejemplo time.cloudflare.com) y aplica otra vez."
+  comprobar:
+    - "Ficha → Resumen → Sistema: la hora sale sincronizada."
+    - "En «Terminal»: «chronyc sources» enseña los servidores elegidos, alguno con «*» o «+»."
+  necesita:
+    - "Nada: los servidores de hora de serie valen."
+  problemas:
+    - "«chronyc sources» sin ningún «*» → el proveedor bloquea la salida al puerto 123/UDP: usa el servidor de hora del proveedor (por ejemplo 169.254.169.254 en algunas nubes)."

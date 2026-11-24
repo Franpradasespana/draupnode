@@ -1,0 +1,12 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (con «PostgreSQL compartido» o «MariaDB compartido» para tener a qué conectarse)."
+  pasos:
+    - "Añade «PostgreSQL compartido» y «Adminer», y aplica."
+    - "Pulsa «Abrir (túnel SSH)» en Adminer y entra: sistema PostgreSQL, servidor «pg-compartido», usuario y contraseña de «Contraseñas»."
+  comprobar:
+    - "Enseña las bases de datos y deja abrir tablas y lanzar consultas SQL."
+  necesita:
+    - "Nada en Adminer. Para entrar, el usuario y la contraseña de la base de datos (en «Contraseñas»)."
+  problemas:
+    - "«No such host» al entrar → la base de datos no está en la misma red de Docker: pon en «Red de Docker» la de tu base («apps» por defecto)."

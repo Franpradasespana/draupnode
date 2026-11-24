@@ -1,0 +1,112 @@
+---
+- name: Carpeta de Umami
+  ansible.builtin.set_fact:
+    umami_dir: /srv/draupnode/apps/umami
+    umami_url: "{{ ('https://' ~ umami_domain) if umami_domain else ('http://127.0.0.1:' ~ umami_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    # La de PostgreSQL la deja la imagen en 0700: no se toca (si no, cambiaría en cada aplicación).
+    mode: "{{ omit if item.endswith('/pgdata') else '0750' }}"
+  loop:
+    - "{{ umami_dir }}"
+    - "{{ umami_dir }}/pgdata"
+
+- name: Contraseña «.umami_admin_pass» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    umami_admin_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.umami_admin_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Contraseña «.umami_db» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    umami_db_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.umami_db', chars=['ascii_letters', 'digits'], length=32) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Contraseña «.umami_secret» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    umami_app_secret: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.umami_secret', chars=['ascii_letters', 'digits'], length=48) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ umami_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Umami
+  ansible.builtin.command: docker compose -p dn-umami up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ umami_dir }}"
+  register: umami_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: umami_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in umami_up.stderr or 'Created' in umami_up.stderr or 'Recreated' in umami_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ umami_port }}/api/heartbeat"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: umami_http
+  until: umami_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 60
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-umami
+  when: not ansible_check_mode
+
+- name: Cambiar la contraseña de serie de «admin» (si sigue siendo «umami»)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ umami_port }}/api/auth/login"
+    method: POST
+    body_format: json
+    body: {"username": "admin", "password": "umami"}
+    status_code: [200, 401]
+  register: umami_login
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Poner la generada
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ umami_port }}/api/me/password"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ umami_login.json.token }}"
+    body_format: json
+    body:
+      currentPassword: umami
+      newPassword: "{{ umami_admin_pass }}"
+  register: umami_pass
+  changed_when: true
+  no_log: true
+  when: not ansible_check_mode and umami_login.status == 200
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/umami_admin"
+    mode: "0600"
+    content: "Usuario: admin\nContraseña: {{ umami_admin_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Umami {{ 'responde' if (umami_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-umami logs, en ' ~ umami_dir ~ ')' }} en {{ umami_url }}.
+      Entra con «admin» (contraseña en «Contraseñas»), añade tu web y pega su etiqueta en tus páginas.

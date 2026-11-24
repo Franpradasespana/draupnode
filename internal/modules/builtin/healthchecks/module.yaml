@@ -1,0 +1,79 @@
+id: healthchecks
+name: "Healthchecks (¿se han ejecutado mis tareas?)"
+version: 1.0.0
+category: 6 · Monitorización
+description: "Te avisa cuando una tarea programada NO se ejecuta: copias, cron, scripts. Cada tarea hace ping a una dirección al terminar; si un día no llega, te enteras."
+details: |
+  Healthchecks en Docker, con su base SQLite. Draupnode crea el usuario
+  administrador (correo admin@localhost, contraseña en «Contraseñas»).
+  Crea una comprobación por tarea y añade al final de la tarea:
+  curl -fsS -m 10 --retry 5 https://tu-dominio/ping/<código>
+  Mejor en un servidor DISTINTO del de las tareas, y con dominio para
+  que lleguen los pings de otros servidores.
+  Sus datos están en /srv/draupnode/apps/healthchecks (entran en las copias del
+  módulo Copias). Licencia: BSD-3-Clause.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [healthchecks_public_port]
+proxy_site:
+  domain: healthchecks_domain
+  port: healthchecks_port
+secrets:
+  - file: healthchecks_admin
+    label: Administrador de Healthchecks
+uninstall_warning: "Para y quita los contenedores de Healthchecks."
+uninstall_data: "Borrar también sus datos (las comprobaciones, su historial y los avisos). No se puede deshacer."
+variables:
+  - name: healthchecks_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8020
+    min: 1024
+    max: 65535
+  - name: healthchecks_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: healthchecks_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: healthchecks_registration
+    label: Permitir registrarse
+    help: Si no, solo el administrador entra (y puede invitar a otros a sus proyectos).
+    type: bool
+    default: false
+  - name: healthchecks_update
+    label: Actualizar Healthchecks al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://healthchecks.io
+  - label: "Documentación"
+    url: https://healthchecks.io/docs/self_hosted_docker/
+  - label: "Código fuente"
+    url: https://github.com/healthchecks/healthchecks
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Healthchecks» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con admin@localhost y la contraseña de «Contraseñas», y crea una comprobación con periodo de 1 minuto."
+  comprobar:
+    - "Al hacer ping a su dirección («curl http://127.0.0.1:8020/ping/<código>» en la Terminal) pasa a verde."
+    - "Si dejas de hacer ping, al pasar el periodo y el margen pasa a rojo."
+  necesita:
+    - "Nada al instalarlo. Para que lleguen pings de otros servidores, un dominio con Caddy o nginx."
+  problemas:
+    - "Los avisos por correo no salen → Healthchecks necesita un servidor de correo (SMTP); usa mejor ntfy, Telegram u otra integración."

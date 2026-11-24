@@ -1,0 +1,19 @@
+---
+- name: ¿Está Healthchecks?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/healthchecks/docker-compose.yml
+  register: healthchecks_cf
+
+- name: Parar y quitar Healthchecks
+  ansible.builtin.command: docker compose -p dn-healthchecks down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/healthchecks
+  when: healthchecks_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/healthchecks {{ draupnode_secrets_dir | quote }}/healthchecks_admin
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Healthchecks {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/healthchecks: si lo reinstalas, vuelve todo.' }}"

@@ -1,0 +1,13 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Healthchecks» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con admin@localhost y la contraseña de «Contraseñas», y crea una comprobación con periodo de 1 minuto."
+  comprobar:
+    - "Al hacer ping a su dirección («curl http://127.0.0.1:8020/ping/<código>» en la Terminal) pasa a verde."
+    - "Si dejas de hacer ping, al pasar el periodo y el margen pasa a rojo."
+  necesita:
+    - "Nada al instalarlo. Para que lleguen pings de otros servidores, un dominio con Caddy o nginx."
+  problemas:
+    - "Los avisos por correo no salen → Healthchecks necesita un servidor de correo (SMTP); usa mejor ntfy, Telegram u otra integración."

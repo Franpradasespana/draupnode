@@ -1,0 +1,58 @@
+id: crowdsec
+name: CrowdSec (bloqueo de ataques)
+version: 1.0.0
+category: 8 · Seguridad
+description: Lee los registros del servidor, detecta ataques (fuerza bruta al SSH, escaneos, bots contra tus webs) y bloquea esas IPs en el cortafuegos. Además usa la lista de IPs maliciosas que comparte la comunidad.
+details: |
+  CrowdSec (MIT) desde su repositorio oficial, con el bloqueador de
+  iptables. Vigila el SSH y el sistema, y nginx o Caddy si están. Si hay
+  Docker, también protege los puertos que publican los contenedores.
+  Tu IP (desde la que aplicas) y las de «IPs que nunca se bloquean» no se
+  bloquean nunca.
+  Puede ir junto a fail2ban (módulo SSH seguro): se complementan.
+  «Lista de la comunidad»: CrowdSec manda las IPs que te atacan (nada más)
+  y recibe a cambio las que atacan a todos.
+  Consultas en la Terminal: sudo cscli decisions list (IPs bloqueadas),
+  sudo cscli alerts list, sudo cscli metrics.
+depends: [base]
+after: [docker, caddy, nginx, ssh]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: Quita CrowdSec y su bloqueador; las IPs que tenía bloqueadas vuelven a poder entrar.
+uninstall_data: Borrar también su configuración y su base de datos de alertas.
+variables:
+  - name: crowdsec_whitelist
+    label: IPs que nunca se bloquean
+    help: Una IP o red por línea (203.0.113.10 o 203.0.113.0/24). Tu IP al aplicar ya se añade sola.
+    type: list
+    default: []
+    pattern: '^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$'
+    pattern_help: Una IP o una red (IP/máscara)
+  - name: crowdsec_community
+    label: Lista de la comunidad
+    help: Comparte las IPs que te atacan y recibe las que atacan a los demás (gratis). Sin esto, solo bloquea lo que ve en este servidor.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://www.crowdsec.net
+  - label: "Documentación"
+    url: https://docs.crowdsec.net
+  - label: "Código fuente"
+    url: https://github.com/crowdsecurity/crowdsec
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «CrowdSec» y aplica."
+    - "En «Terminal», simula un ataque: «sudo cscli decisions add --ip 203.0.113.50 --duration 5m»."
+  comprobar:
+    - "«sudo cscli metrics» enseña que lee el registro del SSH (auth.log o journald) y «sudo cscli bouncers list» tiene el bloqueador de iptables."
+    - "Tras la prueba, «sudo cscli decisions list» enseña 203.0.113.50 y «sudo iptables -S | grep -i crowdsec» tiene sus reglas; «sudo cscli decisions delete --ip 203.0.113.50» la quita."
+    - "Tu propia conexión sigue funcionando (tu IP está en la lista blanca)."
+  necesita:
+    - "Nada. Opcional: las IPs desde las que entras siempre (tu casa, tu oficina, la VPN) en «IPs que nunca se bloquean»."
+  problemas:
+    - "Te has quedado fuera → entra por la consola del proveedor y ejecuta «sudo cscli decisions delete --ip TU_IP»; después añade tu IP a la lista blanca."
+    - "No vigila nginx/Caddy → instala esos módulos antes y vuelve a aplicar CrowdSec (detecta lo que hay al aplicar)."

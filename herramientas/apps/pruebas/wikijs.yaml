@@ -1,0 +1,12 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Wiki.js» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y sigue el asistente: crea el administrador y pon la dirección del sitio."
+  comprobar:
+    - "Tras el asistente puedes crear una página y buscarla."
+  necesita:
+    - "Nada: la base de datos la crea Draupnode. El administrador se crea en el asistente."
+  problemas:
+    - "Los enlaces apuntan a otra dirección → cambia «Site URL» en Administración → General a tu dominio."

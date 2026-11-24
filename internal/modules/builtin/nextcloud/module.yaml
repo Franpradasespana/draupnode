@@ -1,0 +1,75 @@
+id: nextcloud
+name: "Nextcloud (tu nube)"
+version: 1.0.0
+category: 7 · Apps
+description: "Tu propio Google Drive: archivos sincronizados con tus equipos y el móvil, calendario, contactos, documentos compartidos y cientos de apps."
+details: |
+  Nextcloud (versión estable) en Docker, con su propio PostgreSQL,
+  Valkey para la caché y las tareas en segundo plano (cron). Draupnode
+  crea el usuario «admin» con una contraseña generada en el servidor
+  (en «Contraseñas»). La primera vez tarda unos minutos en instalarse.
+  Para las apps de escritorio y del móvil, mejor con dominio y HTTPS.
+  Los archivos están en /srv/draupnode/apps/nextcloud/html/data (entran
+  en las copias: pueden ocupar mucho).
+  Sus datos están en /srv/draupnode/apps/nextcloud (entran en las copias del
+  módulo Copias). Licencia: AGPL-3.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 1500
+firewall_ports_from: [nextcloud_public_port]
+proxy_site:
+  domain: nextcloud_domain
+  port: nextcloud_port
+secrets:
+  - file: nextcloud_admin
+    label: Usuario «admin» de Nextcloud
+uninstall_warning: "Para y quita los contenedores de Nextcloud."
+uninstall_data: "Borrar también sus datos (todos los archivos, calendarios, contactos y su base de datos). No se puede deshacer."
+variables:
+  - name: nextcloud_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8090
+    min: 1024
+    max: 65535
+  - name: nextcloud_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: nextcloud_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: nextcloud_update
+    label: Actualizar Nextcloud al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://nextcloud.com
+  - label: "Código fuente"
+    url: https://github.com/nextcloud/server
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, si el servidor de pruebas tiene 2 GB libres (la primera vez tarda unos minutos)."
+  pasos:
+    - "Añade «Nextcloud» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con «admin» y la contraseña de «Contraseñas» y sube un fichero."
+  comprobar:
+    - "El fichero se ve en la web y en /srv/draupnode/apps/nextcloud/html/data/admin/files."
+    - "En «Terminal»: «sudo docker exec -u www-data dn-nextcloud php occ status» dice installed: true y «… occ config:app:get core backgroundjobs_mode» dice cron."
+  necesita:
+    - "Nada para probarlo. Para las apps de escritorio y móvil, un dominio con Caddy o nginx."
+  problemas:
+    - "«Acceso mediante un dominio no fiable» → aplica con el dominio puesto (Draupnode lo añade a los dominios de confianza)."
+    - "La primera aplicación dice que aún se está instalando → espera unos minutos y vuelve a aplicar."

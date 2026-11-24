@@ -1,0 +1,19 @@
+---
+- name: ¿Está Wiki.js?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/wikijs/docker-compose.yml
+  register: wikijs_cf
+
+- name: Parar y quitar Wiki.js
+  ansible.builtin.command: docker compose -p dn-wikijs down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/wikijs
+  when: wikijs_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/wikijs 
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Wiki.js {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/wikijs: si lo reinstalas, vuelve todo.' }}"

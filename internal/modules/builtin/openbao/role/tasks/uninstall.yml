@@ -1,0 +1,32 @@
+---
+- name: ¿Está OpenBao?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/openbao/docker-compose.yml
+  register: openbao_cf
+
+- name: Parar y quitar OpenBao
+  ansible.builtin.command: docker compose -p dn-openbao down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/openbao
+  when: openbao_cf.stat.exists and not ansible_check_mode
+
+- name: Quitar el desbloqueo al arrancar y el script
+  ansible.builtin.shell: |
+    systemctl disable -q draupnode-openbao.service 2>/dev/null || true
+    rm -f /etc/systemd/system/draupnode-openbao.service /usr/local/sbin/draupnode-openbao
+    systemctl daemon-reload
+  when: not ansible_check_mode
+
+- name: Borrar la clave de desbloqueo guardada
+  ansible.builtin.file:
+    path: "{{ draupnode_secrets_dir }}/.openbao_init.json"
+    state: absent
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/openbao {{ draupnode_secrets_dir | quote }}/openbao_claves
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "OpenBao {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/openbao: si lo reinstalas, vuelve todo.' }}"

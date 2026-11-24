@@ -1,0 +1,15 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, si el servidor de pruebas tiene 4 GB de RAM libres. Sus imágenes son grandes: la primera vez tarda."
+  pasos:
+    - "Añade «Immich» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y crea el administrador (el primero que entra)."
+    - "Sube unas fotos desde el navegador."
+  comprobar:
+    - "Las fotos se ven en la línea de tiempo y, al rato, la búsqueda encuentra cosas por lo que sale en ellas."
+  necesita:
+    - "Nada: el primero que entra crea el administrador. 4 GB de RAM libres (el reconocimiento de caras y objetos usa bastante)."
+  problemas:
+    - "Falla con «toomanyrequests» de ghcr.io → el registro de imágenes de GitHub limita las descargas; espera unos minutos y vuelve a aplicar."
+    - "«Hacen falta 4000 MB de RAM…» → el servidor es pequeño para Immich."
+    - "La búsqueda no encuentra nada → el análisis de las fotos tarda; míralo en Administración → Trabajos."

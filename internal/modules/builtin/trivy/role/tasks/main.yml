@@ -1,0 +1,103 @@
+---
+- name: Clave del repositorio de Trivy
+  ansible.builtin.get_url:
+    url: https://get.trivy.dev/deb/public.key
+    dest: /etc/apt/keyrings/trivy.asc
+    mode: "0644"
+
+- name: Repositorio de Trivy
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/trivy.list
+    mode: "0644"
+    content: "deb [signed-by=/etc/apt/keyrings/trivy.asc] https://get.trivy.dev/deb generic main\n"
+  register: trivy_repo
+
+- name: Instalar Trivy
+  ansible.builtin.apt:
+    name: trivy
+    state: latest
+    update_cache: true
+    lock_timeout: 600
+
+- name: Carpeta de informes y caché
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop: [/var/lib/draupnode/trivy, /var/cache/draupnode-trivy]
+
+- name: Script de la revisión
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/draupnode-trivy
+    mode: "0700"
+    content: |
+      #!/bin/sh
+      # Generado por Draupnode (módulo trivy): revisa las imágenes de los contenedores en marcha.
+      d=/var/lib/draupnode/trivy
+      export TRIVY_CACHE_DIR=/var/cache/draupnode-trivy
+      opts="--quiet --scanners vuln --severity {{ trivy_severity }} {{ '--ignore-unfixed' if trivy_ignore_unfixed | bool else '' }}"
+      nice -n 10 trivy image --download-db-only --quiet || { echo "No se pudo descargar la base de vulnerabilidades" > "$d/resumen.txt"; cat "$d/resumen.txt"; exit 1; }
+      : > "$d/informe.tmp"; : > "$d/resumen.tmp"; n=0
+      for img in $(docker ps --format '{% raw %}{{.Image}}{% endraw %}' | sort -u); do
+        n=$((n + 1))
+        j="$d/imagen.json"
+        if nice -n 10 trivy image $opts --skip-db-update --format json -o "$j" "$img" 2>/dev/null; then
+          c=$(python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print(sum(len(x.get("Vulnerabilities") or []) for x in r.get("Results") or []))' "$j")
+          { echo "===== $img"; trivy convert --format table "$j" 2>&1; echo; } >> "$d/informe.tmp"
+        else
+          c="no se pudo revisar"
+          echo "===== $img: no se pudo revisar" >> "$d/informe.tmp"
+        fi
+        rm -f "$j"
+        echo "$img: $c" >> "$d/resumen.tmp"
+      done
+      mv "$d/informe.tmp" "$d/informe.txt"
+      { printf 'Revisadas %s imágenes (gravedad {{ trivy_severity }}) · %s\n' "$n" "$(date '+%Y-%m-%d %H:%M')"; sort -t: -k2 -rn "$d/resumen.tmp"; } > "$d/resumen.txt"
+      rm -f "$d/resumen.tmp"
+      cat "$d/resumen.txt"
+
+- name: Servicio y temporizador semanal
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    mode: "0644"
+    content: "{{ item.content }}"
+  loop:
+    - name: draupnode-trivy.service
+      content: |
+        [Unit]
+        Description=Revisión de imágenes con Trivy (Draupnode)
+        After=docker.service
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/draupnode-trivy
+    - name: draupnode-trivy.timer
+      content: |
+        [Unit]
+        Description=Revisión semanal de imágenes con Trivy (Draupnode)
+        [Timer]
+        OnCalendar=Sat *-*-* 05:40:00
+        RandomizedDelaySec=30min
+        Persistent=true
+        [Install]
+        WantedBy=timers.target
+
+- name: Activar la revisión semanal
+  ansible.builtin.systemd:
+    name: draupnode-trivy.timer
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Revisar ahora
+  ansible.builtin.command: /usr/local/sbin/draupnode-trivy
+  register: trivy_now
+  changed_when: false
+  failed_when: false
+  when: trivy_run_now | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {{ (trivy_now.stdout_lines | default([])) | join(' · ') if (trivy_now.stdout | default('')) else 'Trivy instalado; revisa cada sábado.' }}
+      Informe: /var/lib/draupnode/trivy/informe.txt.

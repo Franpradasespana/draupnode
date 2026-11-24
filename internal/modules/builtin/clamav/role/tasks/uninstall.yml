@@ -1,0 +1,29 @@
+---
+- name: Parar la revisión diaria
+  ansible.builtin.systemd:
+    name: draupnode-clamav.timer
+    enabled: false
+    state: stopped
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Quitar el script y las unidades
+  ansible.builtin.shell: |
+    rm -f /usr/local/sbin/draupnode-clamav /etc/systemd/system/draupnode-clamav.service /etc/systemd/system/draupnode-clamav.timer
+    systemctl daemon-reload
+  when: not ansible_check_mode
+
+- name: Quitar ClamAV
+  ansible.builtin.apt:
+    name: [clamav, clamav-freshclam, clamav-base]
+    state: absent
+    purge: "{{ draupnode_uninstall_purge | bool }}"
+    lock_timeout: 600
+
+- name: Borrar las firmas y los informes
+  ansible.builtin.shell: rm -rf /var/lib/clamav /var/lib/draupnode/clamav
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "ClamAV {{ 'se quitará' if ansible_check_mode else 'quitado' }}."

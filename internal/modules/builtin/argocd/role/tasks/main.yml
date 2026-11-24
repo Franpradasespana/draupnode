@@ -1,0 +1,87 @@
+---
+- name: Espacio de nombres «argocd»
+  ansible.builtin.shell: k3s kubectl get ns argocd >/dev/null 2>&1 || { k3s kubectl create ns argocd >/dev/null && echo creado; }
+  register: argocd_ns
+  changed_when: "'creado' in argocd_ns.stdout"
+  when: not ansible_check_mode
+
+- name: Instalar Argo CD (manifiesto oficial)
+  ansible.builtin.shell: |
+    set -e
+    u="https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml"
+    k3s kubectl apply -n argocd --server-side --force-conflicts -f "$u" >/dev/null
+  register: argocd_apply
+  # «apply --server-side» no dice si ha cambiado algo: cuenta como cambio la primera vez.
+  changed_when: argocd_ns.changed
+  when: not ansible_check_mode
+
+- name: Panel sin TLS propio (lo pone Caddy/nginx, o el túnel)
+  ansible.builtin.shell: |
+    v=$(k3s kubectl -n argocd get cm argocd-cmd-params-cm -o jsonpath='{.data.server\.insecure}' 2>/dev/null)
+    [ "$v" = "true" ] && exit 0
+    k3s kubectl -n argocd patch cm argocd-cmd-params-cm --type merge -p '{"data":{"server.insecure":"true"}}' >/dev/null
+    k3s kubectl -n argocd rollout restart deploy/argocd-server >/dev/null
+    echo cambiado
+  register: argocd_insecure
+  changed_when: "'cambiado' in argocd_insecure.stdout"
+  when: not ansible_check_mode
+
+- name: Esperar a que arranque (hasta 10 minutos)
+  ansible.builtin.command: k3s kubectl -n argocd wait --for=condition=Available deploy --all --timeout=600s
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Servicio que deja el panel en 127.0.0.1:{{ argocd_port }}
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/draupnode-argocd.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Panel de Argo CD en 127.0.0.1:{{ argocd_port }} (Draupnode)
+      After=k3s.service
+      Requires=k3s.service
+      [Service]
+      Environment=KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+      ExecStart=/usr/local/bin/k3s kubectl -n argocd port-forward --address 127.0.0.1 svc/argocd-server {{ argocd_port }}:80
+      Restart=always
+      RestartSec=5
+      [Install]
+      WantedBy=multi-user.target
+  register: argocd_unit
+
+- name: Arrancarlo
+  ansible.builtin.systemd:
+    name: draupnode-argocd
+    daemon_reload: true
+    enabled: true
+    state: "{{ 'restarted' if argocd_unit.changed or argocd_insecure.changed else 'started' }}"
+  when: not ansible_check_mode
+
+- name: Contraseña inicial de «admin»
+  ansible.builtin.shell: |
+    p=$(k3s kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
+    [ -n "$p" ] || { echo sin-secreto; exit 0; }
+    f="{{ draupnode_secrets_dir }}/argocd_admin"
+    printf 'Usuario: admin\nContraseña: %s\n(Si la cambias en Argo CD, esta deja de valer.)\n' "$p" > "$f.tmp"
+    cmp -s "$f.tmp" "$f" && rm -f "$f.tmp" || { mv "$f.tmp" "$f"; chmod 600 "$f"; echo cambiado; }
+  register: argocd_pass
+  changed_when: "'cambiado' in argocd_pass.stdout"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ argocd_port }}/healthz"
+  register: argocd_http
+  until: argocd_http.status == 200
+  retries: 30
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Argo CD {{ 'responde' if (argocd_http.status | default(0)) == 200 else 'NO responde todavía (mira: systemctl status draupnode-argocd y kubectl -n argocd get pods)' }}
+      en {{ ('https://' ~ argocd_domain) if argocd_domain else ('http://127.0.0.1:' ~ argocd_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}.
+      Usuario «admin» {{ '(la contraseña inicial ya no existe: la cambiaste)' if 'sin-secreto' in (argocd_pass.stdout | default('')) else '(contraseña en «Contraseñas»)' }}.

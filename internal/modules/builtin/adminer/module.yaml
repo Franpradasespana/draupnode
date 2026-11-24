@@ -1,0 +1,74 @@
+id: adminer
+name: "Adminer (ver y editar bases de datos)"
+version: 1.0.0
+category: 4 · Bases de datos
+description: "Una página para ver y editar tus bases de datos PostgreSQL y MariaDB: tablas, datos, consultas SQL, importar y exportar."
+details: |
+  Adminer (un solo fichero PHP) en Docker, en la red de las bases de
+  datos compartidas. Al entrar elige el sistema y escribe el servidor
+  («pg-compartido» o «mariadb-compartido», o el nombre del contenedor
+  de tu app) con su usuario y contraseña (en «Contraseñas»).
+  No guarda nada. Mejor sin dominio: entra con «Abrir» (túnel SSH).
+  Sus datos están en /srv/draupnode/apps/adminer (entran en las copias del
+  módulo Copias). Licencia: Apache-2.0 o GPL-2.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [adminer_public_port]
+proxy_site:
+  domain: adminer_domain
+  port: adminer_port
+uninstall_warning: "Para y quita los contenedores de Adminer."
+uninstall_data: "Borrar también sus datos (nada (Adminer no guarda datos)). No se puede deshacer."
+variables:
+  - name: adminer_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8085
+    min: 1024
+    max: 65535
+  - name: adminer_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: adminer_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: adminer_network
+    label: Red de Docker
+    help: La misma que la de PostgreSQL/MariaDB compartidos («apps» si no la has cambiado). Las apps de esa red llegan a este contenedor por su nombre.
+    type: string
+    default: apps
+    pattern: '^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}$'
+    pattern_help: Letras, números, punto, guion y guion bajo
+  - name: adminer_update
+    label: Actualizar Adminer al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://www.adminer.org
+  - label: "Código fuente"
+    url: https://github.com/vrana/adminer
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (con «PostgreSQL compartido» o «MariaDB compartido» para tener a qué conectarse)."
+  pasos:
+    - "Añade «PostgreSQL compartido» y «Adminer», y aplica."
+    - "Pulsa «Abrir (túnel SSH)» en Adminer y entra: sistema PostgreSQL, servidor «pg-compartido», usuario y contraseña de «Contraseñas»."
+  comprobar:
+    - "Enseña las bases de datos y deja abrir tablas y lanzar consultas SQL."
+  necesita:
+    - "Nada en Adminer. Para entrar, el usuario y la contraseña de la base de datos (en «Contraseñas»)."
+  problemas:
+    - "«No such host» al entrar → la base de datos no está en la misma red de Docker: pon en «Red de Docker» la de tu base («apps» por defecto)."

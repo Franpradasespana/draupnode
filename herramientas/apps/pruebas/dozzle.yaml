@@ -1,0 +1,12 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Dozzle» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y entra con «admin» y la contraseña de «Contraseñas»."
+  comprobar:
+    - "Sin usuario no deja ver nada; con él, enseña todos los contenedores y sus registros en directo."
+  necesita:
+    - "Nada."
+  problemas:
+    - "No sale un contenedor → Dozzle enseña los que están en marcha; marca «Mostrar los parados» en su menú."

@@ -1,0 +1,24 @@
+# Generado por Draupnode (módulo valkey). No lo edites a mano: se reescribe al aplicar.
+name: dn-valkey
+
+services:
+  valkey:
+    image: docker.io/valkey/valkey:9
+    {% if valkey_update | bool %}pull_policy: always
+    {% endif %}container_name: valkey-compartido
+    restart: unless-stopped
+    command: ["valkey-server", "/etc/valkey/valkey.conf"]
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    volumes:
+      - ./data:/data
+      - ./valkey.conf:/etc/valkey/valkey.conf:ro
+    networks: [{{ valkey_network }}]
+    ports:
+      - "127.0.0.1:{{ valkey_port }}:6379"
+{% if (valkey_public_port | default(0) | int) > 0 %}      - "{{ valkey_public_port }}:6379"
+{% endif %}
+
+networks:
+  {{ valkey_network }}:
+    external: true

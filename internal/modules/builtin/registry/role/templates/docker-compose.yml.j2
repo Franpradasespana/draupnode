@@ -1,0 +1,23 @@
+# Generado por Draupnode (módulo registry). No lo edites a mano: se reescribe al aplicar.
+name: dn-registry
+
+services:
+  registry:
+    image: docker.io/library/registry:3
+    {% if registry_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-registry
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registro
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - ./data:/var/lib/registry
+      - ./auth:/auth:ro
+    ports:
+      - "127.0.0.1:{{ registry_port }}:5000"
+{% if (registry_public_port | default(0) | int) > 0 %}      - "{{ registry_public_port }}:5000"
+{% endif %}
