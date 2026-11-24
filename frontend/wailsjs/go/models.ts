@@ -1,278 +1,4 @@
-export namespace copia {
-	
-	export class KeyFile {
-	    serverId: string;
-	    server: string;
-	    file: string;
-	    origPath: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new KeyFile(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.serverId = source["serverId"];
-	        this.server = source["server"];
-	        this.file = source["file"];
-	        this.origPath = source["origPath"];
-	    }
-	}
-	export class Manifest {
-	    version: number;
-	    // Go type: time
-	    created: any;
-	    app: string;
-	    servers: number;
-	    templates: number;
-	    deployments: number;
-	    vaultEntries: number;
-	    keyring: number;
-	    modules: number;
-	    keys: KeyFile[];
-	
-	    static createFrom(source: any = {}) {
-	        return new Manifest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.version = source["version"];
-	        this.created = this.convertValues(source["created"], null);
-	        this.app = source["app"];
-	        this.servers = source["servers"];
-	        this.templates = source["templates"];
-	        this.deployments = source["deployments"];
-	        this.vaultEntries = source["vaultEntries"];
-	        this.keyring = source["keyring"];
-	        this.modules = source["modules"];
-	        this.keys = this.convertValues(source["keys"], KeyFile);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-
-}
-
-export namespace dockerize {
-	
-	export class Spec {
-	    stack: string;
-	    framework: string;
-	    name: string;
-	    version: string;
-	    port: number;
-	    hostPort: number;
-	    start: string;
-	    pyInstall: string;
-	    module: string;
-	    extraPip: string[];
-	    djangoMigrate: boolean;
-	    djangoCollectstatic: boolean;
-	    djangoSuperuser: boolean;
-	    nodePm: string;
-	    nodeBuild: boolean;
-	    nodeLock: boolean;
-	    staticDir: string;
-	    javaBuild: string;
-	    javaWrapper: boolean;
-	    docRoot: string;
-	    laravelMigrate: boolean;
-	    goMain: string;
-	    systemPackages: string[];
-	    volumes: string[];
-	    envKeys: string[];
-	    nonRoot: boolean;
-	    healthPath: string;
-	    postgres: boolean;
-	    mariadb: boolean;
-	    redis: boolean;
-	    dbMode: string;
-	    sharedNetwork: string;
-	    sharedHost: string;
-	    sideBySide: boolean;
-	    proxy: boolean;
-	    proxyDomain: string;
-	    proxyPort: number;
-	    maxBodyMb: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new Spec(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.stack = source["stack"];
-	        this.framework = source["framework"];
-	        this.name = source["name"];
-	        this.version = source["version"];
-	        this.port = source["port"];
-	        this.hostPort = source["hostPort"];
-	        this.start = source["start"];
-	        this.pyInstall = source["pyInstall"];
-	        this.module = source["module"];
-	        this.extraPip = source["extraPip"];
-	        this.djangoMigrate = source["djangoMigrate"];
-	        this.djangoCollectstatic = source["djangoCollectstatic"];
-	        this.djangoSuperuser = source["djangoSuperuser"];
-	        this.nodePm = source["nodePm"];
-	        this.nodeBuild = source["nodeBuild"];
-	        this.nodeLock = source["nodeLock"];
-	        this.staticDir = source["staticDir"];
-	        this.javaBuild = source["javaBuild"];
-	        this.javaWrapper = source["javaWrapper"];
-	        this.docRoot = source["docRoot"];
-	        this.laravelMigrate = source["laravelMigrate"];
-	        this.goMain = source["goMain"];
-	        this.systemPackages = source["systemPackages"];
-	        this.volumes = source["volumes"];
-	        this.envKeys = source["envKeys"];
-	        this.nonRoot = source["nonRoot"];
-	        this.healthPath = source["healthPath"];
-	        this.postgres = source["postgres"];
-	        this.mariadb = source["mariadb"];
-	        this.redis = source["redis"];
-	        this.dbMode = source["dbMode"];
-	        this.sharedNetwork = source["sharedNetwork"];
-	        this.sharedHost = source["sharedHost"];
-	        this.sideBySide = source["sideBySide"];
-	        this.proxy = source["proxy"];
-	        this.proxyDomain = source["proxyDomain"];
-	        this.proxyPort = source["proxyPort"];
-	        this.maxBodyMb = source["maxBodyMb"];
-	    }
-	}
-	export class Analysis {
-	    dir: string;
-	    name: string;
-	    spec: Spec;
-	    evidence: string[];
-	    warnings: string[];
-	    existing: string[];
-	    alternatives: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new Analysis(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.dir = source["dir"];
-	        this.name = source["name"];
-	        this.spec = this.convertValues(source["spec"], Spec);
-	        this.evidence = source["evidence"];
-	        this.warnings = source["warnings"];
-	        this.existing = source["existing"];
-	        this.alternatives = source["alternatives"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-
-}
-
-export namespace lab {
-	
-	export class DockerStatus {
-	    os: string;
-	    installed: boolean;
-	    version?: string;
-	    problem: string;
-	    message?: string;
-	    needsRelogin: boolean;
-	    viaGroup: boolean;
-	    canAutoFix: boolean;
-	    installCommand: string;
-	    downloadUrl?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new DockerStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.os = source["os"];
-	        this.installed = source["installed"];
-	        this.version = source["version"];
-	        this.problem = source["problem"];
-	        this.message = source["message"];
-	        this.needsRelogin = source["needsRelogin"];
-	        this.viaGroup = source["viaGroup"];
-	        this.canAutoFix = source["canAutoFix"];
-	        this.installCommand = source["installCommand"];
-	        this.downloadUrl = source["downloadUrl"];
-	    }
-	}
-	export class KeyFile {
-	    path: string;
-	    label: string;
-	    passphrase?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new KeyFile(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.path = source["path"];
-	        this.label = source["label"];
-	        this.passphrase = source["passphrase"];
-	    }
-	}
-	export class ServerStatus {
-	    exists: boolean;
-	    running: boolean;
-	    startedAt?: string;
-	    byPort?: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new ServerStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.exists = source["exists"];
-	        this.running = source["running"];
-	        this.startedAt = source["startedAt"];
-	        this.byPort = source["byPort"];
-	    }
-	}
-
-}
-
-export namespace main {
+export namespace app {
 	
 	export class AlertsResult {
 	    status: string;
@@ -304,6 +30,10 @@ export namespace main {
 	    version: string;
 	    configDir: string;
 	    os: string;
+	    author: string;
+	    year: string;
+	    license: string;
+	    project: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppInfo(source);
@@ -314,6 +44,10 @@ export namespace main {
 	        this.version = source["version"];
 	        this.configDir = source["configDir"];
 	        this.os = source["os"];
+	        this.author = source["author"];
+	        this.year = source["year"];
+	        this.license = source["license"];
+	        this.project = source["project"];
 	    }
 	}
 	export class BackupDue {
@@ -959,6 +693,22 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class Legal {
+	    notice: string;
+	    license: string;
+	    thirdParty: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Legal(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.notice = source["notice"];
+	        this.license = source["license"];
+	        this.thirdParty = source["thirdParty"];
+	    }
 	}
 	export class ModuleImportFile {
 	    path: string;
@@ -1837,6 +1587,280 @@ export namespace main {
 	        this.problems = source["problems"];
 	        this.notes = source["notes"];
 	        this.usedBy = source["usedBy"];
+	    }
+	}
+
+}
+
+export namespace copia {
+	
+	export class KeyFile {
+	    serverId: string;
+	    server: string;
+	    file: string;
+	    origPath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeyFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.serverId = source["serverId"];
+	        this.server = source["server"];
+	        this.file = source["file"];
+	        this.origPath = source["origPath"];
+	    }
+	}
+	export class Manifest {
+	    version: number;
+	    // Go type: time
+	    created: any;
+	    app: string;
+	    servers: number;
+	    templates: number;
+	    deployments: number;
+	    vaultEntries: number;
+	    keyring: number;
+	    modules: number;
+	    keys: KeyFile[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Manifest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.created = this.convertValues(source["created"], null);
+	        this.app = source["app"];
+	        this.servers = source["servers"];
+	        this.templates = source["templates"];
+	        this.deployments = source["deployments"];
+	        this.vaultEntries = source["vaultEntries"];
+	        this.keyring = source["keyring"];
+	        this.modules = source["modules"];
+	        this.keys = this.convertValues(source["keys"], KeyFile);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace dockerize {
+	
+	export class Spec {
+	    stack: string;
+	    framework: string;
+	    name: string;
+	    version: string;
+	    port: number;
+	    hostPort: number;
+	    start: string;
+	    pyInstall: string;
+	    module: string;
+	    extraPip: string[];
+	    djangoMigrate: boolean;
+	    djangoCollectstatic: boolean;
+	    djangoSuperuser: boolean;
+	    nodePm: string;
+	    nodeBuild: boolean;
+	    nodeLock: boolean;
+	    staticDir: string;
+	    javaBuild: string;
+	    javaWrapper: boolean;
+	    docRoot: string;
+	    laravelMigrate: boolean;
+	    goMain: string;
+	    systemPackages: string[];
+	    volumes: string[];
+	    envKeys: string[];
+	    nonRoot: boolean;
+	    healthPath: string;
+	    postgres: boolean;
+	    mariadb: boolean;
+	    redis: boolean;
+	    dbMode: string;
+	    sharedNetwork: string;
+	    sharedHost: string;
+	    sideBySide: boolean;
+	    proxy: boolean;
+	    proxyDomain: string;
+	    proxyPort: number;
+	    maxBodyMb: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Spec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.stack = source["stack"];
+	        this.framework = source["framework"];
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.port = source["port"];
+	        this.hostPort = source["hostPort"];
+	        this.start = source["start"];
+	        this.pyInstall = source["pyInstall"];
+	        this.module = source["module"];
+	        this.extraPip = source["extraPip"];
+	        this.djangoMigrate = source["djangoMigrate"];
+	        this.djangoCollectstatic = source["djangoCollectstatic"];
+	        this.djangoSuperuser = source["djangoSuperuser"];
+	        this.nodePm = source["nodePm"];
+	        this.nodeBuild = source["nodeBuild"];
+	        this.nodeLock = source["nodeLock"];
+	        this.staticDir = source["staticDir"];
+	        this.javaBuild = source["javaBuild"];
+	        this.javaWrapper = source["javaWrapper"];
+	        this.docRoot = source["docRoot"];
+	        this.laravelMigrate = source["laravelMigrate"];
+	        this.goMain = source["goMain"];
+	        this.systemPackages = source["systemPackages"];
+	        this.volumes = source["volumes"];
+	        this.envKeys = source["envKeys"];
+	        this.nonRoot = source["nonRoot"];
+	        this.healthPath = source["healthPath"];
+	        this.postgres = source["postgres"];
+	        this.mariadb = source["mariadb"];
+	        this.redis = source["redis"];
+	        this.dbMode = source["dbMode"];
+	        this.sharedNetwork = source["sharedNetwork"];
+	        this.sharedHost = source["sharedHost"];
+	        this.sideBySide = source["sideBySide"];
+	        this.proxy = source["proxy"];
+	        this.proxyDomain = source["proxyDomain"];
+	        this.proxyPort = source["proxyPort"];
+	        this.maxBodyMb = source["maxBodyMb"];
+	    }
+	}
+	export class Analysis {
+	    dir: string;
+	    name: string;
+	    spec: Spec;
+	    evidence: string[];
+	    warnings: string[];
+	    existing: string[];
+	    alternatives: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Analysis(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.dir = source["dir"];
+	        this.name = source["name"];
+	        this.spec = this.convertValues(source["spec"], Spec);
+	        this.evidence = source["evidence"];
+	        this.warnings = source["warnings"];
+	        this.existing = source["existing"];
+	        this.alternatives = source["alternatives"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace lab {
+	
+	export class DockerStatus {
+	    os: string;
+	    installed: boolean;
+	    version?: string;
+	    problem: string;
+	    message?: string;
+	    needsRelogin: boolean;
+	    viaGroup: boolean;
+	    canAutoFix: boolean;
+	    installCommand: string;
+	    downloadUrl?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DockerStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.os = source["os"];
+	        this.installed = source["installed"];
+	        this.version = source["version"];
+	        this.problem = source["problem"];
+	        this.message = source["message"];
+	        this.needsRelogin = source["needsRelogin"];
+	        this.viaGroup = source["viaGroup"];
+	        this.canAutoFix = source["canAutoFix"];
+	        this.installCommand = source["installCommand"];
+	        this.downloadUrl = source["downloadUrl"];
+	    }
+	}
+	export class KeyFile {
+	    path: string;
+	    label: string;
+	    passphrase?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeyFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.label = source["label"];
+	        this.passphrase = source["passphrase"];
+	    }
+	}
+	export class ServerStatus {
+	    exists: boolean;
+	    running: boolean;
+	    startedAt?: string;
+	    byPort?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.exists = source["exists"];
+	        this.running = source["running"];
+	        this.startedAt = source["startedAt"];
+	        this.byPort = source["byPort"];
 	    }
 	}
 

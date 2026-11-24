@@ -1,14 +1,25 @@
 <script lang="ts">
-  import { Check, Copy, Pencil, Plus, Trash2, Upload, TriangleAlert, FolderCog, KeyRound, LockKeyhole, Lock } from '@lucide/svelte'
+  import { Check, Copy, Pencil, Plus, Trash2, Upload, TriangleAlert, FolderCog, KeyRound, LockKeyhole, Lock, Scale, ExternalLink } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import PalettePreview from '../components/PalettePreview.svelte'
   import KeyringHelp from '../components/KeyringHelp.svelte'
   import BackupSection from '../components/BackupSection.svelte'
   import { BUILTIN_PALETTES, COLOR_KEYS, applyPalette, contrast, cssVars, isHex, type Palette } from '../lib/palettes'
   import { ui, allPalettes, currentPalette, setTheme, persistSettings, sanitizePalettes, toast, requestVault, refreshSecrets } from '../lib/state.svelte'
-  import { api, errorText } from '../lib/api'
+  import { api, errorText, type Legal } from '../lib/api'
 
   let updEnabled = $state(true)
+  // Ajustes → «Licencias»: aviso de autoría, GPL-3.0 y librerías incluidas.
+  let legal = $state<Legal | null>(null)
+  let legalTab = $state<'notice' | 'thirdParty' | 'license'>('notice')
+  async function openLegal() {
+    try {
+      legal = await api.Legal()
+      legalTab = 'notice'
+    } catch (e) {
+      toast(errorText(e), 'error')
+    }
+  }
   api.GetSettings().then((s) => (updEnabled = !s.noUpdateCheck)).catch(() => {})
   async function setUpd(v: boolean) {
     updEnabled = v
@@ -234,11 +245,31 @@
 </section>
 
 <section class="card about">
-  <h2>Datos de la aplicación</h2>
+  <h2>Acerca de Draupnode</h2>
+  <div class="credit">
+    <p><strong>Draupnode {ui.info?.version}</strong> · Copyright © {ui.info?.year} {ui.info?.author}</p>
+    <p class="muted small">Software libre y gratuito bajo la licencia {ui.info?.license}. Puedes usarlo, estudiarlo, modificarlo y compartirlo,
+      siempre conservando este aviso de autoría. Se ofrece sin ninguna garantía.</p>
+    <div class="row">
+      <button class="btn sm" onclick={openLegal}><Scale size={14} /> Licencias</button>
+      {#if ui.info?.project}<button class="btn sm ghost" onclick={() => api.OpenURL(ui.info!.project)}><ExternalLink size={14} /> Proyecto</button>{/if}
+    </div>
+  </div>
   <label class="upd"><input type="checkbox" checked={updEnabled} onchange={(e) => setUpd((e.currentTarget as HTMLInputElement).checked)} />
     Avisar de versiones nuevas <span class="muted small">(al abrir, consulta la última versión publicada en GitHub; no envía ningún dato tuyo)</span></label>
   <div class="kv"><FolderCog size={16} /><span class="muted">Configuración</span><code class="selectable">{ui.info?.configDir}</code></div>
 </section>
+
+{#if legal}
+  <Modal title="Licencias" onclose={() => (legal = null)} width={820}>
+    <div class="ltabs">
+      <button class="btn sm" class:ghost={legalTab !== 'notice'} onclick={() => (legalTab = 'notice')}>Aviso</button>
+      <button class="btn sm" class:ghost={legalTab !== 'thirdParty'} onclick={() => (legalTab = 'thirdParty')}>Lo que lleva dentro</button>
+      <button class="btn sm" class:ghost={legalTab !== 'license'} onclick={() => (legalTab = 'license')}>GPL-3.0 (texto oficial)</button>
+    </div>
+    <pre class="ltext selectable">{legal[legalTab]}</pre>
+  </Modal>
+{/if}
 
 {#snippet card(p: Palette)}
   {@const active = ui.themeId === p.id}
@@ -348,6 +379,11 @@
   .pact { display: flex; }
   .upd { display: flex; gap: 8px; align-items: center; font-size: 13.5px; flex-wrap: wrap; }
   .about { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
+  .credit { display: flex; flex-direction: column; gap: 6px; }
+  .credit p { margin: 0; }
+  .credit .row { display: flex; gap: 8px; margin-top: 4px; }
+  .ltabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .ltext { max-height: 56vh; overflow: auto; white-space: pre-wrap; font-size: 12.5px; line-height: 1.5; background: var(--panel-2); padding: 12px; border-radius: 8px; margin: 0; }
   .secrets { margin-bottom: 28px; display: flex; flex-direction: column; gap: 14px; }
   .secrets .sec-head p { margin-top: 4px; }
   .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

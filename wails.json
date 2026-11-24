@@ -9,5 +9,11 @@
   "author": {
     "name": "franpradasespana",
     "email": "francciscojavierpradas@gmail.com"
+  },
+  "info": {
+    "companyName": "Francisco Javier Pradas",
+    "productName": "Draupnode",
+    "copyright": "Copyright © 2026 Francisco Javier Pradas · GPL-3.0-or-later",
+    "comments": "Software libre (GPL-3.0-or-later). https://github.com/Franpradasespana/draupnode"
   }
 }

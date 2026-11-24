@@ -43,7 +43,7 @@ jobs:
 
       - name: Versión
         shell: bash
-        run: echo "VERSION=$(sed -n 's/^const Version = "\(.*\)"/\1/p' app.go)" >> "$GITHUB_ENV"
+        run: echo "VERSION=$(sed -n 's/^const Version = "\(.*\)"/\1/p' internal/app/app.go)" >> "$GITHUB_ENV"
 
       # ---------------- Linux: .deb y .tar.gz
       - name: Dependencias (Linux)

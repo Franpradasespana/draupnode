@@ -104,7 +104,7 @@ make doctor       # wails doctor
 | `make build` | Ejecutable en `build/bin/draupnode` |
 | `make install-linux` | Instala en tu usuario, sin sudo: menú de aplicaciones e icono en el dock |
 
-**Publicar una versión**: cambia `Version` en `app.go`, apúntalo en `docs/HISTORIAL.md` y sube una etiqueta
+**Publicar una versión**: cambia `Version` en `internal/app/app.go`, apúntalo en `docs/HISTORIAL.md` y sube una etiqueta
 (`git tag v0.43.0 && git push origin v0.43.0`). GitHub Actions compila los instaladores de los tres sistemas y crea
 la Release (`.github/workflows/release.yml`). En cada push a `main` se pasan los tests (`pruebas.yml`).
 
@@ -116,7 +116,9 @@ O a mano: `bash pruebas/servidor-ubuntu/servidor.sh arrancar`.
 ## Estructura
 
 ```
-main.go, app*.go         Arranque de Wails y métodos que llama la interfaz (uno por tema: servidores, plantillas, copias…)
+main.go                  Arranque de Wails
+internal/app             Métodos que llama la interfaz (un fichero por tema: servidores, plantillas, copias…)
+internal/legal           Aviso de autoría y licencias que van dentro del ejecutable
 internal/store           Configuración local (draupnode.json, permisos 0600)
 internal/secrets         Llavero del sistema y bóveda cifrada
 internal/copia           Copia cifrada de Draupnode (exportar/importar)
@@ -146,3 +148,23 @@ docs/                    PLAN.md (fases), HISTORIAL.md (cambios), GUIA_PUBLICAR.
 ## Publicar tu app
 
 Guía paso a paso (crear los ficheros de Docker, publicar en un servidor, revisar la configuración y subir, con o sin GitHub): [docs/GUIA_PUBLICAR.md](docs/GUIA_PUBLICAR.md).
+
+## Licencia
+
+Copyright © 2026 Francisco Javier Pradas.
+
+Draupnode es **software libre y gratuito** bajo la licencia
+[GNU GPL v3.0 o posterior](LICENSE): puedes usarlo, estudiarlo, modificarlo y compartirlo, y
+quien reparta una copia (modificada o no) tiene que hacerlo con las mismas libertades y su código
+fuente. Se ofrece **sin ninguna garantía**.
+
+Términos adicionales (sección 7 de la GPL): hay que conservar el aviso de autoría y el enlace a este
+proyecto en Ajustes («Acerca de Draupnode») y en este README, y una versión modificada debe indicar
+que lo está. Todo esto está en [COPYRIGHT](COPYRIGHT).
+
+Las librerías que van dentro de la app tienen sus propias licencias libres, compatibles con la GPL
+(MIT, BSD, Apache-2.0, ISC y OFL para las fuentes): están en
+[internal/legal/terceros.txt](internal/legal/terceros.txt) y en Ajustes → «Licencias»
+(se rehace con `make licencias`). Los programas que Draupnode instala en tus servidores no forman
+parte de Draupnode: cada módulo del Catálogo enseña la licencia y la web de lo que instala, y todos
+son de código abierto.

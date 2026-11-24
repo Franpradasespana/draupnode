@@ -1,11 +1,11 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"log"
 	"path/filepath"
 
+	"draupnode/internal/app"
 	"draupnode/internal/secrets"
 	"draupnode/internal/store"
 
@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	app := NewApp(st, secrets.System{}, vault)
+	a := app.NewApp(st, secrets.System{}, vault)
 
 	err = wails.Run(&options.App{
 		Title:     "Draupnode",
@@ -51,16 +51,16 @@ func main() {
 		},
 		// Fondo de la paleta por defecto (Draupnir Gold) mientras carga la interfaz.
 		BackgroundColour: &options.RGBA{R: 14, G: 13, B: 11, A: 1},
-		OnStartup:        app.startup,
-		OnShutdown:       func(context.Context) { app.CloseTunnels(); app.CloseTerminals() },
-		Bind:             []interface{}{app},
+		OnStartup:        app.OnStartup(a),
+		OnShutdown:       app.OnShutdown(a),
+		Bind:             []interface{}{a},
 		Linux: &linux.Options{
 			ProgramName: "draupnode", // debe coincidir con StartupWMClass del .desktop
 			Icon:        icon,
 		},
 		Mac: &mac.Options{
 			About: &mac.AboutInfo{
-				Title:   "Draupnode " + Version,
+				Title:   "Draupnode " + app.Version,
 				Message: "Zero-to-host forge",
 				Icon:    icon,
 			},

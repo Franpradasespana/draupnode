@@ -1,4 +1,4 @@
-// Puente con el backend Go (Wails expone los métodos en window.go.main.App).
+// Puente con el backend Go (Wails expone los métodos en window.go.app.App).
 // Si se abre la interfaz en un navegador normal (npm run dev) se usa un
 // simulador en memoria para poder diseñar sin el backend.
 
@@ -33,6 +33,16 @@ export interface AppInfo {
   version: string
   configDir: string
   os: string
+  author: string
+  year: string
+  license: string
+  project: string
+}
+
+export interface Legal {
+  notice: string
+  license: string
+  thirdParty: string
 }
 
 export interface VaultStatus {
@@ -684,6 +694,7 @@ export interface DockerBuildEvent {
 
 interface Backend {
   AppInfo(): Promise<AppInfo>
+  Legal(): Promise<Legal>
   SecretsInfo(): Promise<SecretsInfo>
   SetSecretBackend(b: string): Promise<void>
   VaultCreate(master: string): Promise<void>
@@ -805,7 +816,7 @@ interface Backend {
 
 declare global {
   interface Window {
-    go?: { main?: { App?: Backend } }
+    go?: { app?: { App?: Backend } }
     runtime?: { EventsOn(name: string, cb: (data: any) => void): () => void }
   }
 }
@@ -823,7 +834,7 @@ function mockEmit(name: string, data: unknown) {
   for (const f of mockListeners[name] ?? []) f(data)
 }
 
-export const isDesktop = typeof window !== 'undefined' && !!window.go?.main?.App
+export const isDesktop = typeof window !== 'undefined' && !!window.go?.app?.App
 
 // ---- simulador para el navegador ----------------------------------------
 
@@ -939,7 +950,14 @@ function mockBackend(): Backend {
 
   return {
     async AppInfo() {
-      return { version: 'demo navegador', configDir: '(simulado)', os: 'browser' }
+      return { version: 'demo navegador', configDir: '(simulado)', os: 'browser', author: 'Francisco Javier Pradas', year: '2026', license: 'GPL-3.0-or-later', project: 'https://github.com/Franpradasespana/draupnode' }
+    },
+    async Legal() {
+      return {
+        notice: 'Draupnode\nCopyright © 2026 Francisco Javier Pradas\n\n(En la demo del navegador solo se ve un resumen: la app de escritorio trae los textos completos.)',
+        license: 'GNU GENERAL PUBLIC LICENSE\nVersion 3, 29 June 2007\n…',
+        thirdParty: 'Resumen\n=======\n- github.com/wailsapp/wails/v2 · MIT\n- svelte · MIT\n…',
+      }
     },
     async SecretsInfo() {
       return info()
@@ -1914,7 +1932,7 @@ function mockHistory(lab: boolean): ServerHistory {
   }
 }
 
-export const api: Backend = isDesktop ? window.go!.main!.App! : mockBackend()
+export const api: Backend = isDesktop ? window.go!.app!.App! : mockBackend()
 
 /** Los errores de Wails llegan como string; los normalizamos. */
 export function errorText(e: unknown): string {

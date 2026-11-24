@@ -1134,3 +1134,21 @@ respondiendo, cada uno con su base en el PostgreSQL compartido (Laravel: product
   imágenes, imagen que no existe o es privada, contenedor que no arranca (`no_reinicia`), falta de RAM y de disco,
   contenedor con el mismo nombre y certificado HTTPS que no sale. El del puerto ocupado ya no habla solo de «Tu app».
 - La ventana de ayuda tiene el botón **«Cerrar» en un pie** (siempre visible, aunque bajes); la ✕ de arriba se quita.
+
+## 2026-11-24 · 0.62.0 · Licencia GPL-3.0 y código de la app en internal/app
+
+- **Licencia**: GPL-3.0-or-later, © 2026 Francisco Javier Pradas (petición del usuario: gratis, pero con reconocimiento).
+  - `LICENSE` (texto oficial), `COPYRIGHT` (aviso en castellano + términos adicionales de la sección 7 b/c:
+    conservar la autoría y el enlace en «Acerca de» y el README; las versiones modificadas deben decirlo).
+  - `internal/legal`: aviso, GPL y `terceros.txt` incrustados en el ejecutable; test que comprueba que las copias
+    coinciden con las de la raíz.
+  - `herramientas/licencias.py` (`make licencias`): lista las librerías que van dentro (Go de Linux/Windows/macOS +
+    dependencias de producción de la interfaz + la biblioteca estándar de Go) con sus textos de licencia. 59 paquetes,
+    todos compatibles con la GPL (MIT, BSD, Apache-2.0, ISC, OFL). Para los MIT sin fichero se pone el texto MIT con el autor.
+  - Ajustes: «Datos de la aplicación» → «Acerca de Draupnode» con versión, autoría, licencia, botón «Licencias»
+    (Aviso / Lo que lleva dentro / GPL-3.0) y enlace al proyecto. `AppInfo` trae autor, año, licencia y proyecto; método `Legal`.
+  - `wails.json` → `info` (copyright y autor en las propiedades del .exe de Windows). README con sección «Licencia».
+- **Estructura**: los 51 `app*.go` de la raíz pasan a `internal/app` (paquete `app`, sin el prefijo `app_`). En la raíz
+  solo queda `main.go`. La interfaz llama ahora a `window.go.app.App`. `OnStartup`/`OnShutdown` son funciones del paquete
+  (no métodos) para que Wails no las ofrezca a la interfaz. `make test` y el workflow de pruebas pasan `./...` con la
+  etiqueta webkit2_41; el de publicar lee la versión de `internal/app/app.go`.

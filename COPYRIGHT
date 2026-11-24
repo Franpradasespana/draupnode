@@ -1,0 +1,38 @@
+Draupnode
+Copyright © 2026 Francisco Javier Pradas
+https://github.com/Franpradasespana/draupnode
+
+Draupnode es software libre: puedes redistribuirlo y/o modificarlo bajo los
+términos de la Licencia Pública General de GNU (GPL) tal y como la publica la
+Free Software Foundation, ya sea la versión 3 de la Licencia o (a tu elección)
+cualquier versión posterior. SPDX-License-Identifier: GPL-3.0-or-later
+
+Draupnode se distribuye con la esperanza de que sea útil, pero SIN NINGUNA
+GARANTÍA; ni siquiera la garantía implícita de COMERCIABILIDAD o de IDONEIDAD
+PARA UN PROPÓSITO PARTICULAR. Consulta los detalles en la Licencia Pública
+General de GNU (fichero LICENSE, texto oficial en inglés).
+
+Es gratis y lo seguirá siendo: quien reciba una copia, modificada o no, la
+recibe con estas mismas libertades y con el código fuente.
+
+Términos adicionales (sección 7 de la GPL-3.0)
+----------------------------------------------
+b) Quien distribuya Draupnode, o una obra basada en él, debe conservar el
+   aviso «Copyright © 2026 Francisco Javier Pradas» y el enlace al proyecto
+   original en la pantalla Ajustes («Acerca de Draupnode») y en el README.
+c) Una versión modificada debe indicar que lo está y no puede presentarse
+   como la versión original de Draupnode.
+
+Lo que Draupnode lleva dentro (librerías de Go y de la interfaz) tiene sus
+propias licencias libres, compatibles con la GPL: están en
+internal/legal/terceros.txt y en Ajustes → «Licencias».
+Los programas que Draupnode instala en tus servidores (Docker, k3s, Grafana…)
+NO forman parte de Draupnode: cada uno tiene su licencia, que se ve en su
+ficha del Catálogo.
+
+------------------------------------------------------------------------------
+English summary: Draupnode, Copyright © 2026 Francisco Javier Pradas, is free
+software licensed under the GNU General Public License v3.0 or later, WITHOUT
+ANY WARRANTY. Additional terms under GPL-3.0 section 7(b) and 7(c): keep the
+author attribution and the link to the original project in the About screen
+and the README, and mark modified versions as such.

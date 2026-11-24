@@ -5,7 +5,7 @@ export PATH := $(HOME)/.local/go/bin:$(HOME)/go/bin:$(PATH)
 # Ubuntu 24.04+ trae WebKitGTK 4.1 (no 4.0): Wails necesita esta etiqueta.
 TAGS ?= webkit2_41
 
-.PHONY: help deps-linux doctor test check dev demo capturas gif build build-windows install-linux uninstall-linux clean
+.PHONY: help deps-linux doctor test check dev demo capturas gif licencias build build-windows install-linux uninstall-linux clean
 
 help:
 	@echo "make deps-linux    Instala (con sudo) lo que necesita Wails en Ubuntu/Debian"
@@ -15,6 +15,7 @@ help:
 	@echo "make demo          Solo la interfaz en el navegador, con datos simulados"
 	@echo "make capturas      Rehace las capturas de la ayuda (necesita Google Chrome o Chromium)"
 	@echo "make gif           Rehace el GIF del README con esas capturas (necesita Pillow)"
+	@echo "make licencias     Rehace la lista de licencias de las librerías incluidas"
 	@echo "make build         Ejecutable para este sistema en build/bin/"
 	@echo "make build-windows Ejecutable para Windows (.exe) desde Linux"
 	@echo "make install-linux Instala en tu usuario (menú de aplicaciones + icono en el dock)"
@@ -27,9 +28,8 @@ doctor:
 	wails doctor
 
 test:
-	go vet ./...
-	go test ./internal/...
-	go test -tags $(TAGS) .
+	go vet -tags $(TAGS) ./...
+	go test -tags $(TAGS) ./...
 	cd frontend && npm run check
 
 check: test
@@ -45,6 +45,9 @@ capturas:
 
 gif:
 	python3 herramientas/gif_readme.py
+
+licencias:
+	python3 herramientas/licencias.py
 
 build:
 	wails build -tags $(TAGS) -clean
