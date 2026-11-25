@@ -1,6 +1,7 @@
 package app
 
 import (
+	"draupnode/internal/i18n"
 	"strings"
 
 	"draupnode/internal/bundle"
@@ -18,17 +19,17 @@ type AlertsResult struct {
 // aviso) o «estado» (lo que ve ahora, sin avisar).
 func (a *App) AlertsRun(projectID, what, secret, accept, sudoPassword string) AlertsResult {
 	if what != "prueba" && what != "estado" {
-		return AlertsResult{RunStart: RunStart{Status: "error", Message: "orden no válida"}}
+		return AlertsResult{RunStart: RunStart{Status: "error", Message: i18n.T("orden no válida")}}
 	}
 	p, err := a.store.Project(projectID)
 	if err != nil {
 		return AlertsResult{RunStart: RunStart{Status: "error", Message: err.Error()}}
 	}
 	if !contains(p.InstalledModules, "alerts") {
-		return AlertsResult{RunStart: RunStart{Status: "error", Message: "las alertas aún no están instaladas: pulsa Aplicar"}}
+		return AlertsResult{RunStart: RunStart{Status: "error", Message: i18n.T("las alertas aún no están instaladas: pulsa Aplicar")}}
 	}
 	if a.projectRunning(projectID) {
-		return AlertsResult{RunStart: RunStart{Status: "busy", Message: "este servidor está ocupado con otra tarea"}}
+		return AlertsResult{RunStart: RunStart{Status: "busy", Message: i18n.T("este servidor está ocupado con otra tarea")}}
 	}
 	srv, err := a.store.Server(p.ServerID)
 	if err != nil {

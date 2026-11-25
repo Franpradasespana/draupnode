@@ -10,6 +10,7 @@
 package secrets
 
 import (
+	"draupnode/internal/i18n"
 	"errors"
 	"os"
 	"runtime"
@@ -21,7 +22,7 @@ import (
 const service = "draupnode"
 
 // ErrNotFound indica que no hay nada guardado con ese nombre.
-var ErrNotFound = errors.New("no hay secreto guardado")
+var ErrNotFound = i18n.Err("no hay secreto guardado")
 
 // Keyring es la interfaz común de los almacenes.
 type Keyring interface {
@@ -66,9 +67,9 @@ func Available(k Keyring) bool {
 func SystemKeyringName() string {
 	switch runtime.GOOS {
 	case "darwin":
-		return "Llavero de macOS"
+		return i18n.T("Llavero de macOS")
 	case "windows":
-		return "Administrador de credenciales de Windows"
+		return i18n.T("Administrador de credenciales de Windows")
 	default:
 		desk := strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP"))
 		switch {
@@ -126,13 +127,13 @@ func KeyringSuggestions(goos string, look func(string) bool) []Suggestion {
 	switch goos {
 	case "windows":
 		return []Suggestion{
-			{Name: "Administrador de credenciales de Windows", Description: "Viene con Windows. Si no responde, comprueba que el servicio «Administrador de credenciales» está iniciado (services.msc)."},
-			{Name: "KeePassXC", Description: "Gestor de contraseñas libre; guarda tus contraseñas en una base de datos cifrada propia.", Command: "winget install KeePassXCTeam.KeePassXC"},
+			{Name: i18n.T("Administrador de credenciales de Windows"), Description: i18n.T("Viene con Windows. Si no responde, comprueba que el servicio «Administrador de credenciales» está iniciado (services.msc).")},
+			{Name: "KeePassXC", Description: i18n.T("Gestor de contraseñas libre; guarda tus contraseñas en una base de datos cifrada propia."), Command: "winget install KeePassXCTeam.KeePassXC"},
 		}
 	case "darwin":
 		return []Suggestion{
-			{Name: "Llavero de macOS", Description: "Viene con macOS. Si no responde, ábrelo en «Acceso a Llaveros» y comprueba que el llavero «inicio de sesión» está desbloqueado."},
-			{Name: "KeePassXC", Description: "Gestor de contraseñas libre y multiplataforma.", Command: "brew install --cask keepassxc"},
+			{Name: i18n.T("Llavero de macOS"), Description: i18n.T("Viene con macOS. Si no responde, ábrelo en «Acceso a Llaveros» y comprueba que el llavero «inicio de sesión» está desbloqueado.")},
+			{Name: "KeePassXC", Description: i18n.T("Gestor de contraseñas libre y multiplataforma."), Command: "brew install --cask keepassxc"},
 		}
 	}
 	pm := linuxPkgManager(look)
@@ -150,8 +151,8 @@ func KeyringSuggestions(goos string, look func(string) bool) []Suggestion {
 		gnomePkgs, kdePkgs = "gnome-keyring libsecret seahorse", "kwalletmanager"
 	}
 	return []Suggestion{
-		{Name: "GNOME Keyring", Description: "El llavero de Ubuntu, Debian, Fedora y escritorios GNOME, Cinnamon, MATE o XFCE. Se desbloquea al iniciar sesión. Tras instalarlo, cierra sesión y vuelve a entrar.", Command: cmd(gnomePkgs)},
-		{Name: "KWallet", Description: "El llavero de KDE Plasma. Actívalo en Preferencias del sistema → Cartera de KDE.", Command: cmd(kdePkgs)},
-		{Name: "KeePassXC", Description: "Gestor de contraseñas libre. Activa «Integración con Secret Service» en sus ajustes y Draupnode lo usará como llavero.", Command: cmd("keepassxc")},
+		{Name: "GNOME Keyring", Description: i18n.T("El llavero de Ubuntu, Debian, Fedora y escritorios GNOME, Cinnamon, MATE o XFCE. Se desbloquea al iniciar sesión. Tras instalarlo, cierra sesión y vuelve a entrar."), Command: cmd(gnomePkgs)},
+		{Name: "KWallet", Description: i18n.T("El llavero de KDE Plasma. Actívalo en Preferencias del sistema → Cartera de KDE."), Command: cmd(kdePkgs)},
+		{Name: "KeePassXC", Description: i18n.T("Gestor de contraseñas libre. Activa «Integración con Secret Service» en sus ajustes y Draupnode lo usará como llavero."), Command: cmd("keepassxc")},
 	}
 }

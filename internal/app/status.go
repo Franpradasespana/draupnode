@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"crypto/tls"
+	"draupnode/internal/i18n"
 	"fmt"
 	"net"
 	"net/http"
@@ -45,7 +46,7 @@ func (a *App) ServerLive(id string) (ServerLive, error) {
 		var d net.Dialer
 		c, err := d.DialContext(ctx, "tcp", net.JoinHostPort(srv.Host, strconv.Itoa(srv.Port)))
 		if err != nil {
-			live.Error = "no responde"
+			live.Error = i18n.T("no responde")
 			return
 		}
 		c.Close()

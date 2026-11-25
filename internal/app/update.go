@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"draupnode/internal/i18n"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -48,7 +49,7 @@ func (a *App) CheckUpdate() (UpdateInfo, error) {
 		return info, nil // aún no hay versiones publicadas
 	}
 	if resp.StatusCode != http.StatusOK {
-		return info, errors.New("GitHub respondió " + resp.Status)
+		return info, errors.New(i18n.T("GitHub respondió ") + resp.Status)
 	}
 	var rel struct {
 		Tag  string `json:"tag_name"`

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"draupnode/internal/i18n"
 	"encoding/json"
 	"regexp"
 	"strconv"
@@ -41,14 +42,14 @@ func (a *App) ServerOverview(serverID, secret, accept, sudoPassword string) Serv
 	res.RunStart = a.withServerConn(serverID, secret, accept, sudoPassword, func(c *ssh.Client, su runner.Sudo) RunStart {
 		out, errOut, err := execOut(c, su, "command -v python3 >/dev/null || { echo 'NOPY'; exit 0; }; python3 - <<'DRAUPNODE_OV'\n"+overview.Script+"\nDRAUPNODE_OV")
 		if strings.TrimSpace(out) == "NOPY" {
-			return RunStart{Status: "error", Message: "el servidor no tiene python3 (aplica el módulo «Sistema base»)"}
+			return RunStart{Status: "error", Message: i18n.T("el servidor no tiene python3 (aplica el módulo «Sistema base»)")}
 		}
 		if err != nil && out == "" {
 			return RunStart{Status: "error", Message: strings.TrimSpace(firstLine(errOut, err))}
 		}
 		var ov map[string]any
 		if err := json.Unmarshal([]byte(lastJSONLine(out)), &ov); err != nil {
-			return RunStart{Status: "error", Message: "respuesta no válida del servidor: " + err.Error()}
+			return RunStart{Status: "error", Message: i18n.T("respuesta no válida del servidor: ") + err.Error()}
 		}
 		markHistoryOutdated(ov)
 		res.Overview = ov
@@ -114,18 +115,18 @@ func (a *App) ServerLogs(serverID, kind, name string, lines int, secret, accept,
 	switch kind {
 	case "container":
 		if !logNameRe.MatchString(name) {
-			return ServerLogsResult{RunStart: RunStart{Status: "error", Message: "nombre de contenedor no válido"}}
+			return ServerLogsResult{RunStart: RunStart{Status: "error", Message: i18n.T("nombre de contenedor no válido")}}
 		}
 		cmd = "docker logs --timestamps --tail " + n + " " + bundle.ShellQuote(name) + " 2>&1"
 	case "unit":
 		if !logNameRe.MatchString(name) {
-			return ServerLogsResult{RunStart: RunStart{Status: "error", Message: "nombre de servicio no válido"}}
+			return ServerLogsResult{RunStart: RunStart{Status: "error", Message: i18n.T("nombre de servicio no válido")}}
 		}
 		cmd = "journalctl --no-pager -o short-iso -n " + n + " -u " + bundle.ShellQuote(name) + " 2>&1"
 	case "system":
 		cmd = "journalctl --no-pager -o short-iso -n " + n + " 2>&1"
 	default:
-		return ServerLogsResult{RunStart: RunStart{Status: "error", Message: "tipo de registro no válido"}}
+		return ServerLogsResult{RunStart: RunStart{Status: "error", Message: i18n.T("tipo de registro no válido")}}
 	}
 	var res ServerLogsResult
 	res.RunStart = a.withServerConn(serverID, secret, accept, sudoPassword, func(c *ssh.Client, su runner.Sudo) RunStart {

@@ -5,8 +5,8 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/x509"
+	"draupnode/internal/i18n"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -48,25 +48,25 @@ func InspectKey(path string) (KeyInfo, error) {
 	info := KeyInfo{Path: path, Name: filepath.Base(path)}
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return info, fmt.Errorf("no se puede leer la clave: %w", err)
+		return info, i18n.Errorf("no se puede leer la clave: %w", err)
 	}
 	if isPPK(raw) {
 		k, err := putty.New(raw)
 		if err != nil {
-			return info, fmt.Errorf("fichero .ppk no válido: %w", err)
+			return info, i18n.Errorf("fichero .ppk no válido: %w", err)
 		}
 		info.Format, info.KeyType, info.Comment = FormatPPK, k.Algo, k.Comment
 		info.Encrypted = k.Encryption != "none"
 		if k.Version < 2 {
-			return info, errors.New("formato PuTTY v1 no soportado: conviértelo con PuTTYgen")
+			return info, i18n.New("formato PuTTY v1 no soportado: conviértelo con PuTTYgen")
 		}
 		return info, nil
 	}
 	if !looksLikePrivateKey(raw) {
 		if bytes.HasPrefix(bytes.TrimSpace(raw), []byte("ssh-")) || bytes.HasPrefix(bytes.TrimSpace(raw), []byte("ecdsa-")) {
-			return info, errors.New("eso es una clave PÚBLICA (.pub); elige la privada")
+			return info, i18n.New("eso es una clave PÚBLICA (.pub); elige la privada")
 		}
-		return info, errors.New("el fichero no parece una clave privada SSH")
+		return info, i18n.New("el fichero no parece una clave privada SSH")
 	}
 	info.Format = FormatPEM
 	if bytes.Contains(raw, []byte("BEGIN OPENSSH PRIVATE KEY")) {
@@ -81,7 +81,7 @@ func InspectKey(path string) (KeyInfo, error) {
 			info.KeyType = missing.PublicKey.Type()
 		}
 	case err != nil:
-		return info, fmt.Errorf("clave privada no válida: %w", err)
+		return info, i18n.Errorf("clave privada no válida: %w", err)
 	default:
 		info.KeyType = signer.PublicKey().Type()
 	}
@@ -92,7 +92,7 @@ func InspectKey(path string) (KeyInfo, error) {
 func LoadSigner(path, passphrase string) (ssh.Signer, error) {
 	raw, err := os.ReadFile(ExpandHome(path))
 	if err != nil {
-		return nil, fmt.Errorf("no se puede leer la clave: %w", err)
+		return nil, i18n.Errorf("no se puede leer la clave: %w", err)
 	}
 	if isPPK(raw) {
 		return loadPPK(raw, passphrase)
@@ -109,7 +109,7 @@ func LoadSigner(path, passphrase string) (ssh.Signer, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("el fichero no parece una clave privada SSH: %w", err)
+		return nil, i18n.Errorf("el fichero no parece una clave privada SSH: %w", err)
 	}
 	return signer, nil
 }
@@ -117,7 +117,7 @@ func LoadSigner(path, passphrase string) (ssh.Signer, error) {
 func loadPPK(raw []byte, passphrase string) (ssh.Signer, error) {
 	k, err := putty.New(raw)
 	if err != nil {
-		return nil, fmt.Errorf("fichero .ppk no válido: %w", err)
+		return nil, i18n.Errorf("fichero .ppk no válido: %w", err)
 	}
 	encrypted := k.Encryption != "none"
 	if encrypted && passphrase == "" {
@@ -132,7 +132,7 @@ func loadPPK(raw []byte, passphrase string) (ssh.Signer, error) {
 		if encrypted {
 			return nil, ErrBadPassphrase
 		}
-		return nil, fmt.Errorf("no se pudo leer la clave .ppk: %w", err)
+		return nil, i18n.Errorf("no se pudo leer la clave .ppk: %w", err)
 	}
 	if p, ok := priv.(*ed25519.PrivateKey); ok {
 		priv = *p

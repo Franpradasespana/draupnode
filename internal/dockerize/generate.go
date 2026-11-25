@@ -1,6 +1,7 @@
 package dockerize
 
 import (
+	"draupnode/internal/i18n"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -127,16 +128,16 @@ var (
 func (s *Spec) Validate() []string {
 	var e []string
 	if _, ok := Versions[s.Stack]; !ok {
-		e = append(e, "elige el tipo de proyecto")
+		e = append(e, i18n.T("elige el tipo de proyecto"))
 	}
 	if s.Name == "" || SafeName(s.Name) != s.Name {
-		e = append(e, "el nombre solo puede tener minúsculas, números y guiones")
+		e = append(e, i18n.T("el nombre solo puede tener minúsculas, números y guiones"))
 	}
 	if s.Port < 1 || s.Port > 65535 {
-		e = append(e, "puerto de la app no válido")
+		e = append(e, i18n.T("puerto de la app no válido"))
 	}
 	if s.HostPort != 0 && (s.HostPort < 1 || s.HostPort > 65535) {
-		e = append(e, "puerto de publicación no válido")
+		e = append(e, i18n.T("puerto de publicación no válido"))
 	}
 	if !safeRe.MatchString(s.Start) || strings.ContainsAny(s.Start, "\"'`$\\;&|") {
 		e = append(e, "la orden de arranque tiene caracteres que no se admiten (comillas, $, ;, &, |)")

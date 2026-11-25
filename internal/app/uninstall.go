@@ -1,6 +1,7 @@
 package app
 
 import (
+	"draupnode/internal/i18n"
 	"errors"
 	"fmt"
 	"strings"
@@ -71,7 +72,7 @@ func (a *App) checkUninstallOf(p store.Project, mods []string) UninstallCheck {
 // valores con los que se instalaron.
 func (a *App) uninstallSelection(p store.Project, mods []string) ([]bundle.Selection, error) {
 	if len(mods) == 0 {
-		return nil, errors.New("elige qué desinstalar")
+		return nil, i18n.New("elige qué desinstalar")
 	}
 	c := a.cat()
 	// Orden por dependencias, solo con los pedidos.
@@ -104,11 +105,11 @@ func (a *App) uninstallSelection(p store.Project, mods []string) ([]bundle.Selec
 		sel = append(sel, bundle.Selection{Module: m, Values: v, ID: id, Instance: inst})
 		switch {
 		case !contains(p.InstalledModules, id):
-			problems = append(problems, fmt.Sprintf("%s no está instalado con esta plantilla en este servidor: no hay nada que desinstalar", m.Name))
+			problems = append(problems, i18n.Sprintf("%s no está instalado con esta plantilla en este servidor: no hay nada que desinstalar", m.Name))
 		case m.NoUninstall != "":
-			problems = append(problems, fmt.Sprintf("%s no se puede desinstalar: %s", m.Name, m.NoUninstall))
+			problems = append(problems, i18n.Sprintf("%s no se puede desinstalar: %s", m.Name, m.NoUninstall))
 		case !m.Uninstallable:
-			problems = append(problems, fmt.Sprintf("%s todavía no tiene desinstalación", m.Name))
+			problems = append(problems, i18n.Sprintf("%s todavía no tiene desinstalación", m.Name))
 		}
 		// Lo que depende de él tiene que irse también.
 		for other := range present {
@@ -116,12 +117,12 @@ func (a *App) uninstallSelection(p store.Project, mods []string) ([]bundle.Selec
 				continue
 			}
 			if om, ok := c.Get(other); ok && contains(om.Depends, id) {
-				problems = append(problems, fmt.Sprintf("%s lo necesita %s: desinstala (o quita) antes %s", m.Name, om.Name, om.Name))
+				problems = append(problems, i18n.Sprintf("%s lo necesita %s: desinstala (o quita) antes %s", m.Name, om.Name, om.Name))
 			}
 		}
 		if id == sshModule {
 			if port, _ := v["ssh_port"].(int); port != 22 {
-				problems = append(problems, fmt.Sprintf("SSH seguro tiene el puerto %d: al desinstalarlo el SSH volvería al 22 y Draupnode perdería la conexión. Cambia antes el puerto a 22 y aplica", port))
+				problems = append(problems, i18n.Sprintf("SSH seguro tiene el puerto %d: al desinstalarlo el SSH volvería al 22 y Draupnode perdería la conexión. Cambia antes el puerto a 22 y aplica", port))
 			}
 		}
 	}
@@ -140,7 +141,7 @@ func (a *App) UninstallModules(projectID string, mods []string, purge bool, secr
 		return RunStart{Status: "error", Message: err.Error()}
 	}
 	if a.projectRunning(projectID) {
-		return RunStart{Status: "busy", Message: "ya hay una tarea en marcha con esta plantilla en este servidor"}
+		return RunStart{Status: "busy", Message: i18n.T("ya hay una tarea en marcha con esta plantilla en este servidor")}
 	}
 	sel, err := a.uninstallSelection(p, mods)
 	if err != nil {
@@ -202,16 +203,16 @@ func (a *App) PlanUninstallAll(projectID string) UninstallAllPlan {
 		m, ok := c.Get(id)
 		switch {
 		case !ok:
-			reason[id] = "ya no está en el catálogo"
+			reason[id] = i18n.T("ya no está en el catálogo")
 		case m.NoUninstall != "":
 			reason[id] = m.NoUninstall
 		case !m.Uninstallable:
-			reason[id] = "todavía no tiene desinstalación"
+			reason[id] = i18n.T("todavía no tiene desinstalación")
 		case id == sshModule:
 			vals := p.InstalledValues[id]
 			v, _ := m.Values(vals)
 			if port, _ := v["ssh_port"].(int); port != 22 {
-				reason[id] = fmt.Sprintf("tiene el SSH en el puerto %d; al quitarlo volvería al 22 y se perdería la conexión", port)
+				reason[id] = i18n.Sprintf("tiene el SSH en el puerto %d; al quitarlo volvería al 22 y se perdería la conexión", port)
 				continue
 			}
 			cand[id] = true
@@ -233,7 +234,7 @@ func (a *App) PlanUninstallAll(projectID string) UninstallAllPlan {
 			for _, d := range om.Depends {
 				if cand[d] {
 					delete(cand, d)
-					reason[d] = "lo necesita " + om.Name + ", que se queda"
+					reason[d] = i18n.T("lo necesita ") + om.Name + i18n.T(", que se queda")
 					changed = true
 				}
 			}
@@ -289,13 +290,13 @@ func (a *App) UninstallAll(projectID string, purge bool, secret, accept, sudoPas
 		return RunStart{Status: "error", Message: plan.Error}
 	}
 	if len(plan.Remove) == 0 {
-		return RunStart{Status: "error", Message: "no hay nada instalado que se pueda desinstalar"}
+		return RunStart{Status: "error", Message: i18n.T("no hay nada instalado que se pueda desinstalar")}
 	}
 	if !plan.Check.OK {
 		return RunStart{Status: "error", Message: plan.Check.Error}
 	}
 	if a.projectRunning(projectID) {
-		return RunStart{Status: "busy", Message: "ya hay una tarea en marcha con esta plantilla en este servidor"}
+		return RunStart{Status: "busy", Message: i18n.T("ya hay una tarea en marcha con esta plantilla en este servidor")}
 	}
 	if len(plan.Unmark) > 0 {
 		p, err := a.store.Project(projectID)

@@ -154,7 +154,7 @@ func (a *App) SecretsInfo() SecretsInfo {
 
 func (a *App) SetSecretBackend(b string) error {
 	if b != "auto" && b != "keyring" && b != "vault" {
-		return errors.New("opción no válida")
+		return i18n.New("opción no válida")
 	}
 	st := a.store.Settings()
 	st.SecretBackend = b
@@ -241,13 +241,13 @@ func (a *App) SaveServer(srv store.Server, secret string, saveSecret bool, store
 	case "":
 	case store.SecretKeyring:
 		if !info.Keyring.Available {
-			return ServerView{}, errors.New("este equipo no tiene llavero del sistema disponible; elige la bóveda cifrada")
+			return ServerView{}, i18n.New("este equipo no tiene llavero del sistema disponible; elige la bóveda cifrada")
 		}
 		target = storeChoice
 	case store.SecretVault:
 		target = storeChoice
 	default:
-		return ServerView{}, errors.New("almacén de contraseñas no válido")
+		return ServerView{}, i18n.New("almacén de contraseñas no válido")
 	}
 	oldStore := ""
 	if old != nil {
@@ -351,11 +351,11 @@ func (a *App) PickKeyFile() (string, error) {
 		dir = sshx.ExpandHome("~")
 	}
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:            "Elige tu clave privada SSH (.key, .pem, .ppk, id_*)",
+		Title:            i18n.T("Elige tu clave privada SSH (.key, .pem, .ppk, id_*)"),
 		DefaultDirectory: dir,
 		ShowHiddenFiles:  true,
 		Filters: []runtime.FileFilter{
-			{DisplayName: "Todos los ficheros", Pattern: "*"},
+			{DisplayName: i18n.T("Todos los ficheros"), Pattern: "*"},
 			{DisplayName: "Claves (*.key, *.pem, *.ppk, id_*)", Pattern: "*.key;*.pem;*.ppk;id_*"},
 		},
 	})
@@ -398,7 +398,7 @@ func (a *App) TestConnection(id, secret, acceptFingerprint string) TestResult {
 	}
 	secret, st := a.secretFor(srv, secret)
 	if st != "" {
-		return TestResult{Status: st, SecretKind: kind, Message: "Desbloquea la bóveda para usar la contraseña guardada."}
+		return TestResult{Status: st, SecretKind: kind, Message: i18n.T("Desbloquea la bóveda para usar la contraseña guardada.")}
 	}
 	ctx, cancel := context.WithTimeout(a.context(), 30*time.Second)
 	defer cancel()
@@ -433,7 +433,7 @@ func (a *App) connect(ctx context.Context, srv store.Server, secret, accept stri
 	case errors.Is(err, sshx.ErrBadPassphrase), errors.Is(err, sshx.ErrBadPassword):
 		return nil, &TestResult{Status: "bad_secret", Message: err.Error()}
 	case errors.As(err, &uh):
-		return nil, &TestResult{Status: "unknown_host", Message: "Es la primera vez que te conectas a este servidor. Comprueba que la huella es la suya antes de confiar.",
+		return nil, &TestResult{Status: "unknown_host", Message: i18n.T("Es la primera vez que te conectas a este servidor. Comprueba que la huella es la suya antes de confiar."),
 			KeyType: uh.KeyType, Fingerprint: uh.Fingerprint}
 	case errors.As(err, &hc):
 		return nil, &TestResult{Status: "host_changed", Message: hc.Error(), Fingerprint: hc.Fingerprint}
@@ -467,9 +467,9 @@ func (a *App) test(ctx context.Context, srv store.Server, secret, accept string)
 	defer c.Close()
 	facts, err := sshx.Probe(ctx, c)
 	if err != nil {
-		return TestResult{Status: "error", Message: "conectado, pero falló la comprobación: " + err.Error()}
+		return TestResult{Status: "error", Message: i18n.T("conectado, pero falló la comprobación: ") + err.Error()}
 	}
-	return TestResult{Status: "ok", Message: "Conexión correcta", Facts: facts}
+	return TestResult{Status: "ok", Message: i18n.T("Conexión correcta"), Facts: facts}
 }
 
 // ---------------------------------------------------------------- ajustes de interfaz

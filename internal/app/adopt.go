@@ -1,9 +1,8 @@
 package app
 
 import (
+	"draupnode/internal/i18n"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -104,10 +103,10 @@ func (a *App) RecoverFromServer(serverID, markerJSON string) (RecoverResult, err
 	var res RecoverResult
 	var m serverMarker
 	if err := json.Unmarshal([]byte(markerJSON), &m); err != nil {
-		return res, errors.New("la ficha del servidor no es válida")
+		return res, i18n.New("la ficha del servidor no es válida")
 	}
 	if m.Slug == "" || bundle.Slug(m.Slug) != m.Slug {
-		return res, errors.New("la ficha no tiene un nombre de carpeta válido")
+		return res, i18n.New("la ficha no tiene un nombre de carpeta válido")
 	}
 	if _, err := a.store.Server(serverID); err != nil {
 		return res, err
@@ -117,7 +116,7 @@ func (a *App) RecoverFromServer(serverID, markerJSON string) (RecoverResult, err
 	// en este Draupnode, o si la ficha es de esa misma carpeta.
 	existing, hasMods := a.store.ServerProject(serverID)
 	if hasMods && slugOf(existing) != m.Slug && len(existing.Modules) > 0 {
-		return res, fmt.Errorf("este servidor ya tiene módulos en Draupnode (carpeta «%s»); esta ficha es de otra («%s»): añade sus módulos a mano", slugOf(existing), m.Slug)
+		return res, i18n.Errorf("este servidor ya tiene módulos en Draupnode (carpeta «%s»); esta ficha es de otra («%s»): añade sus módulos a mano", slugOf(existing), m.Slug)
 	}
 	name := strings.TrimSpace(m.Name)
 	if name == "" {
@@ -133,7 +132,7 @@ func (a *App) RecoverFromServer(serverID, markerJSON string) (RecoverResult, err
 	for _, mm := range m.Modules {
 		mod, ok := c.Get(mm.ID)
 		if !ok {
-			res.Notes = append(res.Notes, fmt.Sprintf("El módulo «%s» no está en este Draupnode: no se ha añadido.", mm.ID))
+			res.Notes = append(res.Notes, i18n.Sprintf("El módulo «%s» no está en este Draupnode: no se ha añadido.", mm.ID))
 			continue
 		}
 		v := mm.Values
@@ -145,7 +144,7 @@ func (a *App) RecoverFromServer(serverID, markerJSON string) (RecoverResult, err
 		installed[mm.ID] = v
 	}
 	if len(mods) == 0 {
-		return res, errors.New("la ficha no tiene ningún módulo que conozca este Draupnode")
+		return res, i18n.New("la ficha no tiene ningún módulo que conozca este Draupnode")
 	}
 	// Plantilla: la que ya exista con ese nombre y esos módulos (y no esté ya en
 	// este servidor); si no, una nueva.
@@ -176,7 +175,7 @@ func (a *App) RecoverFromServer(serverID, markerJSON string) (RecoverResult, err
 		if rec, err = a.store.SaveRecipe(store.Recipe{Name: n, Modules: mods}); err != nil {
 			return res, err
 		}
-		res.Notes = append(res.Notes, fmt.Sprintf("Se ha creado la plantilla «%s».", rec.Name))
+		res.Notes = append(res.Notes, i18n.Sprintf("Se ha creado la plantilla «%s».", rec.Name))
 	}
 	for i := range mods {
 		mods[i].From = rec.ID

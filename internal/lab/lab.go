@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"draupnode/internal/i18n"
 	_ "embed"
 	"encoding/pem"
 	"errors"
@@ -32,12 +33,12 @@ var Dockerfile []byte
 
 // Datos fijos del servidor de pruebas (el script pruebas/servidor-ubuntu/servidor.sh usa los mismos).
 const (
-	Container   = "draupnode-prueba"
-	Image       = "draupnode/servidor-prueba:24.04"
-	Volume      = "draupnode-prueba-docker"
+	Container = "draupnode-prueba"
+	Image     = "draupnode/servidor-prueba:24.04"
+	Volume    = "draupnode-prueba-docker"
 	// VolumeK3s: los datos de Kubernetes (módulo k3s) fuera del overlay del
 	// contenedor; si no, k3s tiene que copiar cada imagen entera y va muy lento.
-	VolumeK3s = "draupnode-prueba-k3s"
+	VolumeK3s   = "draupnode-prueba-k3s"
 	Host        = "127.0.0.1"
 	SSHPort     = 2222
 	CoolifyPort = 18000
@@ -202,10 +203,10 @@ func classify(out string) (string, string) {
 	low := strings.ToLower(out)
 	switch {
 	case strings.Contains(low, "permission denied"):
-		return ProblemPermission, "Docker está instalado, pero tu usuario no tiene permiso para usarlo."
+		return ProblemPermission, i18n.T("Docker está instalado, pero tu usuario no tiene permiso para usarlo.")
 	case strings.Contains(low, "cannot connect to the docker daemon"), strings.Contains(low, "is the docker daemon running"),
 		strings.Contains(low, "error during connect"), strings.Contains(low, "the system cannot find the file specified"):
-		return ProblemDaemon, "Docker está instalado, pero su servicio no está en marcha."
+		return ProblemDaemon, i18n.T("Docker está instalado, pero su servicio no está en marcha.")
 	}
 	return ProblemOther, out
 }
@@ -226,7 +227,7 @@ func (l *Lab) Docker(ctx context.Context) DockerStatus {
 		st.DownloadURL = "https://docs.docker.com/desktop/setup/install/windows-install/"
 	}
 	if !lookPath("docker") {
-		st.Problem, st.Message = ProblemMissing, "Docker no está instalado en este equipo."
+		st.Problem, st.Message = ProblemMissing, i18n.T("Docker no está instalado en este equipo.")
 		return st
 	}
 	st.Installed = true
@@ -246,7 +247,7 @@ func (l *Lab) Docker(ctx context.Context) DockerStatus {
 			}
 		}
 		st.NeedsRelogin = true
-		st.Message = "Ya tienes permiso para usar Docker, pero el sistema solo lo aplica al arrancar: reinicia el equipo (cerrar sesión no siempre basta)."
+		st.Message = i18n.T("Ya tienes permiso para usar Docker, pero el sistema solo lo aplica al arrancar: reinicia el equipo (cerrar sesión no siempre basta).")
 	}
 	return st
 }
@@ -278,34 +279,34 @@ func (l *Lab) dockerOut(ctx context.Context, stdin []byte, args ...string) (stri
 // con la ventana del sistema (pkexec).
 func (l *Lab) Fix(ctx context.Context, problem string, out func(string)) error {
 	if runtime.GOOS != "linux" || !lookPath("pkexec") {
-		return errors.New("en este sistema hay que hacerlo a mano")
+		return i18n.New("en este sistema hay que hacerlo a mano")
 	}
 	who := currentUser()
 	if !userRe.MatchString(who) {
-		return fmt.Errorf("nombre de usuario raro: %q", who)
+		return i18n.Errorf("nombre de usuario raro: %q", who)
 	}
 	var err error
 	switch problem {
 	case ProblemMissing:
 		cmd := linuxInstallCommand(lookPath, who)
 		if cmd == "" {
-			return errors.New("no reconozco el gestor de paquetes de esta distribución")
+			return i18n.New("no reconozco el gestor de paquetes de esta distribución")
 		}
-		out("Instalando Docker (te pedirá tu contraseña)…")
+		out(i18n.T("Instalando Docker (te pedirá tu contraseña)…"))
 		err = l.run(ctx, nil, out, "pkexec", "sh", "-c", cmd)
 	case ProblemDaemon:
-		out("Arrancando el servicio de Docker (te pedirá tu contraseña)…")
+		out(i18n.T("Arrancando el servicio de Docker (te pedirá tu contraseña)…"))
 		err = l.run(ctx, nil, out, "pkexec", "systemctl", "enable", "--now", "docker")
 	case ProblemPermission:
-		out("Añadiendo tu usuario al grupo docker (te pedirá tu contraseña)…")
+		out(i18n.T("Añadiendo tu usuario al grupo docker (te pedirá tu contraseña)…"))
 		err = l.run(ctx, nil, out, "pkexec", "usermod", "-aG", "docker", who)
 	default:
-		return errors.New("no sé arreglar esto automáticamente")
+		return i18n.New("no sé arreglar esto automáticamente")
 	}
 	if err != nil {
 		var ee *exec.ExitError
 		if errors.As(err, &ee) && (ee.ExitCode() == 126 || ee.ExitCode() == 127) {
-			return errors.New("cancelado: no se dio la contraseña")
+			return i18n.New("cancelado: no se dio la contraseña")
 		}
 		return err
 	}
@@ -330,8 +331,8 @@ func (l *Lab) Keys() ([]KeyFile, error) {
 		return nil, err
 	}
 	keys := []KeyFile{
-		{Path: filepath.Join(l.Dir, "id_prueba"), Label: "Clave sin contraseña"},
-		{Path: filepath.Join(l.Dir, "id_prueba_con_frase"), Label: "Clave con contraseña", Passphrase: Password},
+		{Path: filepath.Join(l.Dir, "id_prueba"), Label: i18n.T("Clave sin contraseña")},
+		{Path: filepath.Join(l.Dir, "id_prueba_con_frase"), Label: i18n.T("Clave con contraseña"), Passphrase: Password},
 	}
 	ppk := filepath.Join(l.Dir, "id_prueba_con_frase.ppk")
 	if _, err := os.Stat(ppk); err != nil && lookPath("puttygen") {
@@ -343,7 +344,7 @@ func (l *Lab) Keys() ([]KeyFile, error) {
 		}
 	}
 	if _, err := os.Stat(ppk); err == nil {
-		keys = append(keys, KeyFile{Path: ppk, Label: "Clave PuTTY (.ppk) con contraseña", Passphrase: Password})
+		keys = append(keys, KeyFile{Path: ppk, Label: i18n.T("Clave PuTTY (.ppk) con contraseña"), Passphrase: Password})
 	}
 	return keys, nil
 }
@@ -403,28 +404,28 @@ func (l *Lab) Start(ctx context.Context, out func(string)) error {
 	if _, err := l.Keys(); err != nil {
 		return fmt.Errorf("claves: %w", err)
 	}
-	out("==> Construyendo la imagen Ubuntu 24.04 (la primera vez tarda unos minutos)")
+	out(i18n.T("==> Construyendo la imagen Ubuntu 24.04 (la primera vez tarda unos minutos)"))
 	err := l.dockerCmd(ctx, Dockerfile, out, "build", "--progress=plain", "-t", Image, "-")
 	if err != nil {
 		// Docker sin BuildKit no conoce --progress.
-		out("(reintentando sin --progress)")
+		out(i18n.T("(reintentando sin --progress)"))
 		if err = l.dockerCmd(ctx, Dockerfile, out, "build", "-t", Image, "-"); err != nil {
-			return fmt.Errorf("no se pudo construir la imagen: %w", err)
+			return i18n.Errorf("no se pudo construir la imagen: %w", err)
 		}
 	}
 	st := l.Server(ctx)
 	switch {
 	case st.Running:
-		out("==> El contenedor ya está en marcha")
+		out(i18n.T("==> El contenedor ya está en marcha"))
 	case st.Exists:
-		out("==> Arrancando el contenedor")
+		out(i18n.T("==> Arrancando el contenedor"))
 		// Los creados antes de la 0.57 no volvían solos tras «Reiniciar el servidor».
 		_ = l.dockerCmd(ctx, nil, func(string) {}, "update", "--restart", "unless-stopped", Container)
 		if err := l.dockerCmd(ctx, nil, out, "start", Container); err != nil {
 			return err
 		}
 	default:
-		out("==> Creando el contenedor")
+		out(i18n.T("==> Creando el contenedor"))
 		err := l.dockerCmd(ctx, nil, out, "run", "-d", "--name", Container, "--hostname", "servidor-prueba",
 			"--restart", "unless-stopped", // «Reiniciar el servidor» lo para: así vuelve solo, como una máquina
 			"--privileged", "--cgroupns=host", "-v", "/sys/fs/cgroup:/sys/fs/cgroup:rw",
@@ -435,10 +436,10 @@ func (l *Lab) Start(ctx context.Context, out func(string)) error {
 			"-p", fmt.Sprintf("%s:%d:8000", Host, CoolifyPort),
 			Image)
 		if err != nil {
-			return fmt.Errorf("no se pudo crear el contenedor: %w", err)
+			return i18n.Errorf("no se pudo crear el contenedor: %w", err)
 		}
 	}
-	out("==> Esperando a que arranque systemd")
+	out(i18n.T("==> Esperando a que arranque systemd"))
 	for i := 0; i < 40; i++ {
 		s, _ := l.dockerOut(ctx, nil, "exec", Container, "systemctl", "is-system-running")
 		if s == "running" || s == "degraded" {
@@ -446,9 +447,9 @@ func (l *Lab) Start(ctx context.Context, out func(string)) error {
 		}
 		time.Sleep(time.Second)
 	}
-	out("==> Instalando las claves SSH")
+	out(i18n.T("==> Instalando las claves SSH"))
 	if err := l.installKeys(ctx); err != nil {
-		return fmt.Errorf("claves en el contenedor: %w", err)
+		return i18n.Errorf("claves en el contenedor: %w", err)
 	}
 	out(fmt.Sprintf("Listo: ssh -p %d %s@%s", SSHPort, User, Host))
 	return nil
@@ -490,19 +491,19 @@ func (l *Lab) installKeys(ctx context.Context) error {
 
 // Stop para el contenedor (se conserva lo instalado).
 func (l *Lab) Stop(ctx context.Context, out func(string)) error {
-	out("==> Parando el contenedor")
+	out(i18n.T("==> Parando el contenedor"))
 	return l.dockerCmd(ctx, nil, out, "stop", Container)
 }
 
 // Remove borra el contenedor y su volumen (las claves se conservan).
 func (l *Lab) Remove(ctx context.Context, out func(string)) error {
-	out("==> Borrando el contenedor")
+	out(i18n.T("==> Borrando el contenedor"))
 	if l.Server(ctx).Exists {
 		if err := l.dockerCmd(ctx, nil, out, "rm", "-f", Container); err != nil {
 			return err
 		}
 	}
-	out("==> Borrando el volumen de Docker interno")
+	out(i18n.T("==> Borrando el volumen de Docker interno"))
 	_ = l.dockerCmd(ctx, nil, out, "volume", "rm", Volume)
 	_ = l.dockerCmd(ctx, nil, func(string) {}, "volume", "rm", VolumeK3s)
 	return nil

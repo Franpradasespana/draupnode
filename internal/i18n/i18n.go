@@ -122,3 +122,7 @@ func New(s string) error { return errors.New(T(s)) }
 type Err string
 
 func (e Err) Error() string { return T(string(e)) }
+
+// N marca un texto para traducirlo más tarde (tablas de paquete, que se crean
+// antes de saber el idioma): lo devuelve tal cual. Donde se use, i18n.T(x).
+func N(s string) string { return s }

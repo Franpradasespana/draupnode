@@ -1,6 +1,7 @@
 package app
 
 import (
+	"draupnode/internal/i18n"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -49,12 +50,12 @@ func (a *App) dockerExec(serverID, cmd, secret, accept, sudoPassword string) Doc
 // ContainerAction: start | stop | restart de un contenedor.
 func (a *App) ContainerAction(serverID, name, action, secret, accept, sudoPassword string) DockerResult {
 	if !containerNameRe.MatchString(name) {
-		return DockerResult{RunStart: RunStart{Status: "error", Message: "nombre de contenedor no válido"}}
+		return DockerResult{RunStart: RunStart{Status: "error", Message: i18n.T("nombre de contenedor no válido")}}
 	}
 	switch action {
 	case "start", "stop", "restart":
 	default:
-		return DockerResult{RunStart: RunStart{Status: "error", Message: "acción no válida"}}
+		return DockerResult{RunStart: RunStart{Status: "error", Message: i18n.T("acción no válida")}}
 	}
 	return a.dockerExec(serverID, "docker "+action+" "+bundle.ShellQuote(name), secret, accept, sudoPassword)
 }
@@ -83,15 +84,15 @@ func (a *App) DockerPrune(serverID string, what []string, secret, accept, sudoPa
 	for _, w := range what {
 		switch w {
 		case "images":
-			cmds = append(cmds, "echo '== Imágenes sin usar'; docker image prune -a -f")
+			cmds = append(cmds, "echo '"+i18n.T("== Imágenes sin usar")+"'; docker image prune -a -f")
 		case "build":
-			cmds = append(cmds, "echo '== Caché de construcción'; docker builder prune -a -f")
+			cmds = append(cmds, "echo '"+i18n.T("== Caché de construcción")+"'; docker builder prune -a -f")
 		case "containers":
 			cmds = append(cmds, "echo '== Contenedores parados'; docker container prune -f")
 		}
 	}
 	if len(cmds) == 0 {
-		return DockerResult{RunStart: RunStart{Status: "error", Message: "elige qué limpiar"}}
+		return DockerResult{RunStart: RunStart{Status: "error", Message: i18n.T("elige qué limpiar")}}
 	}
 	res := a.dockerExec(serverID, "{ "+strings.Join(cmds, "; ")+"; } 2>&1 | grep -E '^==|Total reclaimed|untagged' | head -n 80", secret, accept, sudoPassword)
 	return res
@@ -103,15 +104,15 @@ func (a *App) DockerPrune(serverID string, what []string, secret, accept, sudoPa
 // volúmenes (los datos: su base de datos…). No toca ninguna app gestionada.
 func (a *App) RemoveOrphanApp(serverID, name string, purge bool, secret, accept, sudoPassword string) DockerResult {
 	if !gitNameRe.MatchString(name) {
-		return DockerResult{RunStart: RunStart{Status: "error", Message: "nombre de app no válido"}}
+		return DockerResult{RunStart: RunStart{Status: "error", Message: i18n.T("nombre de app no válido")}}
 	}
 	if _, ok := a.cat().Get(name); ok {
-		return DockerResult{RunStart: RunStart{Status: "error", Message: "es un módulo del catálogo: desinstálalo desde sus módulos"}}
+		return DockerResult{RunStart: RunStart{Status: "error", Message: i18n.T("es un módulo del catálogo: desinstálalo desde sus módulos")}}
 	}
 	if p, ok := a.store.ServerProject(serverID); ok {
 		for _, m := range p.Modules {
 			if n, _ := m.Values["git_app_name"].(string); n == name {
-				return DockerResult{RunStart: RunStart{Status: "error", Message: "esa app la gestiona Draupnode: desinstálala desde sus módulos"}}
+				return DockerResult{RunStart: RunStart{Status: "error", Message: i18n.T("esa app la gestiona Draupnode: desinstálala desde sus módulos")}}
 			}
 		}
 	}
@@ -120,7 +121,7 @@ func (a *App) RemoveOrphanApp(serverID, name string, purge bool, secret, accept,
 		down += " -v"
 	}
 	dir := bundle.ShellQuote("/srv/draupnode/apps/" + name)
-	cmd := "echo '== Contenedores'; " + down + " 2>&1; echo '== Carpeta'; rm -rf " + dir + " && echo borrada " + dir
+	cmd := "echo '" + i18n.T("== Contenedores") + "'; " + down + " 2>&1; echo '" + i18n.T("== Carpeta") + "'; rm -rf " + dir + " && echo " + i18n.T("borrada") + " " + dir
 	return a.dockerExec(serverID, cmd, secret, accept, sudoPassword)
 }
 
@@ -128,7 +129,7 @@ func (a *App) RemoveOrphanApp(serverID, name string, purge bool, secret, accept,
 func (a *App) ServerUpgrade(serverID, secret, accept, sudoPassword string) DockerResult {
 	cmd := "export DEBIAN_FRONTEND=noninteractive; apt-get update -q >/dev/null 2>&1; " +
 		"apt-get -y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade 2>&1 | grep -v -e 'Reading database' -e '^debconf:' | tail -n 25; " +
-		"[ -f /var/run/reboot-required ] && echo '== Hace falta reiniciar el servidor para terminar.' || true"
+		"[ -f /var/run/reboot-required ] && echo '" + i18n.T("== Hace falta reiniciar el servidor para terminar.") + "' || true"
 	return a.dockerExec(serverID, cmd, secret, accept, sudoPassword)
 }
 

@@ -5,6 +5,7 @@ package sshx
 import (
 	"context"
 	"crypto/ed25519"
+	"draupnode/internal/i18n"
 	"errors"
 	"fmt"
 	"net"
@@ -44,16 +45,16 @@ type HostKeys struct {
 }
 
 // ErrPassphraseNeeded: la clave está cifrada y no se ha dado frase de paso.
-var ErrPassphraseNeeded = errors.New("la clave privada está protegida con contraseña")
+var ErrPassphraseNeeded = i18n.Err("la clave privada está protegida con contraseña")
 
 // ErrBadPassphrase: la frase de paso no descifra la clave.
-var ErrBadPassphrase = errors.New("la contraseña de la clave no es correcta")
+var ErrBadPassphrase = i18n.Err("la contraseña de la clave no es correcta")
 
 // ErrPasswordNeeded: se entra con usuario y contraseña y no se ha dado.
-var ErrPasswordNeeded = errors.New("falta la contraseña del usuario")
+var ErrPasswordNeeded = i18n.Err("falta la contraseña del usuario")
 
 // ErrBadPassword: el servidor rechazó el usuario o la contraseña.
-var ErrBadPassword = errors.New("el servidor rechazó el usuario o la contraseña")
+var ErrBadPassword = i18n.Err("el servidor rechazó el usuario o la contraseña")
 
 // UnknownHostError: el servidor no está en known_hosts; hay que confirmar su huella.
 type UnknownHostError struct {
@@ -63,7 +64,7 @@ type UnknownHostError struct {
 }
 
 func (e *UnknownHostError) Error() string {
-	return fmt.Sprintf("servidor desconocido %s (%s %s)", e.Host, e.KeyType, e.Fingerprint)
+	return i18n.Sprintf("servidor desconocido %s (%s %s)", e.Host, e.KeyType, e.Fingerprint)
 }
 
 // HostKeyChangedError: la huella NO coincide con la guardada. Puede ser una
@@ -76,7 +77,7 @@ type HostKeyChangedError struct {
 }
 
 func (e *HostKeyChangedError) Error() string {
-	return fmt.Sprintf("¡la huella de %s ha CAMBIADO! (ahora %s; guardada en %s:%d). "+
+	return i18n.Sprintf("¡la huella de %s ha CAMBIADO! (ahora %s; guardada en %s:%d). "+
 		"Si has reinstalado el servidor, borra esa línea; si no, podría ser un ataque",
 		e.Host, e.Fingerprint, e.File, e.Line)
 }
@@ -96,11 +97,11 @@ func authMethods(t Target) ([]ssh.AuthMethod, func(), error) {
 	case "agent":
 		sock := os.Getenv("SSH_AUTH_SOCK")
 		if sock == "" {
-			return nil, nil, errors.New("no hay ssh-agent activo (SSH_AUTH_SOCK vacío)")
+			return nil, nil, i18n.New("no hay ssh-agent activo (SSH_AUTH_SOCK vacío)")
 		}
 		conn, err := net.Dial("unix", sock)
 		if err != nil {
-			return nil, nil, fmt.Errorf("no se pudo abrir el ssh-agent: %w", err)
+			return nil, nil, i18n.Errorf("no se pudo abrir el ssh-agent: %w", err)
 		}
 		ag := agent.NewClient(conn)
 		return []ssh.AuthMethod{ssh.PublicKeysCallback(ag.Signers)}, func() { conn.Close() }, nil
@@ -208,7 +209,7 @@ func hostKeyCallback(t Target, hk HostKeys, addr string) (ssh.HostKeyCallback, [
 
 func appendKnownHost(file, hostname string, key ssh.PublicKey) error {
 	if file == "" {
-		return errors.New("no hay fichero donde guardar la huella")
+		return i18n.New("no hay fichero donde guardar la huella")
 	}
 	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
 		return err
@@ -247,7 +248,7 @@ func Dial(ctx context.Context, t Target, hk HostKeys) (*ssh.Client, error) {
 	d := net.Dialer{Timeout: 15 * time.Second}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo conectar a %s: %w", addr, err)
+		return nil, i18n.Errorf("no se pudo conectar a %s: %w", addr, err)
 	}
 	if dl, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(dl)
@@ -265,9 +266,9 @@ func Dial(ctx context.Context, t Target, hk HostKeys) (*ssh.Client, error) {
 		case strings.Contains(err.Error(), "unable to authenticate") && t.AuthMethod == "password":
 			return nil, ErrBadPassword
 		case strings.Contains(err.Error(), "unable to authenticate"):
-			return nil, fmt.Errorf("el servidor rechazó la clave para el usuario %q", t.User)
+			return nil, i18n.Errorf("el servidor rechazó la clave para el usuario %q", t.User)
 		}
-		return nil, fmt.Errorf("fallo en la conexión SSH: %w", err)
+		return nil, i18n.Errorf("fallo en la conexión SSH: %w", err)
 	}
 	_ = conn.SetDeadline(time.Time{})
 	return ssh.NewClient(c, chans, reqs), nil

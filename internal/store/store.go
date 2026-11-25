@@ -7,10 +7,10 @@ package store
 
 import (
 	"crypto/rand"
+	"draupnode/internal/i18n"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -214,7 +214,7 @@ func DefaultDir() (string, error) {
 // Open carga (o crea) el almacén en dir.
 func Open(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, fmt.Errorf("no se pudo crear %s: %w", dir, err)
+		return nil, i18n.Errorf("no se pudo crear %s: %w", dir, err)
 	}
 	s := &Store{dir: dir, path: filepath.Join(dir, "draupnode.json")}
 	s.d = data{Version: 3, Settings: Settings{Theme: "draupnir-gold", SecretBackend: "auto"}}
@@ -226,7 +226,7 @@ func Open(dir string) (*Store, error) {
 		return nil, err
 	}
 	if err := json.Unmarshal(raw, &s.d); err != nil {
-		return nil, fmt.Errorf("%s está dañado: %w", s.path, err)
+		return nil, i18n.Errorf("%s está dañado: %w", s.path, err)
 	}
 	// Proyectos aplicados antes de la 0.8.1: si no han cambiado desde la
 	// última aplicación, sus módulos son los instalados.
@@ -399,7 +399,7 @@ func (s *Store) Server(id string) (Server, error) {
 			return srv, nil
 		}
 	}
-	return Server{}, fmt.Errorf("servidor %q no encontrado", id)
+	return Server{}, i18n.Errorf("servidor %q no encontrado", id)
 }
 
 // Validate comprueba los campos obligatorios y rellena valores por defecto.
@@ -416,19 +416,19 @@ func (srv *Server) Validate() error {
 	}
 	switch {
 	case srv.Name == "":
-		return errors.New("el nombre es obligatorio")
+		return i18n.New("el nombre es obligatorio")
 	case srv.Host == "":
-		return errors.New("la IP o el dominio es obligatorio")
+		return i18n.New("la IP o el dominio es obligatorio")
 	case strings.ContainsAny(srv.Host, " /@"):
-		return errors.New("el host no puede llevar espacios, «/» ni «@»")
+		return i18n.New("el host no puede llevar espacios, «/» ni «@»")
 	case srv.User == "":
-		return errors.New("el usuario es obligatorio")
+		return i18n.New("el usuario es obligatorio")
 	case srv.Port < 1 || srv.Port > 65535:
-		return errors.New("el puerto debe estar entre 1 y 65535")
+		return i18n.New("el puerto debe estar entre 1 y 65535")
 	case srv.AuthMethod != AuthKey && srv.AuthMethod != AuthPassword && srv.AuthMethod != AuthAgent:
-		return fmt.Errorf("método de autenticación desconocido: %q", srv.AuthMethod)
+		return i18n.Errorf("método de autenticación desconocido: %q", srv.AuthMethod)
 	case srv.AuthMethod == AuthKey && srv.KeyPath == "":
-		return errors.New("elige el fichero de clave privada")
+		return i18n.New("elige el fichero de clave privada")
 	}
 	if srv.AuthMethod != AuthKey {
 		srv.KeyPath, srv.KeyEncrypted = "", false
@@ -459,7 +459,7 @@ func (s *Store) SaveServer(srv Server) (Server, error) {
 			return srv, s.saveLocked()
 		}
 	}
-	return Server{}, fmt.Errorf("servidor %q no encontrado", srv.ID)
+	return Server{}, i18n.Errorf("servidor %q no encontrado", srv.ID)
 }
 
 // SetLastCheck guarda el resultado de la última comprobación.
@@ -472,7 +472,7 @@ func (s *Store) SetLastCheck(id string, res CheckResult) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("servidor %q no encontrado", id)
+	return i18n.Errorf("servidor %q no encontrado", id)
 }
 
 // DeleteServer elimina un servidor (no si lo usa algún proyecto).
@@ -481,7 +481,7 @@ func (s *Store) DeleteServer(id string) error {
 	defer s.mu.Unlock()
 	for _, p := range s.d.Projects {
 		if p.ServerID == id {
-			return fmt.Errorf("tiene la plantilla «%s»: desasóciala antes", p.Name)
+			return i18n.Errorf("tiene la plantilla «%s»: desasóciala antes", p.Name)
 		}
 	}
 	for i, srv := range s.d.Servers {
@@ -490,7 +490,7 @@ func (s *Store) DeleteServer(id string) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("servidor %q no encontrado", id)
+	return i18n.Errorf("servidor %q no encontrado", id)
 }
 
 // Settings devuelve las preferencias.
@@ -518,7 +518,7 @@ func (s *Store) SetLastExport(t time.Time) error {
 // SaveSettings guarda las preferencias.
 func (s *Store) SaveSettings(st Settings) error {
 	if len(st.CustomPalettes) > 0 && !json.Valid(st.CustomPalettes) {
-		return errors.New("las paletas personalizadas no son JSON válido")
+		return i18n.New("las paletas personalizadas no son JSON válido")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -552,7 +552,7 @@ func (s *Store) Project(id string) (Project, error) {
 			return p, nil
 		}
 	}
-	return Project{}, fmt.Errorf("proyecto %q no encontrado", id)
+	return Project{}, i18n.Errorf("proyecto %q no encontrado", id)
 }
 
 // SaveProject crea (ID vacío) o actualiza un proyecto. La validación de
@@ -560,7 +560,7 @@ func (s *Store) Project(id string) (Project, error) {
 func (s *Store) SaveProject(p Project) (Project, error) {
 	p.Name = strings.TrimSpace(p.Name)
 	if p.Name == "" {
-		return Project{}, errors.New("el nombre del proyecto es obligatorio")
+		return Project{}, i18n.New("el nombre del proyecto es obligatorio")
 	}
 	if p.Modules == nil {
 		p.Modules = []ProjectModule{}
@@ -574,7 +574,7 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 		}
 	}
 	if !found {
-		return Project{}, errors.New("elige un servidor")
+		return Project{}, i18n.New("elige un servidor")
 	}
 	now := time.Now()
 	p.UpdatedAt = now
@@ -609,7 +609,7 @@ func (s *Store) SaveProject(p Project) (Project, error) {
 			return p, s.saveLocked()
 		}
 	}
-	return Project{}, fmt.Errorf("proyecto %q no encontrado", p.ID)
+	return Project{}, i18n.Errorf("proyecto %q no encontrado", p.ID)
 }
 
 // SetLastRun guarda el resumen de la última ejecución.
@@ -655,7 +655,7 @@ func (s *Store) SetLastRun(id string, r RunSummary) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("proyecto %q no encontrado", id)
+	return i18n.Errorf("proyecto %q no encontrado", id)
 }
 
 // Adopt marca un despliegue como ya instalado en el servidor (lo instaló
@@ -681,7 +681,7 @@ func (s *Store) Adopt(id, slug string, installed map[string]map[string]any, at t
 		p.UpdatedAt = at
 		return s.saveLocked()
 	}
-	return fmt.Errorf("proyecto %q no encontrado", id)
+	return i18n.Errorf("proyecto %q no encontrado", id)
 }
 
 // SetCollapsed guarda qué ventanas de módulo están plegadas en el editor,
@@ -696,7 +696,7 @@ func (s *Store) SetCollapsed(id string, modules []string) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("proyecto %q no encontrado", id)
+	return i18n.Errorf("proyecto %q no encontrado", id)
 }
 
 // MarkUninstalled quita módulos desinstalados del proyecto y de lo instalado,
@@ -731,7 +731,7 @@ func (s *Store) MarkUninstalled(id string, mods []string) error {
 		}
 		return s.saveLocked()
 	}
-	return fmt.Errorf("proyecto %q no encontrado", id)
+	return i18n.Errorf("proyecto %q no encontrado", id)
 }
 
 // SetBackupsFetched guarda cuándo y dónde se trajeron las copias.
@@ -744,7 +744,7 @@ func (s *Store) SetBackupsFetched(id string, f FetchInfo) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("proyecto %q no encontrado", id)
+	return i18n.Errorf("proyecto %q no encontrado", id)
 }
 
 // SetBackupsAuto guarda qué hacer con las copias al abrir la app.
@@ -757,7 +757,7 @@ func (s *Store) SetBackupsAuto(id string, b BackupsAuto) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("proyecto %q no encontrado", id)
+	return i18n.Errorf("proyecto %q no encontrado", id)
 }
 
 // Recipes devuelve las recetas (por nombre).
@@ -778,14 +778,14 @@ func (s *Store) Recipe(id string) (Recipe, error) {
 			return r, nil
 		}
 	}
-	return Recipe{}, fmt.Errorf("plantilla %q no encontrada", id)
+	return Recipe{}, i18n.Errorf("plantilla %q no encontrada", id)
 }
 
 // SaveRecipe crea o actualiza una receta.
 func (s *Store) SaveRecipe(r Recipe) (Recipe, error) {
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		return Recipe{}, errors.New("el nombre de la plantilla es obligatorio")
+		return Recipe{}, i18n.New("el nombre de la plantilla es obligatorio")
 	}
 	if r.Modules == nil {
 		r.Modules = []ProjectModule{}
@@ -806,7 +806,7 @@ func (s *Store) SaveRecipe(r Recipe) (Recipe, error) {
 			return r, s.saveLocked()
 		}
 	}
-	return Recipe{}, fmt.Errorf("plantilla %q no encontrada", r.ID)
+	return Recipe{}, i18n.Errorf("plantilla %q no encontrada", r.ID)
 }
 
 // DeleteRecipe elimina una receta que no está en ningún servidor.
@@ -835,7 +835,7 @@ func (s *Store) DeleteRecipe(id string) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("plantilla %q no encontrada", id)
+	return i18n.Errorf("plantilla %q no encontrada", id)
 }
 
 // DeleteProject elimina un proyecto.
@@ -848,7 +848,7 @@ func (s *Store) DeleteProject(id string) error {
 			return s.saveLocked()
 		}
 	}
-	return fmt.Errorf("proyecto %q no encontrado", id)
+	return i18n.Errorf("proyecto %q no encontrado", id)
 }
 
 // sameContent compara lo que se instala (nombre, servidor y módulos con sus valores).

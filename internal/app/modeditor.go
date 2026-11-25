@@ -2,8 +2,7 @@ package app
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
+	"draupnode/internal/i18n"
 	"io/fs"
 	"os"
 	"path"
@@ -36,7 +35,7 @@ type UserModule struct {
 
 func (a *App) modDir(id string) (string, error) {
 	if !modIDRe.MatchString(id) {
-		return "", fmt.Errorf("nombre de módulo no válido: %q (minúsculas, números y guiones)", id)
+		return "", i18n.Errorf("nombre de módulo no válido: %q (minúsculas, números y guiones)", id)
 	}
 	return filepath.Join(a.userModulesDir(), id), nil
 }
@@ -50,10 +49,10 @@ func (a *App) modFile(id, rel string) (string, error) {
 	rel = strings.TrimSpace(filepath.ToSlash(rel))
 	clean := path.Clean(rel)
 	if rel == "" || clean != rel || strings.HasPrefix(clean, "/") || strings.HasPrefix(clean, "..") || strings.Contains(clean, "/../") || strings.ContainsAny(clean, "\\\x00") {
-		return "", fmt.Errorf("ruta no válida: %q", rel)
+		return "", i18n.Errorf("ruta no válida: %q", rel)
 	}
 	if clean != "module.yaml" && !strings.HasPrefix(clean, "role/") {
-		return "", errors.New("los ficheros van en module.yaml o dentro de role/ (tasks/, templates/, files/, handlers/…)")
+		return "", i18n.New("los ficheros van en module.yaml o dentro de role/ (tasks/, templates/, files/, handlers/…)")
 	}
 	return filepath.Join(dir, filepath.FromSlash(clean)), nil
 }
@@ -118,10 +117,10 @@ func (a *App) userModule(id string) UserModule {
 		}
 	}
 	if head.ID != "" && head.ID != id {
-		um.Notes = append(um.Notes, fmt.Sprintf("el id de module.yaml («%s») no coincide con la carpeta («%s»): se usará «%s»", head.ID, id, head.ID))
+		um.Notes = append(um.Notes, i18n.Sprintf("el id de module.yaml («%s») no coincide con la carpeta («%s»): se usará «%s»", head.ID, id, head.ID))
 	}
 	if modules.IsBuiltin(head.ID) {
-		um.Notes = append(um.Notes, fmt.Sprintf("tiene el mismo id que el módulo incluido «%s»: lo sustituye", head.ID))
+		um.Notes = append(um.Notes, i18n.Sprintf("tiene el mismo id que el módulo incluido «%s»: lo sustituye", head.ID))
 	}
 	mid := head.ID
 	if mid == "" {
@@ -148,14 +147,14 @@ func (a *App) ReadUserModuleFile(id, rel string) (string, error) {
 		return "", err
 	}
 	if st.Size() > 1<<20 {
-		return "", errors.New("el fichero pasa de 1 MB: ábrelo con tu editor")
+		return "", i18n.New("el fichero pasa de 1 MB: ábrelo con tu editor")
 	}
 	b, err := os.ReadFile(p)
 	if err != nil {
 		return "", err
 	}
 	if bytes.IndexByte(b, 0) >= 0 {
-		return "", errors.New("es un fichero binario: no se puede editar aquí")
+		return "", i18n.New("es un fichero binario: no se puede editar aquí")
 	}
 	return string(b), nil
 }
@@ -168,7 +167,7 @@ func (a *App) SaveUserModuleFile(id, rel, content string) (UserModule, error) {
 		return UserModule{}, err
 	}
 	if _, err := os.Stat(filepath.Join(a.userModulesDir(), id)); err != nil {
-		return UserModule{}, fmt.Errorf("no existe el módulo %q", id)
+		return UserModule{}, i18n.Errorf("no existe el módulo %q", id)
 	}
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return UserModule{}, err
@@ -183,7 +182,7 @@ func (a *App) SaveUserModuleFile(id, rel, content string) (UserModule, error) {
 // DeleteUserModuleFile borra un fichero (module.yaml y tasks/main.yml no).
 func (a *App) DeleteUserModuleFile(id, rel string) (UserModule, error) {
 	if rel == "module.yaml" || rel == "role/tasks/main.yml" {
-		return UserModule{}, errors.New("este fichero es obligatorio")
+		return UserModule{}, i18n.New("este fichero es obligatorio")
 	}
 	p, err := a.modFile(id, rel)
 	if err != nil {
@@ -204,10 +203,10 @@ func (a *App) CreateUserModule(id, from string) (UserModule, error) {
 		return UserModule{}, err
 	}
 	if _, err := os.Stat(dir); err == nil {
-		return UserModule{}, fmt.Errorf("ya tienes un módulo «%s»", id)
+		return UserModule{}, i18n.Errorf("ya tienes un módulo «%s»", id)
 	}
 	if from == "" && modules.IsBuiltin(id) {
-		return UserModule{}, fmt.Errorf("«%s» ya es un módulo incluido: elige otro nombre", id)
+		return UserModule{}, i18n.Errorf("«%s» ya es un módulo incluido: elige otro nombre", id)
 	}
 	files := map[string][]byte{}
 	if from == "" {
@@ -247,7 +246,7 @@ func (a *App) DeleteUserModule(id string) error {
 		return err
 	}
 	if um := a.userModule(id); len(um.UsedBy) > 0 {
-		return fmt.Errorf("lo usan estas plantillas: %s. Quítalo de ellas antes", strings.Join(um.UsedBy, ", "))
+		return i18n.Errorf("lo usan estas plantillas: %s. Quítalo de ellas antes", strings.Join(um.UsedBy, ", "))
 	}
 	if err := os.RemoveAll(dir); err != nil {
 		return err

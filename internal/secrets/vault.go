@@ -2,9 +2,9 @@ package secrets
 
 import (
 	"crypto/rand"
+	"draupnode/internal/i18n"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"sort"
 	"sync"
@@ -26,13 +26,13 @@ import (
 //     en memoria mientras la bóveda está desbloqueada.
 
 // ErrLocked indica que la bóveda existe pero está bloqueada.
-var ErrLocked = errors.New("la bóveda está bloqueada")
+var ErrLocked = i18n.Err("la bóveda está bloqueada")
 
 // ErrNoVault indica que la bóveda aún no se ha creado.
-var ErrNoVault = errors.New("la bóveda cifrada aún no se ha creado")
+var ErrNoVault = i18n.Err("la bóveda cifrada aún no se ha creado")
 
 // ErrWrongMaster indica que la contraseña maestra no es correcta.
-var ErrWrongMaster = errors.New("la contraseña maestra no es correcta")
+var ErrWrongMaster = i18n.Err("la contraseña maestra no es correcta")
 
 // MinMasterLen es la longitud mínima de la contraseña maestra.
 const MinMasterLen = 10
@@ -83,7 +83,7 @@ func OpenVault(path string) (*Vault, error) {
 	}
 	var f vaultFile
 	if err := json.Unmarshal(raw, &f); err != nil {
-		return nil, fmt.Errorf("la bóveda %s está dañada: %w", path, err)
+		return nil, i18n.Errorf("la bóveda %s está dañada: %w", path, err)
 	}
 	if f.Entries == nil {
 		f.Entries = map[string]sealed{}
@@ -141,12 +141,12 @@ func open(key []byte, name string, s sealed) (string, error) {
 // Create crea la bóveda con una contraseña maestra y la deja desbloqueada.
 func (v *Vault) Create(master string) error {
 	if utf8.RuneCountInString(master) < MinMasterLen {
-		return fmt.Errorf("la contraseña maestra debe tener al menos %d caracteres", MinMasterLen)
+		return i18n.Errorf("la contraseña maestra debe tener al menos %d caracteres", MinMasterLen)
 	}
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.f != nil {
-		return errors.New("la bóveda ya existe")
+		return i18n.New("la bóveda ya existe")
 	}
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
@@ -224,7 +224,7 @@ func (v *Vault) Get(name string) (string, error) {
 	}
 	plain, err := open(v.key, name, s)
 	if err != nil {
-		return "", errors.New("el secreto de la bóveda está dañado o manipulado")
+		return "", i18n.New("el secreto de la bóveda está dañado o manipulado")
 	}
 	return plain, nil
 }

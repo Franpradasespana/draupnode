@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"draupnode/internal/i18n"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -59,10 +60,10 @@ func (a *App) packModule(id string) ([]byte, error) {
 	}
 	um := a.userModule(id)
 	if len(um.Files) == 0 {
-		return nil, fmt.Errorf("no tienes un módulo «%s»", id)
+		return nil, i18n.Errorf("no tienes un módulo «%s»", id)
 	}
 	if len(um.Problems) > 0 {
-		return nil, fmt.Errorf("el módulo tiene problemas; arréglalos antes de exportarlo: %s", strings.Join(um.Problems, "; "))
+		return nil, i18n.Errorf("el módulo tiene problemas; arréglalos antes de exportarlo: %s", strings.Join(um.Problems, "; "))
 	}
 	var head struct {
 		ID      string `yaml:"id"`
@@ -122,8 +123,8 @@ func (a *App) ExportUserModule(id string) (string, error) {
 	}
 	home, _ := os.UserHomeDir()
 	p, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title: "Exportar el módulo «" + id + "»", DefaultDirectory: home, DefaultFilename: id + modShareExt,
-		Filters: []runtime.FileFilter{{DisplayName: "Módulos de Draupnode (*" + modShareExt + ")", Pattern: "*" + modShareExt}},
+		Title: i18n.T("Exportar el módulo «") + id + "»", DefaultDirectory: home, DefaultFilename: id + modShareExt,
+		Filters: []runtime.FileFilter{{DisplayName: i18n.T("Módulos de Draupnode (*") + modShareExt + ")", Pattern: "*" + modShareExt}},
 	})
 	if err != nil || p == "" {
 		return "", err
@@ -169,8 +170,8 @@ type ModuleImportReport struct {
 func (a *App) InspectModuleFile() (ModuleImportReport, error) {
 	home, _ := os.UserHomeDir()
 	p, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Importar un módulo", DefaultDirectory: home,
-		Filters: []runtime.FileFilter{{DisplayName: "Módulos de Draupnode (*" + modShareExt + ")", Pattern: "*" + modShareExt}},
+		Title: i18n.T("Importar un módulo"), DefaultDirectory: home,
+		Filters: []runtime.FileFilter{{DisplayName: i18n.T("Módulos de Draupnode (*") + modShareExt + ")", Pattern: "*" + modShareExt}},
 	})
 	if err != nil || p == "" {
 		return ModuleImportReport{}, err
@@ -188,7 +189,7 @@ func readModulePack(p string) (modManifest, map[string][]byte, error) {
 	defer f.Close()
 	gz, err := gzip.NewReader(io.LimitReader(f, modShareMaxTotal))
 	if err != nil {
-		return man, nil, errors.New("no es un módulo de Draupnode (no es un .tar.gz)")
+		return man, nil, i18n.New("no es un módulo de Draupnode (no es un .tar.gz)")
 	}
 	tr := tar.NewReader(gz)
 	files := map[string][]byte{}
@@ -199,38 +200,38 @@ func readModulePack(p string) (modManifest, map[string][]byte, error) {
 			break
 		}
 		if err != nil {
-			return man, nil, errors.New("el fichero está dañado: " + err.Error())
+			return man, nil, errors.New(i18n.T("el fichero está dañado: ") + err.Error())
 		}
 		if h.Typeflag == tar.TypeDir {
 			continue
 		}
 		if h.Typeflag != tar.TypeReg {
-			return man, nil, fmt.Errorf("trae algo que no es un fichero normal (%s): por seguridad no se importa", h.Name)
+			return man, nil, i18n.Errorf("trae algo que no es un fichero normal (%s): por seguridad no se importa", h.Name)
 		}
 		if h.Size > modShareMaxFile {
-			return man, nil, fmt.Errorf("%s es demasiado grande (%d KB; máximo %d KB)", h.Name, h.Size/1024, modShareMaxFile/1024)
+			return man, nil, i18n.Errorf("%s es demasiado grande (%d KB; máximo %d KB)", h.Name, h.Size/1024, modShareMaxFile/1024)
 		}
 		if len(files) >= modShareMaxFiles {
-			return man, nil, fmt.Errorf("trae demasiados ficheros (máximo %d)", modShareMaxFiles)
+			return man, nil, i18n.Errorf("trae demasiados ficheros (máximo %d)", modShareMaxFiles)
 		}
 		b, err := io.ReadAll(io.LimitReader(tr, modShareMaxFile+1))
 		if err != nil {
-			return man, nil, errors.New("el fichero está dañado: " + err.Error())
+			return man, nil, errors.New(i18n.T("el fichero está dañado: ") + err.Error())
 		}
 		total += len(b)
 		if total > modShareMaxTotal {
-			return man, nil, errors.New("es demasiado grande en total")
+			return man, nil, i18n.New("es demasiado grande en total")
 		}
 		if h.Name == modShareManifest {
 			if json.Unmarshal(b, &man) != nil {
-				return man, nil, errors.New("su manifiesto no se puede leer")
+				return man, nil, i18n.New("su manifiesto no se puede leer")
 			}
 			haveMan = true
 			continue
 		}
 		rel, ok := strings.CutPrefix(h.Name, "modulo/")
 		if !ok || !safeModPath(rel) {
-			return man, nil, fmt.Errorf("trae una ruta no permitida (%s): por seguridad no se importa", h.Name)
+			return man, nil, i18n.Errorf("trae una ruta no permitida (%s): por seguridad no se importa", h.Name)
 		}
 		if _, dup := files[rel]; dup {
 			return man, nil, fmt.Errorf("trae %s dos veces", rel)
@@ -238,10 +239,10 @@ func readModulePack(p string) (modManifest, map[string][]byte, error) {
 		files[rel] = b
 	}
 	if !haveMan {
-		return man, nil, errors.New("no es un módulo de Draupnode (le falta " + modShareManifest + ")")
+		return man, nil, errors.New(i18n.T("no es un módulo de Draupnode (le falta ") + modShareManifest + ")")
 	}
 	if man.Format != modShareFormat {
-		return man, nil, fmt.Errorf("es de un formato que esta versión no conoce (%d); actualiza Draupnode", man.Format)
+		return man, nil, i18n.Errorf("es de un formato que esta versión no conoce (%d); actualiza Draupnode", man.Format)
 	}
 	return man, files, nil
 }
@@ -273,13 +274,13 @@ func (a *App) inspectModulePath(p string) ModuleImportReport {
 		sum := sha256.Sum256(b)
 		if man.Files[f] != hex.EncodeToString(sum[:]) {
 			r.Integrity = false
-			r.Problems = append(r.Problems, f+": no coincide con su huella del manifiesto (el fichero se ha cambiado o está dañado)")
+			r.Problems = append(r.Problems, f+i18n.T(": no coincide con su huella del manifiesto (el fichero se ha cambiado o está dañado)"))
 		}
 	}
 	for f := range man.Files {
 		if _, ok := files[f]; !ok {
 			r.Integrity = false
-			r.Problems = append(r.Problems, f+": está en el manifiesto pero no en el fichero")
+			r.Problems = append(r.Problems, f+i18n.T(": está en el manifiesto pero no en el fichero"))
 		}
 	}
 	names := make([]string, 0, len(files))
@@ -300,7 +301,7 @@ func (a *App) inspectModulePath(p string) ModuleImportReport {
 		r.Files = append(r.Files, mf)
 	}
 	if files["module.yaml"] == nil || files["role/tasks/main.yml"] == nil {
-		r.Problems = append(r.Problems, "le falta module.yaml o role/tasks/main.yml")
+		r.Problems = append(r.Problems, i18n.T("le falta module.yaml o role/tasks/main.yml"))
 		return r
 	}
 	var head struct {
@@ -316,7 +317,7 @@ func (a *App) inspectModulePath(p string) ModuleImportReport {
 	}
 	r.ID, r.Name, r.Version, r.Description, r.Depends = head.ID, head.Name, head.Version, head.Description, append(r.Depends, head.Depends...)
 	if !modIDRe.MatchString(r.ID) {
-		r.Problems = append(r.Problems, fmt.Sprintf("su id («%s») no es válido", r.ID))
+		r.Problems = append(r.Problems, i18n.Sprintf("su id («%s») no es válido", r.ID))
 		return r
 	}
 	for _, f := range names {
@@ -363,7 +364,7 @@ func (a *App) inspectModulePath(p string) ModuleImportReport {
 func writeModFiles(dir string, files map[string][]byte) error {
 	for k, b := range files {
 		if !safeModPath(k) {
-			return fmt.Errorf("ruta no permitida: %s", k)
+			return i18n.Errorf("ruta no permitida: %s", k)
 		}
 		p := filepath.Join(dir, filepath.FromSlash(k))
 		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
@@ -402,23 +403,23 @@ var modRisks = []struct {
 	re  *regexp.Regexp
 	msg string
 }{
-	{regexp.MustCompile(`(?i)(curl|wget)[^\n|]*\|\s*(sudo\s+)?(ba|z)?sh\b`), "descarga un script de internet y lo ejecuta tal cual"},
-	{regexp.MustCompile(`(?i)\brm\s+-[a-z]*r[a-z]*\s+(--no-preserve-root\s+)?/(\s|\*|$|")`), "borra desde la raíz del disco"},
-	{regexp.MustCompile(`authorized_keys`), "toca las claves SSH autorizadas (podría dar acceso al servidor a otra persona)"},
-	{regexp.MustCompile(`sudoers`), "cambia quién puede usar sudo"},
-	{regexp.MustCompile(`/etc/(shadow|passwd)\b`), "lee o cambia las cuentas del sistema (/etc/passwd o /etc/shadow)"},
-	{regexp.MustCompile(`(?i)PermitRootLogin|PasswordAuthentication`), "cambia la configuración del SSH"},
-	{regexp.MustCompile(`(?i)iptables\s+(-F|--flush|-P\s+INPUT\s+ACCEPT)|ufw\s+disable`), "vacía o desactiva el cortafuegos"},
-	{regexp.MustCompile(`chmod\s+(-R\s+)?0?777`), "deja ficheros con permisos para todo el mundo (777)"},
-	{regexp.MustCompile(`(?i)base64\s+(-d|--decode)|\beval\s`), "ejecuta código oculto (base64 o eval)"},
-	{regexp.MustCompile(`/dev/tcp/|\bnc\s+-[a-z]*e\b|ncat\s+-e`), "abre una conexión de shell hacia fuera"},
-	{regexp.MustCompile(`(?m)^\s*-?\s*(ansible\.builtin\.)?user:\s*$`), "crea o cambia usuarios del sistema"},
-	{regexp.MustCompile(`(?m)^\s*-?\s*(ansible\.builtin\.)?(cron|systemd_timer):\s*$|crontab`), "programa tareas periódicas"},
-	{regexp.MustCompile(`(?i)privileged:\s*true|--privileged`), "arranca contenedores con todos los permisos del servidor (privileged)"},
-	{regexp.MustCompile(`/var/run/docker\.sock`), "da a un contenedor el control de Docker (docker.sock)"},
-	{regexp.MustCompile(`(?m)^\s*-?\s*(ansible\.builtin\.)?(get_url|unarchive|git|pip|npm|ansible\.builtin\.script):|\bpip3?\s+install\b|\bnpm\s+(i|install)\b`), "descarga e instala software de internet (además de las imágenes de Docker)"},
-	{regexp.MustCompile(`(?i)network_mode:\s*"?host|pid:\s*"?host|cap_add:`), "da a un contenedor acceso a la red, los procesos o permisos especiales del servidor"},
-	{regexp.MustCompile(`(?m)^\s*-\s*"?/:/`), "monta todo el disco del servidor dentro de un contenedor"},
+	{regexp.MustCompile(`(?i)(curl|wget)[^\n|]*\|\s*(sudo\s+)?(ba|z)?sh\b`), i18n.N("descarga un script de internet y lo ejecuta tal cual")},
+	{regexp.MustCompile(`(?i)\brm\s+-[a-z]*r[a-z]*\s+(--no-preserve-root\s+)?/(\s|\*|$|")`), i18n.N("borra desde la raíz del disco")},
+	{regexp.MustCompile(`authorized_keys`), i18n.N("toca las claves SSH autorizadas (podría dar acceso al servidor a otra persona)")},
+	{regexp.MustCompile(`sudoers`), i18n.N("cambia quién puede usar sudo")},
+	{regexp.MustCompile(`/etc/(shadow|passwd)\b`), i18n.N("lee o cambia las cuentas del sistema (/etc/passwd o /etc/shadow)")},
+	{regexp.MustCompile(`(?i)PermitRootLogin|PasswordAuthentication`), i18n.N("cambia la configuración del SSH")},
+	{regexp.MustCompile(`(?i)iptables\s+(-F|--flush|-P\s+INPUT\s+ACCEPT)|ufw\s+disable`), i18n.N("vacía o desactiva el cortafuegos")},
+	{regexp.MustCompile(`chmod\s+(-R\s+)?0?777`), i18n.N("deja ficheros con permisos para todo el mundo (777)")},
+	{regexp.MustCompile(`(?i)base64\s+(-d|--decode)|\beval\s`), i18n.N("ejecuta código oculto (base64 o eval)")},
+	{regexp.MustCompile(`/dev/tcp/|\bnc\s+-[a-z]*e\b|ncat\s+-e`), i18n.N("abre una conexión de shell hacia fuera")},
+	{regexp.MustCompile(`(?m)^\s*-?\s*(ansible\.builtin\.)?user:\s*$`), i18n.N("crea o cambia usuarios del sistema")},
+	{regexp.MustCompile(`(?m)^\s*-?\s*(ansible\.builtin\.)?(cron|systemd_timer):\s*$|crontab`), i18n.N("programa tareas periódicas")},
+	{regexp.MustCompile(`(?i)privileged:\s*true|--privileged`), i18n.N("arranca contenedores con todos los permisos del servidor (privileged)")},
+	{regexp.MustCompile(`/var/run/docker\.sock`), i18n.N("da a un contenedor el control de Docker (docker.sock)")},
+	{regexp.MustCompile(`(?m)^\s*-?\s*(ansible\.builtin\.)?(get_url|unarchive|git|pip|npm|ansible\.builtin\.script):|\bpip3?\s+install\b|\bnpm\s+(i|install)\b`), i18n.N("descarga e instala software de internet (además de las imágenes de Docker)")},
+	{regexp.MustCompile(`(?i)network_mode:\s*"?host|pid:\s*"?host|cap_add:`), i18n.N("da a un contenedor acceso a la red, los procesos o permisos especiales del servidor")},
+	{regexp.MustCompile(`(?m)^\s*-\s*"?/:/`), i18n.N("monta todo el disco del servidor dentro de un contenedor")},
 }
 
 // Caracteres invisibles o que cambian el sentido del texto: sirven para que el
@@ -501,17 +502,17 @@ func reviewModule(r *ModuleImportReport, files map[string][]byte) {
 		if !utf8.Valid(b) || bytes.IndexByte(b, 0) >= 0 {
 			if !seenWarn["bin:"+f] {
 				seenWarn["bin:"+f] = true
-				r.Warnings = append(r.Warnings, fmt.Sprintf("no es texto y no se puede revisar (podría ser un programa) (%s)", f))
+				r.Warnings = append(r.Warnings, i18n.Sprintf("no es texto y no se puede revisar (podría ser un programa) (%s)", f))
 			}
 			continue
 		}
 		s := string(b)
 		if hiddenRunes.MatchString(s) {
-			r.Warnings = append(r.Warnings, fmt.Sprintf("tiene caracteres invisibles o que cambian el sentido del texto: lo que lees podría no ser lo que se ejecuta (%s)", f))
+			r.Warnings = append(r.Warnings, i18n.Sprintf("tiene caracteres invisibles o que cambian el sentido del texto: lo que lees podría no ser lo que se ejecuta (%s)", f))
 		}
 		for _, l := range strings.Split(s, "\n") {
 			if len(l) > 1000 {
-				r.Warnings = append(r.Warnings, fmt.Sprintf("tiene líneas larguísimas, donde es fácil esconder código (%s)", f))
+				r.Warnings = append(r.Warnings, i18n.Sprintf("tiene líneas larguísimas, donde es fácil esconder código (%s)", f))
 				break
 			}
 		}
@@ -524,7 +525,7 @@ func reviewModule(r *ModuleImportReport, files map[string][]byte) {
 		for _, rk := range modRisks {
 			if rk.re.MatchString(s) && !seenWarn[rk.msg] {
 				seenWarn[rk.msg] = true
-				r.Warnings = append(r.Warnings, fmt.Sprintf("%s (%s)", rk.msg, f))
+				r.Warnings = append(r.Warnings, fmt.Sprintf("%s (%s)", i18n.T(rk.msg), f))
 			}
 		}
 		for _, m := range modURLRe.FindAllStringSubmatch(s, -1) {
@@ -571,13 +572,13 @@ func (a *App) ImportModuleFile(p, newID string, overwrite bool) (UserModule, err
 	id := r.ID
 	if newID = strings.TrimSpace(newID); newID != "" && newID != r.ID {
 		if !modIDRe.MatchString(newID) {
-			return UserModule{}, fmt.Errorf("nombre no válido: %q (minúsculas, números y guiones)", newID)
+			return UserModule{}, i18n.Errorf("nombre no válido: %q (minúsculas, números y guiones)", newID)
 		}
 		files = renameModuleFiles(files, r.ID, newID)
 		id = newID
 	}
 	if modules.IsBuiltin(id) {
-		return UserModule{}, fmt.Errorf("«%s» es un módulo incluido: impórtalo con otro nombre", id)
+		return UserModule{}, i18n.Errorf("«%s» es un módulo incluido: impórtalo con otro nombre", id)
 	}
 	dir, err := a.modDir(id)
 	if err != nil {
@@ -585,7 +586,7 @@ func (a *App) ImportModuleFile(p, newID string, overwrite bool) (UserModule, err
 	}
 	if _, err := os.Stat(dir); err == nil {
 		if !overwrite {
-			return UserModule{}, fmt.Errorf("ya tienes un módulo «%s»: elige otro nombre o sustitúyelo", id)
+			return UserModule{}, i18n.Errorf("ya tienes un módulo «%s»: elige otro nombre o sustitúyelo", id)
 		}
 	}
 	// Se escribe aparte y se cambia de golpe: si algo falla, el tuyo sigue igual.

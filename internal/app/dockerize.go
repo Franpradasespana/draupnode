@@ -3,6 +3,7 @@ package app
 import (
 	"bufio"
 	"context"
+	"draupnode/internal/i18n"
 	"errors"
 	"fmt"
 	"io"
@@ -38,7 +39,7 @@ func (a *App) DockerInfo() DockerInfo {
 func (a *App) ChooseProjectDir() (string, error) {
 	home, _ := os.UserHomeDir()
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:            "Carpeta del proyecto",
+		Title:            i18n.T("Carpeta del proyecto"),
 		DefaultDirectory: home,
 	})
 }
@@ -118,12 +119,12 @@ func orderFiles(dir string, spec dockerize.Spec, files map[string]string) []Dock
 func projectDir(dir string) (string, error) {
 	dir = strings.TrimSpace(dir)
 	if dir == "" || !filepath.IsAbs(dir) {
-		return "", errors.New("elige la carpeta del proyecto")
+		return "", i18n.New("elige la carpeta del proyecto")
 	}
 	dir = filepath.Clean(dir)
 	st, err := os.Stat(dir)
 	if err != nil || !st.IsDir() {
-		return "", errors.New("la carpeta no existe: " + dir)
+		return "", errors.New(i18n.T("la carpeta no existe: ") + dir)
 	}
 	return dir, nil
 }
@@ -149,7 +150,7 @@ func (a *App) WriteDockerFiles(dir string, spec dockerize.Spec, overwrite bool) 
 			}
 		}
 		if len(ex) > 0 {
-			return nil, errors.New("ya existen: " + strings.Join(ex, ", "))
+			return nil, errors.New(i18n.T("ya existen: ") + strings.Join(ex, ", "))
 		}
 	}
 	saved := []string{}
@@ -215,15 +216,15 @@ func (a *App) BuildDockerImage(dir string, spec dockerize.Spec) error {
 	}
 	df := spec.Names().Dockerfile
 	if _, err := os.Stat(filepath.Join(dir, df)); err != nil {
-		return errors.New("guarda antes los ficheros (falta " + df + ")")
+		return errors.New(i18n.T("guarda antes los ficheros (falta ") + df + ")")
 	}
 	if _, err := exec.LookPath("docker"); err != nil {
-		return errors.New("no hay Docker en este equipo: instálalo desde la pantalla «Servidor de pruebas»")
+		return i18n.New("no hay Docker en este equipo: instálalo desde la pantalla «Servidor de pruebas»")
 	}
 	buildMu.Lock()
 	if buildCancel != nil {
 		buildMu.Unlock()
-		return errors.New("ya se está construyendo una imagen")
+		return i18n.New("ya se está construyendo una imagen")
 	}
 	ctx, cancel := context.WithCancel(a.context())
 	buildCancel = cancel
@@ -280,11 +281,11 @@ func buildError(ctx context.Context, err error, tail string) string {
 	low := strings.ToLower(tail)
 	switch {
 	case strings.Contains(low, "permission denied") && strings.Contains(low, "docker.sock"):
-		return "Tu usuario no puede usar Docker todavía: mira la pantalla «Servidor de pruebas» (puede que haga falta reiniciar el equipo)."
+		return i18n.T("Tu usuario no puede usar Docker todavía: mira la pantalla «Servidor de pruebas» (puede que haga falta reiniciar el equipo).")
 	case strings.Contains(low, "cannot connect to the docker daemon"):
-		return "Docker no está en marcha en este equipo."
+		return i18n.T("Docker no está en marcha en este equipo.")
 	}
-	return "La construcción ha fallado (" + err.Error() + "). Mira las últimas líneas de la salida."
+	return i18n.T("La construcción ha fallado (") + err.Error() + i18n.T("). Mira las últimas líneas de la salida.")
 }
 
 // CancelDockerBuild para la construcción en marcha.

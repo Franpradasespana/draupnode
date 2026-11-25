@@ -1,6 +1,7 @@
 package app
 
 import (
+	"draupnode/internal/i18n"
 	"errors"
 	"fmt"
 	"os"
@@ -66,7 +67,7 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 	composeName := spec.Names().Compose
 	cb, err := os.ReadFile(filepath.Join(dir, composeName))
 	if err != nil {
-		return res, errors.New("primero guarda los ficheros de Docker en la carpeta (falta " + composeName + ")")
+		return res, errors.New(i18n.T("primero guarda los ficheros de Docker en la carpeta (falta ") + composeName + ")")
 	}
 	if _, err := a.store.Server(serverID); err != nil {
 		return res, err
@@ -77,7 +78,7 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 	}
 	m, ok := a.cat().Get("git-app")
 	if !ok {
-		return res, errors.New("falta el módulo «Tu app»")
+		return res, i18n.New("falta el módulo «Tu app»")
 	}
 
 	// Nombre de la app (carpeta y contenedores en el servidor) y de la copia del módulo.
@@ -100,10 +101,10 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 	}
 	for _, pm := range p.Modules {
 		if pm.ID == modID {
-			return res, fmt.Errorf("este servidor ya tiene «%s»: ábrela en sus módulos", a.moduleName(modID))
+			return res, i18n.Errorf("este servidor ya tiene «%s»: ábrela en sus módulos", a.moduleName(modID))
 		}
 		if v, _ := pm.Values["git_app_name"].(string); v == name {
-			return res, fmt.Errorf("este servidor ya tiene una app llamada «%s»", name)
+			return res, i18n.Errorf("este servidor ya tiene una app llamada «%s»", name)
 		}
 	}
 
@@ -168,7 +169,7 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 		case v.Secret && formats[k] == "" && passwordNameRe.MatchString(k) && !used[k]:
 			// Una contraseña que el compose no usa es de otro servicio (Redis, correo…):
 			// generarla al azar haría que la app intente entrar con ella.
-			res.Review = append(res.Review, k+": contraseña de otro servicio; no se pone (si la usas, ponla en «Variables secretas»)")
+			res.Review = append(res.Review, k+i18n.T(": contraseña de otro servicio; no se pone (si la usas, ponla en «Variables secretas»)"))
 		case v.Secret || formats[k] != "":
 			if f := formats[k]; f != "" {
 				gen = append(gen, k+":"+f)
@@ -176,7 +177,7 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 				gen = append(gen, k)
 			}
 		case v.External:
-			res.Review = append(res.Review, k+": clave de otro servicio, solo la tienes tú (si la usas, ponla en «Variables secretas»)")
+			res.Review = append(res.Review, k+i18n.T(": clave de otro servicio, solo la tienes tú (si la usas, ponla en «Variables secretas»)"))
 		default:
 			val := examples[k]
 			if d := serverDefault(k, val, spec); d != "" {
@@ -184,7 +185,7 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 			}
 			// Sin valor no se pone: vacía pisaría el valor por defecto de la app.
 			if val == "" {
-				res.Review = append(res.Review, k+": no puesta (la app usará su valor por defecto; añádela si la necesitas)")
+				res.Review = append(res.Review, k+i18n.T(": no puesta (la app usará su valor por defecto; añádela si la necesitas)"))
 				continue
 			}
 			env = append(env, k+"="+val)
@@ -204,7 +205,7 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 		for port++; taken[port]; port++ {
 		}
 		env = append(env, fmt.Sprintf("APP_HOST_PORT=%d", port))
-		res.Notes = append(res.Notes, fmt.Sprintf("El puerto %d ya lo usa otra app de este servidor: esta irá por el %d.", dockerize.PublishedPort(spec), port))
+		res.Notes = append(res.Notes, i18n.Sprintf("El puerto %d ya lo usa otra app de este servidor: esta irá por el %d.", dockerize.PublishedPort(spec), port))
 	}
 	vals["git_app_port"] = port
 	vals["git_app_env"] = env
@@ -212,16 +213,16 @@ func (a *App) PublishDockerApp(dir string, spec dockerize.Spec, serverID string)
 	vals["git_app_update"] = true
 	if shared {
 		vals["git_app_db"] = "postgres-compartido"
-		res.Notes = append(res.Notes, "Usará el PostgreSQL compartido del servidor (se añade si falta), con una base y un usuario «"+strings.ReplaceAll(name, "-", "_")+"».")
+		res.Notes = append(res.Notes, i18n.T("Usará el PostgreSQL compartido del servidor (se añade si falta), con una base y un usuario «")+strings.ReplaceAll(name, "-", "_")+"».")
 	}
 	p.Modules = append(p.Modules, store.ProjectModule{ID: modID, Values: vals})
 	if p, err = a.SaveProject(p); err != nil {
 		return res, err
 	}
 	res.ProjectID, res.ServerID, res.ModuleID = p.ID, serverID, modID
-	res.Notes = append(res.Notes, fmt.Sprintf("«%s» añadida a los módulos del servidor: sale de %s; Draupnode la sube al aplicar.", name, dir))
+	res.Notes = append(res.Notes, i18n.Sprintf("«%s» añadida a los módulos del servidor: sale de %s; Draupnode la sube al aplicar.", name, dir))
 	if len(gen) > 0 {
-		res.Notes = append(res.Notes, "Se generarán en el servidor: "+strings.Join(gen, ", ")+".")
+		res.Notes = append(res.Notes, i18n.T("Se generarán en el servidor: ")+strings.Join(gen, ", ")+".")
 	}
 	return res, nil
 }

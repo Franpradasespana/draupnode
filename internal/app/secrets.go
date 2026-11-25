@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"draupnode/internal/i18n"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -55,7 +56,7 @@ func (a *App) SetProjectSecret(projectID, variable, value string) error {
 		return err
 	}
 	if !a.isSecretVar(variable) {
-		return fmt.Errorf("%q no es un dato secreto de ningún módulo", variable)
+		return i18n.Errorf("%q no es un dato secreto de ningún módulo", variable)
 	}
 	if value == "" {
 		return a.vault.Delete(varName(projectID, variable))
@@ -129,7 +130,7 @@ func (a *App) ProjectSecrets(projectID, master string) ([]ProjectSecret, error) 
 	}
 	if err := a.vault.Unlock(master); err != nil {
 		if errors.Is(err, secrets.ErrWrongMaster) {
-			return nil, errors.New("la contraseña de la bóveda no es correcta")
+			return nil, i18n.New("la contraseña de la bóveda no es correcta")
 		}
 		return nil, err
 	}
@@ -205,7 +206,7 @@ func (a *App) storeGenerated(projectID, b64 string) (int, error) {
 		for n := 0; ; n++ {
 			// Un servidor comprometido no puede llenar la bóveda: como mucho 500 ficheros.
 			if n > 500 {
-				return 0, errors.New("el servidor devolvió demasiados valores generados")
+				return 0, i18n.New("el servidor devolvió demasiados valores generados")
 			}
 			h, err := tr.Next()
 			if err == io.EOF {
@@ -317,11 +318,11 @@ func (a *App) FetchProjectSecrets(projectID, secret, accept, sudoPassword string
 	}
 	st := a.vault.Status()
 	if !st.Exists {
-		res.Status, res.Message = "vault_missing", "Las contraseñas se guardan en la bóveda cifrada de Draupnode: créala primero."
+		res.Status, res.Message = "vault_missing", i18n.T("Las contraseñas se guardan en la bóveda cifrada de Draupnode: créala primero.")
 		return res
 	}
 	if !st.Unlocked {
-		res.Status, res.Message = "vault_locked", "Desbloquea la bóveda: ahí se guardan las contraseñas."
+		res.Status, res.Message = "vault_locked", i18n.T("Desbloquea la bóveda: ahí se guardan las contraseñas.")
 		return res
 	}
 	dir := bundle.ShellQuote("/etc/draupnode/secretos/" + slugOf(p))
@@ -331,13 +332,13 @@ func (a *App) FetchProjectSecrets(projectID, secret, accept, sudoPassword string
 		out = strings.TrimSpace(out)
 		switch {
 		case strings.Contains(out, "DN-NODIR"):
-			return RunStart{Status: "error", Message: "en el servidor no hay contraseñas de esta plantilla todavía: se generan la primera vez que pulsas Aplicar"}
+			return RunStart{Status: "error", Message: i18n.T("en el servidor no hay contraseñas de esta plantilla todavía: se generan la primera vez que pulsas Aplicar")}
 		case err != nil || !strings.Contains(out, "DN-OK "):
 			return RunStart{Status: "error", Message: strings.TrimSpace(firstLine(errOut, err))}
 		}
 		n, err := a.storeGenerated(projectID, strings.TrimSpace(out[strings.LastIndex(out, "DN-OK ")+6:]))
 		if err != nil {
-			return RunStart{Status: "error", Message: "no se pudieron guardar: " + err.Error()}
+			return RunStart{Status: "error", Message: i18n.T("no se pudieron guardar: ") + err.Error()}
 		}
 		res.Count = n
 		return RunStart{Status: "ok"}

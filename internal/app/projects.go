@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
+	"draupnode/internal/i18n"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -73,7 +74,7 @@ func (a *App) ReloadModules() ModulesInfo {
 func (a *App) ModuleFile(id, file string) (string, error) {
 	m, ok := a.cat().Get(id)
 	if !ok {
-		return "", fmt.Errorf("el módulo %q no existe", id)
+		return "", i18n.Errorf("el módulo %q no existe", id)
 	}
 	b, err := fs.ReadFile(m.Role(), file)
 	return string(b), err
@@ -145,7 +146,7 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 		vals[pm.ID] = pm.Values
 	}
 	if len(ids) == 0 {
-		res.General = append(res.General, "elige al menos un módulo")
+		res.General = append(res.General, i18n.T("elige al menos un módulo"))
 		return res, nil
 	}
 	order, added, err := c.Resolve(ids)
@@ -165,9 +166,9 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 		// Datos secretos obligatorios: tienen que estar en la bóveda.
 		for _, sv := range m.SecretVars() {
 			if sv.Required && !sv.Managed && !recipe && (p.ID == "" || !a.vault.Has(varName(p.ID, secretKey(id, sv.Name)))) {
-				errs[sv.Name] = "falta: escríbelo (se guarda cifrado en la bóveda)"
+				errs[sv.Name] = i18n.T("falta: escríbelo (se guarda cifrado en la bóveda)")
 				if sv.Name == "backup_target_tls_key" {
-					errs[sv.Name] = "lo pone Draupnode: en el servidor que hace las copias, Copias → «Guardar también en otro servidor» y elige este"
+					errs[sv.Name] = i18n.T("lo pone Draupnode: en el servidor que hace las copias, Copias → «Guardar también en otro servidor» y elige este")
 				}
 			}
 		}
@@ -188,17 +189,17 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 			compose, _ := s.Values["git_app_compose"].(string)
 			switch st, err := os.Stat(dir); {
 			case dir == "":
-				e["git_app_local_dir"] = "elige la carpeta del proyecto"
+				e["git_app_local_dir"] = i18n.T("elige la carpeta del proyecto")
 			case recipe:
 			case err != nil || !st.IsDir():
-				e["git_app_local_dir"] = "no existe en este equipo"
+				e["git_app_local_dir"] = i18n.T("no existe en este equipo")
 			default:
 				if _, err := os.Stat(filepath.Join(dir, compose)); err != nil {
-					e["git_app_compose"] = "no está en " + dir + " (créalo con Docker Creator)"
+					e["git_app_compose"] = i18n.T("no está en ") + dir + i18n.T(" (créalo con Docker Creator)")
 				}
 			}
 		} else if r, _ := s.Values["git_app_repo"].(string); strings.TrimSpace(r) == "" {
-			e["git_app_repo"] = "es obligatorio"
+			e["git_app_repo"] = i18n.T("es obligatorio")
 		}
 		if len(e) > 0 {
 			if res.Errors[s.Key()] == nil {
@@ -220,7 +221,7 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 			if res.Errors[s.Key()] == nil {
 				res.Errors[s.Key()] = map[string]string{}
 			}
-			res.Errors[s.Key()]["git_app_name"] = "ya lo usa " + a.moduleName(other) + ": cada app necesita su nombre"
+			res.Errors[s.Key()]["git_app_name"] = i18n.T("ya lo usa ") + a.moduleName(other) + i18n.T(": cada app necesita su nombre")
 		}
 		names[n] = s.Key()
 	}
@@ -280,7 +281,7 @@ func missingPorts(sel []bundle.Selection) []string {
 	for _, s := range sel {
 		for _, p := range ModulePorts(s.Module, s.Values) {
 			if p != "22" && !contains(fw, p) {
-				w = append(w, fmt.Sprintf("%s necesita el puerto %s y no está en la lista del Cortafuegos: añádelo o no se podrá entrar.", s.Module.Name, p))
+				w = append(w, i18n.Sprintf("%s necesita el puerto %s y no está en la lista del Cortafuegos: añádelo o no se podrá entrar.", s.Module.Name, p))
 			}
 		}
 	}
@@ -294,13 +295,13 @@ func requirementWarnings(sel []bundle.Selection, f map[string]string) []string {
 	for _, s := range sel {
 		r := s.Module.Requires
 		if len(r.OS) > 0 && f["os_id"] != "" && !contains(r.OS, f["os_id"]) {
-			w = append(w, fmt.Sprintf("%s necesita %s y el servidor es %s", s.Module.Name, strings.Join(r.OS, " o "), f["os"]))
+			w = append(w, i18n.Sprintf("%s necesita %s y el servidor es %s", s.Module.Name, strings.Join(r.OS, " o "), f["os"]))
 		}
 		if r.MinRAMMB > 0 && memMB > 0 && memMB < r.MinRAMMB {
-			w = append(w, fmt.Sprintf("%s necesita %d MB de RAM y el servidor tiene %d MB", s.Module.Name, r.MinRAMMB, memMB))
+			w = append(w, i18n.Sprintf("%s necesita %d MB de RAM y el servidor tiene %d MB", s.Module.Name, r.MinRAMMB, memMB))
 		}
 		if r.MinDiskGB > 0 && f["disk_free_kb"] != "" && diskGB < r.MinDiskGB {
-			w = append(w, fmt.Sprintf("%s necesita %d GB libres y el servidor tiene %d GB", s.Module.Name, r.MinDiskGB, diskGB))
+			w = append(w, i18n.Sprintf("%s necesita %d GB libres y el servidor tiene %d GB", s.Module.Name, r.MinDiskGB, diskGB))
 		}
 	}
 	return w
@@ -323,7 +324,7 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 	if p.ID == "" {
 		// Un servidor tiene un solo conjunto de módulos.
 		if other, ok := a.store.ServerProject(p.ServerID); ok {
-			return other, errors.New("este servidor ya tiene sus módulos: añádelos ahí")
+			return other, i18n.New("este servidor ya tiene sus módulos: añádelos ahí")
 		}
 		p.Slug = a.uniqueSlug(p.Name, "")
 	} else if old, err := a.store.Project(p.ID); err == nil {
@@ -342,7 +343,7 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 		if len(chk.General) > 0 {
 			return store.Project{}, errors.New(strings.Join(chk.General, "; "))
 		}
-		return store.Project{}, errors.New("revisa los campos marcados en rojo")
+		return store.Project{}, i18n.New("revisa los campos marcados en rojo")
 	}
 	// Cada módulo conserva de qué plantilla vino (las dependencias que se
 	// añaden solas, como añadidas en el servidor).
@@ -361,7 +362,7 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 
 func (a *App) DeleteProject(id string) error {
 	if a.projectRunning(id) {
-		return errors.New("hay una tarea en marcha: cancélala antes")
+		return i18n.New("hay una tarea en marcha: cancélala antes")
 	}
 	_ = os.RemoveAll(filepath.Join(a.store.Dir(), "runs", id))
 	if err := a.store.DeleteProject(id); err != nil {
@@ -388,7 +389,7 @@ func (a *App) buildScript(p store.Project, withSecrets bool) ([]byte, store.Serv
 	if !chk.OK() {
 		msg := strings.Join(chk.General, "; ")
 		if msg == "" {
-			msg = "hay opciones con errores: ábrelo y revísalas"
+			msg = i18n.T("hay opciones con errores: ábrelo y revísalas")
 		}
 		return nil, srv, errors.New(msg)
 	}
@@ -476,17 +477,17 @@ func (a *App) RunProject(id string, check bool, secret, accept, sudoPassword str
 		return RunStart{Status: "error", Message: err.Error()}
 	}
 	if a.projectRunning(id) {
-		return RunStart{Status: "busy", Message: "ya hay una tarea en marcha con esta plantilla en este servidor"}
+		return RunStart{Status: "busy", Message: i18n.T("ya hay una tarea en marcha con esta plantilla en este servidor")}
 	}
 	// Contraseñas del proyecto: la bóveda tiene que existir y estar abierta
 	// para guardar lo que se genere (al aplicar) o leer lo que escribiste.
 	if _, sel := a.resolveProject(p); projectNeedsVault(sel, check) {
 		st := a.vault.Status()
 		if !st.Exists {
-			return RunStart{Status: "vault_missing", Message: "Las contraseñas de este servidor se guardan en la bóveda cifrada de Draupnode: créala primero."}
+			return RunStart{Status: "vault_missing", Message: i18n.T("Las contraseñas de este servidor se guardan en la bóveda cifrada de Draupnode: créala primero.")}
 		}
 		if !st.Unlocked {
-			return RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: ahí se guardan las contraseñas de este servidor."}
+			return RunStart{Status: "vault_locked", Message: i18n.T("Desbloquea la bóveda: ahí se guardan las contraseñas de este servidor.")}
 		}
 	}
 	script, srv, err := a.buildScript(p, true)
@@ -627,9 +628,9 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 	// Tu app con «carpeta»: subir el código antes. En la simulación, a una
 	// carpeta aparte (simDir) para revisarlo sin tocar la app; se borra al terminar.
 	if len(rm.uninstall) == 0 && len(localApps(p)) > 0 {
-		dest, stage := "/srv/draupnode/apps", "Subiendo el código de este equipo"
+		dest, stage := "/srv/draupnode/apps", i18n.T("Subiendo el código de este equipo")
 		if check {
-			dest, stage = simDir(slugOf(p)), "Subiendo el código a una carpeta temporal para revisarlo"
+			dest, stage = simDir(slugOf(p)), i18n.T("Subiendo el código a una carpeta temporal para revisarlo")
 			defer func() {
 				_, _, _ = execOut(c, su, "rm -rf "+bundle.ShellQuote(simDir(slugOf(p))))
 			}()
@@ -665,9 +666,9 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			n, err := a.storeGenerated(p.ID, e.Text)
 			switch {
 			case err != nil:
-				secretsMsg = "No se pudieron guardar en la bóveda las contraseñas generadas: " + vaultErr(err).Error() + ". Vuelve a Aplicar con la bóveda desbloqueada."
+				secretsMsg = i18n.T("No se pudieron guardar en la bóveda las contraseñas generadas: ") + vaultErr(err).Error() + i18n.T(". Vuelve a Aplicar con la bóveda desbloqueada.")
 			case n > 0 && len(rm.uninstall) == 0:
-				secretsMsg = fmt.Sprintf("%d contraseña(s) del servidor guardadas en tu bóveda: míralas en «Contraseñas».", n)
+				secretsMsg = i18n.Sprintf("%d contraseña(s) del servidor guardadas en tu bóveda: míralas en «Contraseñas».", n)
 			}
 			return
 		}
@@ -675,7 +676,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 		if e.Kind == "ev" && (e.Ev["ev"] == "failed" || e.Ev["ev"] == "item_failed") {
 			if msg, _ := e.Ev["msg"].(string); msg != "" {
 				if x := explainError(msg); x != "" {
-					e.Ev["msg"] = msg + "\n\nQué significa: " + x
+					e.Ev["msg"] = msg + i18n.T("\n\nQué significa: ") + x
 				}
 			}
 		}
@@ -709,7 +710,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 	case err != nil:
 		sum.Error = err.Error()
 	case code != 0:
-		sum.Error = fmt.Sprintf("terminó con errores (código %d)", code)
+		sum.Error = i18n.Sprintf("terminó con errores (código %d)", code)
 	default:
 		sum.OK = true
 	}
@@ -731,7 +732,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 	switch {
 	case sum.OK && len(rm.uninstall) > 0:
 		if err := a.store.MarkUninstalled(p.ID, rm.uninstall); err != nil {
-			notice("Desinstalado, pero no se pudo actualizar la configuración: " + err.Error())
+			notice(i18n.T("Desinstalado, pero no se pudo actualizar la configuración: ") + err.Error())
 		} else {
 			names := make([]string, len(rm.uninstall))
 			for i, m := range rm.uninstall {
@@ -740,7 +741,7 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 					names[i] = mod.Name
 				}
 			}
-			notice("Desinstalado del servidor: " + strings.Join(names, ", ") + ". Draupnode ya no lo gestiona.")
+			notice(i18n.T("Desinstalado del servidor: ") + strings.Join(names, ", ") + i18n.T(". Draupnode ya no lo gestiona."))
 		}
 	case sum.OK && !check:
 		if msg := a.afterApply(p); msg != "" {
@@ -820,7 +821,7 @@ func (a *App) RunLogs(projectID string) []string {
 // ReadRunLog devuelve un registro de ejecución.
 func (a *App) ReadRunLog(projectID, name string) (string, error) {
 	if strings.ContainsAny(name, `/\`) || !strings.HasSuffix(name, ".log") {
-		return "", errors.New("nombre no válido")
+		return "", i18n.New("nombre no válido")
 	}
 	b, err := os.ReadFile(filepath.Join(a.store.Dir(), "runs", projectID, name))
 	return string(b), err
@@ -866,13 +867,13 @@ func partialApply(sum *store.RunSummary, p store.Project, roles []string, name f
 	if len(sum.Completed) > 0 {
 		msg = "Quedaron instalados: " + names(sum.Completed) + ". "
 	}
-	verb := "Falló en"
+	verb := i18n.T("Falló en")
 	if sum.Canceled {
-		verb = "Se canceló en"
+		verb = i18n.T("Se canceló en")
 	}
 	msg += verb + ": " + name(stopped) + "."
 	if len(pending) > 0 {
-		msg += " No se llegó a: " + strings.Join(pending, ", ") + " (se instalarán al volver a aplicar)."
+		msg += i18n.T(" No se llegó a: ") + strings.Join(pending, ", ") + i18n.T(" (se instalarán al volver a aplicar).")
 	}
 	return msg
 }
@@ -991,7 +992,7 @@ func portClashes(sel []bundle.Selection, res *ProjectCheck, name func(string) st
 			if prev.key == u.key || conflicts(prev.key, u.key) {
 				continue
 			}
-			msg := fmt.Sprintf("el puerto %d ya lo usa %s", n, name(prev.key))
+			msg := i18n.Sprintf("el puerto %d ya lo usa %s", n, name(prev.key))
 			if prev.label != "" {
 				msg += " («" + prev.label + "»)"
 			}
@@ -1007,9 +1008,9 @@ func portClashes(sel []bundle.Selection, res *ProjectCheck, name func(string) st
 				if res.Errors[prev.key] == nil {
 					res.Errors[prev.key] = map[string]string{}
 				}
-				res.Errors[prev.key][prev.varName] = fmt.Sprintf("el puerto %d lo necesita %s: elige otro", n, name(u.key))
+				res.Errors[prev.key][prev.varName] = i18n.Sprintf("el puerto %d lo necesita %s: elige otro", n, name(u.key))
 			} else {
-				res.General = append(res.General, fmt.Sprintf("%s y %s necesitan los dos el puerto %d", name(prev.key), name(u.key), n))
+				res.General = append(res.General, i18n.Sprintf("%s y %s necesitan los dos el puerto %d", name(prev.key), name(u.key), n))
 			}
 		}
 	}

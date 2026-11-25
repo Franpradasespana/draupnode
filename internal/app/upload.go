@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"draupnode/internal/i18n"
 	"fmt"
 	"io"
 	"io/fs"
@@ -161,10 +162,10 @@ func (a *App) uploadLocalAppsTo(ctx context.Context, c *ssh.Client, su runner.Su
 		dir, _ := m.Values["git_app_local_dir"].(string)
 		name, _ := m.Values["git_app_name"].(string)
 		if st, err := os.Stat(dir); err != nil || !st.IsDir() {
-			return fmt.Errorf("%s: no encuentro la carpeta %q en este equipo", a.moduleName(m.ID), dir)
+			return i18n.Errorf("%s: no encuentro la carpeta %q en este equipo", a.moduleName(m.ID), dir)
 		}
 		if !gitNameRe.MatchString(name) {
-			return fmt.Errorf("%s: nombre de app no válido", a.moduleName(m.ID))
+			return i18n.Errorf("%s: nombre de app no válido", a.moduleName(m.ID))
 		}
 		dest := base + "/" + name
 		pr, pw := io.Pipe()
@@ -178,9 +179,9 @@ func (a *App) uploadLocalAppsTo(ctx context.Context, c *ssh.Client, su runner.Su
 		cmd := "mkdir -p " + bundle.ShellQuote(dest) + " && tar -xzf - --no-same-owner -C " + bundle.ShellQuote(dest)
 		var errb strings.Builder
 		if err := runner.Exec(ctx, c, su, cmd, pr, io.Discard, &errb); err != nil {
-			return fmt.Errorf("%s: no se pudo subir el código: %s", a.moduleName(m.ID), firstLine(errb.String(), err))
+			return i18n.Errorf("%s: no se pudo subir el código: %s", a.moduleName(m.ID), firstLine(errb.String(), err))
 		}
-		note(fmt.Sprintf("%s: código subido desde %s (%d ficheros, %.1f MB) a %s.", a.moduleName(m.ID), dir, files, float64(size)/1e6, dest))
+		note(i18n.Sprintf("%s: código subido desde %s (%d ficheros, %.1f MB) a %s.", a.moduleName(m.ID), dir, files, float64(size)/1e6, dest))
 	}
 	return nil
 }

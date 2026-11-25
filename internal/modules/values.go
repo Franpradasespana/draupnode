@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"draupnode/internal/i18n"
 	"errors"
 	"fmt"
 	"math"
@@ -14,7 +15,7 @@ import (
 func Normalize(v Variable, val any) (any, error) {
 	if val == nil {
 		if v.Required {
-			return nil, errors.New("es obligatorio")
+			return nil, i18n.New("es obligatorio")
 		}
 		return nil, nil
 	}
@@ -26,7 +27,7 @@ func Normalize(v Variable, val any) (any, error) {
 		case string:
 			return strconv.ParseBool(b)
 		}
-		return nil, errors.New("debe ser sí o no")
+		return nil, i18n.New("debe ser sí o no")
 	case TypeInt:
 		var n int
 		switch x := val.(type) {
@@ -36,23 +37,23 @@ func Normalize(v Variable, val any) (any, error) {
 			n = int(x)
 		case float64:
 			if x != math.Trunc(x) {
-				return nil, errors.New("debe ser un número entero")
+				return nil, i18n.New("debe ser un número entero")
 			}
 			n = int(x)
 		case string:
 			p, err := strconv.Atoi(strings.TrimSpace(x))
 			if err != nil {
-				return nil, errors.New("debe ser un número entero")
+				return nil, i18n.New("debe ser un número entero")
 			}
 			n = p
 		default:
-			return nil, errors.New("debe ser un número entero")
+			return nil, i18n.New("debe ser un número entero")
 		}
 		if v.Min != nil && n < *v.Min {
-			return nil, fmt.Errorf("debe ser como mínimo %d", *v.Min)
+			return nil, i18n.Errorf("debe ser como mínimo %d", *v.Min)
 		}
 		if v.Max != nil && n > *v.Max {
-			return nil, fmt.Errorf("debe ser como máximo %d", *v.Max)
+			return nil, i18n.Errorf("debe ser como máximo %d", *v.Max)
 		}
 		return n, nil
 	case TypeList:
@@ -69,7 +70,7 @@ func Normalize(v Variable, val any) (any, error) {
 				items = append(items, strings.TrimSpace(it))
 			}
 		default:
-			return nil, errors.New("debe ser una lista")
+			return nil, i18n.New("debe ser una lista")
 		}
 		out := []string{}
 		seen := map[string]bool{}
@@ -84,19 +85,19 @@ func Normalize(v Variable, val any) (any, error) {
 			out = append(out, it)
 		}
 		if v.Required && len(out) == 0 {
-			return nil, errors.New("añade al menos un elemento")
+			return nil, i18n.New("añade al menos un elemento")
 		}
 		return out, nil
 	default: // string, select
 		s := strings.TrimSpace(fmt.Sprint(val))
 		if s == "" {
 			if v.Required {
-				return nil, errors.New("es obligatorio")
+				return nil, i18n.New("es obligatorio")
 			}
 			return "", nil
 		}
 		if strings.ContainsAny(s, "\n\r") {
-			return nil, errors.New("no puede tener saltos de línea")
+			return nil, i18n.New("no puede tener saltos de línea")
 		}
 		if v.Type == TypeSelect {
 			for _, o := range v.Options {
@@ -104,7 +105,7 @@ func Normalize(v Variable, val any) (any, error) {
 					return s, nil
 				}
 			}
-			return nil, fmt.Errorf("debe ser una de: %s", strings.Join(v.Options, ", "))
+			return nil, i18n.Errorf("debe ser una de: %s", strings.Join(v.Options, ", "))
 		}
 		if err := checkPattern(v, s); err != nil {
 			return nil, err
@@ -121,7 +122,7 @@ func checkPattern(v Variable, s string) error {
 		if v.PatternHelp != "" {
 			return errors.New(v.PatternHelp)
 		}
-		return fmt.Errorf("no cumple el formato %s", v.Pattern)
+		return i18n.Errorf("no cumple el formato %s", v.Pattern)
 	}
 	return nil
 }

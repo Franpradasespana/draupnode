@@ -1,6 +1,7 @@
 package app
 
 import (
+	"draupnode/internal/i18n"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,16 +14,16 @@ import (
 
 // cloudFirewall: nombre del proveedor y dónde se abren los puertos.
 var cloudFirewall = map[string][2]string{
-	"oracle":       {"Oracle Cloud", "la «Security List» de su VCN (o su Network Security Group): Networking → Virtual Cloud Networks → la red → Security Lists → Add Ingress Rules"},
-	"aws":          {"AWS", "el «Security Group» de la instancia (EC2 → Security Groups → Inbound rules)"},
-	"gcp":          {"Google Cloud", "las reglas de cortafuegos de su VPC (VPC network → Firewall)"},
-	"azure":        {"Azure", "el «Network Security Group» de la máquina (Networking → Inbound port rules)"},
-	"hetzner":      {"Hetzner Cloud", "su «Firewall» de Hetzner, si le has puesto uno (Firewalls → Inbound)"},
-	"digitalocean": {"DigitalOcean", "su «Cloud Firewall», si le has puesto uno (Networking → Firewalls)"},
-	"ovh":          {"OVHcloud", "el «Firewall Network» o los grupos de seguridad, si los tienes activados"},
-	"scaleway":     {"Scaleway", "su «Security Group» (Instances → Security groups)"},
-	"linode":       {"Akamai/Linode", "su «Cloud Firewall», si le has puesto uno"},
-	"vultr":        {"Vultr", "su «Firewall Group», si le has puesto uno"},
+	"oracle":       {"Oracle Cloud", i18n.N("la «Security List» de su VCN (o su Network Security Group): Networking → Virtual Cloud Networks → la red → Security Lists → Add Ingress Rules")},
+	"aws":          {"AWS", i18n.N("el «Security Group» de la instancia (EC2 → Security Groups → Inbound rules)")},
+	"gcp":          {"Google Cloud", i18n.N("las reglas de cortafuegos de su VPC (VPC network → Firewall)")},
+	"azure":        {"Azure", i18n.N("el «Network Security Group» de la máquina (Networking → Inbound port rules)")},
+	"hetzner":      {"Hetzner Cloud", i18n.N("su «Firewall» de Hetzner, si le has puesto uno (Firewalls → Inbound)")},
+	"digitalocean": {"DigitalOcean", i18n.N("su «Cloud Firewall», si le has puesto uno (Networking → Firewalls)")},
+	"ovh":          {"OVHcloud", i18n.N("el «Firewall Network» o los grupos de seguridad, si los tienes activados")},
+	"scaleway":     {"Scaleway", i18n.N("su «Security Group» (Instances → Security groups)")},
+	"linode":       {"Akamai/Linode", i18n.N("su «Cloud Firewall», si le has puesto uno")},
+	"vultr":        {"Vultr", i18n.N("su «Firewall Group», si le has puesto uno")},
 }
 
 // CloudName devuelve el nombre legible del proveedor ("" si no se conoce).
@@ -66,8 +67,8 @@ func cloudPortWarning(sel []bundle.Selection, cloud string) string {
 	sort.Slice(ports, func(i, j int) bool {
 		return atoi(strings.Split(ports[i], "/")[0]) < atoi(strings.Split(ports[j], "/")[0])
 	})
-	return "El servidor está en " + cf[0] + ", que tiene su propio cortafuegos fuera del servidor: si no lo has hecho ya, abre también " +
-		strings.Join(ports, ", ") + " en " + cf[1] + ". Draupnode no puede hacerlo por ti."
+	return i18n.Sprintf("El servidor está en %s, que tiene su propio cortafuegos fuera del servidor: si no lo has hecho ya, abre también %s en %s. Draupnode no puede hacerlo por ti.",
+		cf[0], strings.Join(ports, ", "), i18n.T(cf[1]))
 }
 
 // syncProxySites: las apps con dominio (proxy_site) se añaden a los sitios
@@ -97,7 +98,7 @@ func syncProxySites(sel []bundle.Selection) []string {
 		}
 		line := domain + " 127.0.0.1:" + strconv.Itoa(port)
 		if proxyVals == nil {
-			w = append(w, s.Module.Name+" tiene el dominio "+domain+": añade también Caddy o nginx para que se vea en https://"+domain+" (Draupnode pondrá el sitio solo).")
+			w = append(w, s.Module.Name+i18n.T(" tiene el dominio ")+domain+i18n.T(": añade también Caddy o nginx para que se vea en https://")+domain+i18n.T(" (Draupnode pondrá el sitio solo)."))
 			continue
 		}
 		sites := toStrings(proxyVals[proxyVar])
@@ -106,7 +107,7 @@ func syncProxySites(sel []bundle.Selection) []string {
 			if f := strings.Fields(l); len(f) > 0 && f[0] == domain {
 				found = true
 				if l != line {
-					w = append(w, "El dominio "+domain+" ya está en los sitios de "+proxyName+" con otro destino («"+l+"»); "+s.Module.Name+" escucha en 127.0.0.1:"+strconv.Itoa(port)+".")
+					w = append(w, i18n.T("El dominio ")+domain+i18n.T(" ya está en los sitios de ")+proxyName+i18n.T(" con otro destino («")+l+"»); "+s.Module.Name+i18n.T(" escucha en 127.0.0.1:")+strconv.Itoa(port)+".")
 				}
 			}
 		}

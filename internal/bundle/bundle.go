@@ -8,6 +8,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"draupnode/internal/i18n"
 	"embed"
 	"encoding/base64"
 	"fmt"
@@ -320,7 +321,7 @@ func uninstallYAML(o Options, sel []Selection) ([]byte, error) {
 	for i := len(sel) - 1; i >= 0; i-- {
 		s := sel[i]
 		if !s.Module.Uninstallable {
-			return nil, fmt.Errorf("%s no se puede desinstalar", s.Module.Name)
+			return nil, i18n.Errorf("%s no se puede desinstalar", s.Module.Name)
 		}
 		name := "Desinstalar " + s.Module.Name
 		if s.Instance != "" {
@@ -411,7 +412,7 @@ func Payload(o Options, sel []Selection) ([]byte, error) {
 		}
 		copied[s.Module.ID] = true
 		if err := t.addFS(s.Module.Role(), "roles/"+s.Module.ID); err != nil {
-			return nil, fmt.Errorf("módulo %s: %w", s.Module.ID, err)
+			return nil, i18n.Errorf("módulo %s: %w", s.Module.ID, err)
 		}
 	}
 	if err := t.tw.Close(); err != nil {

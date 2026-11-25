@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
+	"draupnode/internal/i18n"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"regexp"
 	"sort"
@@ -74,16 +74,16 @@ func classifyGitVar(v *GitEnvVar) {
 	k := strings.ToUpper(v.Key)
 	switch {
 	case urlNameRe.MatchString(k):
-		v.Hint = "dirección: si lleva usuario y contraseña, escríbela entera"
+		v.Hint = i18n.T("dirección: si lleva usuario y contraseña, escríbela entera")
 	case strings.Contains(k, "PUBLIC") || strings.HasSuffix(k, "_KEY_ID") || strings.HasSuffix(k, "_ID"):
 	case externalRe.MatchString(k):
 		v.External = true
-		v.Hint = "clave de otro servicio: solo la tienes tú"
+		v.Hint = i18n.T("clave de otro servicio: solo la tienes tú")
 	case configNameRe.MatchString(k):
 		// AUTH_PASSWORD_BROKER, SESSION_LIFETIME…: opciones, aunque lleven «PASSWORD» o «KEY».
 	case secretNameRe.MatchString(k):
 		v.Secret = true
-		v.Hint = "contraseña o clave de la app: se puede generar al azar"
+		v.Hint = i18n.T("contraseña o clave de la app: se puede generar al azar")
 	}
 }
 
@@ -213,11 +213,11 @@ func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName,
 	}
 	switch {
 	case !gitRepoRe.MatchString(repo):
-		return fail("Escribe primero la dirección del repositorio (https://… o git@…).")
+		return fail(i18n.T("Escribe primero la dirección del repositorio (https://… o git@…)."))
 	case !gitBranchRe.MatchString(branch):
-		return fail("El nombre de la rama no es válido.")
+		return fail(i18n.T("El nombre de la rama no es válido."))
 	case !gitComposeRe.MatchString(compose) || strings.Contains(compose, ".."):
-		return fail("El fichero compose no es válido.")
+		return fail(i18n.T("El fichero compose no es válido."))
 	}
 	p, err := a.store.Project(projectID)
 	if err != nil {
@@ -233,7 +233,7 @@ func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName,
 		t, err := a.vault.Get(varName(projectID, secretKey(moduleID, "git_app_token")))
 		switch {
 		case errors.Is(err, secrets.ErrLocked):
-			return GitInspectResult{RunStart: RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: ahí está el token del repositorio."}}
+			return GitInspectResult{RunStart: RunStart{Status: "vault_locked", Message: i18n.T("Desbloquea la bóveda: ahí está el token del repositorio.")}}
 		case err == nil:
 			token = strings.TrimSpace(t)
 		}
@@ -249,7 +249,7 @@ func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName,
 			" K=" + bundle.ShellQuote(keyPath) + " KH=" + bundle.ShellQuote(knownHosts)
 		out, errOut, err := execIn(c, su, env+" sh -c "+bundle.ShellQuote(gitInspectScript), token+"\n")
 		if err != nil && strings.TrimSpace(out) == "" {
-			return RunStart{Status: "error", Message: "no se pudo leer: " + firstLine(errOut, err)}
+			return RunStart{Status: "error", Message: i18n.T("no se pudo leer: ") + firstLine(errOut, err)}
 		}
 		var raw struct {
 			Error   string      `json:"error"`
@@ -262,13 +262,13 @@ func (a *App) GitAppInspect(projectID, moduleID, repo, branch, compose, appName,
 			Built   string      `json:"built"`
 		}
 		if json.Unmarshal([]byte(lastJSONLine(out)), &raw) != nil {
-			return RunStart{Status: "error", Message: "respuesta no válida del servidor"}
+			return RunStart{Status: "error", Message: i18n.T("respuesta no válida del servidor")}
 		}
 		switch raw.Error {
 		case "nogit":
-			return RunStart{Status: "error", Message: "El servidor aún no tiene git (se instala al aplicar este módulo). Aplica una vez o instala git y vuelve a probar."}
+			return RunStart{Status: "error", Message: i18n.T("El servidor aún no tiene git (se instala al aplicar este módulo). Aplica una vez o instala git y vuelve a probar.")}
 		case "nopy":
-			return RunStart{Status: "error", Message: "El servidor no tiene python3 (lo instala el módulo «Sistema base»)."}
+			return RunStart{Status: "error", Message: i18n.T("El servidor no tiene python3 (lo instala el módulo «Sistema base»).")}
 		case "clone":
 			return RunStart{Status: "error", Message: gitCloneHelp(raw.Detail, isSSH, token != "", keyPath)}
 		}
@@ -307,18 +307,18 @@ func gitCloneHelp(detail string, isSSH, hasToken bool, keyPath string) string {
 	if i := strings.LastIndex(d, "fatal:"); i >= 0 {
 		d = strings.TrimSpace(d[i:])
 	}
-	msg := "No se pudo bajar el repositorio (" + d + "). "
+	msg := i18n.T("No se pudo bajar el repositorio (") + d + "). "
 	switch {
 	case strings.Contains(d, "Remote branch") || strings.Contains(d, "not found in upstream"):
-		return msg + "Comprueba el nombre de la rama."
+		return msg + i18n.T("Comprueba el nombre de la rama.")
 	case isSSH && keyPath == "":
-		return msg + "Pon antes el nombre de la app."
+		return msg + i18n.T("Pon antes el nombre de la app.")
 	case isSSH:
-		return msg + "Si es privado por SSH, la deploy key se crea al aplicar por primera vez: aplica, añádela al repositorio y vuelve a leerlo; o usa la dirección https:// con un token."
+		return msg + i18n.T("Si es privado por SSH, la deploy key se crea al aplicar por primera vez: aplica, añádela al repositorio y vuelve a leerlo; o usa la dirección https:// con un token.")
 	case hasToken:
-		return msg + "El token no sirve para este repositorio: comprueba que no ha caducado y que tiene permiso de lectura."
+		return msg + i18n.T("El token no sirve para este repositorio: comprueba que no ha caducado y que tiene permiso de lectura.")
 	default:
-		return msg + "Si es privado, pon antes el «Token de acceso» (solo lectura) y vuelve a leerlo."
+		return msg + i18n.T("Si es privado, pon antes el «Token de acceso» (solo lectura) y vuelve a leerlo.")
 	}
 }
 
@@ -388,7 +388,7 @@ func parseDotEnv(text string) (out []envKV, multiline []string) {
 func (a *App) ChooseEnvFile() (string, error) {
 	home, _ := os.UserHomeDir()
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:            "Fichero .env de tu app",
+		Title:            i18n.T("Fichero .env de tu app"),
 		DefaultDirectory: home,
 		ShowHiddenFiles:  true,
 	})
@@ -406,18 +406,18 @@ func (a *App) GitAppImportEnv(projectID, moduleID, path string) EnvImportResult 
 	}
 	st, err := os.Stat(path)
 	if err != nil {
-		return fail("no se pudo abrir el fichero: " + err.Error())
+		return fail(i18n.T("no se pudo abrir el fichero: ") + err.Error())
 	}
 	if st.IsDir() || st.Size() > 256<<10 {
-		return fail("eso no parece un fichero .env (es una carpeta o pesa demasiado)")
+		return fail(i18n.T("eso no parece un fichero .env (es una carpeta o pesa demasiado)"))
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return fail("no se pudo leer el fichero: " + err.Error())
+		return fail(i18n.T("no se pudo leer el fichero: ") + err.Error())
 	}
 	vars, multi := parseDotEnv(string(b))
 	if len(vars) == 0 && len(multi) == 0 {
-		return fail("el fichero no tiene ninguna línea CLAVE=valor")
+		return fail(i18n.T("el fichero no tiene ninguna línea CLAVE=valor"))
 	}
 	res.Skipped = append(res.Skipped, multi...)
 	secretVals := map[string]string{}
@@ -439,10 +439,10 @@ func (a *App) GitAppImportEnv(projectID, moduleID, path string) EnvImportResult 
 		old, err := a.vault.Get(key)
 		switch {
 		case errors.Is(err, secrets.ErrLocked):
-			res.RunStart = RunStart{Status: "vault_locked", Message: "Desbloquea la bóveda: las contraseñas del .env se guardan cifradas ahí."}
+			res.RunStart = RunStart{Status: "vault_locked", Message: i18n.T("Desbloquea la bóveda: las contraseñas del .env se guardan cifradas ahí.")}
 			return res
 		case errors.Is(err, secrets.ErrNoVault):
-			res.RunStart = RunStart{Status: "vault_missing", Message: "Las contraseñas del .env se guardan en la bóveda cifrada: créala."}
+			res.RunStart = RunStart{Status: "vault_missing", Message: i18n.T("Las contraseñas del .env se guardan en la bóveda cifrada: créala.")}
 			return res
 		}
 		merged := map[string]string{}
@@ -499,13 +499,13 @@ func gitEnvWarnings(name string, vals map[string]any) []string {
 		lv := strings.ToLower(v)
 		switch {
 		case k == "NODE_ENV" && v != "" && v != "production" && v != "development" && v != "test":
-			out = append(out, fmt.Sprintf("%s: NODE_ENV=%s no es un valor que entiendan las apps de Node (production, development o test); en un servidor, «production». Con otro valor muchas se quedan en modo desarrollo.", name, v))
+			out = append(out, i18n.Sprintf("%s: NODE_ENV=%s no es un valor que entiendan las apps de Node (production, development o test); en un servidor, «production». Con otro valor muchas se quedan en modo desarrollo.", name, v))
 		case (k == "DEBUG" || k == "APP_DEBUG" || k == "FLASK_DEBUG" || k == "DJANGO_DEBUG") && (lv == "true" || lv == "1" || lv == "yes" || lv == "on"):
-			out = append(out, fmt.Sprintf("%s: %s=%s en un servidor enseña los errores (y a veces contraseñas) a cualquiera; ponlo a false.", name, k, v))
+			out = append(out, i18n.Sprintf("%s: %s=%s en un servidor enseña los errores (y a veces contraseñas) a cualquiera; ponlo a false.", name, k, v))
 		case (k == "RAILS_ENV" || k == "APP_ENV" || k == "FLASK_ENV") && (lv == "development" || lv == "dev" || lv == "local"):
-			out = append(out, fmt.Sprintf("%s: %s=%s es para desarrollo; en un servidor, «production».", name, k, v))
+			out = append(out, i18n.Sprintf("%s: %s=%s es para desarrollo; en un servidor, «production».", name, k, v))
 		case v == "" && !strings.HasPrefix(k, "#"):
-			out = append(out, fmt.Sprintf("%s: %s está vacía. Si la app no la necesita, quita la línea (vacía no es lo mismo que «sin poner»: puede pisar un valor por defecto).", name, k))
+			out = append(out, i18n.Sprintf("%s: %s está vacía. Si la app no la necesita, quita la línea (vacía no es lo mismo que «sin poner»: puede pisar un valor por defecto).", name, k))
 		}
 	}
 	return out

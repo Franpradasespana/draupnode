@@ -1,9 +1,9 @@
 package app
 
 import (
+	"draupnode/internal/i18n"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -68,7 +68,7 @@ func (a *App) SaveRecipe(r store.Recipe) (store.Recipe, error) {
 			return store.Recipe{}, errors.New(strings.Join(chk.General, "; "))
 		}
 		if len(chk.Errors) > 0 {
-			return store.Recipe{}, errors.New("revisa los campos marcados en rojo")
+			return store.Recipe{}, i18n.New("revisa los campos marcados en rojo")
 		}
 		r.Modules = make([]store.ProjectModule, 0, len(sel))
 		for _, s := range sel {
@@ -116,7 +116,7 @@ func (a *App) ApplyTemplate(serverID, recipeID string) (TemplateResult, error) {
 		return res, err
 	}
 	if a.projectRunning(p.ID) {
-		return res, errors.New("hay una tarea en marcha en este servidor: espera a que termine")
+		return res, i18n.New("hay una tarea en marcha en este servidor: espera a que termine")
 	}
 	var added, kept []string
 	for _, m := range cloneModules(r.Modules) {
@@ -138,12 +138,12 @@ func (a *App) ApplyTemplate(serverID, recipeID string) (TemplateResult, error) {
 		return res, err
 	}
 	if len(added) > 0 {
-		res.Notes = append(res.Notes, "Añadidos: "+strings.Join(added, ", ")+". Se instalan al pulsar Aplicar.")
+		res.Notes = append(res.Notes, i18n.T("Añadidos: ")+strings.Join(added, ", ")+i18n.T(". Se instalan al pulsar Aplicar."))
 	} else {
-		res.Notes = append(res.Notes, "El servidor ya tenía todos sus módulos: no se ha añadido ninguno.")
+		res.Notes = append(res.Notes, i18n.T("El servidor ya tenía todos sus módulos: no se ha añadido ninguno."))
 	}
 	if len(kept) > 0 {
-		res.Notes = append(res.Notes, "Ya estaban (se mantiene su configuración): "+strings.Join(kept, ", ")+".")
+		res.Notes = append(res.Notes, i18n.T("Ya estaban (se mantiene su configuración): ")+strings.Join(kept, ", ")+".")
 	}
 	res.Project, res.Recipe = p, r
 	return res, nil
@@ -157,10 +157,10 @@ func (a *App) ModulesToTemplate(serverID string, moduleIDs []string, recipeID, n
 	var res TemplateResult
 	p, ok := a.store.ServerProject(serverID)
 	if !ok {
-		return res, errors.New("este servidor no tiene módulos")
+		return res, i18n.New("este servidor no tiene módulos")
 	}
 	if len(moduleIDs) == 0 {
-		return res, errors.New("elige al menos un módulo")
+		return res, i18n.New("elige al menos un módulo")
 	}
 	var r store.Recipe
 	if recipeID != "" {
@@ -171,11 +171,11 @@ func (a *App) ModulesToTemplate(serverID string, moduleIDs []string, recipeID, n
 	} else {
 		newName = strings.TrimSpace(newName)
 		if newName == "" {
-			return res, errors.New("ponle un nombre a la plantilla nueva")
+			return res, i18n.New("ponle un nombre a la plantilla nueva")
 		}
 		for _, x := range a.store.Recipes() {
 			if strings.EqualFold(x.Name, newName) {
-				return res, fmt.Errorf("ya hay una plantilla «%s»: elígela en «añadir a una existente»", x.Name)
+				return res, i18n.Errorf("ya hay una plantilla «%s»: elígela en «añadir a una existente»", x.Name)
 			}
 		}
 		r = store.Recipe{Name: newName}
@@ -213,9 +213,9 @@ func (a *App) ModulesToTemplate(serverID string, moduleIDs []string, recipeID, n
 	}
 	res.Project, res.Recipe = p, saved
 	if recipeID == "" {
-		res.Notes = []string{fmt.Sprintf("Plantilla «%s» creada con %d módulo(s).", saved.Name, len(moduleIDs))}
+		res.Notes = []string{i18n.Sprintf("Plantilla «%s» creada con %d módulo(s).", saved.Name, len(moduleIDs))}
 	} else {
-		res.Notes = []string{fmt.Sprintf("Plantilla «%s» actualizada. Los demás servidores en los que se aplicó no cambian.", saved.Name)}
+		res.Notes = []string{i18n.Sprintf("Plantilla «%s» actualizada. Los demás servidores en los que se aplicó no cambian.", saved.Name)}
 	}
 	return res, nil
 }
@@ -225,7 +225,7 @@ func (a *App) ModulesToTemplate(serverID string, moduleIDs []string, recipeID, n
 func (a *App) ForgetTemplate(serverID, recipeID string) (store.Project, error) {
 	p, ok := a.store.ServerProject(serverID)
 	if !ok {
-		return p, errors.New("este servidor no tiene módulos")
+		return p, i18n.New("este servidor no tiene módulos")
 	}
 	var keep []string
 	for _, t := range p.Templates {

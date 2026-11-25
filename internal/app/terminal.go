@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"draupnode/internal/i18n"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -83,7 +84,7 @@ func (a *App) TerminalOpen(serverID, secret, accept string, cols, rows int) Term
 	if err := s.RequestPty("xterm-256color", rows, cols, modes); err != nil {
 		s.Close()
 		c.Close()
-		return TermStart{RunStart: RunStart{Status: "error", Message: "el servidor no dio terminal: " + err.Error()}}
+		return TermStart{RunStart: RunStart{Status: "error", Message: i18n.T("el servidor no dio terminal: ") + err.Error()}}
 	}
 	stdin, _ := s.StdinPipe()
 	stdout, _ := s.StdoutPipe()
@@ -120,10 +121,10 @@ func (a *App) TerminalOpen(serverID, secret, accept string, cols, rows int) Term
 		go pump(stderr, &wg)
 		err := s.Wait()
 		wg.Wait()
-		reason := "Sesión terminada."
+		reason := i18n.T("Sesión terminada.")
 		if err != nil {
 			if _, ok := err.(*ssh.ExitError); !ok {
-				reason = "Conexión cerrada: " + err.Error()
+				reason = i18n.T("Conexión cerrada: ") + err.Error()
 			}
 		}
 		termMu.Lock()

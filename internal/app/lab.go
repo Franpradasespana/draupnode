@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"errors"
+	"draupnode/internal/i18n"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -98,7 +98,7 @@ func (a *App) LabAction(action string) error {
 	a.labMu.Lock()
 	if a.labBusy != "" {
 		a.labMu.Unlock()
-		return fmt.Errorf("espera a que termine: %s", a.labBusy)
+		return i18n.Errorf("espera a que termine: %s", a.labBusy)
 	}
 	a.labBusy = action
 	a.labMu.Unlock()
@@ -123,7 +123,7 @@ func (a *App) LabAction(action string) error {
 		a.labMu.Lock()
 		a.labBusy = ""
 		a.labMu.Unlock()
-		return errors.New("acción desconocida")
+		return i18n.New("acción desconocida")
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -160,9 +160,9 @@ func (a *App) LabRegister() (ServerView, error) {
 		return ServerView{}, err
 	}
 	srv := store.Server{
-		ID: a.labServerID(), Name: "Servidor de pruebas (Docker)", Host: lab.Host, Port: lab.SSHPort,
+		ID: a.labServerID(), Name: i18n.T("Servidor de pruebas (Docker)"), Host: lab.Host, Port: lab.SSHPort,
 		User: lab.User, AuthMethod: store.AuthKey, KeyPath: keys[0].Path,
-		Notes: "Ubuntu 24.04 en un contenedor Docker de este equipo (pantalla Pruebas). Se puede borrar y crear de nuevo sin miedo.",
+		Notes: i18n.T("Ubuntu 24.04 en un contenedor Docker de este equipo (pantalla Pruebas). Se puede borrar y crear de nuevo sin miedo."),
 	}
 	return a.SaveServer(srv, "", false, "")
 }

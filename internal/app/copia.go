@@ -2,9 +2,9 @@ package app
 
 import (
 	"bytes"
+	"draupnode/internal/i18n"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -43,7 +43,7 @@ func (a *App) ExportBackup(password string, withKeys bool) (string, error) {
 	}
 	home, _ := os.UserHomeDir()
 	p, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title:            "Guardar la copia de Draupnode",
+		Title:            i18n.T("Guardar la copia de Draupnode"),
 		DefaultDirectory: home,
 		DefaultFilename:  "draupnode-copia-" + time.Now().Format("2006-01-02") + ".draupnode",
 	})
@@ -130,9 +130,9 @@ func (a *App) buildBackup(password string, withKeys bool) ([]byte, error) {
 func (a *App) ChooseBackupFile() (string, error) {
 	home, _ := os.UserHomeDir()
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:            "Copia de Draupnode",
+		Title:            i18n.T("Copia de Draupnode"),
 		DefaultDirectory: home,
-		Filters:          []runtime.FileFilter{{DisplayName: "Copias de Draupnode (*.draupnode)", Pattern: "*.draupnode"}},
+		Filters:          []runtime.FileFilter{{DisplayName: i18n.T("Copias de Draupnode (*.draupnode)"), Pattern: "*.draupnode"}},
 	})
 }
 
@@ -171,7 +171,7 @@ func (a *App) ImportBackup(p, password string) (ImportResult, error) {
 	busy := len(a.runs) > 0
 	a.runMu.Unlock()
 	if busy {
-		return res, errors.New("hay una tarea en marcha: espera a que termine")
+		return res, i18n.New("hay una tarea en marcha: espera a que termine")
 	}
 	m, files, err := readBackup(p, password)
 	if err != nil {
@@ -217,7 +217,7 @@ func (a *App) ImportBackup(p, password string) (ImportResult, error) {
 			_ = writeFileAtomic(dst+".pub", pub, 0o644)
 		}
 		newKeyPath[k.ServerID] = dst
-		res.Notes = append(res.Notes, fmt.Sprintf("La clave SSH de «%s» se ha dejado en %s.", k.Server, dst))
+		res.Notes = append(res.Notes, i18n.Sprintf("La clave SSH de «%s» se ha dejado en %s.", k.Server, dst))
 	}
 
 	// 3. Frases de paso del llavero: al llavero de este equipo; si no hay
@@ -232,7 +232,7 @@ func (a *App) ImportBackup(p, password string) (ImportResult, error) {
 			}
 		}
 		if len(noKeyring) > 0 {
-			res.Notes = append(res.Notes, fmt.Sprintf("Este equipo no tiene llavero del sistema: %d servidor(es) te pedirán su contraseña al conectar.", len(noKeyring)))
+			res.Notes = append(res.Notes, i18n.Sprintf("Este equipo no tiene llavero del sistema: %d servidor(es) te pedirán su contraseña al conectar.", len(noKeyring)))
 		}
 	}
 	if len(newKeyPath) > 0 || len(noKeyring) > 0 {
@@ -265,7 +265,7 @@ func (a *App) ImportBackup(p, password string) (ImportResult, error) {
 		if err := writeFileAtomic(vaultPath, b, 0o600); err != nil {
 			return res, err
 		}
-		res.Notes = append(res.Notes, "La bóveda se abre con la contraseña maestra que tenía cuando hiciste la copia.")
+		res.Notes = append(res.Notes, i18n.T("La bóveda se abre con la contraseña maestra que tenía cuando hiciste la copia."))
 	}
 	if b, ok := files["known_hosts"]; ok {
 		_ = writeFileAtomic(filepath.Join(dir, "known_hosts"), b, 0o600)
@@ -280,11 +280,11 @@ func (a *App) ImportBackup(p, password string) (ImportResult, error) {
 	}
 	st, err := store.Open(dir)
 	if err != nil {
-		return res, fmt.Errorf("la copia se ha escrito pero no se puede abrir (lo de antes está en %s): %w", safety, err)
+		return res, i18n.Errorf("la copia se ha escrito pero no se puede abrir (lo de antes está en %s): %w", safety, err)
 	}
 	v, err := secrets.OpenVault(vaultPath)
 	if err != nil {
-		return res, fmt.Errorf("la bóveda de la copia no se puede abrir (lo de antes está en %s): %w", safety, err)
+		return res, i18n.Errorf("la bóveda de la copia no se puede abrir (lo de antes está en %s): %w", safety, err)
 	}
 	a.store, a.vault = st, v
 	a.catMu.Lock()

@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"draupnode/internal/i18n"
 	"errors"
 	"fmt"
 	"io"
@@ -63,12 +64,12 @@ func (a *App) DockerLabTest(dir string, spec dockerize.Spec) error {
 		return errors.New(strings.Join(errs, "; "))
 	}
 	if _, err := os.Stat(filepath.Join(dir, spec.Names().Compose)); err != nil {
-		return errors.New("guarda antes los ficheros (falta " + spec.Names().Compose + ")")
+		return errors.New(i18n.T("guarda antes los ficheros (falta ") + spec.Names().Compose + ")")
 	}
 	labTestMu.Lock()
 	if labTestCancel != nil {
 		labTestMu.Unlock()
-		return errors.New("ya hay una prueba en marcha")
+		return i18n.New("ya hay una prueba en marcha")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Minute)
 	labTestCancel = cancel
@@ -129,17 +130,17 @@ func (a *App) runLabTest(ctx context.Context, dir string, spec dockerize.Spec) D
 	out := func(s string) { a.emit("dockerlab", DockerLabEvent{Kind: "line", Text: s}) }
 	l := a.lab()
 
-	a.labStage("Comprobando Docker en este equipo")
+	a.labStage(i18n.T("Comprobando Docker en este equipo"))
 	if st := l.Docker(ctx); st.Problem != lab.ProblemNone {
-		return fail(st.Message + " Arréglalo en la pantalla «Servidor de pruebas» y vuelve a probar.")
+		return fail(st.Message + i18n.T(" Arréglalo en la pantalla «Servidor de pruebas» y vuelve a probar."))
 	}
 
 	if !l.Server(ctx).Running {
-		a.labStage("Creando el servidor de pruebas (la primera vez tarda unos minutos)")
+		a.labStage(i18n.T("Creando el servidor de pruebas (la primera vez tarda unos minutos)"))
 		a.labMu.Lock()
 		if a.labBusy != "" {
 			a.labMu.Unlock()
-			return fail("La pantalla «Servidor de pruebas» está ocupada (" + a.labBusy + "): espera a que termine.")
+			return fail(i18n.T("La pantalla «Servidor de pruebas» está ocupada (") + a.labBusy + i18n.T("): espera a que termine."))
 		}
 		a.labBusy = "start"
 		a.labMu.Unlock()
@@ -151,12 +152,12 @@ func (a *App) runLabTest(ctx context.Context, dir string, spec dockerize.Spec) D
 		a.labBusy = ""
 		a.labMu.Unlock()
 		if err != nil {
-			return fail("No se pudo crear el servidor de pruebas: " + err.Error())
+			return fail(i18n.T("No se pudo crear el servidor de pruebas: ") + err.Error())
 		}
 	}
 	if a.labServerID() == "" {
 		if _, err := a.LabRegister(); err != nil {
-			return fail("No se pudo dar de alta el servidor de pruebas: " + err.Error())
+			return fail(i18n.T("No se pudo dar de alta el servidor de pruebas: ") + err.Error())
 		}
 	} else if err := a.labTrust(); err != nil {
 		return fail(err.Error())
@@ -167,24 +168,24 @@ func (a *App) runLabTest(ctx context.Context, dir string, spec dockerize.Spec) D
 	}
 	c, su, rs := a.connectSudo(srv, "", "", "")
 	if rs != nil {
-		return fail("No se pudo conectar con el servidor de pruebas: " + rs.Message)
+		return fail(i18n.T("No se pudo conectar con el servidor de pruebas: ") + rs.Message)
 	}
 	defer c.Close()
 	w := &lineWriter{a: a}
 	run := func(cmd string, stdin io.Reader) error { return runner.Exec(ctx, c, su, cmd, stdin, w, w) }
 
-	a.labStage("Preparando Docker dentro del servidor de pruebas")
+	a.labStage(i18n.T("Preparando Docker dentro del servidor de pruebas"))
 	if err := run(`if command -v docker >/dev/null && docker compose version >/dev/null 2>&1; then echo "Docker ya está instalado."; else
 export DEBIAN_FRONTEND=noninteractive; apt-get update -q && apt-get install -y -q docker.io docker-compose-v2 && systemctl enable --now docker; fi`, nil); err != nil {
-		return fail("No se pudo instalar Docker en el servidor de pruebas.")
+		return fail(i18n.T("No se pudo instalar Docker en el servidor de pruebas."))
 	}
 
-	a.labStage("Subiendo el proyecto")
+	a.labStage(i18n.T("Subiendo el proyecto"))
 	name := spec.Name
 	remote := labTestBase + name
 	tarball, notes, err := projectTar(dir, spec)
 	if err != nil {
-		return fail("No se pudo empaquetar el proyecto: " + err.Error())
+		return fail(i18n.T("No se pudo empaquetar el proyecto: ") + err.Error())
 	}
 	for _, n := range notes {
 		out(n)
@@ -192,15 +193,15 @@ export DEBIAN_FRONTEND=noninteractive; apt-get update -q && apt-get install -y -
 	out(fmt.Sprintf("%.1f MB", float64(tarball.Len())/1e6))
 	q := bundle.ShellQuote(remote)
 	if err := run("rm -rf "+q+" && mkdir -p "+q+" && tar -x -C "+q, tarball); err != nil {
-		return fail("No se pudo subir el proyecto.")
+		return fail(i18n.T("No se pudo subir el proyecto."))
 	}
 
-	a.labStage("Construyendo y arrancando (puede tardar)")
+	a.labStage(i18n.T("Construyendo y arrancando (puede tardar)"))
 	cf := bundle.ShellQuote(spec.Names().Compose)
 	proj := "dnp-" + name
 	if err := run("cd "+q+" && docker compose -f "+cf+" -p "+proj+" up -d --build --quiet-pull --remove-orphans 2>&1", nil); err != nil {
 		logs := labOut(ctx, c, su, "cd "+q+" && docker compose -f "+cf+" -p "+proj+" logs --tail 40 2>&1")
-		return DockerLabEvent{Kind: "done", Error: "No arrancó: mira la salida (suele faltar algo en el Dockerfile o en el .env).", Output: logs}
+		return DockerLabEvent{Kind: "done", Error: i18n.T("No arrancó: mira la salida (suele faltar algo en el Dockerfile o en el .env)."), Output: logs}
 	}
 
 	port := dockerize.PublishedPort(spec)
@@ -208,7 +209,7 @@ export DEBIAN_FRONTEND=noninteractive; apt-get update -q && apt-get install -y -
 	if spec.HealthPath != "" && !spec.Proxy {
 		path = spec.HealthPath
 	}
-	a.labStage(fmt.Sprintf("Comprobando que responde en el puerto %d", port))
+	a.labStage(i18n.Sprintf("Comprobando que responde en el puerto %d", port))
 	check := fmt.Sprintf(`python3 - <<'X'
 import time, urllib.request, urllib.error
 code = 0
@@ -229,12 +230,12 @@ X`, port, path, hostHeader(spec, port))
 	ps := labOut(ctx, c, su, "cd "+q+" && docker compose -f "+cf+" -p "+proj+" ps --format '{{.Service}}: {{.Status}}' 2>&1; echo; docker compose -f "+cf+" -p "+proj+" logs --tail 25 2>&1")
 	ev := DockerLabEvent{Kind: "done", HTTP: code, Output: ps}
 	if code == 0 || code >= 500 {
-		ev.Error = "Está arrancado pero no responde bien (" + httpText(code) + "). Mira los registros de abajo."
+		ev.Error = i18n.T("Está arrancado pero no responde bien (") + httpText(code) + i18n.T("). Mira los registros de abajo.")
 		return ev
 	}
 	t, st := a.openTunnel(labTestProject(srv.ID), "app", port, "", "")
 	if st != nil {
-		ev.Error = "Responde, pero no se pudo abrir el túnel para verlo: " + st.Message
+		ev.Error = i18n.T("Responde, pero no se pudo abrir el túnel para verlo: ") + st.Message
 		return ev
 	}
 	ev.OK, ev.URL = true, t.url()
@@ -250,7 +251,7 @@ func hostHeader(spec dockerize.Spec, port int) string {
 
 func httpText(code int) string {
 	if code == 0 {
-		return "no contesta"
+		return i18n.T("no contesta")
 	}
 	return "HTTP " + strconv.Itoa(code)
 }
@@ -339,7 +340,7 @@ func projectTar(dir string, spec dockerize.Spec) (*bytes.Buffer, []string, error
 		}
 		total += info.Size()
 		if total > 1<<30 {
-			return errors.New("el proyecto pasa de 1 GB (sin node_modules, .git…): demasiado para probar así")
+			return i18n.New("el proyecto pasa de 1 GB (sin node_modules, .git…): demasiado para probar así")
 		}
 		data, err := os.ReadFile(p)
 		if err != nil {
@@ -364,7 +365,7 @@ func projectTar(dir string, spec dockerize.Spec) (*bytes.Buffer, []string, error
 			if err := add(".env", env, 0o600); err != nil {
 				return nil, nil, err
 			}
-			notes = append(notes, "No hay .env: para la prueba se ha creado uno (de .env.example y, si hacía falta, con DB_PASSWORD al azar).")
+			notes = append(notes, i18n.T("No hay .env: para la prueba se ha creado uno (de .env.example y, si hacía falta, con DB_PASSWORD al azar)."))
 		}
 	}
 	if err := tw.Close(); err != nil {

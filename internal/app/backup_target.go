@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"draupnode/internal/i18n"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
@@ -52,7 +53,7 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 		return res, err
 	}
 	if projectModule(src, "backups") == nil {
-		return res, errors.New("este servidor no tiene el módulo «Copias de seguridad»")
+		return res, i18n.New("este servidor no tiene el módulo «Copias de seguridad»")
 	}
 	srcSrv, err := a.store.Server(src.ServerID)
 	if err != nil {
@@ -63,19 +64,19 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 		return res, err
 	}
 	if tgtSrv.ID == srcSrv.ID || strings.EqualFold(tgtSrv.Host, srcSrv.Host) {
-		return res, errors.New("elige OTRO servidor: si las copias se guardan en el mismo, no te salvan si lo pierdes")
+		return res, i18n.New("elige OTRO servidor: si las copias se guardan en el mismo, no te salvan si lo pierdes")
 	}
 	if port == 0 {
 		port = RandomTargetPort()
 	}
 	if port < 1024 || port > 65535 {
-		return res, errors.New("el puerto debe estar entre 1024 y 65535")
+		return res, i18n.New("el puerto debe estar entre 1024 y 65535")
 	}
 	if strings.HasPrefix(tgtSrv.Host, "127.") || tgtSrv.Host == "localhost" || tgtSrv.Host == "::1" {
-		return res, errors.New("ese servidor se conecta por " + tgtSrv.Host + ", que el servidor de origen no puede alcanzar: usa su IP o su nombre en la red")
+		return res, errors.New(i18n.T("ese servidor se conecta por ") + tgtSrv.Host + i18n.T(", que el servidor de origen no puede alcanzar: usa su IP o su nombre en la red"))
 	}
 	if a.projectRunning(src.ID) {
-		return res, errors.New("hay una tarea en marcha: espera a que termine")
+		return res, i18n.New("hay una tarea en marcha: espera a que termine")
 	}
 	// La bóveda tiene que estar abierta antes de tocar nada.
 	if st := a.vault.Status(); !st.Exists {
@@ -128,7 +129,7 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 		}
 		certB64 = cert
 		if !isNew {
-			res.Notes = append(res.Notes, "Se ha generado un certificado nuevo para el destino: los demás servidores que guardan en él se han actualizado; aplícalos también.")
+			res.Notes = append(res.Notes, i18n.T("Se ha generado un certificado nuevo para el destino: los demás servidores que guardan en él se han actualizado; aplícalos también."))
 		}
 	}
 	vals["backup_target_tls_cert"] = certB64
@@ -199,7 +200,7 @@ func (a *App) CreateBackupTarget(sourceProjectID, targetServerID string, port in
 
 	res.TargetProjectID, res.TargetProjectName, res.TargetIsNew = tgt.ID, tgt.Name, isNew
 	res.Notes = append([]string{
-		"Aplica primero «" + tgt.Name + "» (en " + tgtSrv.Name + ") y después este servidor.",
+		i18n.Sprintf("Aplica primero «%s» (en %s) y después este servidor.", tgt.Name, tgtSrv.Name),
 	}, res.Notes...)
 	return res, nil
 }
@@ -243,9 +244,9 @@ func (a *App) targetFirewall(tgtID string, srv store.Server, port int, mods *[]s
 			v["firewall_tcp_ports"] = append(ports, ps)
 			fw.Values = v
 			if _, err := a.SaveProject(p); err != nil {
-				return "Abre el puerto " + ps + " en el Cortafuegos de «" + p.Name + "»: no se pudo añadir solo (" + err.Error() + ")."
+				return i18n.Sprintf("Abre el puerto %s en el Cortafuegos de «%s»: no se pudo añadir solo (%s).", ps, p.Name, err.Error())
 			}
-			return "Se ha añadido el puerto " + ps + " al Cortafuegos de «" + p.Name + "», que está en el mismo servidor: aplícalo también."
+			return i18n.Sprintf("Se ha añadido el puerto %s al Cortafuegos de «%s», que está en el mismo servidor: aplícalo también.", ps, p.Name)
 		}
 	}
 	for i, m := range *mods {
@@ -443,6 +444,6 @@ func (a *App) copiasRecipe() (store.Recipe, error) {
 			}
 		}
 	}
-	return a.SaveRecipe(store.Recipe{Name: targetProjectName, Notes: "Recibe las copias de otros servidores (solo añadir) y borra las viejas.",
+	return a.SaveRecipe(store.Recipe{Name: i18n.T(targetProjectName), Notes: i18n.T("Recibe las copias de otros servidores (solo añadir) y borra las viejas."),
 		Modules: []store.ProjectModule{{ID: "firewall", Values: map[string]any{}}, {ID: targetModule, Values: map[string]any{}}}})
 }

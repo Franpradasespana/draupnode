@@ -2,8 +2,8 @@ package app
 
 import (
 	"context"
+	"draupnode/internal/i18n"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -100,11 +100,11 @@ type TargetState struct {
 
 func (a *App) monitorPorts(p store.Project) (grafana, prom int, err error) {
 	if !contains(p.InstalledModules, monitoringModule) {
-		return 0, 0, errors.New("la monitorización no está instalada en este servidor: márcala y pulsa Aplicar")
+		return 0, 0, i18n.New("la monitorización no está instalada en este servidor: márcala y pulsa Aplicar")
 	}
 	m, ok := a.cat().Get(monitoringModule)
 	if !ok {
-		return 0, 0, errors.New("falta el módulo de monitorización")
+		return 0, 0, i18n.New("falta el módulo de monitorización")
 	}
 	v, _ := m.Values(p.InstalledValues[monitoringModule])
 	grafana, _ = v["monitoring_grafana_port"].(int)
@@ -173,7 +173,7 @@ func (a *App) OpenGrafana(projectID, secret, accept string) MonitorResult {
 	hc := http.Client{Timeout: 8 * time.Second}
 	resp, err := hc.Get(t.url() + "api/health")
 	if err != nil {
-		return MonitorResult{RunStart: RunStart{Status: "error", Message: "Grafana no responde en el servidor (¿está arrancada?): " + err.Error()}}
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: i18n.T("Grafana no responde en el servidor (¿está arrancada?): ") + err.Error()}}
 	}
 	resp.Body.Close()
 	return MonitorResult{RunStart: RunStart{Status: "ok"}, URL: t.url()}
@@ -195,7 +195,7 @@ func (a *App) MonitorSummary(projectID, secret, accept string) MonitorResult {
 	}
 	st, err := queryStats(t.url())
 	if err != nil {
-		return MonitorResult{RunStart: RunStart{Status: "error", Message: "Prometheus no responde en el servidor: " + err.Error()}}
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: i18n.T("Prometheus no responde en el servidor: ") + err.Error()}}
 	}
 	return MonitorResult{RunStart: RunStart{Status: "ok"}, Stats: st}
 }
@@ -306,15 +306,15 @@ func (a *App) OpenAppTunnel(projectID, moduleID, secret, accept string) MonitorR
 	}
 	m, ok := a.cat().Get(moduleID)
 	if !ok || m.ProxySite == nil {
-		return MonitorResult{RunStart: RunStart{Status: "error", Message: "este módulo no tiene una app que abrir"}}
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: i18n.T("este módulo no tiene una app que abrir")}}
 	}
 	if !contains(p.InstalledModules, moduleID) {
-		return MonitorResult{RunStart: RunStart{Status: "error", Message: "aún no está instalado: pulsa Aplicar"}}
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: i18n.T("aún no está instalado: pulsa Aplicar")}}
 	}
 	v, _ := m.Values(p.InstalledValues[moduleID])
 	port := toInt(v[m.ProxySite.Port])
 	if port <= 0 {
-		return MonitorResult{RunStart: RunStart{Status: "error", Message: "la app no tiene puerto"}}
+		return MonitorResult{RunStart: RunStart{Status: "error", Message: i18n.T("la app no tiene puerto")}}
 	}
 	t, st := a.openTunnel(p, "app-"+moduleID, port, secret, accept)
 	if st != nil {

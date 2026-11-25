@@ -14,9 +14,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/rand"
+	"draupnode/internal/i18n"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"path"
 	"sort"
@@ -37,10 +36,10 @@ const MinPassword = 10
 const MaxSize = 64 << 20
 
 // ErrWrongPassword: la contraseña no es la de la copia (o el fichero está dañado).
-var ErrWrongPassword = errors.New("la contraseña no es correcta o el fichero está dañado")
+var ErrWrongPassword = i18n.Err("la contraseña no es correcta o el fichero está dañado")
 
 // ErrNotBackup: el fichero no es una copia de Draupnode.
-var ErrNotBackup = errors.New("este fichero no es una copia de Draupnode")
+var ErrNotBackup = i18n.Err("este fichero no es una copia de Draupnode")
 
 // KeyFile es una clave SSH guardada en la copia.
 type KeyFile struct {
@@ -74,12 +73,12 @@ type header struct {
 }
 
 // Parámetros de Argon2id (se rebajan en los tests).
-var kdfTime, kdfMemory, kdfThreads = uint32(3), uint32(64*1024), uint8(4)
+var kdfTime, kdfMemory, kdfThreads = uint32(3), uint32(64 * 1024), uint8(4)
 
 // Seal empaqueta files (ruta → contenido) y el manifiesto y los cifra.
 func Seal(password string, m Manifest, files map[string][]byte) ([]byte, error) {
 	if utf8.RuneCountInString(password) < MinPassword {
-		return nil, fmt.Errorf("la contraseña de la copia debe tener al menos %d caracteres", MinPassword)
+		return nil, i18n.Errorf("la contraseña de la copia debe tener al menos %d caracteres", MinPassword)
 	}
 	mj, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
@@ -105,7 +104,7 @@ func Seal(password string, m Manifest, files map[string][]byte) ([]byte, error) 
 	sort.Strings(names)
 	for _, k := range names {
 		if !safeName(k) {
-			return nil, fmt.Errorf("nombre no válido en la copia: %s", k)
+			return nil, i18n.Errorf("nombre no válido en la copia: %s", k)
 		}
 		if err := add(k, files[k]); err != nil {
 			return nil, err

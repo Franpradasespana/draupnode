@@ -11,8 +11,8 @@
 package modules
 
 import (
+	"draupnode/internal/i18n"
 	"embed"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -185,14 +185,14 @@ func VarPrefix(id string) string { return strings.ReplaceAll(id, "-", "_") + "_"
 
 func (m *Module) validate() error {
 	if !idRe.MatchString(m.ID) {
-		return fmt.Errorf("id %q no válido (minúsculas, números y guiones)", m.ID)
+		return i18n.Errorf("id %q no válido (minúsculas, números y guiones)", m.ID)
 	}
 	if m.Name == "" {
-		return errors.New("falta name")
+		return i18n.New("falta name")
 	}
 	for _, p := range m.FirewallPorts {
 		if p < 1 || p > 65535 {
-			return fmt.Errorf("firewall_ports: %d no es un puerto válido", p)
+			return i18n.Errorf("firewall_ports: %d no es un puerto válido", p)
 		}
 	}
 	vars := map[string]*Variable{}
@@ -203,7 +203,7 @@ func (m *Module) validate() error {
 	for i := range m.Variables {
 		v := &m.Variables[i]
 		if !varRe.MatchString(v.Name) || !strings.HasPrefix(v.Name, VarPrefix(m.ID)) {
-			return fmt.Errorf("variable %q: debe empezar por %q", v.Name, VarPrefix(m.ID))
+			return i18n.Errorf("variable %q: debe empezar por %q", v.Name, VarPrefix(m.ID))
 		}
 		if seen[v.Name] {
 			return fmt.Errorf("variable %q repetida", v.Name)
@@ -216,14 +216,14 @@ func (m *Module) validate() error {
 		case TypeString, TypeInt, TypeBool, TypeList, TypeSecret:
 		case TypeSelect:
 			if len(v.Options) == 0 {
-				return fmt.Errorf("variable %q: un select necesita options", v.Name)
+				return i18n.Errorf("variable %q: un select necesita options", v.Name)
 			}
 		default:
 			return fmt.Errorf("variable %q: tipo %q desconocido", v.Name, v.Type)
 		}
 		if v.Pattern != "" {
 			if _, err := regexp.Compile(v.Pattern); err != nil {
-				return fmt.Errorf("variable %q: pattern no válido: %w", v.Name, err)
+				return i18n.Errorf("variable %q: pattern no válido: %w", v.Name, err)
 			}
 		}
 		if v.Label == "" {
@@ -235,44 +235,44 @@ func (m *Module) validate() error {
 		}
 		norm, err := Normalize(*v, v.Default)
 		if err != nil && v.Default != nil {
-			return fmt.Errorf("variable %q: valor por defecto no válido: %w", v.Name, err)
+			return i18n.Errorf("variable %q: valor por defecto no válido: %w", v.Name, err)
 		}
 		v.Default = norm
 	}
 	for _, name := range m.FirewallPortsFrom {
 		if v := vars[name]; v == nil || v.Type != TypeInt {
-			return fmt.Errorf("firewall_ports_from: %q no es una variable numérica del módulo", name)
+			return i18n.Errorf("firewall_ports_from: %q no es una variable numérica del módulo", name)
 		}
 	}
 	for _, l := range m.Links {
 		if l.Label == "" || !strings.HasPrefix(l.URL, "https://") || strings.ContainsAny(l.URL, " \"'<>") {
-			return fmt.Errorf("links: cada enlace necesita label y una dirección https:// (%q)", l.URL)
+			return i18n.Errorf("links: cada enlace necesita label y una dirección https:// (%q)", l.URL)
 		}
 	}
 	if ps := m.ProxySite; ps != nil {
 		if v := vars[ps.Domain]; v == nil || v.Type != TypeString {
-			return fmt.Errorf("proxy_site.domain: %q no es una variable de texto del módulo", ps.Domain)
+			return i18n.Errorf("proxy_site.domain: %q no es una variable de texto del módulo", ps.Domain)
 		}
 		if v := vars[ps.Port]; v == nil || v.Type != TypeInt {
-			return fmt.Errorf("proxy_site.port: %q no es una variable numérica del módulo", ps.Port)
+			return i18n.Errorf("proxy_site.port: %q no es una variable numérica del módulo", ps.Port)
 		}
 	}
 	for _, name := range m.UDPPortsFrom {
 		if v := vars[name]; v == nil || v.Type != TypeInt {
-			return fmt.Errorf("udp_ports_from: %q no es una variable numérica del módulo", name)
+			return i18n.Errorf("udp_ports_from: %q no es una variable numérica del módulo", name)
 		}
 	}
 	for _, c := range m.Checks {
 		if c.ContainerFree == "" {
-			return errors.New("checks: cada comprobación necesita container_free")
+			return i18n.New("checks: cada comprobación necesita container_free")
 		}
 		if v := vars[c.ContainerFree]; v == nil || v.Type != TypeString {
-			return fmt.Errorf("checks: %q no es una variable de texto del módulo", c.ContainerFree)
+			return i18n.Errorf("checks: %q no es una variable de texto del módulo", c.ContainerFree)
 		}
 	}
 	for _, sf := range m.Secrets {
 		if sf.File == "" || strings.ContainsAny(sf.File, "/\\") {
-			return fmt.Errorf("secrets: fichero %q no válido", sf.File)
+			return i18n.Errorf("secrets: fichero %q no válido", sf.File)
 		}
 	}
 	return nil
@@ -295,7 +295,7 @@ func load(fsys fs.FS, dir, source string) (*Module, error) {
 		return nil, err
 	}
 	if _, err := fs.Stat(role, "tasks/main.yml"); err != nil {
-		return nil, errors.New("falta role/tasks/main.yml")
+		return nil, i18n.New("falta role/tasks/main.yml")
 	}
 	if _, err := fs.Stat(role, "tasks/uninstall.yml"); err == nil {
 		m.Uninstallable = true
@@ -329,7 +329,7 @@ func Load(userDir string) (*Catalog, error) {
 		}
 		m, err := load(builtinFS, path.Join("builtin", e.Name()), "builtin")
 		if err != nil {
-			return nil, fmt.Errorf("módulo incluido %s: %w", e.Name(), err)
+			return nil, i18n.Errorf("módulo incluido %s: %w", e.Name(), err)
 		}
 		c.mods[m.ID] = m
 	}
@@ -352,12 +352,12 @@ func Load(userDir string) (*Catalog, error) {
 	for _, m := range c.mods {
 		for _, d := range m.Depends {
 			if c.mods[d] == nil {
-				c.Errors = append(c.Errors, fmt.Sprintf("%s: depende de %q, que no existe", m.ID, d))
+				c.Errors = append(c.Errors, i18n.Sprintf("%s: depende de %q, que no existe", m.ID, d))
 			}
 		}
 		for _, d := range m.Conflicts {
 			if contains(m.Depends, d) {
-				c.Errors = append(c.Errors, fmt.Sprintf("%s: depende de %q y a la vez choca con él", m.ID, d))
+				c.Errors = append(c.Errors, i18n.Sprintf("%s: depende de %q y a la vez choca con él", m.ID, d))
 			}
 		}
 	}
@@ -416,7 +416,7 @@ func (c *Catalog) Resolve(ids []string) (ordered []string, added []string, err e
 	collect = func(id string) error {
 		m, ok := c.Get(id)
 		if !ok {
-			return fmt.Errorf("el módulo %q no existe", id)
+			return i18n.Errorf("el módulo %q no existe", id)
 		}
 		if all[id] {
 			return nil
@@ -503,7 +503,7 @@ func (c *Catalog) Clashes(ids []string) []string {
 			seen[a+"|"+b] = true
 			ma, _ := c.Get(a)
 			mb, _ := c.Get(b)
-			out = append(out, fmt.Sprintf("%s y %s no pueden ir juntos", ma.Name, mb.Name))
+			out = append(out, i18n.Sprintf("%s y %s no pueden ir juntos", ma.Name, mb.Name))
 		}
 	}
 	sort.Strings(out)
@@ -524,7 +524,7 @@ func contains(l []string, s string) bool {
 func BuiltinFiles(id string) (map[string][]byte, error) {
 	root := path.Join("builtin", id)
 	if _, err := fs.Stat(builtinFS, path.Join(root, "module.yaml")); err != nil {
-		return nil, fmt.Errorf("no hay módulo incluido %q", id)
+		return nil, i18n.Errorf("no hay módulo incluido %q", id)
 	}
 	out := map[string][]byte{}
 	err := fs.WalkDir(builtinFS, root, func(p string, d fs.DirEntry, err error) error {

@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"draupnode/internal/i18n"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,10 +32,10 @@ type Sudo struct {
 }
 
 // ErrSudoPassword: el usuario necesita contraseña para sudo y no se ha dado.
-var ErrSudoPassword = errors.New("tu usuario necesita contraseña para usar sudo")
+var ErrSudoPassword = i18n.Err("tu usuario necesita contraseña para usar sudo")
 
 // ErrBadSudoPassword: la contraseña de sudo no es correcta.
-var ErrBadSudoPassword = errors.New("la contraseña de sudo no es correcta")
+var ErrBadSudoPassword = i18n.Err("la contraseña de sudo no es correcta")
 
 func runWithStdin(c *ssh.Client, cmd string, stdin []byte) (string, error) {
 	s, err := c.NewSession()
@@ -91,7 +92,7 @@ var safePath = regexp.MustCompile(`^/tmp/draupnode-[A-Za-z0-9]+\.sh$`)
 func Upload(c *ssh.Client, script []byte) (string, error) {
 	out, err := runWithStdin(c, `umask 077; f=$(mktemp /tmp/draupnode-XXXXXXXX.sh) && cat > "$f" && echo "$f"`, script)
 	if err != nil {
-		return "", fmt.Errorf("no se pudo subir el script: %v %s", err, strings.TrimSpace(out))
+		return "", i18n.Errorf("no se pudo subir el script: %v %s", err, strings.TrimSpace(out))
 	}
 	p := strings.TrimSpace(out)
 	if !safePath.MatchString(p) {
@@ -129,7 +130,7 @@ func RunOpts(ctx context.Context, c *ssh.Client, script []byte, o Opts, su Sudo,
 	// Con terminal (PTY): si se cancela y se cierra la sesión, el servidor
 	// manda SIGHUP y Ansible se detiene en vez de seguir en segundo plano.
 	if err := s.RequestPty("dumb", 40, 200, ssh.TerminalModes{ssh.ECHO: 0, ssh.ONLCR: 0}); err != nil {
-		return -1, fmt.Errorf("no se pudo abrir terminal: %w", err)
+		return -1, i18n.Errorf("no se pudo abrir terminal: %w", err)
 	}
 	stdin, err := s.StdinPipe()
 	if err != nil {

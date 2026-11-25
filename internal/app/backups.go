@@ -5,9 +5,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"draupnode/internal/i18n"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -40,11 +39,11 @@ type backupPaths struct {
 
 func (a *App) backupPathsFor(p store.Project) (backupPaths, error) {
 	if !contains(p.InstalledModules, backupsModule) {
-		return backupPaths{}, errors.New("las copias de seguridad no están instaladas en este servidor: marca «Copias de seguridad» y pulsa Aplicar")
+		return backupPaths{}, i18n.New("las copias de seguridad no están instaladas en este servidor: marca «Copias de seguridad» y pulsa Aplicar")
 	}
 	m, ok := a.cat().Get(backupsModule)
 	if !ok {
-		return backupPaths{}, errors.New("falta el módulo de copias")
+		return backupPaths{}, i18n.New("falta el módulo de copias")
 	}
 	v, _ := m.Values(p.InstalledValues[backupsModule])
 	dir, _ := v["backups_dir"].(string)
@@ -90,7 +89,7 @@ func (a *App) withServer(projectID, secret, accept, sudoPassword string, fn func
 		return BackupResult{RunStart: RunStart{Status: "error", Message: err.Error()}}
 	}
 	if a.projectRunning(projectID) {
-		return BackupResult{RunStart: RunStart{Status: "busy", Message: "este servidor está ocupado con otra tarea"}}
+		return BackupResult{RunStart: RunStart{Status: "busy", Message: i18n.T("este servidor está ocupado con otra tarea")}}
 	}
 	srv, err := a.store.Server(p.ServerID)
 	if err != nil {
@@ -130,17 +129,17 @@ func (a *App) BackupSnapshots(projectID string, remote bool, secret, accept, sud
 		arg := "snapshots"
 		if remote {
 			if !bp.Remote {
-				return BackupResult{RunStart: RunStart{Status: "error", Message: "las copias de este servidor no tienen destino remoto"}}
+				return BackupResult{RunStart: RunStart{Status: "error", Message: i18n.T("las copias de este servidor no tienen destino remoto")}}
 			}
 			arg = "remoto"
 		}
 		out, errOut, err := execOut(c, su, bundle.ShellQuote(bp.Script)+" "+arg)
 		if err != nil {
-			return BackupResult{RunStart: RunStart{Status: "error", Message: "no se pudieron leer las copias: " + firstLine(errOut, err)}}
+			return BackupResult{RunStart: RunStart{Status: "error", Message: i18n.T("no se pudieron leer las copias: ") + firstLine(errOut, err)}}
 		}
 		snaps, err := parseSnapshots(out)
 		if err != nil {
-			return BackupResult{RunStart: RunStart{Status: "error", Message: "respuesta de restic no válida: " + err.Error()}}
+			return BackupResult{RunStart: RunStart{Status: "error", Message: i18n.T("respuesta de restic no válida: ") + err.Error()}}
 		}
 		return BackupResult{OK: true, Snapshots: snaps}
 	})
@@ -201,7 +200,7 @@ func (a *App) ChooseBackupFolder(projectID string) (string, error) {
 		def = home
 	}
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:                "¿Dónde guardar las copias?",
+		Title:                i18n.T("¿Dónde guardar las copias?"),
 		DefaultDirectory:     def,
 		CanCreateDirectories: true,
 	})
@@ -235,7 +234,7 @@ type BackupFetchProgress struct {
 func (a *App) FetchBackups(projectID, dest, secret, accept, sudoPassword string) BackupResult {
 	dest = strings.TrimSpace(dest)
 	if dest == "" || !filepath.IsAbs(dest) {
-		return BackupResult{RunStart: RunStart{Status: "error", Message: "elige una carpeta de este equipo"}}
+		return BackupResult{RunStart: RunStart{Status: "error", Message: i18n.T("elige una carpeta de este equipo")}}
 	}
 	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
 		progress := func(stage string, done, total int64) {
@@ -260,10 +259,10 @@ func fetchRepo(c *ssh.Client, su runner.Sudo, bp backupPaths, dest string, progr
 	_ = os.Chmod(dest, 0o700)
 
 	// 1. Qué hay en el servidor.
-	progress("Mirando qué hay en el servidor", 0, 0)
+	progress(i18n.T("Mirando qué hay en el servidor"), 0, 0)
 	out, errOut, err := execOut(c, su, "cd "+bundle.ShellQuote(bp.Repo)+" && find . -type f -printf '%P\\t%s\\n'")
 	if err != nil {
-		return info, fmt.Errorf("no se pudo leer el repositorio del servidor (%s): %s", bp.Repo, firstLine(errOut, err))
+		return info, i18n.Errorf("no se pudo leer el repositorio del servidor (%s): %s", bp.Repo, firstLine(errOut, err))
 	}
 	remote := map[string]int64{}
 	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
@@ -278,7 +277,7 @@ func fetchRepo(c *ssh.Client, su runner.Sudo, bp backupPaths, dest string, progr
 		}
 	}
 	if len(remote) == 0 {
-		return info, errors.New("el repositorio del servidor está vacío: haz antes una copia")
+		return info, i18n.New("el repositorio del servidor está vacío: haz antes una copia")
 	}
 
 	// 2. Qué falta aquí (o tiene otro tamaño).
@@ -311,7 +310,7 @@ func fetchRepo(c *ssh.Client, su runner.Sudo, bp backupPaths, dest string, progr
 				break
 			}
 			if err != nil {
-				return info, fmt.Errorf("al traer las copias: %v %s", err, strings.TrimSpace(errb.String()))
+				return info, i18n.Errorf("al traer las copias: %v %s", err, strings.TrimSpace(errb.String()))
 			}
 			if h.Typeflag != tar.TypeReg || !safeRel(h.Name) {
 				continue
@@ -357,10 +356,10 @@ func fetchRepo(c *ssh.Client, su runner.Sudo, bp backupPaths, dest string, progr
 	})
 
 	// 5. La contraseña y unas instrucciones.
-	progress("Guardando la contraseña", 0, 0)
+	progress(i18n.T("Guardando la contraseña"), 0, 0)
 	pass, errOut, err := execOut(c, su, "cat "+bundle.ShellQuote(bp.Password))
 	if err != nil {
-		return info, fmt.Errorf("no se pudo leer la contraseña de las copias: %s", firstLine(errOut, err))
+		return info, i18n.Errorf("no se pudo leer la contraseña de las copias: %s", firstLine(errOut, err))
 	}
 	if err := os.WriteFile(filepath.Join(dest, "restic-password"), []byte(strings.TrimSpace(pass)+"\n"), 0o600); err != nil {
 		return info, err
@@ -442,7 +441,7 @@ func badRequest(msg string) BackupResult {
 func scriptErr(prefix, errOut string, err error) BackupResult {
 	msg := firstLine(errOut, err)
 	if strings.Contains(errOut, "Uso:") {
-		msg = "el script de copias del servidor es de una versión anterior: pulsa Aplicar en este servidor para actualizarlo"
+		msg = i18n.T("el script de copias del servidor es de una versión anterior: pulsa Aplicar en este servidor para actualizarlo")
 	}
 	return badRequest(prefix + msg)
 }
@@ -454,13 +453,13 @@ func validPath(p string) bool {
 // BackupLs lista una carpeta de una copia.
 func (a *App) BackupLs(projectID, snapID, dir, secret, accept, sudoPassword string) BackupRestoreResult {
 	if !snapIDRe.MatchString(snapID) || !validPath(dir) {
-		return BackupRestoreResult{BackupResult: badRequest("copia o carpeta no válida")}
+		return BackupRestoreResult{BackupResult: badRequest(i18n.T("copia o carpeta no válida"))}
 	}
 	var entries []SnapEntry
 	r := a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
 		out, errOut, err := execOut(c, su, bundle.ShellQuote(bp.Script)+" ls "+snapID+" "+bundle.ShellQuote(dir))
 		if err != nil {
-			return scriptErr("no se pudo leer la copia: ", errOut, err)
+			return scriptErr(i18n.T("no se pudo leer la copia: "), errOut, err)
 		}
 		entries = parseLs(out, dir)
 		return BackupResult{OK: true}
@@ -502,19 +501,19 @@ func parseLs(out, dir string) []SnapEntry {
 // («/» = en su sitio original, sobrescribiendo).
 func (a *App) BackupRestore(projectID, snapID, target string, paths []string, secret, accept, sudoPassword string) BackupResult {
 	if !snapIDRe.MatchString(snapID) || !validPath(target) || len(paths) == 0 {
-		return badRequest("copia, destino o rutas no válidas")
+		return badRequest(i18n.T("copia, destino o rutas no válidas"))
 	}
 	args := []string{snapID, bundle.ShellQuote(target)}
 	for _, p := range paths {
 		if !validPath(p) {
-			return badRequest("ruta no válida: " + p)
+			return badRequest(i18n.T("ruta no válida: ") + p)
 		}
 		args = append(args, bundle.ShellQuote(p))
 	}
 	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
 		out, errOut, err := execOut(c, su, bundle.ShellQuote(bp.Script)+" restaurar "+strings.Join(args, " "))
 		if err != nil {
-			return scriptErr("no se pudo restaurar: ", errOut, err)
+			return scriptErr(i18n.T("no se pudo restaurar: "), errOut, err)
 		}
 		return BackupResult{OK: true, Output: strings.TrimSpace(out + "\n" + errOut)}
 	})
@@ -525,7 +524,7 @@ func (a *App) BackupRestore(projectID, snapID, target string, paths []string, se
 // sustituyendo la actual (replace).
 func (a *App) BackupRestoreDB(projectID, snapID, dumpPath, container, dbName string, replace bool, secret, accept, sudoPassword string) BackupResult {
 	if !snapIDRe.MatchString(snapID) || !validPath(dumpPath) || !strings.HasSuffix(dumpPath, ".dump") || !dbNameRe.MatchString(container) || !dbNameRe.MatchString(dbName) {
-		return badRequest("datos no válidos para restaurar la base")
+		return badRequest(i18n.T("datos no válidos para restaurar la base"))
 	}
 	mode := ""
 	if replace {
@@ -534,7 +533,7 @@ func (a *App) BackupRestoreDB(projectID, snapID, dumpPath, container, dbName str
 	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
 		out, errOut, err := execOut(c, su, bundle.ShellQuote(bp.Script)+" restaurar-bd "+snapID+" "+bundle.ShellQuote(dumpPath)+" "+container+" "+dbName+mode)
 		if err != nil {
-			return scriptErr("no se pudo restaurar la base: ", errOut, err)
+			return scriptErr(i18n.T("no se pudo restaurar la base: "), errOut, err)
 		}
 		return BackupResult{OK: true, Output: strings.TrimSpace(out + "\n" + errOut)}
 	})
@@ -545,11 +544,11 @@ func (a *App) BackupRestoreDB(projectID, snapID, dumpPath, container, dbName str
 func (a *App) BackupDownload(projectID, snapID string, paths []string, dest, secret, accept, sudoPassword string) BackupResult {
 	dest = strings.TrimSpace(dest)
 	if !snapIDRe.MatchString(snapID) || len(paths) == 0 || dest == "" || !filepath.IsAbs(dest) {
-		return badRequest("copia, rutas o carpeta no válidas")
+		return badRequest(i18n.T("copia, rutas o carpeta no válidas"))
 	}
 	for _, p := range paths {
 		if !validPath(p) {
-			return badRequest("ruta no válida: " + p)
+			return badRequest(i18n.T("ruta no válida: ") + p)
 		}
 	}
 	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
@@ -575,7 +574,7 @@ func (a *App) BackupDownload(projectID, snapID string, paths []string, dest, sec
 				}
 				if err != nil {
 					pr.CloseWithError(err)
-					return scriptErr("no se pudo descargar: ", errb.String(), err)
+					return scriptErr(i18n.T("no se pudo descargar: "), errb.String(), err)
 				}
 				name := strings.TrimPrefix(path.Clean("/"+h.Name), "/")
 				if name == "" || !safeRel(name) {
@@ -609,7 +608,7 @@ func (a *App) BackupDownload(projectID, snapID string, paths []string, dest, sec
 			}
 		}
 		_ = os.Chmod(root, 0o700)
-		return BackupResult{OK: true, Output: fmt.Sprintf("%d fichero(s), %d bytes, en %s", files, done, root), Fetch: &store.FetchInfo{Dir: root, Bytes: done, Files: files, At: time.Now()}}
+		return BackupResult{OK: true, Output: i18n.Sprintf("%d fichero(s), %d bytes, en %s", files, done, root), Fetch: &store.FetchInfo{Dir: root, Bytes: done, Files: files, At: time.Now()}}
 	})
 }
 
@@ -617,10 +616,10 @@ func (a *App) BackupDownload(projectID, snapID string, paths []string, dest, sec
 // viejas: off | warn | fetch, a partir de days días.
 func (a *App) SetBackupsAuto(projectID, mode string, days int) error {
 	if mode != "off" && mode != "warn" && mode != "fetch" {
-		return errors.New("modo no válido")
+		return i18n.New("modo no válido")
 	}
 	if days < 1 || days > 365 {
-		return errors.New("los días deben estar entre 1 y 365")
+		return i18n.New("los días deben estar entre 1 y 365")
 	}
 	return a.store.SetBackupsAuto(projectID, store.BackupsAuto{Mode: mode, Days: days})
 }
