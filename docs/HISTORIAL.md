@@ -1199,3 +1199,9 @@ algo, conectarse…), volver a aplicar (0 cambios), desinstalar con sus datos y 
   por su shell de Django); OpenBao 2 no corre como root y ya no admite almacenamiento «file»; Vikunja exige su
   dirección si CORS está activo (desactivado: web y API van juntas); `kubectl` de k3s no lee ~/.kube/config
   (KUBECONFIG en /etc/profile.d).
+
+## 2026-11-25 · 0.63.1 · Plantilla: «Eliminar» arriba y «Deshacer» abajo
+
+- Editor de plantilla: «Eliminar plantilla» pasa al recuadro de arriba, junto al nombre y las notas (borra la plantilla entera, no tiene que ver con los cambios).
+- En la franja de abajo, junto a «Guardar», está ahora «Deshacer»: quita lo que no se ha guardado (módulos añadidos o quitados, opciones, nombre, notas) y deja la plantilla como estaba. Solo se activa cuando hay cambios.
+- Ayuda y capturas `proyecto` y `plantilla-cambios` actualizadas.

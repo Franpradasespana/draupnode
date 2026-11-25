@@ -4,7 +4,7 @@
   // servidor, no aquí. Al guardar, los servidores que la usan reciben los
   // cambios (sin aplicarlos) y conservan lo suyo.
   import { untrack } from 'svelte'
-  import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck, Sparkles, Check } from '@lucide/svelte'
+  import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck, Sparkles, Check, Undo2 } from '@lucide/svelte'
   import ModuleCard from '../components/ModuleCard.svelte'
   import VarField from '../components/VarField.svelte'
   import { api, errorText, type Module, type ProjectCheck, type Recipe } from '../lib/api'
@@ -16,7 +16,9 @@
   const initial = untrack(() => ui.recipes.find((r) => r.id === id))
   let draft = $state<Recipe>(initial ? JSON.parse(JSON.stringify({ id: initial.id, name: initial.name, notes: initial.notes ?? '', modules: initial.modules })) : { id: '', name: '', notes: '', modules: [] })
   const key = (r: Recipe) => JSON.stringify([r.name.trim(), r.notes ?? '', r.modules])
-  let savedKey = $state(initial ? key(draft) : '')
+  let savedKey = $state(initial ? untrack(() => key(draft)) : '')
+  // Copia de lo último guardado, para «Deshacer».
+  let savedDraft = $state(untrack(() => JSON.stringify(draft)))
   const dirty = $derived(key(draft) !== savedKey)
   let check = $state<ProjectCheck | null>(null)
   let saving = $state(false)
@@ -95,6 +97,7 @@
       draft.id = r.id
       draft.modules = r.modules
       savedKey = key(draft)
+      savedDraft = JSON.stringify($state.snapshot(draft))
       toReview = []
       await refreshProjects()
       if (!id) ui.recipeId = r.id
@@ -106,6 +109,14 @@
     } finally {
       saving = false
     }
+  }
+
+  // Vuelve a lo último guardado (o a la plantilla vacía si aún no se guardó).
+  function undo() {
+    draft = JSON.parse(savedDraft)
+    toReview = []
+    open = {}
+    toast('Cambios deshechos: la plantilla está como la guardaste')
   }
 
   async function remove() {
@@ -142,7 +153,10 @@
 </div>
 
 <div class="top card">
-  <input class="name" bind:value={draft.name} placeholder="Nombre de la plantilla (p. ej. Servidor de copias, Mis apps…)" />
+  <div class="name-row">
+    <input class="name" bind:value={draft.name} placeholder="Nombre de la plantilla (p. ej. Servidor de copias, Mis apps…)" />
+    {#if draft.id}<button class="btn sm danger" onclick={remove} title="Borra esta plantilla (los servidores en los que se aplicó no cambian)"><Trash2 size={14} /> Eliminar plantilla</button>{/if}
+  </div>
   <textarea class="input notes" rows="2" bind:value={draft.notes} placeholder="Para qué es (opcional)"></textarea>
   {#if draft.id}
     <div class="deps">
@@ -228,7 +242,7 @@
       <CircleCheck size={16} /> <span>Todo guardado.</span>
     {/if}
   </div>
-  {#if draft.id}<button class="btn sm danger" onclick={remove}><Trash2 size={14} /> Eliminar</button>{/if}
+  <button class="btn" onclick={undo} disabled={saving || !dirty} title="Quita lo que no has guardado y deja la plantilla como estaba"><Undo2 size={15} /> Deshacer</button>
   <button class="btn primary" onclick={save} disabled={saving || !dirty || !draft.name.trim() || errorCount > 0}><Save size={15} /> {saving ? 'Guardando…' : dirty || !draft.id ? 'Guardar' : 'Guardado'}</button>
 </div>
 
@@ -247,6 +261,8 @@
   @media (max-width: 900px) { .foot { margin: 24px -16px -32px; padding: 10px 16px; bottom: -32px; flex-wrap: wrap; } }
   .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .top { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .name-row { display: flex; gap: 10px; align-items: center; }
+  .name-row .name { flex: 1; min-width: 0; }
   .name { font-size: 20px; font-weight: 600; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text); padding: 4px 0; outline: none; }
   .name:focus { border-color: var(--accent); }
   .notes { resize: vertical; }
