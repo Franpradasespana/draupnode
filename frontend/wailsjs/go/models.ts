@@ -2513,6 +2513,7 @@ export namespace store {
 	    secretBackend: string;
 	    customPalettes?: number[];
 	    noUpdateCheck?: boolean;
+	    language?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -2524,6 +2525,7 @@ export namespace store {
 	        this.secretBackend = source["secretBackend"];
 	        this.customPalettes = source["customPalettes"];
 	        this.noUpdateCheck = source["noUpdateCheck"];
+	        this.language = source["language"];
 	    }
 	}
 

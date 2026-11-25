@@ -426,6 +426,10 @@ export function SetBackupsAuto(arg1, arg2, arg3) {
   return window['go']['app']['App']['SetBackupsAuto'](arg1, arg2, arg3);
 }
 
+export function SetLanguage(arg1) {
+  return window['go']['app']['App']['SetLanguage'](arg1);
+}
+
 export function SetProjectCollapsed(arg1, arg2) {
   return window['go']['app']['App']['SetProjectCollapsed'](arg1, arg2);
 }

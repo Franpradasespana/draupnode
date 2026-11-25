@@ -1205,3 +1205,27 @@ algo, conectarse…), volver a aplicar (0 cambios), desinstalar con sus datos y 
 - Editor de plantilla: «Eliminar plantilla» pasa al recuadro de arriba, junto al nombre y las notas (borra la plantilla entera, no tiene que ver con los cambios).
 - En la franja de abajo, junto a «Guardar», está ahora «Deshacer»: quita lo que no se ha guardado (módulos añadidos o quitados, opciones, nombre, notas) y deja la plantilla como estaba. Solo se activa cuando hay cambios.
 - Ayuda y capturas `proyecto` y `plantilla-cambios` actualizadas.
+
+## 2026-11-25 · 0.64.0 · Español e inglés
+
+- **Idioma** en Ajustes (Español / English). La primera vez usa el del sistema (LANG en Linux/macOS, el del navegador si
+  no se sabe). Se guarda en `draupnode.json` (`language`) y la app se vuelve a cargar al cambiarlo.
+- El español sigue siendo el idioma del código: cada texto se escribe en español y se traduce buscándolo en un
+  catálogo inglés; lo que no tenga traducción sale en español.
+  - **Interfaz** (pantallas, ayuda, avisos, datos de la demo): `t('…')` (o `tr` donde ya había una variable `t`) de
+    `lib/i18n.svelte.ts`, con huecos `{0}`; traducciones en `frontend/src/locales/en.json` (1.940 textos). Ayudas
+    `plural()`, `shortDuration()` y `agoText()`. El idioma se fija antes de cargar la app (`main.ts`).
+  - **Go** (errores, avisos, notas, diálogos): paquete `internal/i18n` (`T`, `Sprintf`, `Errorf`, `New`, `Err` para
+    errores de paquete y `N` para tablas que se traducen al usarlas); `internal/i18n/en.json` (~510 textos).
+  - **Módulos**: `module.en.yaml` junto a cada `module.yaml` con nombre, categoría, descripción, opciones, avisos de
+    desinstalación, enlaces y la guía de prueba; se superpone al cargar el catálogo en inglés (ids, variables y valores
+    no cambian). El editor de módulos y exportar/importar lo admiten; al copiar un módulo incluido también se copia.
+- Herramientas: `herramientas/i18n/envolver.py` (Svelte/TS) y `envolver_go.py` (Go) marcan los textos;
+  `extraer.py` y `make i18n` dicen qué falta; `modulos_en.py` escribe los `module.en.yaml`; `make demo-catalogo`
+  vuelca el catálogo de la demo en los dos idiomas (`frontend/src/lib/demo/`).
+- Tests: `TestTraduccionesGo` (todo texto marcado en Go tiene traducción con los mismos `%`), `TestTraduccionModulos`
+  (cada módulo incluido traduce todos sus textos) y `TestCatalogoEnIngles`. Los tests de `internal/app` fijan LANG=es.
+- Capturas de la ayuda en inglés (`make capturas-en`, en `assets/ayuda/en/`; la demo admite `?lang=en`),
+  `README.en.md` y su GIF (`docs/img/draupnode.en.gif`).
+- Se quedan en español: los nombres de las tareas de Ansible que se ven al aplicar, los comentarios de los ficheros que
+  genera Docker Creator, `docs/GUIA_PUBLICAR.md` (en inglés está en la ayuda) y el aviso de COPYRIGHT.

@@ -338,7 +338,7 @@
       </div>
       <div class="card stat">
         <div class="st-h"><MemoryStick size={16} /> {tr('Memoria')}</div>
-        {#if sys}<div class="big">{pct(memUsed, sys.memTotal)} %</div><div class="meter"><i class={level(pct(memUsed, sys.memTotal))} style:width="{pct(memUsed, sys.memTotal)}%"></i></div><div class="muted small">{fmt(memUsed)} de {fmt(sys.memTotal)}{sys.swapTotal ? tr(' · swap {0}', fmt(sys.swapTotal - sys.swapFree)) : ''}</div>
+        {#if sys}<div class="big">{pct(memUsed, sys.memTotal)} %</div><div class="meter"><i class={level(pct(memUsed, sys.memTotal))} style:width="{pct(memUsed, sys.memTotal)}%"></i></div><div class="muted small">{tr('{0} de {1}', fmt(memUsed), fmt(sys.memTotal))}{sys.swapTotal ? tr(' · swap {0}', fmt(sys.swapTotal - sys.swapFree)) : ''}</div>
         {:else}<div class="muted">{loading ? tr('Leyendo…') : '—'}</div>{/if}
       </div>
       <div class="card stat">
@@ -360,13 +360,13 @@
         <div class="si">
           <PackageCheck size={16} />
           <div><span class="muted small">{tr('Actualizaciones')}</span>
-            <strong>{#if !ov.updates}—{:else if !ov.updates.total}{tr('al día')}{:else}{ov.updates.total} pendientes{#if ov.updates.security}{' · '}<span class="warn-t">{tr('{0} de seguridad', ov.updates.security)}</span>{/if}{/if}</strong>
+            <strong>{#if !ov.updates}—{:else if !ov.updates.total}{tr('al día')}{:else}{tr('{0} pendientes', ov.updates.total)}{#if ov.updates.security}{' · '}<span class="warn-t">{tr('{0} de seguridad', ov.updates.security)}</span>{/if}{/if}</strong>
             {#if ov.updates?.total}<button class="lnk small" onclick={upgrade} disabled={!!sysBusy}>{sysBusy === 'upgrade' ? tr('instalando…') : tr('Instalar…')}</button>{/if}</div>
         </div>
         <div class="si">
           <Power size={16} />
           <div><span class="muted small">{tr('Reinicio')}</span>
-            <strong class:warn-t={ov.updates?.reboot}>{ov.updates?.reboot ? 'pendiente' : tr('no hace falta')}</strong>
+            <strong class:warn-t={ov.updates?.reboot}>{ov.updates?.reboot ? tr('pendiente') : tr('no hace falta')}</strong>
             <button class="lnk small" onclick={reboot} disabled={!!sysBusy}>{sysBusy === 'reboot' ? tr('reiniciando…') : tr('Reiniciar…')}</button></div>
         </div>
         <div class="si">
@@ -378,7 +378,7 @@
         <div class="si">
           <ClockExclamationPoint size={16} />
           <div><span class="muted small">{tr('Hora')}</span>
-            <strong class:warn-t={ov.clock?.known && !ov.clock.synced}>{!ov.clock?.known ? '—' : ov.clock.synced ? 'sincronizada' : tr('sin sincronizar')}</strong>
+            <strong class:warn-t={ov.clock?.known && !ov.clock.synced}>{!ov.clock?.known ? '—' : ov.clock.synced ? tr('sincronizada') : tr('sin sincronizar')}</strong>
             <span class="muted small">{ov.clock?.timezone ?? ''}</span></div>
         </div>
         {#if ov.certs?.length}
@@ -402,7 +402,7 @@
           {#each ov?.failed ?? [] as u}<li class="bad-t">{tr('Servicio')} <strong>{u}</strong> {tr('ha fallado')} <button class="lnk" onclick={() => showLogs('unit', u, u)}>{tr('ver registro')}</button></li>{/each}
           {#each findings.filter((f) => f.id.startsWith('disk')) as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}</li>{/each}
           {#each backupFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text} <button class="lnk" onclick={() => setTab('copias')}>{tr('ver copias')}</button></li>{/each}
-          {#each sysFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}{' '}{#if f.id === 'reboot'}<button class="lnk" onclick={reboot}>{tr('reiniciar…')}</button>{:else if f.id.startsWith('secupd')}<button class="lnk" onclick={upgrade}>{tr('instalar…')}</button>{:else}<button class="lnk" onclick={() => setTab('red')}>ver</button>{/if}</li>{/each}
+          {#each sysFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}{' '}{#if f.id === 'reboot'}<button class="lnk" onclick={reboot}>{tr('reiniciar…')}</button>{:else if f.id.startsWith('secupd')}<button class="lnk" onclick={upgrade}>{tr('instalar…')}</button>{:else}<button class="lnk" onclick={() => setTab('red')}>{tr('ver')}</button>{/if}</li>{/each}
           {#if pendingMods}<li class="info-t">{tr('{0} sin aplicar', pendingMods === 1 ? tr('Hay 1 módulo') : tr('Hay {0} módulos', pendingMods))} <button class="lnk" onclick={() => setTab('modulos')}>{tr('ver módulos')}</button></li>{/if}
         </ul>
     </section>

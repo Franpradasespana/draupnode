@@ -45,7 +45,7 @@
 
 <div class="mt">
   <div class="progress">
-    <strong>{count} de {mods.length}</strong> {t('probados en este equipo')}
+    <strong>{t('{0} de {1}', count, mods.length)}</strong> {t('probados en este equipo')}
     <span class="bar"><i style:width="{mods.length ? (count / mods.length) * 100 : 0}%"></i></span>
   </div>
 

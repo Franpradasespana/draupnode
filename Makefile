@@ -60,6 +60,7 @@ i18n:
 
 gif:
 	python3 herramientas/gif_readme.py
+	python3 herramientas/gif_readme.py en
 
 licencias:
 	python3 herramientas/licencias.py

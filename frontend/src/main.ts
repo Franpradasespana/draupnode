@@ -1,4 +1,5 @@
 import './app.css'
+import { mount } from 'svelte'
 import { setLang } from './lib/i18n.svelte'
 
 // El idioma se fija ANTES de cargar el resto: así los textos que se calculan
@@ -17,7 +18,7 @@ async function readLang(): Promise<string | null> {
 
 async function start() {
   setLang(await readLang())
-  const [{ mount }, { default: App }] = await Promise.all([import('svelte'), import('./App.svelte')])
+  const { default: App } = await import('./App.svelte')
   mount(App, { target: document.getElementById('app')! })
 }
 

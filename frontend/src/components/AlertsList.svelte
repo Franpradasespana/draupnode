@@ -27,7 +27,7 @@
           <span><strong>{a.server}</strong>{t(': {0} sin aplicar.', a.name)}</span>
         {:else if a.kind === 'backups'}
           {#if alerts.busy === a.projectId}
-            <span><LoaderCircle size={13} class="spin" /> {t('Trayendo las copias de')} <strong>{a.name}</strong>…{#if alerts.progress?.total} {size(alerts.progress.done)} de {size(alerts.progress.total)}{/if}</span>
+            <span><LoaderCircle size={13} class="spin" /> {t('Trayendo las copias de')} <strong>{a.name}</strong>…{#if alerts.progress?.total} {t('{0} de {1}', size(alerts.progress.done), size(alerts.progress.total))}{/if}</span>
           {:else}
             <span>{t('Copias de')} <strong>{a.name}</strong>{#if a.server}{' '}({a.server}){/if}: {a.due.age < 0 ? t('nunca las has traído a este equipo') : t('las de este equipo son de hace {0} días', a.due.age)}.</span>
             {#if !compact}<span class="muted small">{t('Puedes hacer que se traigan solas, o cambiar cada cuántos días avisa, en la plantilla del servidor → Copias.')}</span>{/if}
@@ -40,7 +40,7 @@
         {:else if a.kind === 'export'}
           <span>{t('{0} Si se rompe este equipo, perderías servidores, plantillas y contraseñas.', a.last ? t('Tu última copia de Draupnode es de {0}.', timeAgo(a.last)) : t('Nunca has hecho una copia de Draupnode.'))}</span>
         {:else}
-          <span>{t('La última aplicación de')} <strong>{a.name}</strong>{#if a.server}{' '}en {a.server}{/if} {t('falló ({0}).', timeAgo(a.at))}</span>
+          <span>{t('La última aplicación de')} <strong>{a.name}</strong>{#if a.server}{' '}{t('en {0}', a.server)}{/if} {t('falló ({0}).', timeAgo(a.at))}</span>
           {#if !compact && a.error}<span class="muted small">{a.error}</span>{/if}
         {/if}
       </div>

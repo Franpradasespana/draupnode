@@ -65,7 +65,7 @@
 <section class="card head">
   <div class="title">
     <h2>{m.name}</h2>
-    {#if installed && pm}<span class="pill ok"><CircleCheck size={13} /> {t('Instalado')}{#if project.appliedAt}{' · '}aplicado {timeAgo(project.appliedAt)}{/if}</span>
+    {#if installed && pm}<span class="pill ok"><CircleCheck size={13} /> {t('Instalado')}{#if project.appliedAt}{' · '}{t('aplicado {0}', timeAgo(project.appliedAt))}{/if}</span>
     {:else if installed}<span class="pill left">{t('Instalado, sin gestionar')}</span>
     {:else}<span class="pill new">{t('Se instalará al aplicar')}</span>{/if}
   </div>

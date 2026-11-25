@@ -1,11 +1,14 @@
-# Rehace docs/img/draupnode.gif (el del README) con las capturas de la ayuda.
-# Uso: make gif   (después de «make capturas»). Necesita Pillow (python3-pil).
+# Rehace docs/img/draupnode.gif (el del README) con las capturas de la ayuda,
+# y docs/img/draupnode.en.gif (el de README.en.md) con las de inglés.
+# Uso: make gif   (después de «make capturas» y «make capturas-en»). Necesita Pillow (python3-pil).
 import os
+import sys
 from PIL import Image
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(AQUI, "..", "frontend", "src", "assets", "ayuda")
-OUT = os.path.join(AQUI, "..", "docs", "img", "draupnode.gif")
+EN = len(sys.argv) > 1 and sys.argv[1] == "en"
+SRC = os.path.join(AQUI, "..", "frontend", "src", "assets", "ayuda", *(["en"] if EN else []))
+OUT = os.path.join(AQUI, "..", "docs", "img", "draupnode.en.gif" if EN else "draupnode.gif")
 PANTALLAS = ["panel", "servidor", "servidor-historial", "servidor-apps", "despliegue", "catalogo", "docker-vista", "terminal"]
 
 imgs = [Image.open(os.path.join(SRC, f + ".webp")).convert("RGB").resize((960, 600), Image.LANCZOS) for f in PANTALLAS]

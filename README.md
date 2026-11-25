@@ -1,5 +1,7 @@
 # Draupnode
 
+**Español** · [English](README.en.md)
+
 > En la mitología nórdica, **Draupnir** es el anillo de oro forjado por los enanos Brokkr y Eitri:
 > cada nueve noches nacen de él ocho anillos idénticos.
 > **Draupnode** hace lo mismo con servidores: describes una vez lo que quieres y lo forja en cualquier máquina Linux, de cero.
@@ -17,6 +19,8 @@ sistema o en una bóveda cifrada, y lo único que sale es la conexión SSH a *tu
 una consulta anónima a GitHub para saber si hay versión nueva).
 
 **Todo es de código abierto**, también lo que instala.
+
+**En español e inglés**: la interfaz, la ayuda, los mensajes y los módulos (Ajustes → Idioma; la primera vez usa el del sistema).
 
 ## Descargar
 
@@ -108,8 +112,9 @@ make doctor       # wails doctor
 | `make test` | Tests de Go (incluye un servidor SSH en memoria) + comprobación de tipos |
 | `make dev` | App de escritorio con recarga en caliente |
 | `make demo` | Solo la interfaz en el navegador, con datos simulados |
-| `make capturas` | Rehace las capturas de la ayuda (necesita Chrome o Chromium) |
-| `make gif` | Rehace el GIF del README con esas capturas (necesita Pillow) |
+| `make capturas` | Rehace las capturas de la ayuda (necesita Chrome o Chromium); `make capturas-en`, las de inglés |
+| `make i18n` | Textos sin traducir al inglés (interfaz, Go y módulos) |
+| `make gif` | Rehace los GIF de los README con esas capturas (necesita Pillow) |
 | `make build` | Ejecutable en `build/bin/draupnode` |
 | `make install-linux` | Instala en tu usuario, sin sudo: menú de aplicaciones e icono en el dock |
 
@@ -132,7 +137,8 @@ internal/store           Configuración local (draupnode.json, permisos 0600)
 internal/secrets         Llavero del sistema y bóveda cifrada
 internal/copia           Copia cifrada de Draupnode (exportar/importar)
 internal/sshx            Conexión SSH, huellas y comprobación del servidor
-internal/modules         Catálogo: module.yaml + roles de Ansible (builtin/ va dentro del ejecutable)
+internal/modules         Catálogo: module.yaml (+ module.en.yaml en inglés) + roles de Ansible (builtin/ va dentro del ejecutable)
+internal/i18n            Idioma: textos de Go en inglés (en.json); los de la interfaz, en frontend/src/locales/en.json
 internal/bundle          Genera el instalar.sh único (playbook + roles + callback, empaquetados)
 internal/runner          Sube y ejecuta el instalar.sh por SSH, con eventos en directo
 internal/overview        Scripts de la ficha del servidor (solo lectura) y del historial (temporizador)

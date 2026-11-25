@@ -743,7 +743,7 @@
       <div class="ab-text">
         {#if errorList.length}<span class="bad-t"><CircleX size={15} /> {tr('{0} antes de aplicar', errorList.length === 1 ? tr('Falta 1 dato') : tr('Faltan {0} datos', errorList.length))}</span>
         {:else}<Hammer size={15} />
-          <span><strong>{tr('Cambios sin aplicar')}</strong>{#if pending.length}{' · '}instalar {pending.map(moduleName).join(', ')}{/if}{#if changedInstalled.length}{tr('{0}configuración de {1}', ' · ', changedInstalled.map(moduleName).join(', '))}{/if}{#if !pending.length && !changedInstalled.length}{tr('{0}volver a aplicar', ' · ')}{/if}</span>
+          <span><strong>{tr('Cambios sin aplicar')}</strong>{#if pending.length}{' · '}{tr('instalar {0}', pending.map(moduleName).join(', '))}{/if}{#if changedInstalled.length}{' · '}{tr('configuración de {0}', changedInstalled.map(moduleName).join(', '))}{/if}{#if !pending.length && !changedInstalled.length}{' · '}{tr('volver a aplicar')}{/if}</span>
         {/if}
       </div>
       <div class="ab-btns">

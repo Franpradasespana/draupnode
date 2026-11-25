@@ -25,7 +25,7 @@ const SEED_EN = {
   'Ubuntu 24.04 en un contenedor Docker de este equipo.': 'Ubuntu 24.04 in a Docker container on this computer.',
   'tienda.ejemplo.com': 'shop.example.com', 'portatil': 'laptop', 'movil': 'phone',
 }
-const L = (s) => (LANG === 'en' && typeof s === 'string' ? SEED_EN[s] ?? MOD_EN[s] ?? EN[s] ?? s : s)
+const L = (s) => (LANG === 'en' && typeof s === 'string' ? SEED_EN[s] ?? MOD_EN[s] ?? EN[s] ?? EN[s + '…']?.replace(/…$/, '') ?? s : s)
 const tr = (v) => (Array.isArray(v) ? v.map(tr) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, tr(x)])) : L(v))
 const VITE_PORT = 5199
 const CDP_PORT = 9333
@@ -178,7 +178,9 @@ const jsErrors = []
 const origOnMessage = ws.onmessage
 ws.onmessage = (m) => {
   const d = JSON.parse(m.data)
-  if (d.method === 'Runtime.exceptionThrown') jsErrors.push(d.params.exceptionDetails?.exception?.description ?? 'error')
+  // «Failed to fetch dynamically imported module»: Vite recarga la página al optimizar
+  // dependencias la primera vez; no es un fallo de la app.
+  if (d.method === 'Runtime.exceptionThrown' && !/dynamically imported module/.test(d.params.exceptionDetails?.exception?.description ?? '')) jsErrors.push(d.params.exceptionDetails?.exception?.description ?? 'error')
   origOnMessage(m)
 }
 await send('Page.enable')

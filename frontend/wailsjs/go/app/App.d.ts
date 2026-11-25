@@ -218,6 +218,8 @@ export function ServerUpgrade(arg1:string,arg2:string,arg3:string,arg4:string):P
 
 export function SetBackupsAuto(arg1:string,arg2:string,arg3:number):Promise<void>;
 
+export function SetLanguage(arg1:string):Promise<void>;
+
 export function SetProjectCollapsed(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function SetProjectSecret(arg1:string,arg2:string,arg3:string):Promise<void>;

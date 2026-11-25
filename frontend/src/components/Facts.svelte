@@ -12,7 +12,7 @@
     [tr('Arquitectura'), facts.arch],
     ['CPU', facts.cpus],
     ['RAM', kbToGB(facts.mem_kb)],
-    [tr('Disco libre'), `${kbToGB(facts.disk_free_kb)} de ${kbToGB(facts.disk_total_kb)}`],
+    [tr('Disco libre'), tr('{0} de {1}', kbToGB(facts.disk_free_kb), kbToGB(facts.disk_total_kb))],
     [tr('Encendido'), facts.uptime?.replace(/^up /, '')],
   ])
   const sudoLabel = $derived(facts.sudo === 'root' ? 'root' : facts.sudo === 'yes' ? tr('sudo sin contraseña') : tr('sin sudo'))

@@ -139,7 +139,7 @@
     <button class="card tile" onclick={() => (ui.view = 'alerts')} title={tr('Ver los avisos')}>
       <span class="ti"><BellRing size={15} /> {tr('Avisos')}</span>
       <strong class:bad-t={badItems > 0} class:ok-t={items.length === 0}>{pad(items.length)}</strong>
-      <span class="sub">{#if !items.length}{tr('todo en orden')}{:else if badItems}<span class="bad-t">{badItems} {badItems === 1 ? 'importante' : 'importantes'}</span>{:else}{tr('nada grave')}{/if}</span>
+      <span class="sub">{#if !items.length}{tr('todo en orden')}{:else if badItems}<span class="bad-t">{tr(badItems === 1 ? '{0} importante' : '{0} importantes', badItems)}</span>{:else}{tr('nada grave')}{/if}</span>
     </button>
   </div>
 
