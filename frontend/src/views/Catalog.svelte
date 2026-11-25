@@ -5,19 +5,20 @@
   import Modal from '../components/Modal.svelte'
   import { api, errorText, type Module } from '../lib/api'
   import { ui, refreshModules, toast, moduleName } from '../lib/state.svelte'
+  import { t } from '../lib/i18n.svelte'
 
   let open = $state<Module | null>(null)
   let file = $state<{ name: string; text: string } | null>(null)
 
   const groups = $derived.by(() => {
     const by: Record<string, Module[]> = {}
-    for (const m of ui.modules?.modules ?? []) (by[m.category || 'Otros'] ||= []).push(m)
+    for (const m of ui.modules?.modules ?? []) (by[m.category || t('Otros')] ||= []).push(m)
     return Object.entries(by).sort(([a], [b]) => a.localeCompare(b))
   })
 
   async function reload() {
     await refreshModules(true)
-    toast('Catálogo recargado')
+    toast(t('Catálogo recargado'))
   }
 
 
@@ -30,21 +31,21 @@
   }
 
   function fmtDefault(v: unknown) {
-    if (Array.isArray(v)) return v.length ? v.join(', ') : '(vacía)'
-    if (typeof v === 'boolean') return v ? 'sí' : 'no'
+    if (Array.isArray(v)) return v.length ? v.join(', ') : t('(vacía)')
+    if (typeof v === 'boolean') return v ? t('sí') : t('no')
     return v === null || v === undefined || v === '' ? '—' : String(v)
   }
-  const typeName: Record<string, string> = { string: 'texto', int: 'número', bool: 'sí/no', select: 'opción', list: 'lista' }
+  const typeName: Record<string, string> = { string: t('texto'), int: t('número'), bool: t('sí/no'), select: t('opción'), list: t('lista') }
 </script>
 
 <div class="head">
   <div>
-    <h1>Catálogo</h1>
-    <p class="muted">Lo que Draupnode sabe instalar. Cada módulo es un rol de Ansible con su formulario.</p>
+    <h1>{t('Catálogo')}</h1>
+    <p class="muted">{t('Lo que Draupnode sabe instalar. Cada módulo es un rol de Ansible con su formulario.')}</p>
   </div>
   <div class="row">
-    <button class="btn" onclick={() => (ui.view = 'modules')}><FolderOpen size={15} /> Mis módulos</button>
-    <button class="btn" onclick={reload}><RefreshCw size={15} /> Recargar</button>
+    <button class="btn" onclick={() => (ui.view = 'modules')}><FolderOpen size={15} /> {t('Mis módulos')}</button>
+    <button class="btn" onclick={reload}><RefreshCw size={15} /> {t('Recargar')}</button>
   </div>
 </div>
 
@@ -52,7 +53,7 @@
   <div class="card errs">
     <TriangleAlert size={17} />
     <div>
-      <strong>Hay módulos que no se pudieron cargar</strong>
+      <strong>{t('Hay módulos que no se pudieron cargar')}</strong>
       <ul>{#each ui.modules.errors as e}<li class="mono">{e}</li>{/each}</ul>
     </div>
   </div>
@@ -69,12 +70,12 @@
             <strong>{m.name}</strong>
             <span class="muted mono">{m.id} · v{m.version}</span>
           </div>
-          {#if m.source === 'user'}<span class="badge accent">tuyo</span>{/if}
+          {#if m.source === 'user'}<span class="badge accent">{t('tuyo')}</span>{/if}
         </div>
         <p class="desc">{m.description}</p>
         <div class="meta">
           {#if m.depends?.length}
-            <span class="badge" title="Depende de"><ArrowRight size={12} /> {m.depends.map(moduleName).join(', ')}</span>
+            <span class="badge" title={t('Depende de')}><ArrowRight size={12} /> {m.depends.map(moduleName).join(', ')}</span>
           {/if}
           {#if m.requires.minRamMb}<span class="badge"><MemoryStick size={12} /> {m.requires.minRamMb >= 1024 ? (m.requires.minRamMb / 1024).toFixed(1).replace('.0', '') + ' GB' : m.requires.minRamMb + ' MB'}</span>{/if}
           {#if m.requires.minDiskGb}<span class="badge"><HardDrive size={12} /> {m.requires.minDiskGb} GB</span>{/if}
@@ -86,9 +87,8 @@
 {/each}
 
 <p class="muted foot">
-  Para crear tus propios módulos, pulsa <strong>Mis módulos</strong> (o Utilidades → Editor de módulos): puedes empezar con un ejemplo o
-  copiar uno de los incluidos. Si los editas fuera de Draupnode, pulsa <strong>Recargar</strong>.
-  <br />Carpeta: <code class="selectable">{ui.modules?.userDir}</code>
+  {t('Para crear tus propios módulos, pulsa')} <strong>{t('Mis módulos')}</strong> {t('(o Utilidades → Editor de módulos): puedes empezar con un ejemplo o copiar uno de los incluidos. Si los editas fuera de Draupnode, pulsa')} <strong>{t('Recargar')}</strong>.
+  <br />{t('Carpeta:')} <code class="selectable">{ui.modules?.userDir}</code>
 </p>
 
 {#if open}
@@ -99,13 +99,13 @@
     {#if m.details}<ModuleText text={m.details} />{/if}
     <div class="meta">
       <span class="badge mono">{m.id} · v{m.version}</span>
-      <span class="badge">{m.source === 'user' ? 'Módulo tuyo' : 'Incluido en Draupnode'}</span>
-      {#if m.depends?.length}<span class="badge">Necesita: {m.depends.map(moduleName).join(', ')}</span>{/if}
+      <span class="badge">{m.source === 'user' ? t('Módulo tuyo') : t('Incluido en Draupnode')}</span>
+      {#if m.depends?.length}<span class="badge">{t('Necesita: {0}', m.depends.map(moduleName).join(', '))}</span>{/if}
     </div>
     {#if m.variables?.length}
-      <h3>Lo que se puede configurar</h3>
+      <h3>{t('Lo que se puede configurar')}</h3>
       <table>
-        <thead><tr><th>Campo</th><th>Tipo</th><th>Por defecto</th></tr></thead>
+        <thead><tr><th>{t('Campo')}</th><th>{t('Tipo')}</th><th>{t('Por defecto')}</th></tr></thead>
         <tbody>
           {#each m.variables as v}
             <tr>
@@ -117,7 +117,7 @@
         </tbody>
       </table>
     {/if}
-    <h3>Ficheros del rol de Ansible</h3>
+    <h3>{t('Ficheros del rol de Ansible')}</h3>
     <div class="files">
       {#each m.files ?? [] as f}
         <button class="btn sm" onclick={() => showFile(m, f)}><FileCode size={14} /> {f}</button>
@@ -129,7 +129,7 @@
 {#if file}
   <Modal title={file.name} onclose={() => (file = null)} width={820}>
     <pre class="code selectable">{file.text}</pre>
-    <p class="muted small">Solo lectura. El editor llegará en la fase 3.</p>
+    <p class="muted small">{t('Solo lectura. El editor llegará en la fase 3.')}</p>
   </Modal>
 {/if}
 

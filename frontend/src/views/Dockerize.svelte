@@ -6,16 +6,17 @@
   } from '@lucide/svelte'
   import { api, errorText, onEvent, type DockerAnalysis, type DockerInfo, type DockerPreview, type DockerSpec, type PublishResult } from '../lib/api'
   import { toast, confirmDialog, ui, openServerModules, refreshProjects } from '../lib/state.svelte'
+  import { t as tr } from '../lib/i18n.svelte'
 
-  const STEPS = ['Carpeta', 'Tipo y versión', 'Arranque', 'Servicios', 'Vista previa']
+  const STEPS = [tr('Carpeta'), tr('Tipo y versión'), tr('Arranque'), tr('Servicios'), tr('Vista previa')]
   const STACKS: Record<string, string> = {
-    python: 'Python', node: 'Node.js', java: 'Java', php: 'PHP', go: 'Go', static: 'Web estática (HTML)',
+    python: tr('Python'), node: 'Node.js', java: tr('Java'), php: 'PHP', go: 'Go', static: tr('Web estática (HTML)'),
   }
   const FRAMEWORKS: Record<string, [string, string][]> = {
-    python: [['django', 'Django'], ['flask', 'Flask'], ['fastapi', 'FastAPI'], ['', 'Otro / script propio']],
-    node: [['server', 'Servidor (Express, Nest…)'], ['next', 'Next.js'], ['spa', 'Web compilada (Vite, React, Angular…)']],
-    java: [['spring', 'Spring Boot'], ['', 'Otro (.jar ejecutable)']],
-    php: [['laravel', 'Laravel'], ['', 'PHP sin framework']],
+    python: [['django', tr('Django')], ['flask', tr('Flask')], ['fastapi', 'FastAPI'], ['', tr('Otro / script propio')]],
+    node: [['server', tr('Servidor (Express, Nest…)')], ['next', 'Next.js'], ['spa', tr('Web compilada (Vite, React, Angular…)')]],
+    java: [['spring', tr('Spring Boot')], ['', tr('Otro (.jar ejecutable)')]],
+    php: [['laravel', tr('Laravel')], ['', tr('PHP sin framework')]],
     go: [], static: [],
   }
 
@@ -59,7 +60,7 @@
       } else {
         labRunning = false
         labResult = { ok: !!e.ok, error: e.error, url: e.url, http: e.http, output: e.output }
-        if (e.ok) toast('Funciona en el servidor de pruebas')
+        if (e.ok) toast(tr('Funciona en el servidor de pruebas'))
       }
     })
     const offBuild = onEvent('dockerbuild', async (e) => {
@@ -72,7 +73,7 @@
       }
       building = false
       buildResult = { ok: !!e.ok, error: e.error, image: e.image, secs: e.secs }
-      if (e.ok) toast('Imagen construida: ' + e.image)
+      if (e.ok) toast(tr('Imagen construida: ') + e.image)
     })
     return () => { offLab(); offBuild() }
   })
@@ -159,9 +160,9 @@
     const ex = preview.files.filter((f) => f.exists).map((f) => f.name)
     if (ex.length) {
       const ok = await confirmDialog({
-        title: 'Sustituir ficheros',
-        message: 'Ya existen en la carpeta: ' + ex.join(', ') + '. Se sustituirán por los nuevos.',
-        confirmLabel: 'Sustituir', danger: true,
+        title: tr('Sustituir ficheros'),
+        message: tr('Ya existen en la carpeta: ') + ex.join(', ') + tr('. Se sustituirán por los nuevos.'),
+        confirmLabel: tr('Sustituir'), danger: true,
       })
       if (!ok) return
     }
@@ -169,7 +170,7 @@
     try {
       saved = await api.WriteDockerFiles(dir, $state.snapshot(spec) as DockerSpec, ex.length > 0)
       preview = await api.GenerateDocker(dir, $state.snapshot(spec) as DockerSpec)
-      toast('Guardado en la carpeta del proyecto')
+      toast(tr('Guardado en la carpeta del proyecto'))
     } catch (e) {
       toast(errorText(e), 'error')
     } finally {
@@ -192,9 +193,9 @@
   async function copy(t: string) {
     try {
       await navigator.clipboard.writeText(t)
-      toast('Copiado')
+      toast(tr('Copiado'))
     } catch {
-      toast('No se pudo copiar', 'error')
+      toast(tr('No se pudo copiar'), 'error')
     }
   }
 
@@ -217,7 +218,7 @@
       labResult = null
       labStages = []
       labLines = []
-      toast('Prueba parada y borrada del servidor de pruebas')
+      toast(tr('Prueba parada y borrada del servidor de pruebas'))
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -257,7 +258,7 @@
     try {
       pubResult = await api.PublishDockerApp(dir, $state.snapshot(spec) as DockerSpec, pubServer)
       await refreshProjects()
-      toast('Añadida a los módulos del servidor: revísala y pulsa Aplicar')
+      toast(tr('Añadida a los módulos del servidor: revísala y pulsa Aplicar'))
     } catch (e) {
       toast(errorText(e), 'error')
     } finally {
@@ -268,10 +269,10 @@
 
 <div class="head">
   <div>
-    <h1>Docker Creator</h1>
-    <p class="muted">Crea el Dockerfile y el docker-compose.yml de cualquier proyecto sin saber Docker. Mira la carpeta, te propone lo que ha visto y tú lo cambias si hace falta.</p>
+    <h1>{tr('Docker Creator')}</h1>
+    <p class="muted">{tr('Crea el Dockerfile y el docker-compose.yml de cualquier proyecto sin saber Docker. Mira la carpeta, te propone lo que ha visto y tú lo cambias si hace falta.')}</p>
   </div>
-  {#if dir}<button class="btn" onclick={restart}><RefreshCw size={15} /> Otro proyecto</button>{/if}
+  {#if dir}<button class="btn" onclick={restart}><RefreshCw size={15} /> {tr('Otro proyecto')}</button>{/if}
 </div>
 
 <ol class="steps">
@@ -286,246 +287,246 @@
 
 <section class="card block">
   {#if step === 0}
-    <h2>¿Qué proyecto quieres meter en Docker?</h2>
+    <h2>{tr('¿Qué proyecto quieres meter en Docker?')}</h2>
     <div class="row">
-      <button class="btn primary" onclick={choose} disabled={analyzing}><FolderOpen size={15} /> Elegir carpeta…</button>
+      <button class="btn primary" onclick={choose} disabled={analyzing}><FolderOpen size={15} /> {tr('Elegir carpeta…')}</button>
       {#if dir}<code class="selectable path">{dir}</code>{/if}
     </div>
     {#if analyzing}
-      <p class="muted"><LoaderCircle size={15} class="spin" /> Mirando la carpeta…</p>
+      <p class="muted"><LoaderCircle size={15} class="spin" /> {tr('Mirando la carpeta…')}</p>
     {:else if analysis && spec}
       {#if spec.stack}
-        <p class="found"><CircleCheck size={16} /> <span>Parece un proyecto <strong>{kind}</strong>.</span></p>
+        <p class="found"><CircleCheck size={16} /> <span>{tr('Parece un proyecto')} <strong>{kind}</strong>.</span></p>
       {/if}
       {#if analysis.evidence.length}
-        <div class="note"><strong>En qué me he basado</strong>
+        <div class="note"><strong>{tr('En qué me he basado')}</strong>
           <ul>{#each analysis.evidence as ev}<li>{ev}</li>{/each}</ul>
         </div>
       {/if}
       {#each analysis.warnings as w}<p class="warn"><TriangleAlert size={16} /> {w}</p>{/each}
       {#if spec.sideBySide}
-        <p class="warn"><Info size={16} /> El proyecto ya tiene ficheros de Docker ({analysis.existing.join(', ')}). No se tocan: los nuevos se guardan al lado con «.draupnode» en el nombre para que los compares.</p>
+        <p class="warn"><Info size={16} /> {tr('El proyecto ya tiene ficheros de Docker ({0}). No se tocan: los nuevos se guardan al lado con «.draupnode» en el nombre para que los compares.', analysis.existing.join(', '))}</p>
       {/if}
-      <p class="muted small">Solo se leen ficheros de la carpeta; el .env (con contraseñas) nunca se lee.</p>
+      <p class="muted small">{tr('Solo se leen ficheros de la carpeta; el .env (con contraseñas) nunca se lee.')}</p>
     {/if}
 
   {:else if spec && step === 1}
-    <h2>Tipo de proyecto y versión</h2>
+    <h2>{tr('Tipo de proyecto y versión')}</h2>
     <div class="grid">
-      <label class="field"><span>Lenguaje</span>
+      <label class="field"><span>{tr('Lenguaje')}</span>
         <select class="input" value={spec.stack} onchange={(e) => changeStack((e.target as HTMLSelectElement).value)}>
-          {#if !spec.stack}<option value="">Elige…</option>{/if}
-          {#each Object.entries(STACKS) as [k, v]}<option value={k}>{v}{analysis?.spec.stack === k ? ' (detectado)' : analysis?.alternatives.includes(k) ? ' (también hay pistas)' : ''}</option>{/each}
+          {#if !spec.stack}<option value="">{tr('Elige…')}</option>{/if}
+          {#each Object.entries(STACKS) as [k, v]}<option value={k}>{v}{analysis?.spec.stack === k ? ' (detectado)' : analysis?.alternatives.includes(k) ? tr(' (también hay pistas)') : ''}</option>{/each}
         </select>
       </label>
       {#if frameworks.length}
-        <label class="field"><span>Tipo</span>
+        <label class="field"><span>{tr('Tipo')}</span>
           <select class="input" bind:value={spec.framework}>
             {#each frameworks as [k, v]}<option value={k}>{v}</option>{/each}
           </select>
         </label>
       {/if}
       {#if versions.length > 1 || (versions[0] ?? '') !== ''}
-        <label class="field"><span>Versión de {STACKS[spec.stack]}</span>
+        <label class="field"><span>{tr('Versión de {0}', STACKS[spec.stack])}</span>
           <select class="input" bind:value={spec.version}>
             {#each versions as v}<option value={v}>{v}</option>{/each}
-            {#if spec.version && !versions.includes(spec.version)}<option value={spec.version}>{spec.version} (la del proyecto)</option>{/if}
+            {#if spec.version && !versions.includes(spec.version)}<option value={spec.version}>{tr('{0} (la del proyecto)', spec.version)}</option>{/if}
           </select>
         </label>
       {/if}
-      <label class="field"><span>Nombre</span>
+      <label class="field"><span>{tr('Nombre')}</span>
         <input class="input" bind:value={spec.name} spellcheck="false" />
-        <small>De la imagen y del contenedor: minúsculas, números y guiones.</small>
+        <small>{tr('De la imagen y del contenedor: minúsculas, números y guiones.')}</small>
       </label>
     </div>
     {#if spec.stack === 'node'}
       <div class="grid">
-        <label class="field"><span>Gestor de paquetes</span>
+        <label class="field"><span>{tr('Gestor de paquetes')}</span>
           <select class="input" bind:value={spec.nodePm}><option value="npm">npm</option><option value="yarn">yarn</option><option value="pnpm">pnpm</option></select>
         </label>
         {#if spec.framework === 'spa'}
-          <label class="field"><span>Carpeta que genera la compilación</span><input class="input" bind:value={spec.staticDir} spellcheck="false" /><small>Normalmente dist o build.</small></label>
+          <label class="field"><span>{tr('Carpeta que genera la compilación')}</span><input class="input" bind:value={spec.staticDir} spellcheck="false" /><small>{tr('Normalmente dist o build.')}</small></label>
         {/if}
       </div>
-      {#if spec.framework !== 'spa'}<label class="check"><input type="checkbox" bind:checked={spec.nodeBuild} /> Compilar antes de arrancar (npm run build)</label>{/if}
+      {#if spec.framework !== 'spa'}<label class="check"><input type="checkbox" bind:checked={spec.nodeBuild} /> {tr('Compilar antes de arrancar (npm run build)')}</label>{/if}
     {:else if spec.stack === 'java'}
       <div class="grid">
-        <label class="field"><span>Herramienta</span>
-          <select class="input" bind:value={spec.javaBuild}><option value="maven">Maven</option><option value="gradle">Gradle</option></select>
+        <label class="field"><span>{tr('Herramienta')}</span>
+          <select class="input" bind:value={spec.javaBuild}><option value="maven">{tr('Maven')}</option><option value="gradle">{tr('Gradle')}</option></select>
         </label>
       </div>
-      <label class="check"><input type="checkbox" bind:checked={spec.javaWrapper} /> Usar el mvnw / gradlew del proyecto</label>
+      <label class="check"><input type="checkbox" bind:checked={spec.javaWrapper} /> {tr('Usar el mvnw / gradlew del proyecto')}</label>
     {:else if spec.stack === 'python'}
       <div class="grid">
-        <label class="field"><span>Dependencias desde</span>
+        <label class="field"><span>{tr('Dependencias desde')}</span>
           <select class="input" bind:value={spec.pyInstall}><option value="requirements">requirements.txt</option><option value="pyproject">pyproject.toml</option></select>
         </label>
         {#if spec.framework === 'django'}
-          <label class="field"><span>Módulo de Django</span><input class="input" bind:value={spec.module} spellcheck="false" /><small>La carpeta que tiene settings.py y wsgi.py.</small></label>
+          <label class="field"><span>{tr('Módulo de Django')}</span><input class="input" bind:value={spec.module} spellcheck="false" /><small>{tr('La carpeta que tiene settings.py y wsgi.py.')}</small></label>
         {/if}
       </div>
     {:else if spec.stack === 'php'}
       <div class="grid">
-        <label class="field"><span>Carpeta pública</span><input class="input" bind:value={spec.docRoot} placeholder="(la raíz)" spellcheck="false" /><small>Laravel: public.</small></label>
+        <label class="field"><span>{tr('Carpeta pública')}</span><input class="input" bind:value={spec.docRoot} placeholder={tr('(la raíz)')} spellcheck="false" /><small>{tr('Laravel: public.')}</small></label>
       </div>
     {:else if spec.stack === 'go'}
       <div class="grid">
-        <label class="field"><span>Paquete principal</span><input class="input" bind:value={spec.goMain} spellcheck="false" /><small>Donde está func main: «.» o ./cmd/app.</small></label>
+        <label class="field"><span>{tr('Paquete principal')}</span><input class="input" bind:value={spec.goMain} spellcheck="false" /><small>{tr('Donde está func main: «.» o ./cmd/app.')}</small></label>
       </div>
     {/if}
 
   {:else if spec && step === 2}
-    <h2>Cómo arranca</h2>
+    <h2>{tr('Cómo arranca')}</h2>
     <div class="grid">
       {#if !servesStatic && spec.stack !== 'java' && spec.stack !== 'go'}
-        <label class="field wide"><span>Orden de arranque</span>
+        <label class="field wide"><span>{tr('Orden de arranque')}</span>
           <input class="input mono" bind:value={spec.start} spellcheck="false" />
-          <small>Lo que ejecutarías en una terminal para arrancar la app. Sin comillas, $, ; ni &.</small>
+          <small>{tr('Lo que ejecutarías en una terminal para arrancar la app. Sin comillas, $, ; ni &.')}</small>
         </label>
       {/if}
       {#if !servesStatic}
-        <label class="field"><span>Puerto de la app</span><input class="input" type="number" min="1" max="65535" bind:value={spec.port} /><small>En el que escucha dentro del contenedor.</small></label>
+        <label class="field"><span>{tr('Puerto de la app')}</span><input class="input" type="number" min="1" max="65535" bind:value={spec.port} /><small>{tr('En el que escucha dentro del contenedor.')}</small></label>
       {:else}
-        <p class="muted small wide">Se sirve con {spec.stack === 'php' ? 'Apache' : 'nginx'} en el puerto 80 dentro del contenedor.</p>
+        <p class="muted small wide">{tr('Se sirve con {0} en el puerto 80 dentro del contenedor.', spec.stack === 'php' ? tr('Apache') : 'nginx')}</p>
       {/if}
       {#if !spec.proxy}
-        <label class="field"><span>Puerto en tu equipo / servidor</span><input class="input" type="number" min="0" max="65535" bind:value={spec.hostPort} /><small>0 = el mismo{servesStatic ? ' (8080)' : ''}.</small></label>
+        <label class="field"><span>{tr('Puerto en tu equipo / servidor')}</span><input class="input" type="number" min="0" max="65535" bind:value={spec.hostPort} /><small>{tr('0 = el mismo{0}.', servesStatic ? ' (8080)' : '')}</small></label>
       {/if}
-      <label class="field"><span>Comprobación de salud</span><input class="input" bind:value={spec.healthPath} placeholder="(ninguna)" spellcheck="false" /><small>Una ruta que responda, p. ej. /health. Docker sabrá si la app está viva.</small></label>
+      <label class="field"><span>{tr('Comprobación de salud')}</span><input class="input" bind:value={spec.healthPath} placeholder="(ninguna)" spellcheck="false" /><small>{tr('Una ruta que responda, p. ej. /health. Docker sabrá si la app está viva.')}</small></label>
     </div>
     {#if spec.framework === 'django'}
       <div class="opts">
-        <label class="check"><input type="checkbox" bind:checked={spec.djangoMigrate} /> Aplicar las migraciones al arrancar</label>
-        <label class="check"><input type="checkbox" bind:checked={spec.djangoCollectstatic} /> Recopilar los estáticos (collectstatic) al construir</label>
-        <label class="check"><input type="checkbox" bind:checked={spec.djangoSuperuser} /> Crear el superusuario la primera vez (desde DJANGO_SUPERUSER_* del .env)</label>
+        <label class="check"><input type="checkbox" bind:checked={spec.djangoMigrate} /> {tr('Aplicar las migraciones al arrancar')}</label>
+        <label class="check"><input type="checkbox" bind:checked={spec.djangoCollectstatic} /> {tr('Recopilar los estáticos (collectstatic) al construir')}</label>
+        <label class="check"><input type="checkbox" bind:checked={spec.djangoSuperuser} /> {tr('Crear el superusuario la primera vez (desde DJANGO_SUPERUSER_* del .env)')}</label>
       </div>
     {:else if spec.framework === 'laravel'}
-      <label class="check"><input type="checkbox" bind:checked={spec.laravelMigrate} /> Aplicar las migraciones al arrancar</label>
+      <label class="check"><input type="checkbox" bind:checked={spec.laravelMigrate} /> {tr('Aplicar las migraciones al arrancar')}</label>
     {/if}
-    <label class="check"><input type="checkbox" bind:checked={spec.nonRoot} /> Ejecutar la app sin ser root (más seguro)</label>
+    <label class="check"><input type="checkbox" bind:checked={spec.nonRoot} /> {tr('Ejecutar la app sin ser root (más seguro)')}</label>
 
   {:else if spec && step === 3}
-    <h2>Lo que necesita</h2>
+    <h2>{tr('Lo que necesita')}</h2>
     <div class="opts">
       <label class="check"><input type="checkbox" bind:checked={spec.postgres} onchange={() => spec!.postgres && (spec!.mariadb = false)} /> PostgreSQL</label>
-      <label class="check"><input type="checkbox" bind:checked={spec.mariadb} onchange={() => spec!.mariadb && (spec!.postgres = false)} /> MariaDB / MySQL</label>
-      <label class="check"><input type="checkbox" bind:checked={spec.redis} /> Redis</label>
+      <label class="check"><input type="checkbox" bind:checked={spec.mariadb} onchange={() => spec!.mariadb && (spec!.postgres = false)} /> {tr('MariaDB / MySQL')}</label>
+      <label class="check"><input type="checkbox" bind:checked={spec.redis} /> {tr('Redis')}</label>
     </div>
     {#if spec.postgres}
       <div class="grid">
-        <label class="field"><span>¿Qué PostgreSQL?</span>
+        <label class="field"><span>{tr('¿Qué PostgreSQL?')}</span>
           <select class="input" bind:value={spec.dbMode}>
-            <option value="own">Uno propio en este compose</option>
-            <option value="shared">El PostgreSQL compartido del servidor (módulo de Draupnode)</option>
+            <option value="own">{tr('Uno propio en este compose')}</option>
+            <option value="shared">{tr('El PostgreSQL compartido del servidor (módulo de Draupnode)')}</option>
           </select>
         </label>
         {#if spec.dbMode === 'shared'}
-          <label class="field"><span>Red de Docker</span><input class="input" bind:value={spec.sharedNetwork} spellcheck="false" /></label>
-          <label class="field"><span>Contenedor de PostgreSQL</span><input class="input" bind:value={spec.sharedHost} spellcheck="false" /></label>
+          <label class="field"><span>{tr('Red de Docker')}</span><input class="input" bind:value={spec.sharedNetwork} spellcheck="false" /></label>
+          <label class="field"><span>{tr('Contenedor de PostgreSQL')}</span><input class="input" bind:value={spec.sharedHost} spellcheck="false" /></label>
         {/if}
       </div>
     {/if}
     <div class="proxy">
-      <label class="check"><input type="checkbox" bind:checked={spec.proxy} /> <strong>Poner nginx delante</strong> (dominio y puerto normal)</label>
-      <p class="muted small">Un nginx en el compose recibe las visitas a tu dominio en el puerto 80 (o el que digas) y las pasa por dentro al puerto {servesStatic ? '80' : spec.port} de la app, que ya no se publica.</p>
+      <label class="check"><input type="checkbox" bind:checked={spec.proxy} /> <strong>{tr('Poner nginx delante')}</strong> {tr('(dominio y puerto normal)')}</label>
+      <p class="muted small">{tr('Un nginx en el compose recibe las visitas a tu dominio en el puerto 80 (o el que digas) y las pasa por dentro al puerto {0} de la app, que ya no se publica.', servesStatic ? '80' : spec.port)}</p>
       {#if spec.proxy}
         <div class="grid">
-          <label class="field"><span>Dominio</span><input class="input mono" bind:value={spec.proxyDomain} placeholder="tienda.ejemplo.com" spellcheck="false" /><small>Vacío = responde a cualquiera. Tiene que apuntar a este equipo o servidor.</small></label>
-          <label class="field"><span>Puerto de nginx</span><input class="input" type="number" min="1" max="65535" bind:value={spec.proxyPort} /><small>80 = el normal (http://dominio sin puerto).</small></label>
-          <label class="field"><span>Tamaño máximo de subida (MB)</span><input class="input" type="number" min="1" max="10240" bind:value={spec.maxBodyMb} /></label>
+          <label class="field"><span>{tr('Dominio')}</span><input class="input mono" bind:value={spec.proxyDomain} placeholder="tienda.ejemplo.com" spellcheck="false" /><small>{tr('Vacío = responde a cualquiera. Tiene que apuntar a este equipo o servidor.')}</small></label>
+          <label class="field"><span>{tr('Puerto de nginx')}</span><input class="input" type="number" min="1" max="65535" bind:value={spec.proxyPort} /><small>{tr('80 = el normal (http://dominio sin puerto).')}</small></label>
+          <label class="field"><span>{tr('Tamaño máximo de subida (MB)')}</span><input class="input" type="number" min="1" max="10240" bind:value={spec.maxBodyMb} /></label>
         </div>
-        <p class="muted small">Para HTTPS (candado), pon delante el módulo Caddy o nginx de Draupnode en el servidor, o despliégalo con Coolify.</p>
+        <p class="muted small">{tr('Para HTTPS (candado), pon delante el módulo Caddy o nginx de Draupnode en el servidor, o despliégalo con Coolify.')}</p>
       {/if}
     </div>
     <div class="grid">
-      <label class="field wide"><span>Variables de entorno que usa la app</span>
-        <input class="input mono" bind:value={envText} placeholder="SECRET_KEY, API_TOKEN" spellcheck="false" />
-        <small>Solo los nombres: los valores van en tu .env, que no se mete en la imagen.</small>
+      <label class="field wide"><span>{tr('Variables de entorno que usa la app')}</span>
+        <input class="input mono" bind:value={envText} placeholder={tr('SECRET_KEY, API_TOKEN')} spellcheck="false" />
+        <small>{tr('Solo los nombres: los valores van en tu .env, que no se mete en la imagen.')}</small>
       </label>
-      <label class="field wide"><span>Carpetas donde la app guarda datos</span>
-        <input class="input mono" bind:value={volText} placeholder="/app/media, /app/uploads" spellcheck="false" />
-        <small>Rutas dentro del contenedor. Se guardan en un volumen para no perderlas al actualizar.</small>
+      <label class="field wide"><span>{tr('Carpetas donde la app guarda datos')}</span>
+        <input class="input mono" bind:value={volText} placeholder={tr('/app/media, /app/uploads')} spellcheck="false" />
+        <small>{tr('Rutas dentro del contenedor. Se guardan en un volumen para no perderlas al actualizar.')}</small>
       </label>
-      <label class="field"><span>Paquetes del sistema extra</span>
-        <input class="input mono" bind:value={pkgText} placeholder="libpq-dev gettext" spellcheck="false" />
-        <small>De Debian, separados por espacios.</small>
+      <label class="field"><span>{tr('Paquetes del sistema extra')}</span>
+        <input class="input mono" bind:value={pkgText} placeholder={tr('libpq-dev gettext')} spellcheck="false" />
+        <small>{tr('De Debian, separados por espacios.')}</small>
       </label>
       {#if spec.stack === 'python'}
-        <label class="field"><span>Paquetes de Python extra</span>
+        <label class="field"><span>{tr('Paquetes de Python extra')}</span>
           <input class="input mono" bind:value={pipText} placeholder="gunicorn" spellcheck="false" />
         </label>
       {/if}
     </div>
 
   {:else if spec && step === 4 && preview}
-    <h2>Vista previa</h2>
+    <h2>{tr('Vista previa')}</h2>
     {#if preview.errors.length}
       {#each preview.errors as e}<p class="err"><CircleX size={16} /> {e}</p>{/each}
-      <p class="muted small">Vuelve a los pasos anteriores para corregirlo.</p>
+      <p class="muted small">{tr('Vuelve a los pasos anteriores para corregirlo.')}</p>
     {:else}
       <div class="tabs">
         {#each preview.files as f, i}
-          <button class:active={tab === i} onclick={() => (tab = i)}><FileCode size={14} /> {f.name}{#if f.exists}<em>se sustituye</em>{/if}</button>
+          <button class:active={tab === i} onclick={() => (tab = i)}><FileCode size={14} /> {f.name}{#if f.exists}<em>{tr('se sustituye')}</em>{/if}</button>
         {/each}
       </div>
       {#if preview.files[tab]}
         <div class="code">
-          <button class="btn icon sm ghost copy" title="Copiar" onclick={() => copy(preview!.files[tab].content)}><Copy size={14} /></button>
+          <button class="btn icon sm ghost copy" title={tr('Copiar')} onclick={() => copy(preview!.files[tab].content)}><Copy size={14} /></button>
           <pre class="selectable">{preview.files[tab].content}</pre>
         </div>
       {/if}
       <div class="row">
-        <button class="btn primary" onclick={save} disabled={saving}>{#if saving}<LoaderCircle size={15} class="spin" />{:else}<Save size={15} />{/if} Guardar en la carpeta</button>
+        <button class="btn primary" onclick={save} disabled={saving}>{#if saving}<LoaderCircle size={15} class="spin" />{:else}<Save size={15} />{/if} {tr('Guardar en la carpeta')}</button>
         {#if saved}
-          <button class="btn" onclick={build} disabled={building || !info?.docker} title={info?.docker ? '' : 'No hay Docker en este equipo (pantalla «Servidor de pruebas»)'}><Hammer size={15} /> Probar a construir</button>
-          {#if building}<button class="btn ghost" onclick={() => api.CancelDockerBuild()}><Square size={14} /> Cancelar</button>{/if}
-          <button class="btn" onclick={labTest} disabled={labRunning || !info?.docker} title={info?.docker ? 'Lo arranca en el servidor de pruebas de este equipo (lo crea si no existe)' : 'No hay Docker en este equipo (pantalla «Servidor de pruebas»)'}><FlaskConical size={15} /> Probar en el servidor de pruebas</button>
-          <button class="btn ghost" onclick={() => api.OpenProjectDir(dir)}><FolderOpen size={15} /> Abrir carpeta</button>
+          <button class="btn" onclick={build} disabled={building || !info?.docker} title={info?.docker ? '' : tr('No hay Docker en este equipo (pantalla «Servidor de pruebas»)')}><Hammer size={15} /> {tr('Probar a construir')}</button>
+          {#if building}<button class="btn ghost" onclick={() => api.CancelDockerBuild()}><Square size={14} /> {tr('Cancelar')}</button>{/if}
+          <button class="btn" onclick={labTest} disabled={labRunning || !info?.docker} title={info?.docker ? tr('Lo arranca en el servidor de pruebas de este equipo (lo crea si no existe)') : tr('No hay Docker en este equipo (pantalla «Servidor de pruebas»)')}><FlaskConical size={15} /> {tr('Probar en el servidor de pruebas')}</button>
+          <button class="btn ghost" onclick={() => api.OpenProjectDir(dir)}><FolderOpen size={15} /> {tr('Abrir carpeta')}</button>
         {/if}
       </div>
       {#if saved}
-        <p class="found"><CircleCheck size={16} /> Guardado: {saved.join(', ')}.</p>
+        <p class="found"><CircleCheck size={16} /> {tr('Guardado: {0}.', saved.join(', '))}</p>
         <div class="note publish">
-          <p><strong>Publicar en un servidor</strong>: Draupnode añade la app a los módulos del servidor con todo rellenado (este compose, el puerto, las variables y las contraseñas que se generan allí) y la sube desde esta carpeta cada vez que aplicas. No hace falta GitHub.</p>
+          <p><strong>{tr('Publicar en un servidor')}</strong>{tr(': Draupnode añade la app a los módulos del servidor con todo rellenado (este compose, el puerto, las variables y las contraseñas que se generan allí) y la sube desde esta carpeta cada vez que aplicas. No hace falta GitHub.')}</p>
           <div class="row">
             <select class="input" bind:value={pubServer}>
-              <option value="">Elige el servidor…</option>
+              <option value="">{tr('Elige el servidor…')}</option>
               {#each ui.servers as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
             </select>
-            <button class="btn primary" onclick={publish} disabled={!pubServer || publishing}>{#if publishing}<LoaderCircle size={15} class="spin" />{:else}<Upload size={15} />{/if} Publicar en el servidor</button>
+            <button class="btn primary" onclick={publish} disabled={!pubServer || publishing}>{#if publishing}<LoaderCircle size={15} class="spin" />{:else}<Upload size={15} />{/if} {tr('Publicar en el servidor')}</button>
           </div>
           {#if pubResult}
             {#each pubResult.notes as n}<p class="small"><CircleCheck size={13} /> {n}</p>{/each}
             {#if pubResult.review.length}
-              <p class="small"><strong>Para revisar antes de aplicar</strong> (en sus opciones):</p>
+              <p class="small"><strong>{tr('Para revisar antes de aplicar')}</strong> {tr('(en sus opciones):')}</p>
               <ul class="small">{#each pubResult.review as r}<li>{r}</li>{/each}</ul>
             {/if}
-            <button class="btn sm" onclick={() => openServerModules(pubResult!.serverId)}>Ir a sus módulos y aplicar <ArrowRight size={13} /></button>
+            <button class="btn sm" onclick={() => openServerModules(pubResult!.serverId)}>{tr('Ir a sus módulos y aplicar')} <ArrowRight size={13} /></button>
           {/if}
         </div>
         <div class="note">
-          <p><strong>Para arrancarlo</strong>, en una terminal dentro de la carpeta del proyecto:</p>
-          <div class="cmd"><code class="selectable">{upCmd}</code><button class="btn icon sm ghost" title="Copiar" onclick={() => copy(upCmd)}><Copy size={14} /></button></div>
-          {#if openUrl}<p>Después ábrela en <code>{openUrl}</code>{spec?.proxyDomain ? ' (el dominio tiene que apuntar a donde la arranques)' : ''}.</p>{/if}
-          <p>Si tu app usa variables (contraseñas…), crea antes un fichero <code>.env</code> con ellas. Coolify también puede desplegarlo con este {composeName}.</p>
+          <p><strong>{tr('Para arrancarlo')}</strong>{tr(', en una terminal dentro de la carpeta del proyecto:')}</p>
+          <div class="cmd"><code class="selectable">{upCmd}</code><button class="btn icon sm ghost" title={tr('Copiar')} onclick={() => copy(upCmd)}><Copy size={14} /></button></div>
+          {#if openUrl}<p>{tr('Después ábrela en')} <code>{openUrl}</code>{spec?.proxyDomain ? tr(' (el dominio tiene que apuntar a donde la arranques)') : ''}.</p>{/if}
+          <p>{tr('Si tu app usa variables (contraseñas…), crea antes un fichero')} <code>.env</code> {tr('con ellas. Coolify también puede desplegarlo con este {0}.', composeName)}</p>
         </div>
       {/if}
       {#if labRunning || labResult}
         <div class="progress">
           <div class="p-head">
-            {#if labRunning}<LoaderCircle size={15} class="spin" /> {labStages[labStages.length - 1] ?? 'Empezando…'}
-              <button class="btn sm ghost push" onclick={() => api.CancelDockerLabTest()}><Square size={13} /> Cancelar</button>
-            {:else if labResult?.ok}<CircleCheck size={15} /> Funciona en el servidor de pruebas ({labResult.http})
+            {#if labRunning}<LoaderCircle size={15} class="spin" /> {labStages[labStages.length - 1] ?? tr('Empezando…')}
+              <button class="btn sm ghost push" onclick={() => api.CancelDockerLabTest()}><Square size={13} /> {tr('Cancelar')}</button>
+            {:else if labResult?.ok}<CircleCheck size={15} /> {tr('Funciona en el servidor de pruebas ({0})', labResult.http)}
             {:else if labResult}<CircleX size={15} /> {labResult.error}{/if}
           </div>
           {#if labResult?.ok}
             <div class="lab-ok">
-              <button class="btn sm primary" onclick={() => api.OpenURL(labResult!.url!)}><ExternalLink size={14} /> Abrir en el navegador</button>
+              <button class="btn sm primary" onclick={() => api.OpenURL(labResult!.url!)}><ExternalLink size={14} /> {tr('Abrir en el navegador')}</button>
               <code class="selectable">{labResult.url}</code>
-              <button class="btn sm ghost" onclick={labStop}><Trash2 size={14} /> Parar la prueba</button>
+              <button class="btn sm ghost" onclick={labStop}><Trash2 size={14} /> {tr('Parar la prueba')}</button>
             </div>
           {:else if labResult}
-            <div class="lab-ok"><button class="btn sm ghost" onclick={labStop}><Trash2 size={14} /> Parar y borrar la prueba</button><span class="muted small">Corrige y vuelve a «Probar»: se sube de nuevo.</span></div>
+            <div class="lab-ok"><button class="btn sm ghost" onclick={labStop}><Trash2 size={14} /> {tr('Parar y borrar la prueba')}</button><span class="muted small">{tr('Corrige y vuelve a «Probar»: se sube de nuevo.')}</span></div>
           {/if}
           {#if labStages.length}<ol class="stages">{#each labStages as st, i}<li class:cur={labRunning && i === labStages.length - 1}>{st}</li>{/each}</ol>{/if}
           <pre class="log selectable" bind:this={labLogEl}>{labResult?.output ? labResult.output : labLines.join('\n')}</pre>
@@ -534,8 +535,8 @@
       {#if building || buildResult || buildLines.length}
         <div class="progress">
           <div class="p-head">
-            {#if building}<LoaderCircle size={15} class="spin" /> Construyendo la imagen…
-            {:else if buildResult?.ok}<CircleCheck size={15} /> Construida en {buildResult.secs} s: <code>{buildResult.image}</code>
+            {#if building}<LoaderCircle size={15} class="spin" /> {tr('Construyendo la imagen…')}
+            {:else if buildResult?.ok}<CircleCheck size={15} /> {tr('Construida en {0} s:', buildResult.secs)} <code>{buildResult.image}</code>
             {:else if buildResult}<CircleX size={15} /> {buildResult.error}{/if}
           </div>
           <pre class="log selectable" bind:this={logEl}>{buildLines.join('\n')}</pre>
@@ -546,9 +547,9 @@
 
   {#if spec}
     <div class="nav">
-      <button class="btn" onclick={back} disabled={step === 0}><ArrowLeft size={15} /> Anterior</button>
+      <button class="btn" onclick={back} disabled={step === 0}><ArrowLeft size={15} /> {tr('Anterior')}</button>
       {#if step < STEPS.length - 1}
-        <button class="btn primary" onclick={next} disabled={!canNext}>Siguiente <ArrowRight size={15} /></button>
+        <button class="btn primary" onclick={next} disabled={!canNext}>{tr('Siguiente')} <ArrowRight size={15} /></button>
       {/if}
     </div>
   {/if}

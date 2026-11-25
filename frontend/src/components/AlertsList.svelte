@@ -4,6 +4,7 @@
   import { alerts, alertItems, hideAlert, fetchBackups } from '../lib/alerts.svelte'
   import { openDeployment, openServer, timeAgo, ui } from '../lib/state.svelte'
   import { api } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
 
   let { compact = false, max = 0 }: { compact?: boolean; max?: number } = $props()
   // Primero lo grave; con «max», solo los primeros y un enlace a la pantalla Avisos.
@@ -21,49 +22,49 @@
       <div class="txt">
         {#if a.kind === 'server'}
           <span><strong>{a.name}</strong>: {a.text}.</span>
-          {#if !compact}<span class="muted small">Visto en la ficha del servidor {timeAgo(a.at)}. Si ya está arreglado, se quita al volver a leerla.</span>{/if}
+          {#if !compact}<span class="muted small">{t('Visto en la ficha del servidor {0}. Si ya está arreglado, se quita al volver a leerla.', timeAgo(a.at))}</span>{/if}
         {:else if a.kind === 'pending'}
-          <span><strong>{a.server}</strong>: {a.name} sin aplicar.</span>
+          <span><strong>{a.server}</strong>{t(': {0} sin aplicar.', a.name)}</span>
         {:else if a.kind === 'backups'}
           {#if alerts.busy === a.projectId}
-            <span><LoaderCircle size={13} class="spin" /> Trayendo las copias de <strong>{a.name}</strong>…{#if alerts.progress?.total} {size(alerts.progress.done)} de {size(alerts.progress.total)}{/if}</span>
+            <span><LoaderCircle size={13} class="spin" /> {t('Trayendo las copias de')} <strong>{a.name}</strong>…{#if alerts.progress?.total} {size(alerts.progress.done)} de {size(alerts.progress.total)}{/if}</span>
           {:else}
-            <span>Copias de <strong>{a.name}</strong>{#if a.server}{' '}({a.server}){/if}: {a.due.age < 0 ? 'nunca las has traído a este equipo' : `las de este equipo son de hace ${a.due.age} días`}.</span>
-            {#if !compact}<span class="muted small">Puedes hacer que se traigan solas, o cambiar cada cuántos días avisa, en la plantilla del servidor → Copias.</span>{/if}
+            <span>{t('Copias de')} <strong>{a.name}</strong>{#if a.server}{' '}({a.server}){/if}: {a.due.age < 0 ? t('nunca las has traído a este equipo') : t('las de este equipo son de hace {0} días', a.due.age)}.</span>
+            {#if !compact}<span class="muted small">{t('Puedes hacer que se traigan solas, o cambiar cada cuántos días avisa, en la plantilla del servidor → Copias.')}</span>{/if}
           {/if}
         {:else if a.kind === 'down'}
-          <span><strong>{a.name}</strong> no responde por SSH desde {timeAgo(a.since)}.</span>
-          {#if !compact}<span class="muted small">Puede estar apagado, sin red o con el puerto SSH cerrado. Si vuelve, este aviso se quita solo.</span>{/if}
+          <span><strong>{a.name}</strong> {t('no responde por SSH desde {0}.', timeAgo(a.since))}</span>
+          {#if !compact}<span class="muted small">{t('Puede estar apagado, sin red o con el puerto SSH cerrado. Si vuelve, este aviso se quita solo.')}</span>{/if}
         {:else if a.kind === 'update'}
-          <span>Hay una versión nueva de Draupnode: <strong>{a.latest}</strong> (tienes la {ui.info?.version}).</span>
+          <span>{t('Hay una versión nueva de Draupnode:')} <strong>{a.latest}</strong> {t('(tienes la {0}).', ui.info?.version)}</span>
         {:else if a.kind === 'export'}
-          <span>{a.last ? `Tu última copia de Draupnode es de ${timeAgo(a.last)}.` : 'Nunca has hecho una copia de Draupnode.'} Si se rompe este equipo, perderías servidores, plantillas y contraseñas.</span>
+          <span>{t('{0} Si se rompe este equipo, perderías servidores, plantillas y contraseñas.', a.last ? t('Tu última copia de Draupnode es de {0}.', timeAgo(a.last)) : t('Nunca has hecho una copia de Draupnode.'))}</span>
         {:else}
-          <span>La última aplicación de <strong>{a.name}</strong>{#if a.server}{' '}en {a.server}{/if} falló ({timeAgo(a.at)}).</span>
+          <span>{t('La última aplicación de')} <strong>{a.name}</strong>{#if a.server}{' '}en {a.server}{/if} {t('falló ({0}).', timeAgo(a.at))}</span>
           {#if !compact && a.error}<span class="muted small">{a.error}</span>{/if}
         {/if}
       </div>
       <div class="btns">
         {#if a.kind === 'backups'}
-          <button class="btn sm" onclick={() => fetchBackups(a.due)} disabled={!!alerts.busy}><Download size={13} /> Traer ahora</button>
+          <button class="btn sm" onclick={() => fetchBackups(a.due)} disabled={!!alerts.busy}><Download size={13} /> {t('Traer ahora')}</button>
         {/if}
         {#if a.kind === 'down' || a.kind === 'server'}
-          <button class="btn sm ghost" onclick={() => openServer(a.serverId)}>Ficha <ArrowRight size={13} /></button>
+          <button class="btn sm ghost" onclick={() => openServer(a.serverId)}>{t('Ficha')} <ArrowRight size={13} /></button>
         {:else if a.kind === 'update'}
-          <button class="btn sm" onclick={() => api.OpenURL(a.url)}><Download size={13} /> Descargar</button>
+          <button class="btn sm" onclick={() => api.OpenURL(a.url)}><Download size={13} /> {t('Descargar')}</button>
         {:else if a.kind === 'export'}
-          <button class="btn sm" onclick={() => (ui.view = 'settings')}><HardDriveDownload size={13} /> Hacer la copia</button>
+          <button class="btn sm" onclick={() => (ui.view = 'settings')}><HardDriveDownload size={13} /> {t('Hacer la copia')}</button>
         {:else}
-          <button class="btn sm ghost" onclick={() => openDeployment(a.projectId)}>Abrir <ArrowRight size={13} /></button>
+          <button class="btn sm ghost" onclick={() => openDeployment(a.projectId)}>{t('Abrir')} <ArrowRight size={13} /></button>
         {/if}
-        <button class="btn sm ghost icon" title="Ocultar hasta la próxima vez que abras la app" onclick={() => hideAlert(a.key)}><X size={14} /></button>
+        <button class="btn sm ghost icon" title={t('Ocultar hasta la próxima vez que abras la app')} onclick={() => hideAlert(a.key)}><X size={14} /></button>
       </div>
     </div>
   {:else}
-    {#if !compact}<p class="muted">No hay avisos. Todo en orden.</p>{/if}
+    {#if !compact}<p class="muted">{t('No hay avisos. Todo en orden.')}</p>{/if}
   {/each}
   {#if max && all.length > max}
-    <button class="btn sm ghost more" onclick={() => (ui.view = 'alerts')}>Ver los {all.length} avisos <ArrowRight size={13} /></button>
+    <button class="btn sm ghost more" onclick={() => (ui.view = 'alerts')}>{t('Ver los {0} avisos', all.length)} <ArrowRight size={13} /></button>
   {/if}
 </div>
 

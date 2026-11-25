@@ -7,6 +7,7 @@
   import { ui, toast, withVault, refreshProjects, startRun, openDeployment } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
   import { cloudHint } from '../lib/modules'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let { project, onclose, onchanged }: { project: Project; onclose: () => void; onchanged: () => void } = $props()
 
@@ -29,7 +30,7 @@
   async function create() {
     busy = true
     try {
-      result = await withVault(() => api.CreateBackupTarget(project.id, serverId, port), 'La contraseña del destino y la clave de su certificado se guardan cifradas en la bóveda.')
+      result = await withVault(() => api.CreateBackupTarget(project.id, serverId, port), tr('La contraseña del destino y la clave de su certificado se guardan cifradas en la bóveda.'))
       await refreshProjects()
       onchanged()
     } catch (e) {
@@ -64,9 +65,9 @@
     const tgt = ui.projects.find((p) => p.id === result!.targetProjectId)
     const prune = tgt?.modules.find((m) => m.id === 'backup-target')?.values.backup_target_prune !== false
     steps = [
-      { label: `Destino: «${result.targetProjectName}»`, projectId: result.targetProjectId, state: 'wait' },
-      { label: `Origen: «${project.name}»`, projectId: project.id, state: 'wait' },
-      ...(prune ? [{ label: 'Destino otra vez, para activar la rotación', projectId: result.targetProjectId, state: 'wait' as const }] : []),
+      { label: tr('Destino: «{0}»', result.targetProjectName), projectId: result.targetProjectId, state: 'wait' },
+      { label: tr('Origen: «{0}»', project.name), projectId: project.id, state: 'wait' },
+      ...(prune ? [{ label: tr('Destino otra vez, para activar la rotación'), projectId: result.targetProjectId, state: 'wait' as const }] : []),
     ]
     chaining = true
     for (const st of steps) {
@@ -77,14 +78,14 @@
         const r = await withConnection(srv, (s, a, u) => api.RunProject(st.projectId, false, s, a, u))
         if (!r || r.status !== 'started') {
           st.state = 'fail'
-          st.detail = r?.message || 'Cancelado'
+          st.detail = r?.message || tr('Cancelado')
           break
         }
         startRun(st.projectId, r.runId!, false)
         const ok = await waitRun(st.projectId, r.runId!)
         st.state = ok ? 'ok' : 'fail'
         if (!ok) {
-          st.detail = 'Ha fallado: ábrelo para ver qué pasó.'
+          st.detail = tr('Ha fallado: ábrelo para ver qué pasó.')
           break
         }
       } catch (e) {
@@ -96,9 +97,9 @@
     chaining = false
     await refreshProjects()
     onchanged()
-    if (chainDone) toast('Aplicado en los dos servidores: las copias ya van también al otro servidor')
+    if (chainDone) toast(tr('Aplicado en los dos servidores: las copias ya van también al otro servidor'))
   }
-  const stepNow = (st: Step) => (st.state === 'run' ? ui.runs[st.projectId]?.stage ?? 'Conectando…' : '')
+  const stepNow = (st: Step) => (st.state === 'run' ? ui.runs[st.projectId]?.stage ?? tr('Conectando…') : '')
 
   function openTarget() {
     if (!result) return
@@ -107,51 +108,51 @@
   }
 </script>
 
-<Modal title="Guardar también en otro servidor" width={600} {onclose}>
+<Modal title={tr('Guardar también en otro servidor')} width={600} {onclose}>
   {#if !result}
     <div class="col">
-      <p>Las copias de <strong>{project.name}</strong> se enviarán cada día, además, a otro servidor tuyo. Ese servidor <strong>solo deja añadir copias</strong>: aunque alguien entre en {source?.name ?? 'este servidor'}, no podrá borrarlas.</p>
+      <p>{tr('Las copias de')} <strong>{project.name}</strong> {tr('se enviarán cada día, además, a otro servidor tuyo. Ese servidor')} <strong>{tr('solo deja añadir copias')}</strong>{tr(': aunque alguien entre en {0}, no podrá borrarlas.', source?.name ?? tr('este servidor'))}</p>
       {#if !candidates.length}
-        <p class="warn"><TriangleAlert size={16} /> Necesitas otro servidor dado de alta en «Servidores» (un VPS barato, una Raspberry, un NAS con Linux…).</p>
+        <p class="warn"><TriangleAlert size={16} /> {tr('Necesitas otro servidor dado de alta en «Servidores» (un VPS barato, una Raspberry, un NAS con Linux…).')}</p>
       {:else}
-        <label class="field"><span>Servidor de destino</span>
+        <label class="field"><span>{tr('Servidor de destino')}</span>
           <select class="input" bind:value={serverId} disabled={busy}>
-            {#each candidates as s}<option value={s.id}>{s.name} · {s.host}{existing(s.id) ? ' (ya es destino)' : ''}</option>{/each}
+            {#each candidates as s}<option value={s.id}>{s.name} · {s.host}{existing(s.id) ? tr(' (ya es destino)') : ''}</option>{/each}
           </select>
         </label>
         {#if target}
-          <p class="muted small">Ya tiene la plantilla «{target.name}»: se añade este servidor a ella, con su mismo puerto ({target.modules.find((m) => m.id === 'backup-target')?.values.backup_target_port ?? '—'}).</p>
+          <p class="muted small">{tr('Ya tiene la plantilla «{0}»: se añade este servidor a ella, con su mismo puerto ({1}).', target.name, target.modules.find((m) => m.id === 'backup-target')?.values.backup_target_port ?? '—')}</p>
         {:else}
-          <label class="field"><span>Puerto (elegido al azar)</span>
+          <label class="field"><span>{tr('Puerto (elegido al azar)')}</span>
             <div class="port">
               <input class="input" type="number" min="1024" max="65535" bind:value={port} disabled={busy} />
-              <button class="btn sm" type="button" onclick={() => (port = randomPort())} disabled={busy} title="Elegir otro al azar"><Dices size={14} /> Otro</button>
+              <button class="btn sm" type="button" onclick={() => (port = randomPort())} disabled={busy} title={tr('Elegir otro al azar')}><Dices size={14} /> {tr('Otro')}</button>
             </div>
-            <small>Un puerto poco común para que no sea fácil de encontrar. Puedes poner el que quieras (1024-65535). Por él se conectará {source?.name ?? 'este servidor'}; se abre en el Cortafuegos del destino.</small>
+            <small>{tr('Un puerto poco común para que no sea fácil de encontrar. Puedes poner el que quieras (1024-65535). Por él se conectará {0}; se abre en el Cortafuegos del destino.', source?.name ?? tr('este servidor'))}</small>
           </label>
         {/if}
-        <p class="warn"><TriangleAlert size={16} /> {cloudHint(ui.servers.find((s) => s.id === serverId)?.lastCheck?.facts?.cloud, `el puerto ${target ? target.modules.find((m) => m.id === 'backup-target')?.values.backup_target_port : port}/TCP`)}</p>
-        {#if local}<p class="warn"><TriangleAlert size={16} /> Ese servidor se conecta por 127.0.0.1: el servidor de origen no podrá llegar a él.</p>{/if}
+        <p class="warn"><TriangleAlert size={16} /> {cloudHint(ui.servers.find((s) => s.id === serverId)?.lastCheck?.facts?.cloud, tr('el puerto {0}/TCP', target ? target.modules.find((m) => m.id === 'backup-target')?.values.backup_target_port : port))}</p>
+        {#if local}<p class="warn"><TriangleAlert size={16} /> {tr('Ese servidor se conecta por 127.0.0.1: el servidor de origen no podrá llegar a él.')}</p>{/if}
         <div class="note">
-          <strong>Qué se hará</strong>
+          <strong>{tr('Qué se hará')}</strong>
           <ul>
-            <li><ServerCog size={14} /> {target ? 'Se actualiza' : 'Se crea'} la plantilla «Destino de copias» en ese servidor, con Docker, el Cortafuegos y rest-server.</li>
-            <li><ShieldCheck size={14} /> Se generan aquí un usuario y una contraseña para este servidor y un certificado HTTPS propio. Al destino solo llega la huella de la contraseña.</li>
-            <li><ArrowRight size={14} /> El módulo Copias de este servidor queda apuntando al destino. Tus copias siguen también en este servidor.</li>
-            <li><ShieldCheck size={14} /> Rotación: el destino borra cada día sus copias viejas (30 días y una al mes durante un año; se cambia en su módulo). Para eso recibe la contraseña de las copias; si no quieres, desactiva allí «Borrar las copias viejas».</li>
+            <li><ServerCog size={14} /> {tr('{0} la plantilla «Destino de copias» en ese servidor, con Docker, el Cortafuegos y rest-server.', target ? tr('Se actualiza') : tr('Se crea'))}</li>
+            <li><ShieldCheck size={14} /> {tr('Se generan aquí un usuario y una contraseña para este servidor y un certificado HTTPS propio. Al destino solo llega la huella de la contraseña.')}</li>
+            <li><ArrowRight size={14} /> {tr('El módulo Copias de este servidor queda apuntando al destino. Tus copias siguen también en este servidor.')}</li>
+            <li><ShieldCheck size={14} /> {tr('Rotación: el destino borra cada día sus copias viejas (30 días y una al mes durante un año; se cambia en su módulo). Para eso recibe la contraseña de las copias; si no quieres, desactiva allí «Borrar las copias viejas».')}</li>
           </ul>
-          <span class="muted small">No se aplica nada todavía: lo haces tú después, en el orden que te diremos.</span>
+          <span class="muted small">{tr('No se aplica nada todavía: lo haces tú después, en el orden que te diremos.')}</span>
         </div>
       {/if}
     </div>
   {:else}
     <div class="col">
-      <p class="ok"><CircleCheck size={18} /> Listo. Destino: <code class="selectable">{result.url}</code></p>
+      <p class="ok"><CircleCheck size={18} /> {tr('Listo. Destino:')} <code class="selectable">{result.url}</code></p>
       {#if !steps.length}
         <ol>
           {#each result.notes as n}<li>{n}</li>{/each}
         </ol>
-        <p class="muted small">Puedes aplicarlos ahora los dos seguidos (primero el destino, luego este servidor y otra vez el destino para activar la rotación) o hacerlo tú más tarde.</p>
+        <p class="muted small">{tr('Puedes aplicarlos ahora los dos seguidos (primero el destino, luego este servidor y otra vez el destino para activar la rotación) o hacerlo tú más tarde.')}</p>
       {:else}
         <ul class="chain">
           {#each steps as st}
@@ -162,22 +163,22 @@
           {/each}
         </ul>
       {/if}
-      <p class="muted small">En el destino, las copias viejas se borran solas cada día (por defecto se guardan 30 días y una al mes durante 12 meses). Lo cambias en la página de su módulo «Destino de copias».</p>
+      <p class="muted small">{tr('En el destino, las copias viejas se borran solas cada día (por defecto se guardan 30 días y una al mes durante 12 meses). Lo cambias en la página de su módulo «Destino de copias».')}</p>
     </div>
   {/if}
 
   {#snippet footer()}
     {#if !result}
-      <button class="btn" onclick={onclose} disabled={busy}>Cancelar</button>
+      <button class="btn" onclick={onclose} disabled={busy}>{tr('Cancelar')}</button>
       <button class="btn primary" onclick={create} disabled={busy || !serverId || !candidates.length}>
-        {#if busy}<LoaderCircle size={15} class="spin" />{/if} Preparar
+        {#if busy}<LoaderCircle size={15} class="spin" />{/if} {tr('Preparar')}
       </button>
     {:else if !steps.length}
-      <button class="btn" onclick={openTarget}>Lo haré yo: ir a «{result.targetProjectName}»</button>
-      <button class="btn primary" onclick={applyBoth}>Aplicar los dos ahora</button>
+      <button class="btn" onclick={openTarget}>{tr('Lo haré yo: ir a «{0}»', result.targetProjectName)}</button>
+      <button class="btn primary" onclick={applyBoth}>{tr('Aplicar los dos ahora')}</button>
     {:else}
-      <button class="btn" onclick={onclose} disabled={chaining}>Cerrar</button>
-      {#if chainFailed}<button class="btn primary" onclick={openTarget}>Ir a «{result.targetProjectName}» <ArrowRight size={15} /></button>{/if}
+      <button class="btn" onclick={onclose} disabled={chaining}>{tr('Cerrar')}</button>
+      {#if chainFailed}<button class="btn primary" onclick={openTarget}>{tr('Ir a «{0}»', result.targetProjectName)} <ArrowRight size={15} /></button>{/if}
     {/if}
   {/snippet}
 </Modal>

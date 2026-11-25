@@ -16,6 +16,7 @@
   import {
     ui, toast, refreshProjects, moduleName, timeAgo, startRun, confirmDialog, openRecipe, ask, splitModuleId,
   } from '../lib/state.svelte'
+  import { t as tr } from '../lib/i18n.svelte'
 
   // embedded: dentro de la ficha del servidor (pestaña Módulos), sin su propia barra de volver.
   // moduleOpen: avisa a la ficha de que hay un módulo abierto (para no enseñar debajo lo que no es de él).
@@ -142,14 +143,14 @@
     touched = true
     if (selected.has(mid)) {
       const users = requiredBy(mid)
-      if (users.length) return toast(`No se puede quitar: lo necesita ${users.join(', ')}`, 'error')
+      if (users.length) return toast(tr('No se puede quitar: lo necesita {0}', users.join(', ')), 'error')
       draft.modules = draft.modules.filter((x) => x.id !== mid)
       return
     }
     const clash = clashesWith(mid, selected, byId)
-    if (clash.length) return toast(`${moduleName(mid)} no puede ir con ${clash.map(moduleName).join(', ')}`, 'error')
+    if (clash.length) return toast(tr('{0} no puede ir con {1}', moduleName(mid), clash.map(moduleName).join(', ')), 'error')
     const added = add(mid).filter((x) => x !== mid)
-    if (added.length) toast(`También se añade ${added.map(moduleName).join(', ')} (lo necesita ${moduleName(mid)})`)
+    if (added.length) toast(tr('También se añade {0} (lo necesita {1})', added.map(moduleName).join(', '), moduleName(mid)))
   }
 
   // ---- estados de las tarjetas ----
@@ -163,10 +164,10 @@
   }
   function cardNote(m: Module): string {
     const st = cardState(m)
-    if (st === 'required') return `La necesita ${requiredBy(m.id).join(', ')}`
-    if (st === 'clash') return `No puede ir con ${clashesWith(m.id, selected, byId).map(moduleName).join(', ')}`
-    if (st === 'left') return 'Instalado, pero Draupnode ya no lo gestiona'
-    if (m.repeatable && (st === 'installed' || st === 'pending')) return 'Pulsa para añadir otra'
+    if (st === 'required') return tr('La necesita {0}', requiredBy(m.id).join(', '))
+    if (st === 'clash') return tr('No puede ir con {0}', clashesWith(m.id, selected, byId).map(moduleName).join(', '))
+    if (st === 'left') return tr('Instalado, pero Draupnode ya no lo gestiona')
+    if (m.repeatable && (st === 'installed' || st === 'pending')) return tr('Pulsa para añadir otra')
     return ''
   }
   // ---- catálogo «Añadir módulos» (ventana aparte, con buscador) ----
@@ -179,23 +180,23 @@
     const by: Record<string, Module[]> = {}
     for (const m of mods) {
       if (q && !norm(`${m.name} ${m.description ?? ''} ${m.id}`).includes(q)) continue
-      ;(by[m.category || 'Otros'] ||= []).push(m)
+      ;(by[m.category || tr('Otros')] ||= []).push(m)
     }
     return Object.entries(by).sort(([x], [y]) => x.localeCompare(y))
       .map(([cat, list]) => ({ title: cat.replace(/^\d+\s*·\s*/, ''), list: list.sort(byName) }))
   })
   // Repetible (la app de Git) que ya está: se añade otra copia con su nombre.
   async function addAnother(m: Module) {
-    const name = await ask(`Otra: ${m.name}`, 'Nombre corto para la nueva (minúsculas y números, p. ej. blog). Será también el nombre de su carpeta y de sus contenedores.', 'Nombre', false)
+    const name = await ask(tr('Otra: {0}', m.name), tr('Nombre corto para la nueva (minúsculas y números, p. ej. blog). Será también el nombre de su carpeta y de sus contenedores.'), tr('Nombre'), false)
     if (name === null) return
     const n = name.trim().toLowerCase()
-    if (!/^[a-z][a-z0-9]{1,20}$/.test(n)) return toast('El nombre: de 2 a 21 letras minúsculas o números, empezando por letra', 'error')
-    if (draft.modules.some((x) => x.id === `${m.id}@${n}`) || n === 'app') return toast(`Ya hay una con el nombre «${n}»`, 'error')
+    if (!/^[a-z][a-z0-9]{1,20}$/.test(n)) return toast(tr('El nombre: de 2 a 21 letras minúsculas o números, empezando por letra'), 'error')
+    if (draft.modules.some((x) => x.id === `${m.id}@${n}`) || n === 'app') return toast(tr('Ya hay una con el nombre «{0}»', n), 'error')
     touched = true
     add(`${m.id}@${n}`)
     catalogOpen = false
     openMod = `${m.id}@${n}`
-    toast(`Añadida «${n}». Rellena sus opciones y pulsa Aplicar.`)
+    toast(tr('Añadida «{0}». Rellena sus opciones y pulsa Aplicar.', n))
   }
   function catalogClick(m: Module) {
     if (m.repeatable && (selected.has(m.id) || installed.has(m.id) || draft.modules.some((x) => x.id.startsWith(m.id + '@')))) return addAnother(m)
@@ -217,21 +218,21 @@
   const rows = $derived([...ordered, ...installedList.filter((m) => !selected.has(m.id)).map((m) => m.id)])
   function rowState(mid: string): { text: string; kind: 'ok' | 'info' | 'warn' | 'bad' | 'muted' } {
     const errs = Object.keys(check?.errors[mid] ?? {}).length
-    if (errs && selected.has(mid)) return { text: errs === 1 ? 'Falta un dato' : `Faltan ${errs} datos`, kind: 'bad' }
-    if (installed.has(mid) && !selected.has(mid)) return { text: 'Instalado, sin gestionar', kind: 'muted' }
-    if (installed.has(mid)) return changedInstalled.includes(mid) ? { text: 'Cambios sin aplicar', kind: 'warn' } : { text: 'Instalado', kind: 'ok' }
+    if (errs && selected.has(mid)) return { text: errs === 1 ? tr('Falta un dato') : tr('Faltan {0} datos', errs), kind: 'bad' }
+    if (installed.has(mid) && !selected.has(mid)) return { text: tr('Instalado, sin gestionar'), kind: 'muted' }
+    if (installed.has(mid)) return changedInstalled.includes(mid) ? { text: tr('Cambios sin aplicar'), kind: 'warn' } : { text: tr('Instalado'), kind: 'ok' }
     const by = requiredBy(mid)
-    return { text: by.length ? `Se instalará · lo necesita ${by.join(', ')}` : 'Se instalará', kind: 'info' }
+    return { text: by.length ? tr('Se instalará · lo necesita {0}', by.join(', ')) : tr('Se instalará'), kind: 'info' }
   }
   // De qué plantilla vino cada módulo ('' = añadido en el servidor).
   const originOf = (mid: string) => recipeName(draft.modules.find((x) => x.id === mid)?.from)
   const leftList = $derived(installedList.filter((m) => !selected.has(m.id)))
   const lastFailed = $derived(!!stored?.lastRun && !stored.lastRun.ok && !stored.lastRun.check && !stored.lastRun.canceled)
   const status = $derived.by((): { text: string; kind: 'ok' | 'warn' | 'bad' } => {
-    if (lastFailed) return { text: 'Falló la última vez', kind: 'bad' }
-    if (!stored?.appliedAt) return { text: 'Sin aplicar', kind: 'warn' }
-    if (needsApply) return { text: 'Cambios sin aplicar', kind: 'warn' }
-    return { text: `Aplicada ${timeAgo(stored.appliedAt)}`, kind: 'ok' }
+    if (lastFailed) return { text: tr('Falló la última vez'), kind: 'bad' }
+    if (!stored?.appliedAt) return { text: tr('Sin aplicar'), kind: 'warn' }
+    if (needsApply) return { text: tr('Cambios sin aplicar'), kind: 'warn' }
+    return { text: tr('Aplicada {0}', timeAgo(stored.appliedAt)), kind: 'ok' }
   })
 
   // ---- página de un módulo ----
@@ -252,9 +253,9 @@
 
   async function removeFromProject(mid: string) {
     const ok = await confirmDialog({
-      title: `Dejar de gestionar ${moduleName(mid)}`,
-      message: `${moduleName(mid)} seguirá instalado y funcionando en el servidor; Draupnode solo dejará de gestionarlo. Podrás volver a añadirlo o desinstalarlo desde su página.`,
-      confirmLabel: 'Dejar de gestionarlo',
+      title: tr('Dejar de gestionar {0}', moduleName(mid)),
+      message: tr('{0} seguirá instalado y funcionando en el servidor; Draupnode solo dejará de gestionarlo. Podrás volver a añadirlo o desinstalarlo desde su página.', moduleName(mid)),
+      confirmLabel: tr('Dejar de gestionarlo'),
     })
     if (ok) { touched = true; draft.modules = draft.modules.filter((x) => x.id !== mid) }
   }
@@ -289,7 +290,7 @@
 
   async function save(quiet = false): Promise<boolean> {
     if (!draft.name.trim()) {
-      toast('Ponle un nombre', 'error')
+      toast(tr('Ponle un nombre'), 'error')
       return false
     }
     saving = true
@@ -313,7 +314,7 @@
         savedKey = contentKey(saved)
         ui.projectId = saved.id
       }
-      if (!quiet) toast('Guardado')
+      if (!quiet) toast(tr('Guardado'))
       return true
     } catch (e) {
       saveError = errorText(e)
@@ -363,7 +364,7 @@
       await refreshProjects()
       reloadDraft()
       applyPick = ''
-      toast(`Plantilla «${r.recipe.name}» aplicada. ${r.notes.join(' ')}`)
+      toast(tr('Plantilla «{0}» aplicada. {1}', r.recipe.name, r.notes.join(' ')))
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -396,7 +397,7 @@
     if (!(await ensureSaved())) return
     try {
       const path = await api.ExportProject(draft.id)
-      if (path) toast(`Guardado en ${path}. En el servidor: sudo bash ${path.split(/[\\/]/).pop()}`)
+      if (path) toast(tr('Guardado en {0}. En el servidor: sudo bash {1}', path, path.split(/[\\/]/).pop()))
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -406,9 +407,9 @@
     if (!(await ensureSaved())) return
     if (!dry && !confirmed) {
       const ok = await confirmDialog({
-        title: `Aplicar en ${server?.name ?? 'el servidor'}`,
-        message: `Se instalará y configurará en ${server?.user}@${server?.host}: ${ordered.map(moduleName).join(' → ')}. Lo que ya esté bien no se toca. ¿Seguimos?`,
-        confirmLabel: 'Aplicar',
+        title: tr('Aplicar en {0}', server?.name ?? tr('el servidor')),
+        message: tr('Se instalará y configurará en {0}@{1}: {2}. Lo que ya esté bien no se toca. ¿Seguimos?', server?.user, server?.host, ordered.map(moduleName).join(' → ')),
+        confirmLabel: tr('Aplicar'),
       })
       if (!ok) return
     }
@@ -439,8 +440,8 @@
   async function uninstallAll() {
     if (!(await ensureSaved())) return
     const plan = await api.PlanUninstallAll(draft.id)
-    if (!plan.ok) { toast(plan.error || 'No se pudo preparar', 'error'); return }
-    if (!plan.remove.length) { toast('No hay nada instalado que se pueda desinstalar'); return }
+    if (!plan.ok) { toast(plan.error || tr('No se pudo preparar'), 'error'); return }
+    if (!plan.remove.length) { toast(tr('No hay nada instalado que se pueda desinstalar')); return }
     const choice = await new Promise<UninstallChoice>((resolve) => {
       uninstallPrompt = { check: plan.check, allowRemove: false, all: { keep: plan.keep, word: server?.name ?? 'DESINSTALAR' }, resolve: (c) => { uninstallPrompt = null; resolve(c) } }
     })
@@ -477,7 +478,7 @@
     const r = await withConnection(server, call)
     if (!r) return
     if (r.status === 'started') started(r.runId!)
-    else toast(r.message || 'No se pudo lanzar', 'error')
+    else toast(r.message || tr('No se pudo lanzar'), 'error')
   }
 
   // Al pulsar Aplicar o Simular, la vista baja al recuadro «Aplicación en curso».
@@ -498,17 +499,17 @@
 <div class="pe" oninput={touch} onchange={touch}>
 <div class="bar" class:emb={embedded}>
   {#if openModule}
-    <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> Módulos de {server?.name ?? 'este servidor'}</button>
+    <button class="btn ghost sm" onclick={() => (openMod = null)}><ArrowLeft size={15} /> {tr('Módulos de {0}', server?.name ?? tr('este servidor'))}</button>
   {:else if !embedded}
-    <button class="btn ghost sm" onclick={() => (ui.projectId = null)}><ArrowLeft size={15} /> {server?.name ?? 'Servidor'}</button>
+    <button class="btn ghost sm" onclick={() => (ui.projectId = null)}><ArrowLeft size={15} /> {server?.name ?? tr('Servidor')}</button>
   {/if}
   <div class="spacer"></div>
   {#if !isNew}
     <span class="save-st">
-      {#if saving}<LoaderCircle size={13} class="spin" /> Guardando…
-      {:else if dirty && errorCount}<span class="warn"><TriangleAlert size={13} /> No se guarda hasta corregir las opciones en rojo</span>
+      {#if saving}<LoaderCircle size={13} class="spin" /> {tr('Guardando…')}
+      {:else if dirty && errorCount}<span class="warn"><TriangleAlert size={13} /> {tr('No se guarda hasta corregir las opciones en rojo')}</span>
       {:else if saveError}<span class="bad">{saveError}</span>
-      {:else if !dirty && justSaved}<span class="ok"><CircleCheck size={13} /> Cambios guardados</span>{/if}
+      {:else if !dirty && justSaved}<span class="ok"><CircleCheck size={13} /> {tr('Cambios guardados')}</span>{/if}
     </span>
   {/if}
 </div>
@@ -518,9 +519,9 @@
 {/if}
 
 {#if openModule && stored}
-  <nav class="crumbs" aria-label="Dónde estás">
+  <nav class="crumbs" aria-label={tr('Dónde estás')}>
     <ServerIcon size={14} />
-    <button class="crumb" onclick={() => (openMod = null)} title="Módulos del servidor">{server?.name ?? 'Sin servidor'} · Módulos</button>
+    <button class="crumb" onclick={() => (openMod = null)} title={tr('Módulos del servidor')}>{tr('{0} · Módulos', server?.name ?? tr('Sin servidor'))}</button>
     <ChevronRight size={14} class="sep" />
     <strong>{openModule.name}</strong>
   </nav>
@@ -531,21 +532,21 @@
 {:else}
   {#if isNew}
   <div class="title-row">
-    <input class="name" bind:value={draft.name} placeholder="Nombre (p. ej. Servidor web)" disabled={running} />
+    <input class="name" bind:value={draft.name} placeholder={tr('Nombre (p. ej. Servidor web)')} disabled={running} />
     <label class="field srv">
-      <span>Servidor</span>
+      <span>{tr('Servidor')}</span>
       <select class="input" bind:value={draft.serverId} disabled={running}>
         {#each ui.servers as s}<option value={s.id}>{s.name} — {s.user}@{s.host}</option>{/each}
       </select>
     </label>
     <button class="btn primary" onclick={() => save()} disabled={saving || !draft.name.trim() || !draft.serverId}>
-      <Save size={15} /> {saving ? 'Guardando…' : 'Guardar'}
+      <Save size={15} /> {saving ? tr('Guardando…') : tr('Guardar')}
     </button>
   </div>
   {/if}
 
   {#if isNew}
-    <p class="new-hint muted">Escribe el nombre, elige el servidor y pulsa <strong>Guardar</strong>. Después podrás elegir los módulos.</p>
+    <p class="new-hint muted">{tr('Escribe el nombre, elige el servidor y pulsa')} <strong>{tr('Guardar')}</strong>{tr('. Después podrás elegir los módulos.')}</p>
   {/if}
 
   <div class="body" class:locked={isNew} inert={isNew}>
@@ -553,76 +554,76 @@
       <header class="top">
         <div class="ident">
           <div class="title">
-            {#if embedded}<h2 class="h1s">Módulos del servidor</h2>{:else}<h1>Módulos de {server?.name ?? draft.name}</h1>{/if}
+            {#if embedded}<h2 class="h1s">{tr('Módulos del servidor')}</h2>{:else}<h1>{tr('Módulos de {0}', server?.name ?? draft.name)}</h1>{/if}
             <span class="pill {status.kind}">{#if status.kind === 'ok'}<CircleCheck size={12} />{/if}{status.text}</span>
           </div>
-          <div class="sub muted">Lo que Draupnode instala y gestiona en {server?.name ?? 'este servidor'}. Las plantillas solo sirven para añadir varios de una vez.</div>
+          <div class="sub muted">{tr('Lo que Draupnode instala y gestiona en {0}. Las plantillas solo sirven para añadir varios de una vez.', server?.name ?? tr('este servidor'))}</div>
         </div>
         <div class="act-btns">
-          <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount} title="Muestra qué cambiaría en el servidor sin tocar nada"><Eye size={15} /> Simular</button>
+          <button class="btn" onclick={() => start(true)} disabled={saving || running || !ordered.length || !!errorCount} title={tr('Muestra qué cambiaría en el servidor sin tocar nada')}><Eye size={15} /> {tr('Simular')}</button>
           {#if embedded && canUninstallAll}
-            <button class="btn danger" onclick={uninstallAll} disabled={saving || running} title="Quita del servidor todo lo que puso Draupnode y se puede desinstalar"><Trash2 size={15} /> Desinstalar todo…</button>
+            <button class="btn danger" onclick={uninstallAll} disabled={saving || running} title={tr('Quita del servidor todo lo que puso Draupnode y se puede desinstalar')}><Trash2 size={15} /> {tr('Desinstalar todo…')}</button>
           {/if}
           {#if pending.length}
-            <button class="btn primary" onclick={openWizard} disabled={saving || running || !!errorCount || !needsApply}><Hammer size={15} /> Configurar y aplicar…</button>
+            <button class="btn primary" onclick={openWizard} disabled={saving || running || !!errorCount || !needsApply}><Hammer size={15} /> {tr('Configurar y aplicar…')}</button>
           {:else}
-            <button class="btn primary" onclick={() => start(false)} disabled={saving || running || !!errorCount || !ordered.length || !needsApply}><Hammer size={15} /> Aplicar</button>
+            <button class="btn primary" onclick={() => start(false)} disabled={saving || running || !!errorCount || !ordered.length || !needsApply}><Hammer size={15} /> {tr('Aplicar')}</button>
           {/if}
         </div>
       </header>
 
       <div class="two">
         <section class="card block">
-          <h2>Plantillas</h2>
+          <h2>{tr('Plantillas')}</h2>
           <div class="row">
             <select class="input tsel" bind:value={applyPick} disabled={running || !ui.recipes.length}>
-              <option value="">{ui.recipes.length ? 'Elige una plantilla…' : 'Aún no hay plantillas'}</option>
-              {#each ui.recipes as r (r.id)}<option value={r.id}>{r.name} · {r.modules.length} módulos</option>{/each}
+              <option value="">{ui.recipes.length ? tr('Elige una plantilla…') : tr('Aún no hay plantillas')}</option>
+              {#each ui.recipes as r (r.id)}<option value={r.id}>{tr('{0} · {1} módulos', r.name, r.modules.length)}</option>{/each}
             </select>
-            <button class="btn sm primary" onclick={applyTemplate} disabled={running || !applyPick}><Plus size={14} /> Aplicar plantilla</button>
+            <button class="btn sm primary" onclick={applyTemplate} disabled={running || !applyPick}><Plus size={14} /> {tr('Aplicar plantilla')}</button>
           </div>
-          <p class="muted small">Añade sus módulos a este servidor (los que ya tiene se quedan como están). No instala nada hasta que pulses Aplicar.</p>
+          <p class="muted small">{tr('Añade sus módulos a este servidor (los que ya tiene se quedan como están). No instala nada hasta que pulses Aplicar.')}</p>
           <div class="row">
-            <span class="muted small">Aplicadas:</span>
+            <span class="muted small">{tr('Aplicadas:')}</span>
             {#each appliedTemplates as t (t)}
-              <button class="chip" onclick={() => openRecipe(t)} title="Editar la plantilla «{recipeName(t)}» (no cambia este servidor)"><Pencil size={11} /> {recipeName(t)}</button>
-            {:else}<span class="muted small">ninguna</span>{/each}
+              <button class="chip" onclick={() => openRecipe(t)} title={tr('Editar la plantilla «{0}» (no cambia este servidor)', recipeName(t))}><Pencil size={11} /> {recipeName(t)}</button>
+            {:else}<span class="muted small">{tr('ninguna')}</span>{/each}
           </div>
           <div class="row">
-            <button class="btn sm" onclick={openSaveTpl} disabled={running || !draft.modules.length} title="Llevar módulos de este servidor a una plantilla existente o a una nueva"><Upload size={14} /> Guardar módulos en una plantilla…</button>
-            <button class="btn sm" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount} title="Un único instalar.sh para ejecutarlo tú en el servidor"><Download size={14} /> Exportar instalar.sh</button>
+            <button class="btn sm" onclick={openSaveTpl} disabled={running || !draft.modules.length} title={tr('Llevar módulos de este servidor a una plantilla existente o a una nueva')}><Upload size={14} /> {tr('Guardar módulos en una plantilla…')}</button>
+            <button class="btn sm" onclick={exportScript} disabled={saving || running || !ordered.length || !!errorCount} title={tr('Un único instalar.sh para ejecutarlo tú en el servidor')}><Download size={14} /> {tr('Exportar instalar.sh')}</button>
           </div>
         </section>
         {#if draft.id}
-          <div class="sec-col"><ProjectSecrets projectId={draft.id} title="Contraseñas" refreshKey={stored?.lastRun?.at ?? ''} /></div>
+          <div class="sec-col"><ProjectSecrets projectId={draft.id} title={tr('Contraseñas')} refreshKey={stored?.lastRun?.at ?? ''} /></div>
         {/if}
       </div>
 
       <section class="card plan" class:done={!needsApply && !!stored?.appliedAt && !errorList.length}>
-        <h2>Qué pasará al aplicar</h2>
+        <h2>{tr('Qué pasará al aplicar')}</h2>
         {#if errorList.length}
           <div class="errs">
-            <p><strong>Antes hay que corregir esto:</strong></p>
+            <p><strong>{tr('Antes hay que corregir esto:')}</strong></p>
             {#each errorList as e}
               <p><CircleX size={15} /> <span><strong>{e.module}</strong> · {e.label}: {e.msg}</span>
-                <button class="btn sm" onclick={() => (openMod = e.mid)}>Corregir</button></p>
+                <button class="btn sm" onclick={() => (openMod = e.mid)}>{tr('Corregir')}</button></p>
             {/each}
           </div>
         {/if}
         {#if !ordered.length && !leftList.length}
-          <p class="muted">Nada todavía: pulsa <strong>«Añadir módulos»</strong> para elegir qué instalar en {server?.name ?? 'el servidor'}.</p>
+          <p class="muted">{tr('Nada todavía: pulsa')} <strong>{tr('«Añadir módulos»')}</strong> {tr('para elegir qué instalar en {0}.', server?.name ?? tr('el servidor'))}</p>
         {:else if !needsApply && stored?.appliedAt}
-          <p class="okline"><CircleCheck size={16} /> Todo aplicado {timeAgo(stored.appliedAt)}. No hay nada pendiente.</p>
+          <p class="okline"><CircleCheck size={16} /> {tr('Todo aplicado {0}. No hay nada pendiente.', timeAgo(stored.appliedAt))}</p>
         {:else}
           <ul class="plan-list">
-            {#if pending.length}<li><span class="tag info">Instalar</span> {pending.map(moduleName).join(' → ')}</li>{/if}
-            {#if changedInstalled.length}<li><span class="tag warn">Cambiar la configuración de</span> {changedInstalled.map(moduleName).join(', ')}</li>{/if}
-            {#if !pending.length && !changedInstalled.length}<li><span class="tag warn">Volver a aplicar</span> {ordered.map(moduleName).join(' → ')} <span class="muted small">(la plantilla ha cambiado; lo que ya esté bien no se toca)</span></li>{/if}
-            {#if leftList.length}<li><span class="tag">Se quedan como están</span> {leftList.map((m) => m.name).join(', ')} <span class="muted small">(instalados, pero ya no los gestiona; para quitarlos, ábrelos y «Desinstalar»)</span></li>{/if}
+            {#if pending.length}<li><span class="tag info">{tr('Instalar')}</span> {pending.map(moduleName).join(' → ')}</li>{/if}
+            {#if changedInstalled.length}<li><span class="tag warn">{tr('Cambiar la configuración de')}</span> {changedInstalled.map(moduleName).join(', ')}</li>{/if}
+            {#if !pending.length && !changedInstalled.length}<li><span class="tag warn">{tr('Volver a aplicar')}</span> {ordered.map(moduleName).join(' → ')} <span class="muted small">{tr('(la plantilla ha cambiado; lo que ya esté bien no se toca)')}</span></li>{/if}
+            {#if leftList.length}<li><span class="tag">{tr('Se quedan como están')}</span> {leftList.map((m) => m.name).join(', ')} <span class="muted small">{tr('(instalados, pero ya no los gestiona; para quitarlos, ábrelos y «Desinstalar»)')}</span></li>{/if}
           </ul>
         {/if}
         {#if lastFailed && stored?.lastRun}
-          <p class="bad-t small"><CircleX size={13} /> La última aplicación falló ({timeAgo(stored.lastRun.at)}){stored.lastRun.error ? ': ' + stored.lastRun.error : ''}. Mira su registro abajo, en el historial.</p>
+          <p class="bad-t small"><CircleX size={13} /> {tr('La última aplicación falló ({0}){1}. Mira su registro abajo, en el historial.', timeAgo(stored.lastRun.at), stored.lastRun.error ? ': ' + stored.lastRun.error : '')}</p>
         {/if}
         {#each [...(check?.general ?? []), ...(wizard ? [] : check?.warnings ?? [])] as w}<p class="warn-l small"><TriangleAlert size={13} /> {w}</p>{/each}
       </section>
@@ -630,11 +631,11 @@
 
     <section class="card block">
       <div class="h2row">
-        <h2>Módulos {#if rows.length}<span class="muted small">· {rows.length}</span>{/if}</h2>
-        <button class="btn sm primary" onclick={() => { query = ''; catalogOpen = true }} disabled={running}><Plus size={14} /> Añadir módulos</button>
+        <h2>{tr('Módulos')} {#if rows.length}<span class="muted small">· {rows.length}</span>{/if}</h2>
+        <button class="btn sm primary" onclick={() => { query = ''; catalogOpen = true }} disabled={running}><Plus size={14} /> {tr('Añadir módulos')}</button>
       </div>
       {#if !rows.length}
-        <p class="muted">Ninguno todavía.</p>
+        <p class="muted">{tr('Ninguno todavía.')}</p>
       {:else}
         <ul class="mods">
           {#each rows as mid, i (mid)}
@@ -642,22 +643,22 @@
             {@const st = rowState(mid)}
             {@const Icon = moduleIcon(mid)}
             <li class="mrow" class:left={st.kind === 'muted'}>
-              <button class="mmain" onclick={() => (openMod = mid)} title="Ver y configurar {m?.name ?? mid}">
+              <button class="mmain" onclick={() => (openMod = mid)} title={tr('Ver y configurar {0}', m?.name ?? mid)}>
                 <span class="num">{selected.has(mid) ? i + 1 : '–'}</span>
                 <span class="ic"><Icon size={18} /></span>
-                <span class="txt"><strong>{moduleName(mid)}</strong><span class="muted desc">{#if originOf(mid)}<span class="from">de «{originOf(mid)}»</span> · {/if}{m?.description ?? ''}</span></span>
+                <span class="txt"><strong>{moduleName(mid)}</strong><span class="muted desc">{#if originOf(mid)}<span class="from">{tr('de «{0}»', originOf(mid))}</span> · {/if}{m?.description ?? ''}</span></span>
                 <span class="tag {st.kind}">{st.text}</span>
                 <ChevronRight size={16} class="chev" />
               </button>
               {#if selected.has(mid) && !installed.has(mid) && !requiredBy(mid).length}
-                <button class="btn sm ghost icon" title="Quitar de la plantilla (aún no está instalado)" onclick={() => toggleCard(mid)} disabled={running}><X size={14} /></button>
+                <button class="btn sm ghost icon" title={tr('Quitar de la plantilla (aún no está instalado)')} onclick={() => toggleCard(mid)} disabled={running}><X size={14} /></button>
               {:else}
                 <span class="icon-sp"></span>
               {/if}
             </li>
           {/each}
         </ul>
-        <p class="muted small">Se instalan en este orden. Pulsa uno para ver sus opciones, sus datos o desinstalarlo.</p>
+        <p class="muted small">{tr('Se instalan en este orden. Pulsa uno para ver sus opciones, sus datos o desinstalarlo.')}</p>
       {/if}
     </section>
 
@@ -673,38 +674,38 @@
 {/if}
 
 {#if saveTpl}
-  <Modal title="Guardar módulos en una plantilla" width={620} onclose={() => (saveTpl = null)}>
-    <p class="muted small">Copia los módulos que marques, con sus opciones (sin contraseñas), a una plantilla. Este servidor no cambia. Los demás servidores en los que se aplicó esa plantilla tampoco: les llegará si la vuelves a aplicar.</p>
+  <Modal title={tr('Guardar módulos en una plantilla')} width={620} onclose={() => (saveTpl = null)}>
+    <p class="muted small">{tr('Copia los módulos que marques, con sus opciones (sin contraseñas), a una plantilla. Este servidor no cambia. Los demás servidores en los que se aplicó esa plantilla tampoco: les llegará si la vuelves a aplicar.')}</p>
     <div class="chk-list">
       {#each draft.modules as m (m.id)}
         <label class="chk"><input type="checkbox" checked={saveTpl.ids.includes(m.id)} onchange={(e) => { if (!saveTpl) return; saveTpl.ids = (e.currentTarget as HTMLInputElement).checked ? [...saveTpl.ids, m.id] : saveTpl.ids.filter((x) => x !== m.id) }} />
-          <strong>{moduleName(m.id)}</strong>{#if originOf(m.id)} <span class="muted small">de «{originOf(m.id)}»</span>{/if}</label>
+          <strong>{moduleName(m.id)}</strong>{#if originOf(m.id)} <span class="muted small">{tr('de «{0}»', originOf(m.id))}</span>{/if}</label>
       {/each}
     </div>
     <div class="dest">
-      <label class="chk"><input type="radio" name="dest" checked={saveTpl.target !== ''} disabled={!ui.recipes.length} onchange={() => saveTpl && (saveTpl.target = saveTpl.target || ui.recipes[0]?.id || '')} /> En una plantilla existente</label>
+      <label class="chk"><input type="radio" name="dest" checked={saveTpl.target !== ''} disabled={!ui.recipes.length} onchange={() => saveTpl && (saveTpl.target = saveTpl.target || ui.recipes[0]?.id || '')} /> {tr('En una plantilla existente')}</label>
       {#if saveTpl.target !== ''}
         <select class="input" bind:value={saveTpl.target}>{#each ui.recipes as r (r.id)}<option value={r.id}>{r.name}</option>{/each}</select>
-        <span class="muted small">Los módulos marcados sustituyen a los que ya tenga con el mismo nombre; los demás de la plantilla se quedan.</span>
+        <span class="muted small">{tr('Los módulos marcados sustituyen a los que ya tenga con el mismo nombre; los demás de la plantilla se quedan.')}</span>
       {/if}
-      <label class="chk"><input type="radio" name="dest" checked={saveTpl.target === ''} onchange={() => saveTpl && (saveTpl.target = '')} /> En una plantilla nueva</label>
-      {#if saveTpl.target === ''}<input class="input" placeholder="Nombre de la plantilla" bind:value={saveTpl.name} />{/if}
+      <label class="chk"><input type="radio" name="dest" checked={saveTpl.target === ''} onchange={() => saveTpl && (saveTpl.target = '')} /> {tr('En una plantilla nueva')}</label>
+      {#if saveTpl.target === ''}<input class="input" placeholder={tr('Nombre de la plantilla')} bind:value={saveTpl.name} />{/if}
     </div>
     {#snippet footer()}
-      <button class="btn" onclick={() => (saveTpl = null)}>Cancelar</button>
-      <button class="btn primary" onclick={doSaveTpl} disabled={saveTpl!.busy || !saveTpl!.ids.length || (saveTpl!.target === '' && !saveTpl!.name.trim())}><Upload size={15} /> {saveTpl!.busy ? 'Guardando…' : 'Guardar en la plantilla'}</button>
+      <button class="btn" onclick={() => (saveTpl = null)}>{tr('Cancelar')}</button>
+      <button class="btn primary" onclick={doSaveTpl} disabled={saveTpl!.busy || !saveTpl!.ids.length || (saveTpl!.target === '' && !saveTpl!.name.trim())}><Upload size={15} /> {saveTpl!.busy ? tr('Guardando…') : tr('Guardar en la plantilla')}</button>
     {/snippet}
   </Modal>
 {/if}
 
 {#if catalogOpen}
-  <Modal title="Añadir módulos a «{draft.name}»" width={980} onclose={() => (catalogOpen = false)}>
+  <Modal title={tr('Añadir módulos a «{0}»', draft.name)} width={980} onclose={() => (catalogOpen = false)}>
     <div class="cat-search">
       <Search size={15} />
       <!-- svelte-ignore a11y_autofocus -->
-      <input class="input" placeholder="Buscar (p. ej. copias, vpn, postgres…)" bind:value={query} autofocus />
+      <input class="input" placeholder={tr('Buscar (p. ej. copias, vpn, postgres…)')} bind:value={query} autofocus />
     </div>
-    <p class="muted small">Pulsa uno para añadirlo (sus dependencias se añaden solas) o para quitarlo si aún no está instalado. No se instala nada hasta que pulses Aplicar.</p>
+    <p class="muted small">{tr('Pulsa uno para añadirlo (sus dependencias se añaden solas) o para quitarlo si aún no está instalado. No se instala nada hasta que pulses Aplicar.')}</p>
     {#each sections as sec (sec.title)}
       <div class="cat">{sec.title}</div>
       <div class="grid">
@@ -713,11 +714,11 @@
         {/each}
       </div>
     {:else}
-      <p class="muted">No hay ningún módulo con «{query}».</p>
+      <p class="muted">{tr('No hay ningún módulo con «{0}».', query)}</p>
     {/each}
     {#snippet footer()}
-      <span class="muted small">{pending.length ? `${pending.length} para instalar` : 'Nada nuevo para instalar'}</span>
-      <button class="btn primary" onclick={() => (catalogOpen = false)}>Hecho</button>
+      <span class="muted small">{pending.length ? tr('{0} para instalar', pending.length) : tr('Nada nuevo para instalar')}</span>
+      <button class="btn primary" onclick={() => (catalogOpen = false)}>{tr('Hecho')}</button>
     {/snippet}
   </Modal>
 {/if}
@@ -738,19 +739,19 @@
   {#if after && !openModule}{@render after()}{/if}
 
   {#if !isNew && needsApply && ordered.length && !running}
-    <div class="apply-bar" role="region" aria-label="Cambios sin aplicar">
+    <div class="apply-bar" role="region" aria-label={tr('Cambios sin aplicar')}>
       <div class="ab-text">
-        {#if errorList.length}<span class="bad-t"><CircleX size={15} /> {errorList.length === 1 ? 'Falta 1 dato' : `Faltan ${errorList.length} datos`} antes de aplicar</span>
+        {#if errorList.length}<span class="bad-t"><CircleX size={15} /> {tr('{0} antes de aplicar', errorList.length === 1 ? tr('Falta 1 dato') : tr('Faltan {0} datos', errorList.length))}</span>
         {:else}<Hammer size={15} />
-          <span><strong>Cambios sin aplicar</strong>{#if pending.length}{' · '}instalar {pending.map(moduleName).join(', ')}{/if}{#if changedInstalled.length}{' · '}configuración de {changedInstalled.map(moduleName).join(', ')}{/if}{#if !pending.length && !changedInstalled.length}{' · '}volver a aplicar{/if}</span>
+          <span><strong>{tr('Cambios sin aplicar')}</strong>{#if pending.length}{' · '}instalar {pending.map(moduleName).join(', ')}{/if}{#if changedInstalled.length}{tr('{0}configuración de {1}', ' · ', changedInstalled.map(moduleName).join(', '))}{/if}{#if !pending.length && !changedInstalled.length}{tr('{0}volver a aplicar', ' · ')}{/if}</span>
         {/if}
       </div>
       <div class="ab-btns">
-        <button class="btn" onclick={() => start(true)} disabled={saving || !!errorCount} title="Muestra qué cambiaría en el servidor sin tocar nada"><Eye size={15} /> Simular</button>
+        <button class="btn" onclick={() => start(true)} disabled={saving || !!errorCount} title={tr('Muestra qué cambiaría en el servidor sin tocar nada')}><Eye size={15} /> {tr('Simular')}</button>
         {#if pending.length}
-          <button class="btn primary" onclick={openWizard} disabled={saving || !!errorCount}><Hammer size={15} /> Configurar y aplicar…</button>
+          <button class="btn primary" onclick={openWizard} disabled={saving || !!errorCount}><Hammer size={15} /> {tr('Configurar y aplicar…')}</button>
         {:else}
-          <button class="btn primary" onclick={() => start(false)} disabled={saving || !!errorCount}><Hammer size={15} /> Aplicar</button>
+          <button class="btn primary" onclick={() => start(false)} disabled={saving || !!errorCount}><Hammer size={15} /> {tr('Aplicar')}</button>
         {/if}
       </div>
     </div>

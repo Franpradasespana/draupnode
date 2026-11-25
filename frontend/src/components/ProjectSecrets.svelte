@@ -8,6 +8,7 @@
   import { api, errorText, type ProjectSecret, type ProjectSecretsSummary } from '../lib/api'
   import { ask, toast, timeAgo, ui } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
+  import { t } from '../lib/i18n.svelte'
 
   // module: solo las de ese módulo (nombre visible), en su página.
   // title: en la ficha del servidor, el nombre de la plantilla (y el texto de ayuda va una sola vez, fuera).
@@ -44,8 +45,8 @@
       const srv = ui.servers.find((x) => x.id === project?.serverId)
       const r = await withConnection(srv, (s, a, u) => api.FetchProjectSecrets(projectId, s, a, u))
       if (!r) return
-      if (r.status !== 'ok') return toast(r.message || 'No se pudieron traer', 'error')
-      toast(r.count ? `${r.count} contraseña(s) traídas del servidor a la bóveda` : 'En el servidor no hay contraseñas de esta plantilla')
+      if (r.status !== 'ok') return toast(r.message || t('No se pudieron traer'), 'error')
+      toast(r.count ? t('{0} contraseña(s) traídas del servidor a la bóveda', r.count) : t('En el servidor no hay contraseñas de esta plantilla'))
       info = await api.ProjectSecretsInfo(projectId)
     } catch (e) {
       toast(errorText(e), 'error')
@@ -62,7 +63,7 @@
   onDestroy(hide)
 
   async function open() {
-    const master = await ask('Contraseñas', 'Escribe la contraseña de la bóveda de Draupnode para verlas.', 'Contraseña de la bóveda')
+    const master = await ask(t('Contraseñas'), t('Escribe la contraseña de la bóveda de Draupnode para verlas.'), t('Contraseña de la bóveda'))
     if (master === null) return
     busy = true
     try {
@@ -95,7 +96,7 @@
       await navigator.clipboard.writeText(text)
       toast(`${what} copiado`)
     } catch {
-      toast('No se pudo copiar', 'error')
+      toast(t('No se pudo copiar'), 'error')
     }
   }
 </script>
@@ -105,37 +106,37 @@
     <div class="head">
       <KeyRound size={17} />
       <div class="txt">
-        <strong>{title || (module ? `Contraseñas de ${module}` : 'Contraseñas')}</strong>
+        <strong>{title || (module ? t('Contraseñas de {0}', module) : t('Contraseñas'))}</strong>
         {#if count > 0}
           <span class="muted">
-            {#if module}Están en la bóveda cifrada{:else}{count} guardada{count === 1 ? '' : 's'} en la bóveda cifrada{/if}{#if info?.at} · traídas del servidor {timeAgo(info.at)}{/if}
+            {#if module}{t('Están en la bóveda cifrada')}{:else}{t('{0} guardada{1} en la bóveda cifrada', count, count === 1 ? '' : 's')}{/if}{#if info?.at} {t('· traídas del servidor {0}', timeAgo(info.at))}{/if}
           </span>
         {:else if title}
-          <span class="muted">Todavía ninguna.</span>
+          <span class="muted">{t('Todavía ninguna.')}</span>
         {:else}
-          <span class="muted">Todavía no hay ninguna: los módulos las generan en el servidor la primera vez que pulsas <strong>Aplicar</strong> (al simular no se crean). Draupnode las trae y las guarda cifradas en la bóveda.</span>
+          <span class="muted">{t('Todavía no hay ninguna: los módulos las generan en el servidor la primera vez que pulsas')} <strong>{t('Aplicar')}</strong> {t('(al simular no se crean). Draupnode las trae y las guarda cifradas en la bóveda.')}</span>
         {/if}
       </div>
       {#if !module}
-        <button class="btn sm ghost" onclick={fetchFromServer} disabled={fetching} title="Las vuelve a leer del servidor (/etc/draupnode/secretos) sin tener que Aplicar"><Download size={14} /> {fetching ? 'Trayendo…' : 'Traer del servidor'}</button>
+        <button class="btn sm ghost" onclick={fetchFromServer} disabled={fetching} title={t('Las vuelve a leer del servidor (/etc/draupnode/secretos) sin tener que Aplicar')}><Download size={14} /> {fetching ? t('Trayendo…') : t('Traer del servidor')}</button>
       {/if}
       {#if list}
-        <button class="btn sm" onclick={hide}><Lock size={14} /> Ocultar</button>
+        <button class="btn sm" onclick={hide}><Lock size={14} /> {t('Ocultar')}</button>
       {:else if count > 0}
-        <button class="btn sm primary" onclick={open} disabled={busy}><Eye size={14} /> {busy ? 'Abriendo…' : 'Ver contraseñas'}</button>
+        <button class="btn sm primary" onclick={open} disabled={busy}><Eye size={14} /> {busy ? t('Abriendo…') : t('Ver contraseñas')}</button>
       {/if}
     </div>
 
     {#if list}
       {#if !list.length}
-        <p class="muted small">No hay contraseñas guardadas{module ? ' de este módulo' : ' en este servidor'}.</p>
+        <p class="muted small">{t('No hay contraseñas guardadas{0}.', module ? t(' de este módulo') : t(' en este servidor'))}</p>
       {/if}
       <div class="list">
         {#each list as s (s.kind + s.name)}
           <div class="item">
             <div class="meta">
               <strong>{s.label}</strong>
-              <span class="muted small">{s.module ? s.module + ' · ' : ''}<code>{s.name}</code>{s.kind === 'typed' ? ' · escrita por ti' : ''}</span>
+              <span class="muted small">{s.module ? s.module + ' · ' : ''}<code>{s.name}</code>{s.kind === 'typed' ? t(' · escrita por ti') : ''}</span>
             </div>
             {#each rows(s) as r, i}
               {@const id = s.name + ':' + i}
@@ -144,17 +145,17 @@
                 {#if r.key}<span class="k">{r.key}</span>{/if}
                 <code class="v selectable">{hidden ? '•'.repeat(Math.min(24, r.value.length)) : r.value}</code>
                 {#if isSecret(r.key)}
-                  <button class="btn sm ghost" onclick={() => (shown[id] = !shown[id])} title={shown[id] ? 'Ocultar' : 'Mostrar'}>
+                  <button class="btn sm ghost" onclick={() => (shown[id] = !shown[id])} title={shown[id] ? t('Ocultar') : t('Mostrar')}>
                     {#if shown[id]}<EyeOff size={14} />{:else}<Eye size={14} />{/if}
                   </button>
                 {/if}
-                <button class="btn sm ghost" onclick={() => copy(r.value, r.key || s.label)} title="Copiar"><Copy size={14} /></button>
+                <button class="btn sm ghost" onclick={() => copy(r.value, r.key || s.label)} title={t('Copiar')}><Copy size={14} /></button>
               </div>
             {/each}
           </div>
         {/each}
       </div>
-      <p class="muted small">Se ocultan solas a los 2 minutos. El original sigue en el servidor, en <code>/etc/draupnode/secretos/{project?.slug || '…'}/</code> (solo root).</p>
+      <p class="muted small">{t('Se ocultan solas a los 2 minutos. El original sigue en el servidor, en')} <code>/etc/draupnode/secretos/{project?.slug || '…'}/</code> {t('(solo root).')}</p>
     {/if}
   </section>
 {/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
   // Miniatura de la interfaz con una paleta, como en las láminas de diseño.
   import { cssVars, type Colors } from '../lib/palettes'
+  import { t } from '../lib/i18n.svelte'
 
   let { colors, big = false }: { colors: Colors; big?: boolean } = $props()
   const style = $derived(
@@ -24,7 +25,7 @@
       <div class="li"><i class="ok"></i><span></span></div>
       <div class="li"><i class="bad"></i><span></span></div>
     </div>
-    <div class="btns"><span class="pri">Deploy</span><span class="sec">Logs</span></div>
+    <div class="btns"><span class="pri">{t('Deploy')}</span><span class="sec">{t('Logs')}</span></div>
   </div>
 </div>
 

@@ -8,6 +8,7 @@
   import { toast, ui } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
   import { onDestroy } from 'svelte'
+  import { t } from '../lib/i18n.svelte'
 
   let { project, snap, onclose }: { project: Project; snap: Snapshot; onclose: () => void } = $props()
 
@@ -50,7 +51,7 @@
     busy = true
     try {
       const r = await withConnection(server, fn)
-      if (r && r.status !== 'ok') toast(r.message || 'No se pudo', 'error')
+      if (r && r.status !== 'ok') toast(r.message || t('No se pudo'), 'error')
       return r && r.status === 'ok' ? r : null
     } finally {
       busy = false
@@ -114,20 +115,20 @@
   const dbNameOk = $derived(/^[a-z_][a-z0-9_-]{0,62}$/.test(dbNew.trim()))
 </script>
 
-<Modal title={`Restaurar · copia del ${when}`} {onclose} width={820}>
-  <div class="where">{server?.name} › {project.name} · copia <code>{snap.id}</code></div>
+<Modal title={t('Restaurar · copia del {0}', when)} {onclose} width={820}>
+  <div class="where">{t('{0} › {1} · copia', server?.name, project.name)} <code>{snap.id}</code></div>
 
   {#if view === 'browse'}
     <nav class="crumbs">
-      <button onclick={() => open('/')} disabled={busy}>copia</button>
+      <button onclick={() => open('/')} disabled={busy}>{t('copia')}</button>
       {#each crumbs as c}<ChevronRight size={13} /><button onclick={() => open(c.path)} disabled={busy}>{c.name}</button>{/each}
       {#if busy}<LoaderCircle size={14} class="spin" />{/if}
     </nav>
     <div class="list">
-      {#if entries && !entries.length}<p class="muted empty">Carpeta vacía.</p>{/if}
+      {#if entries && !entries.length}<p class="muted empty">{t('Carpeta vacía.')}</p>{/if}
       {#each entries ?? [] as e (e.path)}
         <div class="row" class:on={picked.includes(e.path)}>
-          <input type="checkbox" checked={picked.includes(e.path)} onchange={() => togglePick(e.path)} aria-label={`Elegir ${e.name}`} />
+          <input type="checkbox" checked={picked.includes(e.path)} onchange={() => togglePick(e.path)} aria-label={t('Elegir {0}', e.name)} />
           {#if e.type === 'dir'}
             <button class="name dir" onclick={() => open(e.path)} disabled={busy}><Folder size={15} /> {e.name}</button>
           {:else}
@@ -135,80 +136,80 @@
           {/if}
           <span class="muted small sz">{size(e.size)}</span>
           {#if isDump(e)}
-            <button class="btn sm" onclick={() => openDb(e)} disabled={busy}><Database size={13} /> Restaurar base…</button>
+            <button class="btn sm" onclick={() => openDb(e)} disabled={busy}><Database size={13} /> {t('Restaurar base…')}</button>
           {/if}
         </div>
       {/each}
     </div>
     {#if /\/postgres-[^/]+$/.test(dir)}
-      <p class="muted small">Cada <code>.dump</code> es una base de datos: «Restaurar base…» la recupera en PostgreSQL. <code>usuarios-y-permisos.sql</code> son los usuarios y permisos de todas.</p>
+      <p class="muted small">{t('Cada')} <code>.dump</code> {t('es una base de datos: «Restaurar base…» la recupera en PostgreSQL.')} <code>usuarios-y-permisos.sql</code> {t('son los usuarios y permisos de todas.')}</p>
     {:else if dir === '/'}
-      <p class="muted small">Entra en las carpetas y marca lo que quieras recuperar. Las bases de PostgreSQL están en la carpeta <code>postgres-…</code>.</p>
+      <p class="muted small">{t('Entra en las carpetas y marca lo que quieras recuperar. Las bases de PostgreSQL están en la carpeta')} <code>postgres-…</code>.</p>
     {/if}
 
   {:else if view === 'download'}
-    <h4>Descargar a este equipo</h4>
-    <p class="muted">No toca el servidor. Se guarda en una carpeta <code>copia-{snap.id}</code> dentro de la que elijas, solo para tu usuario.</p>
+    <h4>{t('Descargar a este equipo')}</h4>
+    <p class="muted">{t('No toca el servidor. Se guarda en una carpeta')} <code>copia-{snap.id}</code> {t('dentro de la que elijas, solo para tu usuario.')}</p>
     <ul class="picked">{#each picked as p}<li><code>{p}</code></li>{/each}</ul>
     <div class="inrow">
       <input class="input mono" bind:value={dest} spellcheck="false" disabled={busy} />
-      <button class="btn sm" onclick={chooseDest} disabled={busy}><FolderOpen size={14} /> Elegir…</button>
+      <button class="btn sm" onclick={chooseDest} disabled={busy}><FolderOpen size={14} /> {t('Elegir…')}</button>
     </div>
     {#if busy && progress}<p class="muted small">{progress.stage} · {size(progress.done)}</p>{/if}
 
   {:else if view === 'restore'}
-    <h4>Restaurar en {server?.name}</h4>
+    <h4>{t('Restaurar en {0}', server?.name)}</h4>
     <ul class="picked">{#each picked as p}<li><code>{p}</code></li>{/each}</ul>
     <label class="opt"><input type="radio" checked={!inPlace} onchange={() => (inPlace = false)} disabled={busy} />
-      <span><span class="t"><strong>En una carpeta aparte</strong> (recomendado): no se toca nada de lo que hay.</span>
+      <span><span class="t"><strong>{t('En una carpeta aparte')}</strong> {t('(recomendado): no se toca nada de lo que hay.')}</span>
         <input class="input mono" bind:value={target} spellcheck="false" disabled={busy || inPlace} /></span></label>
     <label class="opt danger"><input type="radio" checked={inPlace} onchange={() => (inPlace = true)} disabled={busy} />
-      <span><span class="t"><strong>En su sitio original</strong>: SOBRESCRIBE los ficheros actuales con los de la copia.</span></span></label>
+      <span><span class="t"><strong>{t('En su sitio original')}</strong>{t(': SOBRESCRIBE los ficheros actuales con los de la copia.')}</span></span></label>
     {#if inPlace}
-      <label class="field"><span>Para confirmar, escribe <strong>RESTAURAR</strong></span><input class="input mono" bind:value={confirmWord} autocomplete="off" /></label>
+      <label class="field"><span>{t('Para confirmar, escribe')} <strong>RESTAURAR</strong></span><input class="input mono" bind:value={confirmWord} autocomplete="off" /></label>
     {/if}
 
   {:else if view === 'db' && dbFile}
-    <h4><Database size={16} /> Restaurar la base «{dbOrig}»</h4>
-    <p class="muted">Desde la copia del {when}, en el PostgreSQL <code>{dbContainer}</code>.</p>
+    <h4><Database size={16} /> {t('Restaurar la base «{0}»', dbOrig)}</h4>
+    <p class="muted">{t('Desde la copia del {0}, en el PostgreSQL', when)} <code>{dbContainer}</code>.</p>
     <label class="opt"><input type="radio" checked={dbMode === 'new'} onchange={() => (dbMode = 'new')} disabled={busy} />
-      <span><span class="t"><strong>En una base nueva</strong> (recomendado): la actual no se toca; revisa la nueva y, si está bien, cambia la app a ella.</span>
+      <span><span class="t"><strong>{t('En una base nueva')}</strong> {t('(recomendado): la actual no se toca; revisa la nueva y, si está bien, cambia la app a ella.')}</span>
         <input class="input mono" bind:value={dbNew} spellcheck="false" disabled={busy || dbMode !== 'new'} />
-        {#if dbMode === 'new' && !dbNameOk}<small class="bad">Minúsculas, números, _ y - (empezando por letra o _).</small>{/if}</span></label>
+        {#if dbMode === 'new' && !dbNameOk}<small class="bad">{t('Minúsculas, números, _ y - (empezando por letra o _).')}</small>{/if}</span></label>
     <label class="opt danger"><input type="radio" checked={dbMode === 'replace'} onchange={() => (dbMode = 'replace')} disabled={busy} />
-      <span><span class="t"><strong>Sustituir la actual</strong>: corta las conexiones, BORRA «{dbOrig}» y la crea otra vez con los datos de la copia. Lo que se escribió después de la copia se pierde.</span></span></label>
+      <span><span class="t"><strong>{t('Sustituir la actual')}</strong>{t(': corta las conexiones, BORRA «{0}» y la crea otra vez con los datos de la copia. Lo que se escribió después de la copia se pierde.', dbOrig)}</span></span></label>
     {#if dbMode === 'replace'}
-      <label class="field"><span>Para confirmar, escribe el nombre de la base: <strong>{dbOrig}</strong></span><input class="input mono" bind:value={dbConfirm} autocomplete="off" /></label>
+      <label class="field"><span>{t('Para confirmar, escribe el nombre de la base:')} <strong>{dbOrig}</strong></span><input class="input mono" bind:value={dbConfirm} autocomplete="off" /></label>
     {/if}
   {/if}
 
   {#if result}
     <div class="out" class:bad={!result.ok}>
-      <div class="out-t">{#if result.ok}<CircleCheck size={14} /> Hecho{:else}<CircleX size={14} /> Falló{/if}</div>
+      <div class="out-t">{#if result.ok}<CircleCheck size={14} /> {t('Hecho')}{:else}<CircleX size={14} /> {t('Falló')}{/if}</div>
       <pre class="selectable">{result.text}</pre>
     </div>
   {/if}
 
   {#snippet footer()}
     {#if view === 'browse'}
-      <span class="muted small sel">{picked.length ? `${picked.length} elegido(s)` : 'Marca qué recuperar'}</span>
-      <button class="btn" onclick={onclose}>Cerrar</button>
-      <button class="btn" onclick={() => { result = null; view = 'download' }} disabled={busy || !picked.length}><Download size={15} /> Descargar a este equipo…</button>
-      <button class="btn primary" onclick={() => { result = null; confirmWord = ''; view = 'restore' }} disabled={busy || !picked.length}><RotateCcw size={15} /> Restaurar en el servidor…</button>
+      <span class="muted small sel">{picked.length ? `${picked.length} elegido(s)` : t('Marca qué recuperar')}</span>
+      <button class="btn" onclick={onclose}>{t('Cerrar')}</button>
+      <button class="btn" onclick={() => { result = null; view = 'download' }} disabled={busy || !picked.length}><Download size={15} /> {t('Descargar a este equipo…')}</button>
+      <button class="btn primary" onclick={() => { result = null; confirmWord = ''; view = 'restore' }} disabled={busy || !picked.length}><RotateCcw size={15} /> {t('Restaurar en el servidor…')}</button>
     {:else}
-      <button class="btn" onclick={() => { result = null; view = 'browse' }} disabled={busy}><ArrowLeft size={15} /> Volver</button>
+      <button class="btn" onclick={() => { result = null; view = 'browse' }} disabled={busy}><ArrowLeft size={15} /> {t('Volver')}</button>
       <div class="sp"></div>
       {#if view === 'download'}
-        <button class="btn primary" onclick={doDownload} disabled={busy || !dest.trim()}>{#if busy}<LoaderCircle size={15} class="spin" />{:else}<Download size={15} />{/if} Descargar</button>
+        <button class="btn primary" onclick={doDownload} disabled={busy || !dest.trim()}>{#if busy}<LoaderCircle size={15} class="spin" />{:else}<Download size={15} />{/if} {t('Descargar')}</button>
       {:else if view === 'restore'}
         <button class="btn" class:primary={!inPlace} class:solid-danger={inPlace} onclick={doRestore}
           disabled={busy || (inPlace ? confirmWord.trim().toUpperCase() !== 'RESTAURAR' : !target.trim().startsWith('/'))}>
-          {#if busy}<LoaderCircle size={15} class="spin" />{:else if inPlace}<TriangleAlert size={15} />{:else}<RotateCcw size={15} />{/if} Restaurar
+          {#if busy}<LoaderCircle size={15} class="spin" />{:else if inPlace}<TriangleAlert size={15} />{:else}<RotateCcw size={15} />{/if} {t('Restaurar')}
         </button>
       {:else if view === 'db'}
         <button class="btn" class:primary={dbMode === 'new'} class:solid-danger={dbMode === 'replace'} onclick={doDb}
           disabled={busy || (dbMode === 'new' ? !dbNameOk : dbConfirm.trim() !== dbOrig)}>
-          {#if busy}<LoaderCircle size={15} class="spin" />{:else}<Database size={15} />{/if} {dbMode === 'new' ? 'Restaurar en la base nueva' : 'Borrar y restaurar'}
+          {#if busy}<LoaderCircle size={15} class="spin" />{:else}<Database size={15} />{/if} {dbMode === 'new' ? t('Restaurar en la base nueva') : t('Borrar y restaurar')}
         </button>
       {/if}
     {/if}

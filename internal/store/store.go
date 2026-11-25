@@ -70,6 +70,8 @@ type Settings struct {
 	CustomPalettes json.RawMessage `json:"customPalettes,omitempty"`
 	// NoUpdateCheck: no mirar en GitHub si hay versión nueva al abrir.
 	NoUpdateCheck bool `json:"noUpdateCheck,omitempty"`
+	// Language: idioma de la interfaz, "es" | "en" (vacío = el del sistema).
+	Language string `json:"language,omitempty"`
 }
 
 // ProjectModule es un módulo elegido en un proyecto con sus valores.

@@ -22,6 +22,7 @@
   import { alertItems, loadAlerts, watchServers } from './lib/alerts.svelte'
   import { ui, boot, toast, openServer, openRecipe, type View } from './lib/state.svelte'
   import { errorText, isDesktop } from './lib/api'
+  import { t } from './lib/i18n.svelte'
 
   type NavItem = { id: View; label: string; icon: typeof Server; soon?: boolean }
   // Servidores y Proyectos se despliegan en el menú para entrar directo a cada uno.
@@ -46,20 +47,20 @@
   // Lo principal arriba; las herramientas en «Utilidades»; el Catálogo
   // (lo que se puede instalar) abajo, junto a la Ayuda.
   const nav: NavItem[] = [
-    { id: 'dashboard', label: 'Panel', icon: LayoutDashboard },
-    { id: 'servers', label: 'Servidores', icon: Server },
-    { id: 'projects', label: 'Plantillas', icon: FolderGit2 },
+    { id: 'dashboard', label: t('Panel'), icon: LayoutDashboard },
+    { id: 'servers', label: t('Servidores'), icon: Server },
+    { id: 'projects', label: t('Plantillas'), icon: FolderGit2 },
   ]
   const tools: NavItem[] = [
-    { id: 'docker', label: 'Docker Creator', icon: Container },
-    { id: 'lab', label: 'Servidor de pruebas', icon: FlaskConical },
-    { id: 'terminal', label: 'Terminal', icon: SquareTerminal },
-    { id: 'modules', label: 'Editor de módulos', icon: Puzzle },
+    { id: 'docker', label: t('Docker Creator'), icon: Container },
+    { id: 'lab', label: t('Servidor de pruebas'), icon: FlaskConical },
+    { id: 'terminal', label: t('Terminal'), icon: SquareTerminal },
+    { id: 'modules', label: t('Editor de módulos'), icon: Puzzle },
   ]
 
   const titles: Record<View, string> = {
-    dashboard: 'Panel', servers: 'Servidores', catalog: 'Catálogo', projects: 'Plantillas',
-    docker: 'Docker Creator', terminal: 'Terminal', settings: 'Ajustes', lab: 'Servidor de pruebas', alerts: 'Avisos', modules: 'Editor de módulos',
+    dashboard: t('Panel'), servers: t('Servidores'), catalog: t('Catálogo'), projects: t('Plantillas'),
+    docker: t('Docker Creator'), terminal: t('Terminal'), settings: t('Ajustes'), lab: t('Servidor de pruebas'), alerts: t('Avisos'), modules: t('Editor de módulos'),
   }
 
   let ready = $state(false)
@@ -79,7 +80,7 @@
     try {
       await boot()
     } catch (e) {
-      toast('No se pudo cargar la configuración: ' + errorText(e), 'error')
+      toast(t('No se pudo cargar la configuración: ') + errorText(e), 'error')
     }
     ready = true
     loadAlerts()
@@ -95,7 +96,7 @@
 
 <div class="shell">
   <header class="topbar">
-    <button class="burger" onclick={() => (menuOpen = !menuOpen)} aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuOpen}>
+    <button class="burger" onclick={() => (menuOpen = !menuOpen)} aria-label={menuOpen ? t('Cerrar menú') : t('Abrir menú')} aria-expanded={menuOpen}>
       {#if menuOpen}<X size={20} />{:else}<Menu size={20} />{/if}
     </button>
     <div class="brand">
@@ -104,14 +105,14 @@
     </div>
     <div class="crumb">{titles[ui.view]}</div>
     <div class="top-right">
-      {#if !isDesktop}<span class="badge accent" title="Abierto en el navegador: datos simulados">Demo navegador</span>{/if}
+      {#if !isDesktop}<span class="badge accent" title={t('Abierto en el navegador: datos simulados')}>{t('Demo navegador')}</span>{/if}
       {#if alertCount && ui.view !== 'alerts'}
-        <button class="btn ghost sm bell" onclick={() => go('alerts')} title="{alertCount} aviso{alertCount > 1 ? 's' : ''}">
+        <button class="btn ghost sm bell" onclick={() => go('alerts')} title={t(alertCount === 1 ? '{0} aviso' : '{0} avisos', alertCount)}>
           <Bell size={15} /> <span class="count">{alertCount}</span>
         </button>
       {/if}
-      <button class="btn ghost sm" class:active={ui.view === 'settings'} onclick={() => go('settings')} title="Ajustes">
-        <Settings size={15} /> <span class="lbl">Ajustes</span>
+      <button class="btn ghost sm" class:active={ui.view === 'settings'} onclick={() => go('settings')} title={t('Ajustes')}>
+        <Settings size={15} /> <span class="lbl">{t('Ajustes')}</span>
       </button>
     </div>
   </header>
@@ -128,7 +129,7 @@
           </button>
           {#if kids.length}
             <button class="nav-fold" class:open={isOpen(item.id)} onclick={() => toggle(item.id)}
-              aria-expanded={isOpen(item.id)} title={isOpen(item.id) ? 'Plegar' : 'Desplegar'}><ChevronRight size={15} /></button>
+              aria-expanded={isOpen(item.id)} title={isOpen(item.id) ? t('Plegar') : t('Desplegar')}><ChevronRight size={15} /></button>
           {/if}
         </div>
         {#if kids.length && isOpen(item.id)}
@@ -137,28 +138,28 @@
           {/each}
         {/if}
       {/each}
-      <div class="nav-group">Utilidades</div>
+      <div class="nav-group">{t('Utilidades')}</div>
       {#each tools as item}
         <button class="nav-item" class:active={ui.view === item.id} onclick={() => go(item.id)}>
           <item.icon size={17} strokeWidth={1.8} />
           <span>{item.label}</span>
-          {#if item.soon}<em>pronto</em>{/if}
+          {#if item.soon}<em>{t('pronto')}</em>{/if}
         </button>
       {/each}
     </nav>
     <div class="side-foot">
-      <button class="nav-item help-btn" class:active={ui.view === 'alerts'} onclick={() => go('alerts')} title="Copias pendientes, fallos…">
+      <button class="nav-item help-btn" class:active={ui.view === 'alerts'} onclick={() => go('alerts')} title={t('Copias pendientes, fallos…')}>
         <Bell size={17} strokeWidth={1.8} />
-        <span>Avisos</span>
+        <span>{t('Avisos')}</span>
         {#if alertCount}<span class="count">{alertCount}</span>{/if}
       </button>
-      <button class="nav-item help-btn" class:active={ui.view === 'catalog'} onclick={() => go('catalog')} title="Los módulos que se pueden instalar">
+      <button class="nav-item help-btn" class:active={ui.view === 'catalog'} onclick={() => go('catalog')} title={t('Los módulos que se pueden instalar')}>
         <Boxes size={17} strokeWidth={1.8} />
-        <span>Catálogo</span>
+        <span>{t('Catálogo')}</span>
       </button>
-      <button class="nav-item help-btn" onclick={() => { ui.help = ui.view; menuOpen = false }} title="Ayuda de esta pantalla">
+      <button class="nav-item help-btn" onclick={() => { ui.help = ui.view; menuOpen = false }} title={t('Ayuda de esta pantalla')}>
         <CircleHelp size={17} strokeWidth={1.8} />
-        <span>Ayuda</span>
+        <span>{t('Ayuda')}</span>
       </button>
       <div class="ver">{verText(ui.info?.version)}</div>
     </div>

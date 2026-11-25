@@ -4,6 +4,7 @@
   import { KeyRound, Trash2 } from '@lucide/svelte'
   import { api, errorText, type ModVariable } from '../lib/api'
   import { toast, withVault } from '../lib/state.svelte'
+  import { t } from '../lib/i18n.svelte'
 
   let { v, projectId, error, onchange, bare = false }: { v: ModVariable; projectId: string; error?: string; onchange?: () => void; bare?: boolean } = $props()
 
@@ -26,12 +27,12 @@
   async function store(value: string) {
     busy = true
     try {
-      await withVault(() => api.SetProjectSecret(projectId, v.name, value), 'Los datos secretos se guardan cifrados en la bóveda.')
+      await withVault(() => api.SetProjectSecret(projectId, v.name, value), t('Los datos secretos se guardan cifrados en la bóveda.'))
       text = ''
       editing = false
       await refresh()
       onchange?.()
-      toast(value ? `«${v.label}» guardado en la bóveda` : `«${v.label}» borrado de la bóveda`)
+      toast(value ? t('«{0}» guardado en la bóveda', v.label) : t('«{0}» borrado de la bóveda', v.label))
     } catch (e) {
       toast(errorText(e), 'error')
     } finally {
@@ -45,16 +46,16 @@
     {#if !bare}<span>{v.label}{#if v.required} *{/if}</span>{/if}
     {#if saved && !editing}
       <div class="row">
-        <span class="ok"><KeyRound size={14} /> Guardado en la bóveda</span>
-        <button class="btn sm ghost" onclick={() => (editing = true)} disabled={busy}>Cambiar</button>
-        <button class="btn sm ghost" onclick={() => store('')} disabled={busy} title="Borrar de la bóveda"><Trash2 size={13} /></button>
+        <span class="ok"><KeyRound size={14} /> {t('Guardado en la bóveda')}</span>
+        <button class="btn sm ghost" onclick={() => (editing = true)} disabled={busy}>{t('Cambiar')}</button>
+        <button class="btn sm ghost" onclick={() => store('')} disabled={busy} title={t('Borrar de la bóveda')}><Trash2 size={13} /></button>
       </div>
     {:else}
       <div class="row">
-        <input class="input mono" type="password" bind:value={text} placeholder={v.placeholder ?? 'Escríbelo aquí'} autocomplete="off" spellcheck="false"
+        <input class="input mono" type="password" bind:value={text} placeholder={v.placeholder ?? t('Escríbelo aquí')} autocomplete="off" spellcheck="false"
           onkeydown={(e) => e.key === 'Enter' && text && store(text)} />
-        <button class="btn sm" onclick={() => store(text)} disabled={busy || !text || !projectId}>Guardar</button>
-        {#if editing}<button class="btn sm ghost" onclick={() => { editing = false; text = '' }}>Cancelar</button>{/if}
+        <button class="btn sm" onclick={() => store(text)} disabled={busy || !text || !projectId}>{t('Guardar')}</button>
+        {#if editing}<button class="btn sm ghost" onclick={() => { editing = false; text = '' }}>{t('Cancelar')}</button>{/if}
       </div>
     {/if}
   </label>

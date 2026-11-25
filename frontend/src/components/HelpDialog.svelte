@@ -3,6 +3,7 @@
   import { HELP, helpFor, shot } from '../lib/help'
   import { ui } from '../lib/state.svelte'
   import ModuleTests from './ModuleTests.svelte'
+  import { t } from '../lib/i18n.svelte'
 
   let current = $state(helpFor(ui.help).id)
   const sec = $derived(HELP.find((h) => h.id === current) ?? HELP[0])
@@ -23,9 +24,9 @@
 <svelte:window onkeydown={onkey} />
 
 <div class="backdrop" role="presentation" onmousedown={(e) => e.target === e.currentTarget && (ui.help = null)}>
-  <div class="help" role="dialog" aria-modal="true" aria-label="Ayuda">
+  <div class="help" role="dialog" aria-modal="true" aria-label={t('Ayuda')}>
     <nav>
-      <div class="nav-title">Ayuda</div>
+      <div class="nav-title">{t('Ayuda')}</div>
       {#each HELP as h (h.id)}
         <button class:active={h.id === current} onclick={() => go(h.id)}>{h.title}</button>
       {/each}
@@ -43,7 +44,7 @@
             <h3>{st.title}</h3>
             <p>{st.text}</p>
             {#if src}
-              <button class="shot" onclick={() => (zoom = src)} title="Ampliar"><img {src} alt={st.title} loading="lazy" /></button>
+              <button class="shot" onclick={() => (zoom = src)} title={t('Ampliar')}><img {src} alt={st.title} loading="lazy" /></button>
             {/if}
           </li>
         {/each}
@@ -51,8 +52,8 @@
       {#if sec.id === 'probar'}<ModuleTests />{/if}
     </section>
     <footer>
-      <span class="muted">Esc también cierra</span>
-      <button class="btn" onclick={() => (ui.help = null)}><X size={15} /> Cerrar</button>
+      <span class="muted">{t('Esc también cierra')}</span>
+      <button class="btn" onclick={() => (ui.help = null)}><X size={15} /> {t('Cerrar')}</button>
     </footer>
     </div>
   </div>

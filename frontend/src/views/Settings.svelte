@@ -1,12 +1,32 @@
 <script lang="ts">
-  import { Check, Copy, Pencil, Plus, Trash2, Upload, TriangleAlert, FolderCog, KeyRound, LockKeyhole, Lock, Scale, ExternalLink } from '@lucide/svelte'
+  import { Check, Copy, Pencil, Plus, Trash2, Upload, TriangleAlert, FolderCog, KeyRound, LockKeyhole, Lock, Scale, ExternalLink, Languages } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import PalettePreview from '../components/PalettePreview.svelte'
   import KeyringHelp from '../components/KeyringHelp.svelte'
   import BackupSection from '../components/BackupSection.svelte'
   import { BUILTIN_PALETTES, COLOR_KEYS, applyPalette, contrast, cssVars, isHex, type Palette } from '../lib/palettes'
   import { ui, allPalettes, currentPalette, setTheme, persistSettings, sanitizePalettes, toast, requestVault, refreshSecrets } from '../lib/state.svelte'
-  import { api, errorText, type Legal } from '../lib/api'
+  import { api, errorText, isDesktop, type Legal } from '../lib/api'
+  import { t, i18n, LANGS, type Lang } from '../lib/i18n.svelte'
+
+  // Idioma: se guarda y la app se vuelve a cargar para que todo salga en el nuevo.
+  let langBusy = $state(false)
+  async function changeLang(l: Lang) {
+    if (l === i18n.lang) return
+    langBusy = true
+    try {
+      await api.SetLanguage(l)
+      if (!isDesktop) {
+        const u = new URL(location.href)
+        u.searchParams.delete('lang')
+        history.replaceState(null, '', u)
+      }
+      location.reload()
+    } catch (e) {
+      toast(errorText(e), 'error')
+      langBusy = false
+    }
+  }
 
   let updEnabled = $state(true)
   // Ajustes → «Licencias»: aviso de autoría, GPL-3.0 y librerías incluidas.
@@ -38,7 +58,7 @@
   async function lockVault() {
     await api.VaultLock()
     await refreshSecrets()
-    toast('Bóveda bloqueada')
+    toast(t('Bóveda bloqueada'))
   }
 
   let editing = $state<Palette | null>(null)
@@ -48,15 +68,15 @@
   let confirmDelete = $state<Palette | null>(null)
 
   const groups = $derived([
-    { title: 'Oscuras', items: allPalettes().filter((p) => p.mode === 'dark' && !p.custom) },
-    { title: 'Claras y mixtas', items: allPalettes().filter((p) => p.mode !== 'dark' && !p.custom) },
+    { title: t('Oscuras'), items: allPalettes().filter((p) => p.mode === 'dark' && !p.custom) },
+    { title: t('Claras y mixtas'), items: allPalettes().filter((p) => p.mode !== 'dark' && !p.custom) },
   ])
 
   function startNew(from: Palette) {
     editing = {
       id: 'custom-' + Math.random().toString(36).slice(2, 9),
       name: from.custom ? from.name + ' (copia)' : 'Mi ' + from.name,
-      tag: 'Personalizada',
+      tag: t('Personalizada'),
       mode: from.mode,
       colors: { ...from.colors },
       custom: true,
@@ -88,13 +108,13 @@
 
   async function saveEdit() {
     if (!editing) return
-    if (!editing.name.trim()) return toast('Ponle un nombre a la paleta', 'error')
+    if (!editing.name.trim()) return toast(t('Ponle un nombre a la paleta'), 'error')
     const p = { ...editing, name: editing.name.trim(), colors: { ...editing.colors } }
     const i = ui.custom.findIndex((c) => c.id === p.id)
     ui.custom = i >= 0 ? ui.custom.map((c) => (c.id === p.id ? p : c)) : [...ui.custom, p]
     editing = null
     setTheme(p.id)
-    toast(`Paleta «${p.name}» guardada`)
+    toast(t('Paleta «{0}» guardada', p.name))
   }
 
   async function remove(p: Palette) {
@@ -102,16 +122,16 @@
     confirmDelete = null
     if (ui.themeId === p.id) setTheme(BUILTIN_PALETTES[0].id)
     else await persistSettings()
-    toast(`Paleta «${p.name}» eliminada`)
+    toast(t('Paleta «{0}» eliminada', p.name))
   }
 
   async function exportPalettes() {
     const data = JSON.stringify(ui.custom.length ? ui.custom : [currentPalette()], null, 2)
     try {
       await navigator.clipboard.writeText(data)
-      toast(ui.custom.length ? 'Paletas personalizadas copiadas al portapapeles' : 'Paleta actual copiada al portapapeles')
+      toast(ui.custom.length ? t('Paletas personalizadas copiadas al portapapeles') : t('Paleta actual copiada al portapapeles'))
     } catch (e) {
-      toast('No se pudo copiar: ' + errorText(e), 'error')
+      toast(t('No se pudo copiar: ') + errorText(e), 'error')
     }
   }
 
@@ -120,18 +140,18 @@
     try {
       parsed = JSON.parse(importText)
     } catch {
-      return toast('Eso no es JSON válido', 'error')
+      return toast(t('Eso no es JSON válido'), 'error')
     }
     const got = sanitizePalettes(Array.isArray(parsed) ? parsed : [parsed]).map((p) => ({
       ...p,
       id: 'custom-' + Math.random().toString(36).slice(2, 9),
     }))
-    if (!got.length) return toast('No hay ninguna paleta válida (10 colores #RRGGBB)', 'error')
+    if (!got.length) return toast(t('No hay ninguna paleta válida (10 colores #RRGGBB)'), 'error')
     ui.custom = [...ui.custom, ...got]
     await persistSettings()
     importing = false
     importText = ''
-    toast(`${got.length} paleta(s) importada(s)`)
+    toast(t('{0} paleta(s) importada(s)', got.length))
   }
 
   const warnings = $derived.by(() => {
@@ -139,29 +159,41 @@
     const c = editing.colors
     const v = cssVars(c)
     const w: string[] = []
-    if (contrast(c.text, c.bg) < 4.5) w.push('El texto se lee mal sobre el fondo (contraste < 4,5).')
-    if (contrast(c.text, c.panel) < 4.5) w.push('El texto se lee mal sobre los paneles.')
-    if (contrast(c.muted, c.panel) < 3) w.push('El texto secundario apenas se distingue en los paneles.')
-    if (contrast(v['--on-accent'], c.accent) < 3) w.push('El texto de los botones principales se lee mal.')
-    if (contrast(c.success, c.danger) < 1.3) w.push('«Correcto» y «Error» se parecen demasiado.')
+    if (contrast(c.text, c.bg) < 4.5) w.push(t('El texto se lee mal sobre el fondo (contraste < 4,5).'))
+    if (contrast(c.text, c.panel) < 4.5) w.push(t('El texto se lee mal sobre los paneles.'))
+    if (contrast(c.muted, c.panel) < 3) w.push(t('El texto secundario apenas se distingue en los paneles.'))
+    if (contrast(v['--on-accent'], c.accent) < 3) w.push(t('El texto de los botones principales se lee mal.'))
+    if (contrast(c.success, c.danger) < 1.3) w.push(t('«Correcto» y «Error» se parecen demasiado.'))
     return w
   })
 </script>
 
 <div class="head">
   <div>
-    <h1>Ajustes</h1>
-    <p class="muted">Apariencia y datos de la aplicación.</p>
+    <h1>{t('Ajustes')}</h1>
+    <p class="muted">{t('Apariencia y datos de la aplicación.')}</p>
   </div>
 </div>
+
+<section class="card lang">
+  <div>
+    <h2><Languages size={17} /> {t('Idioma')}</h2>
+    <p class="muted small">{t('Textos de la aplicación, de la ayuda y de los módulos.')}</p>
+  </div>
+  <div class="lang-opts">
+    {#each LANGS as l (l.id)}
+      <button class="btn" class:primary={i18n.lang === l.id} onclick={() => changeLang(l.id)} disabled={langBusy}>{l.label}</button>
+    {/each}
+  </div>
+</section>
 
 <BackupSection />
 
 <section class="card secrets">
   <div class="sec-head">
     <div>
-      <h2>Contraseñas guardadas</h2>
-      <p class="muted small">Dónde se guardan las contraseñas de tus claves y usuarios cuando marcas «Guardar contraseña».</p>
+      <h2>{t('Contraseñas guardadas')}</h2>
+      <p class="muted small">{t('Dónde se guardan las contraseñas de tus claves y usuarios cuando marcas «Guardar contraseña».')}</p>
     </div>
   </div>
   {#if ui.secrets}
@@ -170,63 +202,62 @@
       <label class="opt" class:on={sx.backend === 'auto'}>
         <input type="radio" name="sb" checked={sx.backend === 'auto'} onchange={() => setBackend('auto')} />
         <div>
-          <strong>Automático <span class="badge accent">recomendado</span></strong>
-          <span class="muted">Usa el llavero del sistema si existe; si no, la bóveda cifrada de Draupnode.</span>
+          <strong>{t('Automático')} <span class="badge accent">{t('recomendado')}</span></strong>
+          <span class="muted">{t('Usa el llavero del sistema si existe; si no, la bóveda cifrada de Draupnode.')}</span>
         </div>
       </label>
       <label class="opt" class:on={sx.backend === 'keyring'} class:disabled={!sx.keyring.available}>
         <input type="radio" name="sb" checked={sx.backend === 'keyring'} disabled={!sx.keyring.available} onchange={() => setBackend('keyring')} />
         <div>
-          <strong><KeyRound size={15} /> Llavero del sistema</strong>
+          <strong><KeyRound size={15} /> {t('Llavero del sistema')}</strong>
           <span class="muted">{sx.keyring.name}</span>
           {#if sx.keyring.available}
-            <span class="badge ok">Detectado y funcionando</span>
+            <span class="badge ok">{t('Detectado y funcionando')}</span>
           {:else}
-            <span class="badge err">No detectado en este equipo</span>
+            <span class="badge err">{t('No detectado en este equipo')}</span>
           {/if}
         </div>
       </label>
       <label class="opt" class:on={sx.backend === 'vault'}>
         <input type="radio" name="sb" checked={sx.backend === 'vault'} onchange={() => setBackend('vault')} />
         <div>
-          <strong><LockKeyhole size={15} /> Bóveda cifrada de Draupnode</strong>
-          <span class="muted">Fichero cifrado en tu equipo con una contraseña maestra (Argon2id + XChaCha20-Poly1305). Funciona en cualquier sistema.</span>
+          <strong><LockKeyhole size={15} /> {t('Bóveda cifrada de Draupnode')}</strong>
+          <span class="muted">{t('Fichero cifrado en tu equipo con una contraseña maestra (Argon2id + XChaCha20-Poly1305). Funciona en cualquier sistema.')}</span>
           <div class="vault-row">
             {#if !sx.vault.exists}
-              <span class="badge">Sin crear</span>
-              <button type="button" class="btn sm" onclick={() => requestVault('create')}>Crear bóveda</button>
+              <span class="badge">{t('Sin crear')}</span>
+              <button type="button" class="btn sm" onclick={() => requestVault('create')}>{t('Crear bóveda')}</button>
             {:else if sx.vault.unlocked}
-              <span class="badge ok">Desbloqueada</span>
-              <button type="button" class="btn sm" onclick={lockVault}><Lock size={14} /> Bloquear</button>
+              <span class="badge ok">{t('Desbloqueada')}</span>
+              <button type="button" class="btn sm" onclick={lockVault}><Lock size={14} /> {t('Bloquear')}</button>
             {:else}
-              <span class="badge">Bloqueada</span>
-              <button type="button" class="btn sm" onclick={() => requestVault('unlock')}>Desbloquear</button>
+              <span class="badge">{t('Bloqueada')}</span>
+              <button type="button" class="btn sm" onclick={() => requestVault('unlock')}>{t('Desbloquear')}</button>
             {/if}
-            {#if sx.vault.exists}<span class="muted small">{sx.vault.entries} contraseña(s)</span>{/if}
+            {#if sx.vault.exists}<span class="muted small">{t('{0} contraseña(s)', sx.vault.entries)}</span>{/if}
           </div>
         </div>
       </label>
     </div>
     <KeyringHelp />
     <p class="muted small now">
-      Ahora se guardan en: <strong>{sx.effective === 'keyring' ? sx.keyring.name : 'la bóveda cifrada de Draupnode'}</strong>.
-      Las ya guardadas siguen donde estaban hasta que las vuelvas a escribir.
+      {t('Ahora se guardan en:')} <strong>{sx.effective === 'keyring' ? sx.keyring.name : t('la bóveda cifrada de Draupnode')}</strong>{t('. Las ya guardadas siguen donde estaban hasta que las vuelvas a escribir.')}
     </p>
   {/if}
 </section>
 
 <section>
   <div class="sec-head">
-    <h2>Tema</h2>
+    <h2>{t('Tema')}</h2>
     <div class="row">
-      <button class="btn sm" onclick={() => (importing = true)}><Upload size={14} /> Importar</button>
-      <button class="btn sm" onclick={exportPalettes}><Copy size={14} /> Exportar</button>
-      <button class="btn sm primary" onclick={() => startNew(currentPalette())}><Plus size={14} /> Nueva paleta</button>
+      <button class="btn sm" onclick={() => (importing = true)}><Upload size={14} /> {t('Importar')}</button>
+      <button class="btn sm" onclick={exportPalettes}><Copy size={14} /> {t('Exportar')}</button>
+      <button class="btn sm primary" onclick={() => startNew(currentPalette())}><Plus size={14} /> {t('Nueva paleta')}</button>
     </div>
   </div>
 
   {#if ui.custom.length}
-    <h3 class="group">Tus paletas</h3>
+    <h3 class="group">{t('Tus paletas')}</h3>
     <div class="grid">
       {#each ui.custom as p (p.id)}
         {@render card(p)}
@@ -245,27 +276,26 @@
 </section>
 
 <section class="card about">
-  <h2>Acerca de Draupnode</h2>
+  <h2>{t('Acerca de Draupnode')}</h2>
   <div class="credit">
-    <p><strong>Draupnode {ui.info?.version}</strong> · Copyright © {ui.info?.year} {ui.info?.author}</p>
-    <p class="muted small">Software libre y gratuito bajo la licencia {ui.info?.license}. Puedes usarlo, estudiarlo, modificarlo y compartirlo,
-      siempre conservando este aviso de autoría. Se ofrece sin ninguna garantía.</p>
+    <p><strong>{t('Draupnode {0}', ui.info?.version)}</strong> {t('· Copyright © {0} {1}', ui.info?.year, ui.info?.author)}</p>
+    <p class="muted small">{t('Software libre y gratuito bajo la licencia {0}. Puedes usarlo, estudiarlo, modificarlo y compartirlo, siempre conservando este aviso de autoría. Se ofrece sin ninguna garantía.', ui.info?.license)}</p>
     <div class="row">
-      <button class="btn sm" onclick={openLegal}><Scale size={14} /> Licencias</button>
-      {#if ui.info?.project}<button class="btn sm ghost" onclick={() => api.OpenURL(ui.info!.project)}><ExternalLink size={14} /> Proyecto</button>{/if}
+      <button class="btn sm" onclick={openLegal}><Scale size={14} /> {t('Licencias')}</button>
+      {#if ui.info?.project}<button class="btn sm ghost" onclick={() => api.OpenURL(ui.info!.project)}><ExternalLink size={14} /> {t('Proyecto')}</button>{/if}
     </div>
   </div>
   <label class="upd"><input type="checkbox" checked={updEnabled} onchange={(e) => setUpd((e.currentTarget as HTMLInputElement).checked)} />
-    Avisar de versiones nuevas <span class="muted small">(al abrir, consulta la última versión publicada en GitHub; no envía ningún dato tuyo)</span></label>
-  <div class="kv"><FolderCog size={16} /><span class="muted">Configuración</span><code class="selectable">{ui.info?.configDir}</code></div>
+    {t('Avisar de versiones nuevas')} <span class="muted small">{t('(al abrir, consulta la última versión publicada en GitHub; no envía ningún dato tuyo)')}</span></label>
+  <div class="kv"><FolderCog size={16} /><span class="muted">{t('Configuración')}</span><code class="selectable">{ui.info?.configDir}</code></div>
 </section>
 
 {#if legal}
-  <Modal title="Licencias" onclose={() => (legal = null)} width={820}>
+  <Modal title={t('Licencias')} onclose={() => (legal = null)} width={820}>
     <div class="ltabs">
-      <button class="btn sm" class:ghost={legalTab !== 'notice'} onclick={() => (legalTab = 'notice')}>Aviso</button>
-      <button class="btn sm" class:ghost={legalTab !== 'thirdParty'} onclick={() => (legalTab = 'thirdParty')}>Lo que lleva dentro</button>
-      <button class="btn sm" class:ghost={legalTab !== 'license'} onclick={() => (legalTab = 'license')}>GPL-3.0 (texto oficial)</button>
+      <button class="btn sm" class:ghost={legalTab !== 'notice'} onclick={() => (legalTab = 'notice')}>{t('Aviso')}</button>
+      <button class="btn sm" class:ghost={legalTab !== 'thirdParty'} onclick={() => (legalTab = 'thirdParty')}>{t('Lo que lleva dentro')}</button>
+      <button class="btn sm" class:ghost={legalTab !== 'license'} onclick={() => (legalTab = 'license')}>{t('GPL-3.0 (texto oficial)')}</button>
     </div>
     <pre class="ltext selectable">{legal[legalTab]}</pre>
   </Modal>
@@ -274,7 +304,7 @@
 {#snippet card(p: Palette)}
   {@const active = ui.themeId === p.id}
   <div class="pcard" class:active>
-    <button class="pick" onclick={() => setTheme(p.id)} aria-label="Usar {p.name}">
+    <button class="pick" onclick={() => setTheme(p.id)} aria-label={t('Usar {0}', p.name)}>
       <PalettePreview colors={p.colors} />
     </button>
     <div class="swatches">
@@ -285,13 +315,13 @@
         <strong>{p.name}</strong>
         <span class="muted">{p.tag}</span>
       </div>
-      {#if active}<span class="badge accent"><Check size={12} /> En uso</span>{/if}
+      {#if active}<span class="badge accent"><Check size={12} /> {t('En uso')}</span>{/if}
       <div class="pact">
         {#if p.custom}
-          <button class="btn icon sm ghost" title="Editar" aria-label="Editar" onclick={() => startEdit(p)}><Pencil size={14} /></button>
-          <button class="btn icon sm ghost danger" title="Eliminar" aria-label="Eliminar" onclick={() => (confirmDelete = p)}><Trash2 size={14} /></button>
+          <button class="btn icon sm ghost" title={t('Editar')} aria-label={t('Editar')} onclick={() => startEdit(p)}><Pencil size={14} /></button>
+          <button class="btn icon sm ghost danger" title={t('Eliminar')} aria-label={t('Eliminar')} onclick={() => (confirmDelete = p)}><Trash2 size={14} /></button>
         {:else}
-          <button class="btn icon sm ghost" title="Duplicar y editar" aria-label="Duplicar y editar" onclick={() => startNew(p)}><Copy size={14} /></button>
+          <button class="btn icon sm ghost" title={t('Duplicar y editar')} aria-label={t('Duplicar y editar')} onclick={() => startNew(p)}><Copy size={14} /></button>
         {/if}
       </div>
     </div>
@@ -299,16 +329,16 @@
 {/snippet}
 
 {#if editing}
-  <Modal title={ui.custom.some((c) => c.id === editing?.id) ? 'Editar paleta' : 'Nueva paleta'} onclose={cancelEdit} width={860}>
+  <Modal title={ui.custom.some((c) => c.id === editing?.id) ? t('Editar paleta') : t('Nueva paleta')} onclose={cancelEdit} width={860}>
     <div class="editor">
       <div class="fields">
         <div class="two">
-          <label class="field"><span>Nombre</span><input class="input" bind:value={editing.name} maxlength="40" /></label>
-          <label class="field"><span>Tipo</span>
+          <label class="field"><span>{t('Nombre')}</span><input class="input" bind:value={editing.name} maxlength="40" /></label>
+          <label class="field"><span>{t('Tipo')}</span>
             <select class="input" bind:value={editing.mode}>
-              <option value="dark">Oscura</option>
-              <option value="light">Clara</option>
-              <option value="mixed">Mixta</option>
+              <option value="dark">{t('Oscura')}</option>
+              <option value="light">{t('Clara')}</option>
+              <option value="mixed">{t('Mixta')}</option>
             </select>
           </label>
         </div>
@@ -325,37 +355,37 @@
       </div>
       <div class="side">
         <PalettePreview colors={editing.colors} big />
-        <p class="muted small">Toda la aplicación se pinta en vivo con esta paleta mientras la editas.</p>
+        <p class="muted small">{t('Toda la aplicación se pinta en vivo con esta paleta mientras la editas.')}</p>
         {#each warnings as w}
           <p class="warn"><TriangleAlert size={14} /> {w}</p>
         {/each}
       </div>
     </div>
     {#snippet footer()}
-      <button class="btn" onclick={cancelEdit}>Cancelar</button>
-      <button class="btn primary" onclick={saveEdit}>Guardar y usar</button>
+      <button class="btn" onclick={cancelEdit}>{t('Cancelar')}</button>
+      <button class="btn primary" onclick={saveEdit}>{t('Guardar y usar')}</button>
     {/snippet}
   </Modal>
 {/if}
 
 {#if importing}
-  <Modal title="Importar paletas" onclose={() => (importing = false)} width={560}>
-    <p class="muted">Pega el JSON exportado desde otro equipo (una paleta o una lista).</p>
-    <textarea class="input mono" rows="10" bind:value={importText} placeholder={'[{ "name": "...", "colors": { "bg": "#111318", ... } }]'}></textarea>
+  <Modal title={t('Importar paletas')} onclose={() => (importing = false)} width={560}>
+    <p class="muted">{t('Pega el JSON exportado desde otro equipo (una paleta o una lista).')}</p>
+    <textarea class="input mono" rows="10" bind:value={importText} placeholder={t('[{ "name": "...", "colors": { "bg": "#111318", ... } }]')}></textarea>
     {#snippet footer()}
-      <button class="btn" onclick={() => (importing = false)}>Cancelar</button>
-      <button class="btn primary" onclick={doImport} disabled={!importText.trim()}>Importar</button>
+      <button class="btn" onclick={() => (importing = false)}>{t('Cancelar')}</button>
+      <button class="btn primary" onclick={doImport} disabled={!importText.trim()}>{t('Importar')}</button>
     {/snippet}
   </Modal>
 {/if}
 
 {#if confirmDelete}
   {@const p = confirmDelete}
-  <Modal title="Eliminar paleta" onclose={() => (confirmDelete = null)} width={420}>
-    <p>¿Eliminar la paleta <strong>{p.name}</strong>?</p>
+  <Modal title={t('Eliminar paleta')} onclose={() => (confirmDelete = null)} width={420}>
+    <p>{t('¿Eliminar la paleta')} <strong>{p.name}</strong>?</p>
     {#snippet footer()}
-      <button class="btn" onclick={() => (confirmDelete = null)}>Cancelar</button>
-      <button class="btn solid-danger" onclick={() => remove(p)}>Eliminar</button>
+      <button class="btn" onclick={() => (confirmDelete = null)}>{t('Cancelar')}</button>
+      <button class="btn solid-danger" onclick={() => remove(p)}>{t('Eliminar')}</button>
     {/snippet}
   </Modal>
 {/if}
@@ -384,6 +414,10 @@
   .credit .row { display: flex; gap: 8px; margin-top: 4px; }
   .ltabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .ltext { max-height: 56vh; overflow: auto; white-space: pre-wrap; font-size: 12.5px; line-height: 1.5; background: var(--panel-2); padding: 12px; border-radius: 8px; margin: 0; }
+  .lang { margin-bottom: 28px; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .lang h2 { display: flex; gap: 8px; align-items: center; }
+  .lang p { margin-top: 4px; }
+  .lang-opts { display: flex; gap: 8px; }
   .secrets { margin-bottom: 28px; display: flex; flex-direction: column; gap: 14px; }
   .secrets .sec-head p { margin-top: 4px; }
   .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"draupnode/internal/i18n"
 	"draupnode/internal/legal"
 	"errors"
 	"os"
@@ -57,6 +58,11 @@ type App struct {
 // NewApp crea la aplicación con el almacén ya abierto.
 func NewApp(st *store.Store, kr secrets.Keyring, v *secrets.Vault) *App {
 	a := &App{store: st, keyring: kr, vault: v, runs: map[string]context.CancelFunc{}, tunnels: map[string]*tunnel{}}
+	if l := i18n.Normalize(st.Settings().Language); l != "" {
+		i18n.Set(l)
+	} else {
+		i18n.Set(i18n.Detect())
+	}
 	a.emit = func(name string, data any) {
 		if a.ctx != nil {
 			runtime.EventsEmit(a.ctx, name, data)
@@ -468,11 +474,38 @@ func (a *App) test(ctx context.Context, srv store.Server, secret, accept string)
 
 // ---------------------------------------------------------------- ajustes de interfaz
 
-func (a *App) GetSettings() store.Settings { return a.store.Settings() }
+// GetSettings devuelve las preferencias; si no se eligió idioma, el del sistema.
+func (a *App) GetSettings() store.Settings {
+	s := a.store.Settings()
+	if i18n.Normalize(s.Language) == "" {
+		s.Language = i18n.Lang()
+	}
+	return s
+}
 
-// SaveSettings guarda tema y paletas (la preferencia de contraseñas va aparte).
+// SaveSettings guarda tema y paletas (la preferencia de contraseñas y el
+// idioma van aparte).
 func (a *App) SaveSettings(s store.Settings) error {
 	cur := a.store.Settings()
-	s.SecretBackend, s.NoUpdateCheck = cur.SecretBackend, cur.NoUpdateCheck
+	s.SecretBackend, s.NoUpdateCheck, s.Language = cur.SecretBackend, cur.NoUpdateCheck, cur.Language
 	return a.store.SaveSettings(s)
+}
+
+// SetLanguage cambia el idioma («es» o «en»), lo guarda y vuelve a leer el
+// catálogo de módulos (sus textos van en el idioma elegido).
+func (a *App) SetLanguage(l string) error {
+	l = i18n.Normalize(l)
+	if l == "" {
+		return i18n.New("Idioma no disponible")
+	}
+	s := a.store.Settings()
+	s.Language = l
+	if err := a.store.SaveSettings(s); err != nil {
+		return err
+	}
+	i18n.Set(l)
+	a.catMu.Lock()
+	a.catalog = nil
+	a.catMu.Unlock()
+	return nil
 }

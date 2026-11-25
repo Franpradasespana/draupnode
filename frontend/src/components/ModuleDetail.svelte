@@ -14,6 +14,7 @@
   import { timeAgo, ui, toast } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
   import { sameValues } from '../lib/modules'
+  import { t } from '../lib/i18n.svelte'
 
   let { m, modules = $bindable(), project, errors = {}, requiredBy = [], running = false, onsecret, onapply, onremove, onreadd, onuninstall, onreload = () => {} }: {
     m: Module
@@ -46,7 +47,7 @@
       const server = ui.servers.find((s) => s.id === project.serverId)
       const r = await withConnection<MonitorResult>(server, (s, a) => api.OpenAppTunnel(project.id, m.id, s, a))
       if (r?.status === 'ok' && r.url) api.OpenURL(r.url)
-      else if (r) toast(r.message || 'No se pudo abrir', 'error')
+      else if (r) toast(r.message || t('No se pudo abrir'), 'error')
     } catch (e) {
       toast(String(e), 'error')
     } finally {
@@ -64,28 +65,28 @@
 <section class="card head">
   <div class="title">
     <h2>{m.name}</h2>
-    {#if installed && pm}<span class="pill ok"><CircleCheck size={13} /> Instalado{#if project.appliedAt}{' · '}aplicado {timeAgo(project.appliedAt)}{/if}</span>
-    {:else if installed}<span class="pill left">Instalado, sin gestionar</span>
-    {:else}<span class="pill new">Se instalará al aplicar</span>{/if}
+    {#if installed && pm}<span class="pill ok"><CircleCheck size={13} /> {t('Instalado')}{#if project.appliedAt}{' · '}aplicado {timeAgo(project.appliedAt)}{/if}</span>
+    {:else if installed}<span class="pill left">{t('Instalado, sin gestionar')}</span>
+    {:else}<span class="pill new">{t('Se instalará al aplicar')}</span>{/if}
   </div>
   <p class="muted">{m.description}</p>
   <ModuleLinks links={m.links} />
   {#if m.details}
-    <button class="more" onclick={() => (more = !more)}>{#if more}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if} Cómo funciona</button>
+    <button class="more" onclick={() => (more = !more)}>{#if more}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if} {t('Cómo funciona')}</button>
     {#if more}<ModuleText text={m.details} />{/if}
   {/if}
   {#if !pm && installed}
-    <p class="info"><Info size={15} /> Sigue instalado y funcionando en el servidor, pero Draupnode ya no lo gestiona (no lo comprueba ni lo actualiza al aplicar).</p>
+    <p class="info"><Info size={15} /> {t('Sigue instalado y funcionando en el servidor, pero Draupnode ya no lo gestiona (no lo comprueba ni lo actualiza al aplicar).')}</p>
   {/if}
   {#if m.proxySite && installed}
     <div class="app-open">
-      <button class="btn sm primary" onclick={openApp} disabled={opening}><ExternalLink size={14} /> {opening ? 'Abriendo…' : 'Abrir (túnel SSH)'}</button>
+      <button class="btn sm primary" onclick={openApp} disabled={opening}><ExternalLink size={14} /> {opening ? t('Abriendo…') : t('Abrir (túnel SSH)')}</button>
       {#if appDomain}<button class="btn sm" onclick={() => api.OpenURL('https://' + appDomain)}><ExternalLink size={14} /> https://{appDomain}</button>{/if}
-      <span class="muted small">«Abrir» la ve desde este equipo sin publicarla en internet.</span>
+      <span class="muted small">{t('«Abrir» la ve desde este equipo sin publicarla en internet.')}</span>
     </div>
   {/if}
   {#if m.id === 'coolify' && installed && webUrl}
-    <div><button class="btn sm" onclick={() => api.OpenURL(webUrl)}><ExternalLink size={14} /> Abrir el panel de Coolify</button> <span class="muted small">{webUrl}</span></div>
+    <div><button class="btn sm" onclick={() => api.OpenURL(webUrl)}><ExternalLink size={14} /> {t('Abrir el panel de Coolify')}</button> <span class="muted small">{webUrl}</span></div>
   {/if}
 </section>
 
@@ -115,14 +116,14 @@
 {#if pm}
   <section class="card cfg">
     <div class="cfg-h">
-      <h3>Configuración</h3>
-      {#if changed}<span class="pending">Cambios sin aplicar</span>{/if}
+      <h3>{t('Configuración')}</h3>
+      {#if changed}<span class="pending">{t('Cambios sin aplicar')}</span>{/if}
     </div>
     <ModuleForm {m} bind:values={pm.values} {errors} projectId={project.id} {onsecret} />
     {#if changed || !installed}
       <div class="cfg-f">
-        <span class="muted small">{errorCount ? `Corrige ${errorCount} opción(es) en rojo.` : 'Los cambios se guardan solos; en el servidor se aplican al pulsar el botón.'}</span>
-        <button class="btn primary" onclick={onapply} disabled={running || errorCount > 0}><Hammer size={15} /> Aplicar cambios</button>
+        <span class="muted small">{errorCount ? t('Corrige {0} opción(es) en rojo.', errorCount) : t('Los cambios se guardan solos; en el servidor se aplican al pulsar el botón.')}</span>
+        <button class="btn primary" onclick={onapply} disabled={running || errorCount > 0}><Hammer size={15} /> {t('Aplicar cambios')}</button>
       </div>
     {/if}
   </section>
@@ -131,20 +132,20 @@
 <section class="card zone">
   {#if pm}
     <div class="z">
-      <div><strong>Dejar de gestionarlo</strong><span class="muted small">Lo quita de los módulos de Draupnode <strong>sin desinstalarlo</strong>: sigue funcionando en el servidor, pero Draupnode ya no cambia su configuración al aplicar ni lo desinstala. Útil si quieres manejarlo tú a mano. Puedes volver a gestionarlo después.</span></div>
-      <button class="btn" onclick={onremove} disabled={running || requiredBy.length > 0} title={requiredBy.length ? `Lo necesita ${requiredBy.join(', ')}` : ''}>Dejar de gestionarlo</button>
+      <div><strong>{t('Dejar de gestionarlo')}</strong><span class="muted small">{t('Lo quita de los módulos de Draupnode')} <strong>{t('sin desinstalarlo')}</strong>{t(': sigue funcionando en el servidor, pero Draupnode ya no cambia su configuración al aplicar ni lo desinstala. Útil si quieres manejarlo tú a mano. Puedes volver a gestionarlo después.')}</span></div>
+      <button class="btn" onclick={onremove} disabled={running || requiredBy.length > 0} title={requiredBy.length ? t('Lo necesita {0}', requiredBy.join(', ')) : ''}>{t('Dejar de gestionarlo')}</button>
     </div>
-    {#if requiredBy.length}<p class="muted small">No se puede quitar mientras lo necesite {requiredBy.join(', ')}.</p>{/if}
+    {#if requiredBy.length}<p class="muted small">{t('No se puede quitar mientras lo necesite {0}.', requiredBy.join(', '))}</p>{/if}
   {:else}
     <div class="z">
-      <div><strong>Volver a gestionarlo</strong><span class="muted small">Lo añade otra vez a los módulos de este servidor con la configuración con la que se instaló.</span></div>
-      <button class="btn" onclick={onreadd} disabled={running}><Undo2 size={15} /> Volver a gestionarlo</button>
+      <div><strong>{t('Volver a gestionarlo')}</strong><span class="muted small">{t('Lo añade otra vez a los módulos de este servidor con la configuración con la que se instaló.')}</span></div>
+      <button class="btn" onclick={onreadd} disabled={running}><Undo2 size={15} /> {t('Volver a gestionarlo')}</button>
     </div>
   {/if}
   {#if installed}
     <div class="z">
-      <div><strong>Desinstalar del servidor</strong><span class="muted small">{m.noUninstall ? `No se puede: ${m.noUninstall}` : m.uninstallWarning ?? 'Lo quita del servidor.'}</span></div>
-      <button class="btn danger" onclick={onuninstall} disabled={running || !!m.noUninstall || !m.uninstallable}><Trash2 size={15} /> Desinstalar…</button>
+      <div><strong>{t('Desinstalar del servidor')}</strong><span class="muted small">{m.noUninstall ? t('No se puede: {0}', m.noUninstall) : m.uninstallWarning ?? t('Lo quita del servidor.')}</span></div>
+      <button class="btn danger" onclick={onuninstall} disabled={running || !!m.noUninstall || !m.uninstallable}><Trash2 size={15} /> {t('Desinstalar…')}</button>
     </div>
   {/if}
 </section>

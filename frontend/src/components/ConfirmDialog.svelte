@@ -1,5 +1,6 @@
 <script lang="ts">
   import Modal from './Modal.svelte'
+  import { t } from '../lib/i18n.svelte'
   let { title, message, detail, confirmLabel, danger, done }: { title: string; message: string; detail?: string; confirmLabel: string; danger?: boolean; done: (ok: boolean) => void } = $props()
 </script>
 
@@ -7,7 +8,7 @@
   <p>{message}</p>
   {#if detail}<pre class="detail selectable">{detail}</pre>{/if}
   {#snippet footer()}
-    <button class="btn" onclick={() => done(false)}>Cancelar</button>
+    <button class="btn" onclick={() => done(false)}>{t('Cancelar')}</button>
     <button class="btn" class:primary={!danger} class:solid-danger={danger} onclick={() => done(true)}>{confirmLabel}</button>
   {/snippet}
 </Modal>

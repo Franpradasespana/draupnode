@@ -1,14 +1,32 @@
 // Saca las capturas de la ayuda (src/assets/ayuda/*.webp) con la demo del
 // navegador (datos simulados) y Google Chrome/Chromium sin ventana.
 // Uso: make capturas   (o: cd frontend && node scripts/capturas.mjs)
+//      make capturas-en (CAPTURAS_LANG=en: en inglés, en src/assets/ayuda/en/)
 import { spawn } from 'node:child_process'
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const outDir = join(here, '..', 'src', 'assets', 'ayuda')
+const LANG = process.env.CAPTURAS_LANG === 'en' ? 'en' : 'es'
+const outDir = join(here, '..', 'src', 'assets', 'ayuda', ...(LANG === 'en' ? ['en'] : []))
+mkdirSync(outDir, { recursive: true })
+
+// En inglés, los textos que se buscan en pantalla (botones, pestañas, módulos)
+// y los datos de ejemplo se traducen con el mismo catálogo que la app.
+const EN = JSON.parse(readFileSync(join(here, '..', 'src', 'locales', 'en.json'), 'utf8'))
+const modNames = (l) => JSON.parse(readFileSync(join(here, '..', 'src', 'lib', 'demo', `modules.${l}.json`), 'utf8'))
+const MOD_EN = Object.fromEntries(modNames('es').map((m, i) => [m.name, modNames('en')[i]?.name ?? m.name]))
+const SEED_EN = {
+  'Servidor web': 'Web server', 'Servidor de pruebas (Docker)': 'Test server (Docker)', 'Coolify producción': 'Coolify production',
+  'Base de datos': 'Database', 'Probar Coolify': 'Try Coolify', 'Servidor de copias': 'Backup server', 'Tienda': 'Shop',
+  'Blog': 'Blog', 'Alertas': 'Alerts', 'VPN': 'VPN', 'Servidor de la tienda': 'Shop server', 'Copias': 'Backups',
+  'Ubuntu 24.04 en un contenedor Docker de este equipo.': 'Ubuntu 24.04 in a Docker container on this computer.',
+  'tienda.ejemplo.com': 'shop.example.com', 'portatil': 'laptop', 'movil': 'phone',
+}
+const L = (s) => (LANG === 'en' && typeof s === 'string' ? SEED_EN[s] ?? MOD_EN[s] ?? EN[s] ?? s : s)
+const tr = (v) => (Array.isArray(v) ? v.map(tr) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, tr(x)])) : L(v))
 const VITE_PORT = 5199
 const CDP_PORT = 9333
 const W = 1280, H = 800
@@ -120,7 +138,7 @@ const SHOTS = only.length ? ALL_SHOTS.filter((s) => only.includes(s.name)) : ALL
 const vite = spawn('npx', ['vite', '--port', String(VITE_PORT), '--strictPort'], { cwd: join(here, '..'), stdio: 'ignore', shell: process.platform === 'win32' })
 const profile = mkdtempSync(join(tmpdir(), 'draupnode-capturas-'))
 const browser = spawn(chrome, ['--headless=new', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${profile}`,
-  `--window-size=${W},${H}`, '--hide-scrollbars', '--no-first-run', '--no-default-browser-check', '--lang=es', 'about:blank'], { stdio: 'ignore' })
+  `--window-size=${W},${H}`, '--hide-scrollbars', '--no-first-run', '--no-default-browser-check', `--lang=${LANG}`, 'about:blank'], { stdio: 'ignore' })
 const cleanup = () => { try { browser.kill() } catch {} ; try { vite.kill() } catch {} ; try { rmSync(profile, { recursive: true, force: true }) } catch {} }
 process.on('exit', cleanup)
 
@@ -177,11 +195,11 @@ async function open(view, extra) {
   const d = structuredClone(seed)
   const fn = typeof extra === 'string' ? ALL_SHOTS.find((x) => x.name === extra)?.seed : extra
   if (fn) fn(d)
-  await evaluate(seedFor(d))
-  const q = '?c' + ++loads
+  await evaluate(seedFor(LANG === 'en' ? tr(d) : d))
+  const q = '?c' + ++loads + (LANG === 'en' ? '&lang=en' : '')
   await send('Page.navigate', { url: base + q + '#' + view })
   try {
-    await waitFor(() => evaluate(`location.search === '${q}' && document.readyState === 'complete' && !!document.querySelector('footer.status') && !document.body.innerText.includes('Comprobando…')`), 'la página ' + view, 40)
+    await waitFor(() => evaluate(`location.search === '${q}' && document.readyState === 'complete' && !!document.querySelector('footer.status') && !document.body.innerText.includes(${JSON.stringify(L('Comprobando…'))})`), 'la página ' + view, 40)
   } catch (e) {
     console.error('Texto de la página:', (await evaluate('document.body.innerText')).slice(0, 600))
     throw e
@@ -190,6 +208,9 @@ async function open(view, extra) {
 }
 
 async function act([kind, a, b]) {
+  if (kind === 'click' || kind === 'fill') b = L(b)
+  if (kind === 'fill') a = L(a)
+  if (kind === 'type' && typeof b === 'string') b = L(b)
   if (kind === 'wait') return sleep(a)
   if (kind === 'log') return console.log(await evaluate(a))
   if (kind === 'click') {

@@ -6,6 +6,7 @@
   import ModuleForm from './ModuleForm.svelte'
   import { ui } from '../lib/state.svelte'
   import type { Module } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
 
   const KEY = 'dn-modulos-probados'
   let done = $state<Record<string, string>>(read())
@@ -44,7 +45,7 @@
 
 <div class="mt">
   <div class="progress">
-    <strong>{count} de {mods.length}</strong> probados en este equipo
+    <strong>{count} de {mods.length}</strong> {t('probados en este equipo')}
     <span class="bar"><i style:width="{mods.length ? (count / mods.length) * 100 : 0}%"></i></span>
   </div>
 
@@ -54,37 +55,37 @@
       <details class:done={!!done[m.id]} ontoggle={(e) => toggled(m, (e.currentTarget as HTMLDetailsElement).open)}>
         <summary>
           <span class="name">{m.name}</span>
-          {#if m.source === 'user'}<span class="tag">propio</span>{/if}
-          {#if done[m.id]}<span class="okt"><CircleCheck size={14} /> probado el {when(done[m.id])}</span>{/if}
+          {#if m.source === 'user'}<span class="tag">{t('propio')}</span>{/if}
+          {#if done[m.id]}<span class="okt"><CircleCheck size={14} /> {t('probado el {0}', when(done[m.id]))}</span>{/if}
         </summary>
         <div class="body">
           {#if m.prueba?.necesita?.length}
-            <h4><ClipboardList size={14} /> Qué tienes que rellenar</h4>
+            <h4><ClipboardList size={14} /> {t('Qué tienes que rellenar')}</h4>
             <ul>{#each m.prueba.necesita as n}<li>{n}</li>{/each}</ul>
           {/if}
-          {#if m.prueba?.lab}<p class="lab"><FlaskConical size={14} /> <span><strong>En el servidor de pruebas:</strong> {m.prueba.lab}</span></p>{/if}
-          <h4><ListOrdered size={14} /> Pasos</h4>
+          {#if m.prueba?.lab}<p class="lab"><FlaskConical size={14} /> <span><strong>{t('En el servidor de pruebas:')}</strong> {m.prueba.lab}</span></p>{/if}
+          <h4><ListOrdered size={14} /> {t('Pasos')}</h4>
           <ol>{#each m.prueba?.pasos ?? [] as p}<li>{p}</li>{/each}</ol>
           {#if m.prueba?.comprobar?.length}
-            <h4><Eye size={14} /> Cómo queda y qué comprobar</h4>
+            <h4><Eye size={14} /> {t('Cómo queda y qué comprobar')}</h4>
             <ul>{#each m.prueba.comprobar as c}<li>{c}</li>{/each}</ul>
           {/if}
           {#if m.prueba?.problemas?.length}
-            <h4><LifeBuoy size={14} /> Si falla</h4>
+            <h4><LifeBuoy size={14} /> {t('Si falla')}</h4>
             <ul class="probs">{#each m.prueba.problemas as p}{@const [sin, sol] = p.split(' → ')}<li>{#if sol}<strong>{sin}</strong> → {sol}{:else}{p}{/if}</li>{/each}</ul>
           {/if}
           {#if open[m.id] && forms[m.id]}
-            <h4><SlidersHorizontal size={14} /> Su configuración (con los valores por defecto)</h4>
+            <h4><SlidersHorizontal size={14} /> {t('Su configuración (con los valores por defecto)')}</h4>
             <div class="form" inert><ModuleForm {m} bind:values={forms[m.id]} projectId="" /></div>
           {/if}
-          <label class="chk"><input type="checkbox" checked={!!done[m.id]} onchange={(e) => toggle(m.id, (e.currentTarget as HTMLInputElement).checked)} /> Probado: funciona</label>
+          <label class="chk"><input type="checkbox" checked={!!done[m.id]} onchange={(e) => toggle(m.id, (e.currentTarget as HTMLInputElement).checked)} /> {t('Probado: funciona')}</label>
         </div>
       </details>
     {/each}
   {/each}
 
   {#if without.length}
-    <p class="muted small">Sin guía de prueba: {without.map((m) => m.name).join(', ')}. En tus módulos puedes añadirla con <code>prueba:</code> en su module.yaml (lab, pasos y comprobar).</p>
+    <p class="muted small">{t('Sin guía de prueba: {0}. En tus módulos puedes añadirla con', without.map((m) => m.name).join(', '))} <code>prueba:</code> {t('en su module.yaml (lab, pasos y comprobar).')}</p>
   {/if}
 </div>
 

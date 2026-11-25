@@ -4,6 +4,7 @@
   import { Trash2, LoaderCircle, CircleCheck, CircleX, CircleDot, CircleMinus, Square, ScrollText, ListChecks, Info, Eye, Hammer } from '@lucide/svelte'
   import { api } from '../lib/api'
   import { moduleName, type RunState } from '../lib/state.svelte'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let { run, onclose }: { run: RunState; onclose: () => void } = $props()
 
@@ -36,7 +37,7 @@
     done: run.tasks.filter((t) => t.status !== 'running').length,
   })
   const elapsed = $derived(Math.round(((run.done && run.summary ? new Date(run.summary.at).getTime() + run.summary.durationMs : now) - run.startedAt) / 1000))
-  const fmtTime = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`)
+  const fmtTime = (s: number) => (s >= 60 ? tr('{0} min {1} s', Math.floor(s / 60), s % 60) : `${s} s`)
 
   // Agrupa las tareas por módulo (rol) en el orden en que aparecen.
   const groups = $derived.by(() => {
@@ -51,12 +52,12 @@
   const changedTasks = $derived(run.tasks.filter((t) => t.status === 'changed' && !t.handler))
   const failedTasks = $derived(run.tasks.filter((t) => t.status === 'failed'))
   const stLabel = (st: string) =>
-    st === 'changed' ? (run.check ? 'se cambiará' : 'hecho')
-    : st === 'ok' ? 'ya está bien'
-    : st === 'skipped' ? 'no hace falta'
+    st === 'changed' ? (run.check ? tr('se cambiará') : 'hecho')
+    : st === 'ok' ? tr('ya está bien')
+    : st === 'skipped' ? tr('no hace falta')
     : st === 'failed' ? 'fallo' : ''
 
-  const roleName = (r: string) => (r === '' ? 'Preparación' : r === 'draupnode_preflight' ? 'Comprobaciones previas' : moduleName(r))
+  const roleName = (r: string) => (r === '' ? tr('Preparación') : r === 'draupnode_preflight' ? tr('Comprobaciones previas') : moduleName(r))
 </script>
 
 <section class="card run" class:ok={run.done && run.summary?.ok} class:fail={run.done && !run.summary?.ok}>
@@ -71,22 +72,22 @@
       {/if}
       <div>
         <strong>
-          {#if run.uninstall?.length}<Trash2 size={14} /> Desinstalación{:else if run.check}<Eye size={14} /> Simulación{:else}<Hammer size={14} /> Aplicación{/if}
-          {#if !run.done} en curso{:else if run.summary?.canceled} cancelada{:else if run.summary?.ok} terminada{:else} con errores{/if}
+          {#if run.uninstall?.length}<Trash2 size={14} /> {tr('Desinstalación')}{:else if run.check}<Eye size={14} /> {tr('Simulación')}{:else}<Hammer size={14} /> {tr('Aplicación')}{/if}
+          {#if !run.done} {tr('en curso')}{:else if run.summary?.canceled} cancelada{:else if run.summary?.ok} terminada{:else} {tr('con errores')}{/if}
         </strong>
         <span class="muted">
-          {#if !run.done}{run.stage} · {/if}{counts.done} tareas · {counts.changed} {run.check ? 'se cambiarían' : 'con cambios'}{#if counts.failed} · <span class="bad">{counts.failed} fallidas</span>{/if} · {fmtTime(elapsed)}
+          {#if !run.done}{run.stage} · {/if}{tr('{0} tareas · {1} {2}', counts.done, counts.changed, run.check ? tr('se cambiarían') : tr('con cambios'))}{#if counts.failed} · <span class="bad">{counts.failed} fallidas</span>{/if} · {fmtTime(elapsed)}
         </span>
       </div>
     </div>
     <div class="actions">
       <button class="btn sm" onclick={() => (showLog = !showLog)}>
-        {#if showLog}<ListChecks size={14} /> Tareas{:else}<ScrollText size={14} /> Registro completo{/if}
+        {#if showLog}<ListChecks size={14} /> {tr('Tareas')}{:else}<ScrollText size={14} /> {tr('Registro completo')}{/if}
       </button>
       {#if !run.done}
-        <button class="btn sm danger" onclick={() => api.CancelRun(run.runId)}><Square size={13} /> Cancelar</button>
+        <button class="btn sm danger" onclick={() => api.CancelRun(run.runId)}><Square size={13} /> {tr('Cancelar')}</button>
       {:else}
-        <button class="btn sm" onclick={onclose}>Cerrar</button>
+        <button class="btn sm" onclick={onclose}>{tr('Cerrar')}</button>
       {/if}
     </div>
   </header>
@@ -98,30 +99,30 @@
   {#if run.done && !run.summary?.canceled}
     <div class="verdict" class:good={run.summary?.ok} class:badv={!run.summary?.ok}>
       {#if run.uninstall?.length && run.summary?.ok}
-        <p class="big">Desinstalado del servidor.</p>
-        <p>Draupnode ya no lo gestiona.</p>
+        <p class="big">{tr('Desinstalado del servidor.')}</p>
+        <p>{tr('Draupnode ya no lo gestiona.')}</p>
       {:else if run.uninstall?.length}
-        <p class="big">No se pudo desinstalar del todo: se paró con errores.</p>
-        <p>Lo que se quitó antes del fallo queda quitado. El módulo sigue en el servidor: corrige el problema y vuelve a intentarlo.</p>
+        <p class="big">{tr('No se pudo desinstalar del todo: se paró con errores.')}</p>
+        <p>{tr('Lo que se quitó antes del fallo queda quitado. El módulo sigue en el servidor: corrige el problema y vuelve a intentarlo.')}</p>
         <ul>{#each failedTasks as t}<li>{t.name} <span class="muted">· {roleName(t.role)}</span></li>{/each}</ul>
       {:else if run.check && run.summary?.ok}
         {#if changedTasks.length}
-          <p class="big">Simulación completada. Todavía no se ha aplicado nada en el servidor.</p>
-          <p>Para aplicar la configuración pulsa <strong>Aplicar</strong>. Se harán estos {changedTasks.length} cambios:</p>
+          <p class="big">{tr('Simulación completada. Todavía no se ha aplicado nada en el servidor.')}</p>
+          <p>{tr('Para aplicar la configuración pulsa')} <strong>{tr('Aplicar')}</strong>{tr('. Se harán estos {0} cambios:', changedTasks.length)}</p>
           <ul>{#each changedTasks as t}<li>{t.name} <span class="muted">· {roleName(t.role)}</span></li>{/each}</ul>
         {:else}
-          <p class="big">Configuración ya aplicada en el servidor.</p>
-          <p>La simulación no ha encontrado nada pendiente: <strong>no es necesario pulsar Aplicar</strong>.</p>
+          <p class="big">{tr('Configuración ya aplicada en el servidor.')}</p>
+          <p>{tr('La simulación no ha encontrado nada pendiente:')} <strong>{tr('no es necesario pulsar Aplicar')}</strong>.</p>
         {/if}
       {:else if run.check}
-        <p><strong>La simulación encontró {failedTasks.length || ''} problema{failedTasks.length === 1 ? '' : 's'}.</strong> No se ha cambiado nada en el servidor. Revísalo antes de aplicar:</p>
+        <p><strong>{tr('La simulación encontró {0} problema{1}.', failedTasks.length || '', failedTasks.length === 1 ? '' : 's')}</strong> {tr('No se ha cambiado nada en el servidor. Revísalo antes de aplicar:')}</p>
         <ul>{#each failedTasks as t}<li>{t.name} <span class="muted">· {roleName(t.role)}</span></li>{/each}</ul>
       {:else if run.summary?.ok}
-        <p class="big">Configuración aplicada en el servidor.</p>
-        {#if changedTasks.length}<p>Se hicieron {changedTasks.length} cambios (marcados como «hecho»).</p>{:else}<p>No hizo falta cambiar nada: ya estaba aplicada.</p>{/if}
+        <p class="big">{tr('Configuración aplicada en el servidor.')}</p>
+        {#if changedTasks.length}<p>{tr('Se hicieron {0} cambios (marcados como «hecho»).', changedTasks.length)}</p>{:else}<p>{tr('No hizo falta cambiar nada: ya estaba aplicada.')}</p>{/if}
       {:else}
-        <p class="big">No se pudo aplicar del todo: se paró con errores.</p>
-        <p>Lo que se hizo antes del fallo queda hecho. Corrige el problema y vuelve a aplicar: lo que ya está bien no se repite.</p>
+        <p class="big">{tr('No se pudo aplicar del todo: se paró con errores.')}</p>
+        <p>{tr('Lo que se hizo antes del fallo queda hecho. Corrige el problema y vuelve a aplicar: lo que ya está bien no se repite.')}</p>
         <ul>{#each failedTasks as t}<li>{t.name} <span class="muted">· {roleName(t.role)}</span></li>{/each}</ul>
       {/if}
     </div>
@@ -129,23 +130,23 @@
 
   {#if run.notes.length}
     <div class="notes">
-      <div class="notes-t">Para que lo sepas</div>
+      <div class="notes-t">{tr('Para que lo sepas')}</div>
       {#each run.notes as n}<p><Info size={15} /> <span class="selectable"><Linkify text={n} /></span></p>{/each}
     </div>
   {/if}
 
   {#if run.tasks.length && !showLog}
     <div class="legend">
-      <span class="ok"><CircleCheck size={13} /> ya está bien</span>
-      <span class="ch"><CircleDot size={13} /> {run.check ? 'se cambiará al aplicar' : 'hecho ahora'}</span>
-      <span><CircleMinus size={13} /> no hace falta en este servidor</span>
-      <span class="ko"><CircleX size={13} /> fallo</span>
+      <span class="ok"><CircleCheck size={13} /> {tr('ya está bien')}</span>
+      <span class="ch"><CircleDot size={13} /> {run.check ? tr('se cambiará al aplicar') : tr('hecho ahora')}</span>
+      <span><CircleMinus size={13} /> {tr('no hace falta en este servidor')}</span>
+      <span class="ko"><CircleX size={13} /> {tr('fallo')}</span>
     </div>
   {/if}
 
   <div class="list" bind:this={listEl} onscroll={onScroll}>
     {#if showLog}
-      <pre class="log selectable">{run.lines.join('\n') || 'Sin salida todavía…'}</pre>
+      <pre class="log selectable">{run.lines.join('\n') || tr('Sin salida todavía…')}</pre>
     {:else if run.tasks.length === 0}
       <p class="muted pad"><LoaderCircle size={14} class="spin" /> {run.stage}</p>
     {:else}
@@ -160,7 +161,7 @@
               {:else if t.status === 'failed'}<CircleX size={15} />
               {:else}<CircleMinus size={15} />{/if}
             </span>
-            <span class="name">{t.name}{#if t.handler} <em>(al final)</em>{/if}</span>
+            <span class="name">{t.name}{#if t.handler} <em>{tr('(al final)')}</em>{/if}</span>
             <span class="st">
               {stLabel(t.status)}
             </span>

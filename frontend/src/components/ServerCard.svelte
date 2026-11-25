@@ -7,6 +7,7 @@
   import { ui, toast, timeAgo, openServer, openTerminal, openDeployment } from '../lib/state.svelte'
   import { alerts, rememberOverview, serverFindings, pendingModules } from '../lib/alerts.svelte'
   import { withConnection } from '../lib/connect'
+  import { t as tr, shortDuration, agoText, plural } from '../lib/i18n.svelte'
 
   let { server, ficha, note = '' }: { server: Server; ficha?: CachedOverview; note?: string } = $props()
 
@@ -50,7 +51,7 @@
     try {
       const r = await withConnection<ServerOverviewResult>(server, (s, a, u) => api.ServerOverview(server.id, s, a, u))
       if (r?.status === 'ok' && r.overview) rememberOverview(server.id, r.overview)
-      else if (r) toast(r.message || 'No se pudo leer el servidor', 'error')
+      else if (r) toast(r.message || tr('No se pudo leer el servidor'), 'error')
     } finally {
       busy = ''
     }
@@ -58,7 +59,7 @@
   async function openApp(projectId: string, moduleId: string) {
     const r = await withConnection<MonitorResult>(server, (s, a) => api.OpenAppTunnel(projectId, moduleId, s, a))
     if (r?.status === 'ok' && r.url) api.OpenURL(r.url)
-    else if (r) toast(r.message || 'No se pudo abrir', 'error')
+    else if (r) toast(r.message || tr('No se pudo abrir'), 'error')
   }
   async function grafana() {
     if (!monitoring) return
@@ -66,7 +67,7 @@
     try {
       const r = await withConnection<MonitorResult>(server, (s, a) => api.OpenGrafana(monitoring.id, s, a))
       if (r?.status === 'ok' && r.url) api.OpenURL(r.url)
-      else if (r) toast(r.message || 'No se pudo abrir Grafana', 'error')
+      else if (r) toast(r.message || tr('No se pudo abrir Grafana'), 'error')
     } finally {
       busy = ''
     }
@@ -81,10 +82,10 @@
     e.preventDefault()
     openServer(server.id)
   }
-  const hours = (s: number) => (s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : s < 172800 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} días`)
+  const hours = (s: number) => shortDuration(s)
 </script>
 
-<div class="card srv" class:bad={isDown} class:warn={findings.length > 0} role="button" tabindex="0" title="Abrir la ficha de {server.name}" onclick={cardClick} onkeydown={cardKey}>
+<div class="card srv" class:bad={isDown} class:warn={findings.length > 0} role="button" tabindex="0" title={tr('Abrir la ficha de {0}', server.name)} onclick={cardClick} onkeydown={cardKey}>
   <header>
     <span class="title">
       <span class="dot" class:ok={ping?.reachable} class:err={isDown}></span>
@@ -92,7 +93,7 @@
       <span class="muted mono small">{server.host}</span>
     </span>
     <span class="small" class:muted={!isDown} class:bad-t={isDown}>
-      {#if !ping}comprobando…{:else if ping.reachable}responde · {ping.latencyMs} ms{:else if ping.lab}parado (servidor de pruebas){:else}no responde{/if}
+      {#if !ping}{tr('comprobando…')}{:else if ping.reachable}{tr('responde · {0} ms', ping.latencyMs)}{:else if ping.lab}{tr('parado (servidor de pruebas)')}{:else}{tr('no responde')}{/if}
     </span>
   </header>
 
@@ -100,27 +101,27 @@
     <div class="meters">
       <div><span class="lbl">CPU</span><div class="meter"><i class={level(cpuPct)} style:width="{cpuPct}%"></i></div><span class="val">{cpuPct} %</span></div>
       <div><span class="lbl">RAM</span><div class="meter"><i class={level(memPct)} style:width="{memPct}%"></i></div><span class="val">{memPct} %</span></div>
-      {#if root}<div><span class="lbl">Disco</span><div class="meter"><i class={level(diskPct)} style:width="{diskPct}%"></i></div><span class="val">{diskPct} %</span></div>{/if}
+      {#if root}<div><span class="lbl">{tr('Disco')}</span><div class="meter"><i class={level(diskPct)} style:width="{diskPct}%"></i></div><span class="val">{diskPct} %</span></div>{/if}
     </div>
     <ul class="facts small">
       {#if ctrs.length}
-        <li>Contenedores: <strong>{running}</strong> en marcha{#if sick}, <span class="bad-t">{sick} con problemas</span>{/if}{#if stopped > 0}, <span class="muted">{stopped} parados</span>{/if}</li>
+        <li>{tr('Contenedores:')} <strong>{running}</strong> {tr('en marcha')}{#if sick}, <span class="bad-t">{tr('{0} con problemas', sick)}</span>{/if}{#if stopped > 0}, <span class="muted">{stopped} parados</span>{/if}</li>
       {/if}
       {#each backups as b (b.slug)}
-        <li>Copia «{b.slug}»: {#if b.running}haciéndose ahora{:else if !b.ok}<span class="bad-t">falló</span>{:else if b.ago === null}<span class="warn-t">sin hacer</span>{:else}<span class:warn-t={b.ago > 26 * 3600}>hace {hours(b.ago)}</span>{/if}</li>
+        <li>{tr('Copia «{0}»:', b.slug)} {#if b.running}{tr('haciéndose ahora')}{:else if !b.ok}<span class="bad-t">{tr('falló')}</span>{:else if b.ago === null}<span class="warn-t">{tr('sin hacer')}</span>{:else}<span class:warn-t={b.ago > 26 * 3600}>{agoText(b.ago)}</span>{/if}</li>
       {/each}
       {#each findings.filter((f) => !f.id.startsWith('bk') && !f.id.startsWith('ctr')) as f (f.id)}
         <li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}</li>
       {/each}
     </ul>
   {:else}
-    <p class="muted small">{busy === 'ficha' ? 'Leyendo el servidor…' : 'Aún no se ha leído su estado.'}</p>
+    <p class="muted small">{busy === 'ficha' ? tr('Leyendo el servidor…') : tr('Aún no se ha leído su estado.')}</p>
   {/if}
 
   {#if project?.modules.length}
     <div class="deps">
-      <button class="chip" onclick={() => openDeployment(project.id)} title="Ver los módulos del servidor">
-        {#if nPending}<FilePen size={12} class="pend" />{/if}{project.modules.length} {project.modules.length === 1 ? 'módulo' : 'módulos'}{#if nPending}<span class="muted"> · {nPending} sin aplicar</span>{/if}
+      <button class="chip" onclick={() => openDeployment(project.id)} title={tr('Ver los módulos del servidor')}>
+        {#if nPending}<FilePen size={12} class="pend" />{/if}{plural(project.modules.length, 'módulo', 'módulos')}{#if nPending}<span class="muted"> {tr('· {0} sin aplicar', nPending)}</span>{/if}
       </button>
       {#each templates as t}<span class="tchip muted">{t}</span>{/each}
     </div>
@@ -128,16 +129,16 @@
 
   <footer>
     <span class="muted small read">
-      {#if ficha}Leído {timeAgo(ficha.at)}{/if}{#if note}{ficha ? ' · ' : ''}{note}{/if}
-      <button class="btn sm ghost icon" title="Leer ahora" onclick={refresh} disabled={!!busy}>
+      {#if ficha}{tr('Leído {0}', timeAgo(ficha.at))}{/if}{#if note}{ficha ? ' · ' : ''}{note}{/if}
+      <button class="btn sm ghost icon" title={tr('Leer ahora')} onclick={refresh} disabled={!!busy}>
         {#if busy === 'ficha'}<LoaderCircle size={13} class="spin" />{:else}<RefreshCw size={13} />{/if}
       </button>
     </span>
     <div class="btns">
-      {#each apps.slice(0, 3) as a (a.key)}<button class="btn sm ghost" onclick={a.open} title="Abrir {a.name}"><ExternalLink size={13} /> {a.name}</button>{/each}
-      {#if monitoring}<button class="btn sm ghost" onclick={grafana} disabled={!!busy}><ChartLine size={13} /> Grafana</button>{/if}
-      <button class="btn sm ghost" onclick={() => openTerminal(server.id)}><SquareTerminal size={13} /> Terminal</button>
-      <button class="btn sm" onclick={() => openServer(server.id)}>Ficha <ArrowRight size={13} /></button>
+      {#each apps.slice(0, 3) as a (a.key)}<button class="btn sm ghost" onclick={a.open} title={tr('Abrir {0}', a.name)}><ExternalLink size={13} /> {a.name}</button>{/each}
+      {#if monitoring}<button class="btn sm ghost" onclick={grafana} disabled={!!busy}><ChartLine size={13} /> {tr('Grafana')}</button>{/if}
+      <button class="btn sm ghost" onclick={() => openTerminal(server.id)}><SquareTerminal size={13} /> {tr('Terminal')}</button>
+      <button class="btn sm" onclick={() => openServer(server.id)}>{tr('Ficha')} <ArrowRight size={13} /></button>
     </div>
   </footer>
 </div>

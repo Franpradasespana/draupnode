@@ -4,6 +4,7 @@
   import { Plus, FolderGit2, Server as ServerIcon, CircleCheck } from '@lucide/svelte'
   import RecipeEditor from './RecipeEditor.svelte'
   import { ui, moduleName, openRecipe, openServerModules } from '../lib/state.svelte'
+  import { t } from '../lib/i18n.svelte'
 </script>
 
 {#if ui.recipeId !== null}
@@ -11,18 +12,18 @@
 {:else}
   <div class="head">
     <div>
-      <h1>Plantillas</h1>
-      <p class="muted">Una plantilla es un grupo de módulos con sus opciones, para añadirlos de una vez a un servidor. Al aplicarla, sus módulos pasan a ser del servidor (allí ves de qué plantilla vino cada uno) y se instalan cuando pulsas Aplicar. Editar una plantilla no cambia los servidores en los que ya se aplicó.</p>
+      <h1>{t('Plantillas')}</h1>
+      <p class="muted">{t('Una plantilla es un grupo de módulos con sus opciones, para añadirlos de una vez a un servidor. Al aplicarla, sus módulos pasan a ser del servidor (allí ves de qué plantilla vino cada uno) y se instalan cuando pulsas Aplicar. Editar una plantilla no cambia los servidores en los que ya se aplicó.')}</p>
     </div>
-    <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> Nueva plantilla</button>
+    <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> {t('Nueva plantilla')}</button>
   </div>
 
   {#if !ui.recipes.length}
     <div class="empty card">
       <FolderGit2 size={34} strokeWidth={1.4} />
-      <h2>Aún no hay plantillas</h2>
-      <p class="muted">Crea una: elige los módulos (Docker, Caddy, copias, apps…) y sus opciones. No hace falta tener servidor todavía.</p>
-      <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> Nueva plantilla</button>
+      <h2>{t('Aún no hay plantillas')}</h2>
+      <p class="muted">{t('Crea una: elige los módulos (Docker, Caddy, copias, apps…) y sus opciones. No hace falta tener servidor todavía.')}</p>
+      <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> {t('Nueva plantilla')}</button>
     </div>
   {:else}
     <div class="list">
@@ -35,11 +36,11 @@
           </button>
           <div class="deps">
             {#each r.servers as d (d.serverId)}
-              <button class="dep" onclick={() => openServerModules(d.serverId)} title="Ver los módulos de ese servidor">
+              <button class="dep" onclick={() => openServerModules(d.serverId)} title={t('Ver los módulos de ese servidor')}>
                 <ServerIcon size={13} /> {d.serverName}
               </button>
             {:else}
-              <span class="muted small">No se ha aplicado en ningún servidor.</span>
+              <span class="muted small">{t('No se ha aplicado en ningún servidor.')}</span>
             {/each}
           </div>
         </div>

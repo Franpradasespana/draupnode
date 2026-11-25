@@ -10,6 +10,7 @@
   import { api, onEvent } from '../lib/api'
   import { ui, toast, contextServerId } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let { visible }: { visible: boolean } = $props()
 
@@ -30,8 +31,10 @@
     }
     if (e.closed) {
       t.closed = true
-      t.reason = e.reason || 'Sesión terminada.'
-      t.term.write(`\r\n\x1b[2m— ${t.reason} —\x1b[0m\r\n`)
+      t.reason = e.reason || tr('Sesión terminada.')
+      t.term.write(`\\r
+\\x1b[2m— ${t.reason} —\\x1b[0m\\r
+`)
     }
   })
   onDestroy(() => {
@@ -68,7 +71,7 @@
       t = reuse
       t.closed = false
       t.reason = ''
-      t.term!.write('\r\n\x1b[2mReconectando…\x1b[0m\r\n')
+      t.term!.write('\r\n\x1b[2m' + tr('Reconectando…') + '\x1b[0m\r\n')
     } else {
       tabs.push({ key: next++, serverId, title: srv.name, id: '', closed: false, reason: '' })
       t = tabs[tabs.length - 1]
@@ -87,13 +90,14 @@
       t.term = term
       t.fit = fit
       new ResizeObserver(() => { if (visible && active === t.key) fit.fit() }).observe(t.el!)
-      term.write(`\x1b[2mConectando con ${srv.user}@${srv.host}…\x1b[0m\r\n`)
+      term.write('\x1b[2m' + tr('Conectando con {0}@{1}…', srv.user, srv.host) + '\x1b[0m\r\n')
     }
     const r = await withConnection(srv, (s, a) => api.TerminalOpen(serverId, s, a, t.term!.cols, t.term!.rows))
     if (!r || r.status !== 'ok' || !r.id) {
       t.closed = true
-      t.reason = r?.message || 'No se pudo conectar.'
-      t.term!.write(`\x1b[31m${t.reason}\x1b[0m\r\n`)
+      t.reason = r?.message || tr('No se pudo conectar.')
+      t.term!.write(`\\x1b[31m${t.reason}\\x1b[0m\\r
+`)
       if (r && r.status !== 'ok') toast(t.reason, 'error')
       return
     }
@@ -126,21 +130,21 @@
 <div class="term-view" class:hidden={!visible}>
   <div class="head">
     <div>
-      <h1>Terminal</h1>
-      <p class="muted">Una consola SSH de tus servidores, aquí mismo. Cada pestaña es una sesión; siguen abiertas aunque cambies de pantalla.</p>
+      <h1>{tr('Terminal')}</h1>
+      <p class="muted">{tr('Una consola SSH de tus servidores, aquí mismo. Cada pestaña es una sesión; siguen abiertas aunque cambies de pantalla.')}</p>
     </div>
     <div class="new">
-      <select class="input" bind:value={pick} aria-label="Servidor">
+      <select class="input" bind:value={pick} aria-label={tr('Servidor')}>
         {#each ui.servers as s}<option value={s.id}>{s.name} — {s.user}@{s.host}</option>{/each}
       </select>
-      <button class="btn primary" onclick={() => openTab(pick)} disabled={!pick}><Plus size={15} /> Abrir terminal</button>
+      <button class="btn primary" onclick={() => openTab(pick)} disabled={!pick}><Plus size={15} /> {tr('Abrir terminal')}</button>
     </div>
   </div>
 
   {#if !tabs.length}
     <div class="card empty">
       <SquareTerminal size={34} strokeWidth={1.4} />
-      <p class="muted">{ui.servers.length ? 'Elige un servidor y pulsa «Abrir terminal».' : 'Primero da de alta un servidor.'}</p>
+      <p class="muted">{ui.servers.length ? tr('Elige un servidor y pulsa «Abrir terminal».') : tr('Primero da de alta un servidor.')}</p>
     </div>
   {/if}
 
@@ -149,7 +153,7 @@
       {#each tabs as t (t.key)}
         <div class="tab" class:on={active === t.key} class:dead={t.closed}>
           <button class="tname" role="tab" aria-selected={active === t.key} onclick={() => select(t)}><SquareTerminal size={13} /> {t.title}</button>
-          <button class="tx" title="Cerrar" onclick={() => closeTab(t)}><X size={13} /></button>
+          <button class="tx" title={tr('Cerrar')} onclick={() => closeTab(t)}><X size={13} /></button>
         </div>
       {/each}
     </div>
@@ -159,7 +163,7 @@
       <div class="screen" class:on={active === t.key}>
         <div class="xt" bind:this={t.el}></div>
         {#if t.closed}
-          <div class="re"><button class="btn sm primary" onclick={() => openTab(t.serverId, t)}><RotateCcw size={14} /> Reconectar</button></div>
+          <div class="re"><button class="btn sm primary" onclick={() => openTab(t.serverId, t)}><RotateCcw size={14} /> {tr('Reconectar')}</button></div>
         {/if}
       </div>
     {/each}

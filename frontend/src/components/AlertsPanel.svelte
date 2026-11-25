@@ -7,6 +7,7 @@
   import { api, errorText, type AlertsResult, type Project } from '../lib/api'
   import { ask, toast, ui } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let { project, disabled = false }: { project: Project; disabled?: boolean } = $props()
 
@@ -25,7 +26,7 @@
     try {
       const r = await withConnection<AlertsResult>(server, (s, a, u) => api.AlertsRun(project.id, what, s, a, u))
       if (!r) return
-      if (r.status !== 'ok') return toast(r.message || 'No se pudo', 'error')
+      if (r.status !== 'ok') return toast(r.message || tr('No se pudo'), 'error')
       // «Qué ve ahora» sale bien aunque vea problemas: se pinta como aviso si los hay.
       out = { ok: r.ok && (what === 'prueba' || (r.output ?? '').trim() === 'Sin problemas.'), text: r.output ?? '', what }
     } catch (e) {
@@ -36,13 +37,13 @@
   }
 
   async function subscribe() {
-    const master = await ask('Suscribirse a las alertas', 'El nombre del tema es secreto (quien lo sepa puede leer los avisos): escribe la contraseña de la bóveda para verlo.', 'Contraseña de la bóveda')
+    const master = await ask(tr('Suscribirse a las alertas'), tr('El nombre del tema es secreto (quien lo sepa puede leer los avisos): escribe la contraseña de la bóveda para verlo.'), tr('Contraseña de la bóveda'))
     if (master === null) return
     busy = 'tema'
     try {
       const all = await api.ProjectSecrets(project.id, master)
       const t = all.find((s) => s.name === 'alerts_ntfy_topic')
-      if (!t) return toast('Aún no hay tema: pulsa Aplicar para generarlo.', 'error')
+      if (!t) return toast(tr('Aún no hay tema: pulsa Aplicar para generarlo.'), 'error')
       topicUrl = String(vals.alerts_ntfy_server ?? 'https://ntfy.sh').replace(/\/+$/, '') + '/' + t.value.trim()
       clearTimeout(timer)
       timer = setTimeout(() => (topicUrl = ''), 3 * 60 * 1000)
@@ -62,9 +63,9 @@
   async function copy(t: string) {
     try {
       await navigator.clipboard.writeText(t)
-      toast('Copiado')
+      toast(tr('Copiado'))
     } catch {
-      toast('No se pudo copiar', 'error')
+      toast(tr('No se pudo copiar'), 'error')
     }
   }
 </script>
@@ -73,28 +74,28 @@
   <div class="head">
     <BellRing size={18} />
     <div class="txt">
-      <strong>Alertas</strong>
-      <span class="muted">Por {channel === 'telegram' ? 'Telegram' : 'ntfy'}, cada {vals.alerts_interval_min ?? 5} min{vals.alerts_daily ? ' · aviso diario a las 9:00' : ''}.</span>
+      <strong>{tr('Alertas')}</strong>
+      <span class="muted">{tr('Por {0}, cada {1} min{2}.', channel === 'telegram' ? tr('Telegram') : 'ntfy', vals.alerts_interval_min ?? 5, vals.alerts_daily ? tr(' · aviso diario a las 9:00') : '')}</span>
     </div>
   </div>
   <div class="btns">
     <button class="btn sm" onclick={() => run('prueba')} disabled={disabled || !!busy}>
-      {#if busy === 'prueba'}<LoaderCircle size={14} class="spin" />{:else}<Send size={14} />{/if} Enviar aviso de prueba
+      {#if busy === 'prueba'}<LoaderCircle size={14} class="spin" />{:else}<Send size={14} />{/if} {tr('Enviar aviso de prueba')}
     </button>
     <button class="btn sm" onclick={() => run('estado')} disabled={disabled || !!busy}>
-      {#if busy === 'estado'}<LoaderCircle size={14} class="spin" />{:else}<Activity size={14} />{/if} Qué ve ahora
+      {#if busy === 'estado'}<LoaderCircle size={14} class="spin" />{:else}<Activity size={14} />{/if} {tr('Qué ve ahora')}
     </button>
     {#if channel === 'ntfy'}
       {#if topicUrl}
-        <button class="btn sm" onclick={() => (topicUrl = '')}><Lock size={14} /> Ocultar el tema</button>
+        <button class="btn sm" onclick={() => (topicUrl = '')}><Lock size={14} /> {tr('Ocultar el tema')}</button>
       {:else}
-        <button class="btn sm" onclick={subscribe} disabled={!!busy}><QrCode size={14} /> Suscribirse en el móvil</button>
+        <button class="btn sm" onclick={subscribe} disabled={!!busy}><QrCode size={14} /> {tr('Suscribirse en el móvil')}</button>
       {/if}
     {/if}
   </div>
   {#if out}
     <div class="out" class:bad={!out.ok}>
-      <div class="out-t">{#if out.ok}<CircleCheck size={14} />{:else}<CircleX size={14} />{/if} {out.what === 'prueba' ? (out.ok ? 'Enviado: mira el móvil' : 'No se pudo enviar') : out.ok ? 'Todo bien ahora mismo' : 'Problemas que ve ahora el servidor'}</div>
+      <div class="out-t">{#if out.ok}<CircleCheck size={14} />{:else}<CircleX size={14} />{/if} {out.what === 'prueba' ? (out.ok ? tr('Enviado: mira el móvil') : tr('No se pudo enviar')) : out.ok ? tr('Todo bien ahora mismo') : tr('Problemas que ve ahora el servidor')}</div>
       <pre class="selectable">{out.text}</pre>
     </div>
   {/if}
@@ -102,8 +103,8 @@
     <div class="sub">
       <div class="qr">{@html qr(topicUrl)}</div>
       <div class="col">
-        <p>En la app <strong>ntfy</strong> (Android, iPhone o el navegador): «+» → «Suscribirse a un tema», con este tema{String(vals.alerts_ntfy_server ?? 'https://ntfy.sh') !== 'https://ntfy.sh' ? ' y tu servidor' : ''}. O escanea el QR con la cámara.</p>
-        <div class="cmd"><code class="selectable">{topicUrl}</code><button class="btn icon sm ghost" title="Copiar" onclick={() => copy(topicUrl)}><Copy size={14} /></button></div>
+        <p>{tr('En la app')} <strong>ntfy</strong> {tr('(Android, iPhone o el navegador): «+» → «Suscribirse a un tema», con este tema{0}. O escanea el QR con la cámara.', String(vals.alerts_ntfy_server ?? 'https://ntfy.sh') !== 'https://ntfy.sh' ? tr(' y tu servidor') : '')}</p>
+        <div class="cmd"><code class="selectable">{topicUrl}</code><button class="btn icon sm ghost" title={tr('Copiar')} onclick={() => copy(topicUrl)}><Copy size={14} /></button></div>
       </div>
     </div>
   {/if}

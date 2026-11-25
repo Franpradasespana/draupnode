@@ -5,6 +5,7 @@
   import Modal from './Modal.svelte'
   import ModuleForm from './ModuleForm.svelte'
   import type { Module, ProjectModule } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
 
   let { modules = $bindable(), steps, install, changed, errors, warnings, projectId, where, busy = false, onsecret, onpreview, onapply, onclose }: {
     modules: ProjectModule[]
@@ -30,7 +31,7 @@
   const allErrors = $derived(Object.values(errors).reduce((n, e) => n + Object.keys(e).length, 0))
 </script>
 
-<Modal title={step ? `Configurar ${step.name}` : 'Resumen'} {onclose} width={780} height={680}>
+<Modal title={step ? t('Configurar {0}', step.name) : t('Resumen')} {onclose} width={780} height={680}>
   <div class="top">
     <span class="where">{where}</span>
     <ol class="dots">
@@ -39,9 +40,9 @@
           <button onclick={() => (i = k)} title={s.name}>{k + 1}</button>
         </li>
       {/each}
-      <li class:on={i === steps.length}><button onclick={() => (i = steps.length)} title="Resumen"><CircleCheck size={13} /></button></li>
+      <li class:on={i === steps.length}><button onclick={() => (i = steps.length)} title={t('Resumen')}><CircleCheck size={13} /></button></li>
     </ol>
-    <span class="muted small">Paso {i + 1} de {total}</span>
+    <span class="muted small">{t('Paso {0} de {1}', i + 1, total)}</span>
   </div>
 
   {#if step && pm}
@@ -50,13 +51,13 @@
   {:else}
     {#if install.length}
       <div class="sum">
-        <h4>Se instalará, en este orden</h4>
+        <h4>{t('Se instalará, en este orden')}</h4>
         <ol>{#each install as m}<li><strong>{m.name}</strong> <span class="muted">· {m.description}</span></li>{/each}</ol>
       </div>
     {/if}
     {#if changed.length}
       <div class="sum">
-        <h4>Se actualizará la configuración de</h4>
+        <h4>{t('Se actualizará la configuración de')}</h4>
         <ul>{#each changed as m}<li><strong>{m.name}</strong></li>{/each}</ul>
       </div>
     {/if}
@@ -64,21 +65,21 @@
       <div class="warns">{#each warnings as w}<p><TriangleAlert size={14} /> {w}</p>{/each}</div>
     {/if}
     {#if allErrors}
-      <p class="bad"><TriangleAlert size={14} /> Hay {allErrors} opción(es) con errores: vuelve al paso marcado en rojo.</p>
+      <p class="bad"><TriangleAlert size={14} /> {t('Hay {0} opción(es) con errores: vuelve al paso marcado en rojo.', allErrors)}</p>
     {:else}
-      <p class="muted">Lo que ya esté bien en el servidor no se toca. «Simular» enseña lo que cambiaría sin tocar nada.</p>
+      <p class="muted">{t('Lo que ya esté bien en el servidor no se toca. «Simular» enseña lo que cambiaría sin tocar nada.')}</p>
     {/if}
   {/if}
 
   {#snippet footer()}
-    <button class="btn" onclick={onclose}>Cancelar</button>
+    <button class="btn" onclick={onclose}>{t('Cancelar')}</button>
     <div class="sp"></div>
-    {#if i > 0}<button class="btn" onclick={() => i--}><ArrowLeft size={15} /> Anterior</button>{/if}
+    {#if i > 0}<button class="btn" onclick={() => i--}><ArrowLeft size={15} /> {t('Anterior')}</button>{/if}
     {#if step}
-      <button class="btn primary" onclick={() => i++} disabled={stepErrors > 0}>Siguiente <ArrowRight size={15} /></button>
+      <button class="btn primary" onclick={() => i++} disabled={stepErrors > 0}>{t('Siguiente')} <ArrowRight size={15} /></button>
     {:else}
-      <button class="btn" onclick={onpreview} disabled={busy || allErrors > 0}><Eye size={15} /> Simular</button>
-      <button class="btn primary" onclick={onapply} disabled={busy || allErrors > 0}><Hammer size={15} /> Finalizar y aplicar</button>
+      <button class="btn" onclick={onpreview} disabled={busy || allErrors > 0}><Eye size={15} /> {t('Simular')}</button>
+      <button class="btn primary" onclick={onapply} disabled={busy || allErrors > 0}><Hammer size={15} /> {t('Finalizar y aplicar')}</button>
     {/if}
   {/snippet}
 </Modal>

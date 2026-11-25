@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t as tr } from '../lib/i18n.svelte'
   // Gráfica de una sola medida a lo largo del tiempo (CPU, memoria o disco):
   // línea con relleno suave, rejilla discreta y, al pasar el ratón, una guía
   // vertical con la hora y el valor. Con «max» (vista de 30 días) dibuja
@@ -76,11 +77,11 @@
 <div class="hc">
   <div class="hc-h"><span class="muted small">{title}</span>{#if now}<strong>{now}</strong>{/if}</div>
   {#if points.length < 2}
-    <div class="empty muted small">Aún no hay bastantes muestras (una cada 5 minutos).</div>
+    <div class="empty muted small">{tr('Aún no hay bastantes muestras (una cada 5 minutos).')}</div>
   {:else}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="plot" bind:this={box} onpointermove={move} onpointerleave={() => (hover = null)}>
-      <svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" role="img" aria-label="{title}: de {format(Math.min(...points.map((p) => p[1])))} a {format(Math.max(...points.map((p) => p[1])))}">
+      <svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" role="img" aria-label={tr('{0}: de {1} a {2}', title, format(Math.min(...points.map((p) => p[1]))), format(Math.max(...points.map((p) => p[1]))))}>
         {#each [0.5, 1] as g}<line class="grid" x1="0" x2={W} y1={y(top * g)} y2={y(top * g)} />{/each}
         <line class="base" x1="0" x2={W} y1={H - PAD} y2={H - PAD} />
         {#if band}<path class="band" d={band} />{/if}
@@ -92,7 +93,7 @@
         <span class="dot" style:left="{hx}%" style:top="{(y(hp[1]) / H) * 100}%"></span>
         <div class="tip" class:left={hx > 60} style:left="{hx}%">
           <span class="muted">{fmtTime(hp[0], true)}</span>
-          <strong>{format(hp[1])}</strong>{#if max && hover !== null}<span class="muted">máx. {format(max[hover])}</span>{/if}
+          <strong>{format(hp[1])}</strong>{#if max && hover !== null}<span class="muted">{tr('máx. {0}', format(max[hover]))}</span>{/if}
         </div>
       {/if}
     </div>

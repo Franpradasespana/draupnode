@@ -11,6 +11,7 @@
   import { api } from '../lib/api'
   import { ui, openServer } from '../lib/state.svelte'
   import { alerts, alertItems, rememberOverview, pendingModules } from '../lib/alerts.svelte'
+  import { t as tr, plural } from '../lib/i18n.svelte'
 
   const servers = $derived(ui.servers)
   const total = $derived(servers.length)
@@ -67,9 +68,9 @@
         try {
           const r = await api.ServerOverview(s.id, '', '', '')
           if (r.status === 'ok' && r.overview) { rememberOverview(s.id, r.overview); delete notes[s.id] }
-          else if (['needs_secret', 'vault_locked', 'needs_sudo', 'vault_missing'].includes(r.status)) notes[s.id] = 'para leerlo solo, guarda su contraseña'
-          else if (r.status === 'unknown_host') notes[s.id] = 'confirma su huella con ↻'
-          else notes[s.id] = r.message || 'no se pudo leer'
+          else if (['needs_secret', 'vault_locked', 'needs_sudo', 'vault_missing'].includes(r.status)) notes[s.id] = tr('para leerlo solo, guarda su contraseña')
+          else if (r.status === 'unknown_host') notes[s.id] = tr('confirma su huella con ↻')
+          else notes[s.id] = r.message || tr('no se pudo leer')
         } catch { /* siguiente vuelta */ }
       }
     } finally {
@@ -83,25 +84,25 @@
   })
 
   const steps = $derived([
-    { done: total > 0, text: 'Añade un servidor con su clave SSH', go: 'servers' as const },
-    { done: ui.recipes.length > 0, text: 'Crea una plantilla (módulos y opciones)', go: 'projects' as const },
-    { done: ui.projects.some((p) => p.modules.length > 0), text: 'Aplícala a un servidor (o añade módulos en su ficha → Módulos)', go: 'servers' as const },
-    { done: ui.projects.some((p) => p.lastRun?.ok && !p.lastRun.check), text: 'Simula y aplica, o exporta un único instalar.sh', go: 'servers' as const },
+    { done: total > 0, text: tr('Añade un servidor con su clave SSH'), go: 'servers' as const },
+    { done: ui.recipes.length > 0, text: tr('Crea una plantilla (módulos y opciones)'), go: 'projects' as const },
+    { done: ui.projects.some((p) => p.modules.length > 0), text: tr('Aplícala a un servidor (o añade módulos en su ficha → Módulos)'), go: 'servers' as const },
+    { done: ui.projects.some((p) => p.lastRun?.ok && !p.lastRun.check), text: tr('Simula y aplica, o exporta un único instalar.sh'), go: 'servers' as const },
   ])
   const pad = (n: number) => String(n).padStart(2, '0')
 </script>
 
 <div class="head">
   <div>
-    <h1>Infraestructura</h1>
-    <p class="muted">Cómo están tus servidores y qué conviene mirar.</p>
+    <h1>{tr('Infraestructura')}</h1>
+    <p class="muted">{tr('Cómo están tus servidores y qué conviene mirar.')}</p>
   </div>
-  <button class="btn primary" onclick={() => { ui.serverId = null; ui.view = 'servers' }}><Plus size={16} /> Añadir servidor</button>
+  <button class="btn primary" onclick={() => { ui.serverId = null; ui.view = 'servers' }}><Plus size={16} /> {tr('Añadir servidor')}</button>
 </div>
 
 {#if total === 0}
   <section class="card start">
-    <h2>Primeros pasos</h2>
+    <h2>{tr('Primeros pasos')}</h2>
     <ol>
       {#each steps as st}
         <li class:done={st.done}>
@@ -114,45 +115,45 @@
   </section>
 {:else}
   <div class="tiles">
-    <button class="card tile" onclick={goServers} title={total === 1 ? 'Abrir la ficha del servidor' : 'Ver los servidores'}>
-      <span class="ti"><ServerIcon size={15} /> Servidores</span>
+    <button class="card tile" onclick={goServers} title={total === 1 ? tr('Abrir la ficha del servidor') : tr('Ver los servidores')}>
+      <span class="ti"><ServerIcon size={15} /> {tr('Servidores')}</span>
       <strong>{pad(total)}</strong>
       <span class="sub">
-        {#if !pinged.length}comprobando…{:else if down}<span class="bad-t">{down} no {down === 1 ? 'responde' : 'responden'}</span>{#if up}{' · '}{up} bien{/if}{:else}{up === total ? 'todos responden' : `${up} ${up === 1 ? 'responde' : 'responden'}`}{#if labOff}{' · '}el de pruebas, parado{/if}{/if}
+        {#if !pinged.length}{tr('comprobando…')}{:else if down}<span class="bad-t">{tr(down === 1 ? '{0} no responde' : '{0} no responden', down)}</span>{#if up}{' · '}{tr('{0} bien', up)}{/if}{:else}{up === total ? tr('todos responden') : tr(up === 1 ? '{0} responde' : '{0} responden', up)}{#if labOff}{' · '}{tr('el de pruebas, parado')}{/if}{/if}
       </span>
     </button>
-    <button class="card tile" onclick={goTemplates} title="Ver las plantillas">
-      <span class="ti"><LayoutTemplate size={15} /> Plantillas</span>
+    <button class="card tile" onclick={goTemplates} title={tr('Ver las plantillas')}>
+      <span class="ti"><LayoutTemplate size={15} /> {tr('Plantillas')}</span>
       <strong>{pad(ui.recipes.length)}</strong>
       <span class="sub">
-        {#if !ui.recipes.length}ninguna aún{:else}{usedRecipes} aplicada{usedRecipes === 1 ? '' : 's'} en {usedServers} {usedServers === 1 ? 'servidor' : 'servidores'}{/if}{#if pendingDeps}{' · '}<span class="info-t">{pendingDeps} {pendingDeps === 1 ? 'servidor' : 'servidores'} con módulos sin aplicar</span>{/if}
+        {#if !ui.recipes.length}{tr('ninguna aún')}{:else}{tr(usedRecipes === 1 ? '{0} aplicada en {1}' : '{0} aplicadas en {1}', usedRecipes, plural(usedServers, 'servidor', 'servidores'))}{/if}{#if pendingDeps}{' · '}<span class="info-t">{tr('{0} con módulos sin aplicar', plural(pendingDeps, 'servidor', 'servidores'))}</span>{/if}
       </span>
     </button>
-    <button class="card tile" onclick={goContainers} title="Ver los servidores">
-      <span class="ti"><Box size={15} /> Contenedores</span>
+    <button class="card tile" onclick={goContainers} title={tr('Ver los servidores')}>
+      <span class="ti"><Box size={15} /> {tr('Contenedores')}</span>
       <strong>{readServers ? pad(running) : '—'}</strong>
       <span class="sub">
-        {#if !readServers}sin leer aún{:else}en marcha de {ctrs.length}{#if sickCtrs}{' · '}<span class="bad-t">{sickCtrs} con problemas</span>{/if}{#if readServers < total}{' · '}{readServers}/{total} servidores leídos{/if}{/if}
+        {#if !readServers}{tr('sin leer aún')}{:else}{tr('en marcha de {0}', ctrs.length)}{#if sickCtrs}{' · '}<span class="bad-t">{tr('{0} con problemas', sickCtrs)}</span>{/if}{#if readServers < total}{tr('{0}{1}/{2} servidores leídos', ' · ', readServers, total)}{/if}{/if}
       </span>
     </button>
-    <button class="card tile" onclick={() => (ui.view = 'alerts')} title="Ver los avisos">
-      <span class="ti"><BellRing size={15} /> Avisos</span>
+    <button class="card tile" onclick={() => (ui.view = 'alerts')} title={tr('Ver los avisos')}>
+      <span class="ti"><BellRing size={15} /> {tr('Avisos')}</span>
       <strong class:bad-t={badItems > 0} class:ok-t={items.length === 0}>{pad(items.length)}</strong>
-      <span class="sub">{#if !items.length}todo en orden{:else if badItems}<span class="bad-t">{badItems} {badItems === 1 ? 'importante' : 'importantes'}</span>{:else}nada grave{/if}</span>
+      <span class="sub">{#if !items.length}{tr('todo en orden')}{:else if badItems}<span class="bad-t">{badItems} {badItems === 1 ? 'importante' : 'importantes'}</span>{:else}{tr('nada grave')}{/if}</span>
     </button>
   </div>
 
   <section class="attention">
-    <h2>Necesita atención</h2>
+    <h2>{tr('Necesita atención')}</h2>
     {#if items.length}
       <AlertsList compact max={4} />
     {:else}
-      <p class="card ok-box"><CircleCheck size={17} /> Todo en orden: los servidores responden y no hay nada pendiente.</p>
+      <p class="card ok-box"><CircleCheck size={17} /> {tr('Todo en orden: los servidores responden y no hay nada pendiente.')}</p>
     {/if}
   </section>
 
   <section>
-    <h2>Servidores</h2>
+    <h2>{tr('Servidores')}</h2>
     <div class="grid">
       {#each servers as s (s.id)}
         <ServerCard server={s} ficha={alerts.fichas[s.id]} note={notes[s.id] ?? ''} />
@@ -161,7 +162,7 @@
   </section>
 
   <div class="recent">
-    <RunHistory serverId="" limit={6} title="Actividad reciente" refreshKey={ui.projects.map((p) => p.lastRun?.at ?? '').join()} />
+    <RunHistory serverId="" limit={6} title={tr('Actividad reciente')} refreshKey={ui.projects.map((p) => p.lastRun?.at ?? '').join()} />
   </div>
 {/if}
 

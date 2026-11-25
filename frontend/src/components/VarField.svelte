@@ -2,6 +2,7 @@
   // Un campo del formulario de un módulo, generado a partir de su variable.
   import { untrack } from 'svelte'
   import type { ModVariable } from '../lib/api'
+  import { t as tr } from '../lib/i18n.svelte'
 
   // bare: solo el control (la etiqueta y la ayuda las pone quien lo usa).
   let { v, value = $bindable(), error, bare = false }: { v: ModVariable; value: unknown; error?: string; bare?: boolean } = $props()
@@ -24,10 +25,10 @@
 {#if bare}
   <div class="bare" class:bad={!!error}>
     {#if v.type === 'bool'}
-      <label class="switch" title={value ? 'Sí' : 'No'}>
+      <label class="switch" title={value ? tr('Sí') : 'No'}>
         <input type="checkbox" checked={!!value} onchange={(e) => (value = e.currentTarget.checked)} />
         <span class="track"><span class="knob"></span></span>
-        <span class="st">{value ? 'Sí' : 'No'}</span>
+        <span class="st">{value ? tr('Sí') : 'No'}</span>
       </label>
     {:else if v.type === 'select'}
       <select class="input" value={String(value ?? '')} onchange={(e) => (value = e.currentTarget.value)}>
@@ -38,7 +39,7 @@
         oninput={(e) => (value = e.currentTarget.value === '' ? null : Number(e.currentTarget.value))} />
     {:else if v.type === 'list'}
       <textarea class="input mono" rows={Math.min(8, Math.max(3, listText.split('\n').length + 1))}
-        value={listText} oninput={(e) => onList(e.currentTarget.value)} placeholder="Uno por línea" spellcheck="false"></textarea>
+        value={listText} oninput={(e) => onList(e.currentTarget.value)} placeholder={tr('Uno por línea')} spellcheck="false"></textarea>
     {:else}
       <input class="input" value={value ?? ''} placeholder={v.placeholder} oninput={(e) => (value = e.currentTarget.value)} spellcheck="false" />
     {/if}
@@ -62,7 +63,7 @@
           oninput={(e) => (value = e.currentTarget.value === '' ? null : Number(e.currentTarget.value))} />
       {:else if v.type === 'list'}
         <textarea class="input mono" rows={Math.min(8, Math.max(3, listText.split('\n').length + 1))}
-          value={listText} oninput={(e) => onList(e.currentTarget.value)} placeholder="Uno por línea" spellcheck="false"></textarea>
+          value={listText} oninput={(e) => onList(e.currentTarget.value)} placeholder={tr('Uno por línea')} spellcheck="false"></textarea>
       {:else}
         <input class="input" value={value ?? ''} placeholder={v.placeholder} oninput={(e) => (value = e.currentTarget.value)} spellcheck="false" />
       {/if}

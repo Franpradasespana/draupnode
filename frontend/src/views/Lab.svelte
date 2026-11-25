@@ -6,6 +6,7 @@
   } from '@lucide/svelte'
   import { api, errorText, onEvent, type LabStatus } from '../lib/api'
   import { ui, toast, refreshServers, confirmDialog, openRecipe } from '../lib/state.svelte'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let st = $state<LabStatus | null>(null)
   let loading = $state(true)
@@ -15,8 +16,8 @@
   let logEl = $state<HTMLElement | null>(null)
 
   const labels: Record<string, string> = {
-    'fix-missing': 'Instalando Docker', 'fix-daemon': 'Arrancando Docker', 'fix-permission': 'Dando permiso',
-    start: 'Creando y arrancando el servidor', stop: 'Parando el servidor', remove: 'Borrando el servidor',
+    'fix-missing': tr('Instalando Docker'), 'fix-daemon': tr('Arrancando Docker'), 'fix-permission': tr('Dando permiso'),
+    start: tr('Creando y arrancando el servidor'), stop: tr('Parando el servidor'), remove: tr('Borrando el servidor'),
   }
 
   async function refresh() {
@@ -43,18 +44,18 @@
       result = { ok: !!e.ok, error: e.error, action: e.action }
       action = ''
       await refresh()
-      if (e.ok && e.action === 'start' && !st?.serverId) toast('Servidor listo. Dalo de alta en Draupnode con el botón de abajo.')
-      else if (e.ok && e.action === 'fix-permission') toast('Permiso concedido. Si aún falla, reinicia el equipo.')
-      else if (!e.ok) toast(e.error ?? 'Ha fallado', 'error')
+      if (e.ok && e.action === 'start' && !st?.serverId) toast(tr('Servidor listo. Dalo de alta en Draupnode con el botón de abajo.'))
+      else if (e.ok && e.action === 'fix-permission') toast(tr('Permiso concedido. Si aún falla, reinicia el equipo.'))
+      else if (!e.ok) toast(e.error ?? tr('Ha fallado'), 'error')
     })
   })
 
   async function run(a: string) {
     if (a === 'remove') {
       const ok = await confirmDialog({
-        title: 'Borrar el servidor de pruebas',
-        message: 'Se borra el contenedor y todo lo instalado en él (Docker interno, Coolify…). Las claves se conservan, así que «Crear y arrancar» lo deja como nuevo con la misma huella.',
-        confirmLabel: 'Borrar', danger: true,
+        title: tr('Borrar el servidor de pruebas'),
+        message: tr('Se borra el contenedor y todo lo instalado en él (Docker interno, Coolify…). Las claves se conservan, así que «Crear y arrancar» lo deja como nuevo con la misma huella.'),
+        confirmLabel: tr('Borrar'), danger: true,
       })
       if (!ok) return
     }
@@ -73,7 +74,7 @@
       await api.LabRegister()
       await refreshServers()
       await refresh()
-      toast('Dado de alta en Servidores como «Servidor de pruebas (Docker)»')
+      toast(tr('Dado de alta en Servidores como «Servidor de pruebas (Docker)»'))
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -82,9 +83,9 @@
   async function copy(t: string) {
     try {
       await navigator.clipboard.writeText(t)
-      toast('Copiado')
+      toast(tr('Copiado'))
     } catch {
-      toast('No se pudo copiar', 'error')
+      toast(tr('No se pudo copiar'), 'error')
     }
   }
 
@@ -95,24 +96,24 @@
 
 <div class="head">
   <div>
-    <h1>Pruebas</h1>
-    <p class="muted">Un servidor Ubuntu 24.04 dentro de Docker en este equipo, para probar plantillas sin tocar un servidor real.</p>
+    <h1>{tr('Pruebas')}</h1>
+    <p class="muted">{tr('Un servidor Ubuntu 24.04 dentro de Docker en este equipo, para probar plantillas sin tocar un servidor real.')}</p>
   </div>
-  <button class="btn" onclick={refresh} disabled={busy}><RefreshCw size={15} /> Volver a comprobar</button>
+  <button class="btn" onclick={refresh} disabled={busy}><RefreshCw size={15} /> {tr('Volver a comprobar')}</button>
 </div>
 
 {#if loading}
-  <p class="muted"><LoaderCircle size={15} class="spin" /> Comprobando Docker…</p>
+  <p class="muted"><LoaderCircle size={15} class="spin" /> {tr('Comprobando Docker…')}</p>
 {:else if st && d}
   <!-- 1. Docker -->
   <section class="card block">
     <div class="step">
       <span class="num" class:done={dockerOk}>1</span>
-      <h2>Docker en este equipo</h2>
+      <h2>{tr('Docker en este equipo')}</h2>
       {#if dockerOk}
-        <span class="badge ok"><CircleCheck size={12} /> Docker {d.version}{#if d.viaGroup} · activado sin cerrar sesión{/if}</span>
+        <span class="badge ok"><CircleCheck size={12} /> {tr('Docker {0}', d.version)}{#if d.viaGroup} {tr('· activado sin cerrar sesión')}{/if}</span>
       {:else}
-        <span class="badge err"><CircleX size={12} /> {d.problem === 'missing' ? 'No instalado' : d.problem === 'daemon' ? 'Servicio parado' : d.problem === 'permission' ? 'Sin permiso' : 'Error'}</span>
+        <span class="badge err"><CircleX size={12} /> {d.problem === 'missing' ? tr('No instalado') : d.problem === 'daemon' ? tr('Servicio parado') : d.problem === 'permission' ? tr('Sin permiso') : tr('Error')}</span>
       {/if}
     </div>
 
@@ -122,30 +123,30 @@
         <div class="fix">
           {#if d.canAutoFix}
             {#if d.problem === 'missing'}
-              <button class="btn primary" onclick={() => run('fix-missing')} disabled={busy}><Download size={15} /> Instalar Docker</button>
+              <button class="btn primary" onclick={() => run('fix-missing')} disabled={busy}><Download size={15} /> {tr('Instalar Docker')}</button>
             {:else if d.problem === 'daemon'}
-              <button class="btn primary" onclick={() => run('fix-daemon')} disabled={busy}><Play size={15} /> Arrancar Docker</button>
+              <button class="btn primary" onclick={() => run('fix-daemon')} disabled={busy}><Play size={15} /> {tr('Arrancar Docker')}</button>
             {:else if d.problem === 'permission' && !d.needsRelogin}
-              <button class="btn primary" onclick={() => run('fix-permission')} disabled={busy}><Wrench size={15} /> Darme permiso</button>
+              <button class="btn primary" onclick={() => run('fix-permission')} disabled={busy}><Wrench size={15} /> {tr('Darme permiso')}</button>
             {/if}
-            <span class="muted small">Se abrirá la ventana del sistema para pedirte tu contraseña.</span>
+            <span class="muted small">{tr('Se abrirá la ventana del sistema para pedirte tu contraseña.')}</span>
           {/if}
         </div>
         {#if d.problem === 'missing' && d.installCommand}
-          <p class="muted small">O a mano, en una terminal:</p>
-          <div class="cmd"><code class="selectable">sudo sh -c '{d.installCommand}'</code><button class="btn icon sm ghost" title="Copiar" onclick={() => copy(`sudo sh -c '${d.installCommand}'`)}><Copy size={14} /></button></div>
+          <p class="muted small">{tr('O a mano, en una terminal:')}</p>
+          <div class="cmd"><code class="selectable">sudo sh -c '{d.installCommand}'</code><button class="btn icon sm ghost" title={tr('Copiar')} onclick={() => copy(`sudo sh -c '${d.installCommand}'`)}><Copy size={14} /></button></div>
         {:else if d.problem === 'permission' && !d.needsRelogin}
-          <p class="muted small">O a mano: <code class="selectable">sudo usermod -aG docker $USER</code> y después reinicia el equipo.</p>
+          <p class="muted small">{tr('O a mano:')} <code class="selectable">sudo usermod -aG docker $USER</code> {tr('y después reinicia el equipo.')}</p>
         {:else if d.problem === 'daemon'}
-          <p class="muted small">O a mano: <code class="selectable">sudo systemctl enable --now docker</code></p>
+          <p class="muted small">{tr('O a mano:')} <code class="selectable">sudo systemctl enable --now docker</code></p>
         {/if}
       {:else}
         <div class="fix">
           {#if d.problem === 'missing' && d.downloadUrl}
-            <button class="btn primary" onclick={() => api.OpenURL(d.downloadUrl!)}><Download size={15} /> Descargar Docker Desktop</button>
-            <span class="muted small">Instálalo, ábrelo y pulsa «Volver a comprobar».</span>
+            <button class="btn primary" onclick={() => api.OpenURL(d.downloadUrl!)}><Download size={15} /> {tr('Descargar Docker Desktop')}</button>
+            <span class="muted small">{tr('Instálalo, ábrelo y pulsa «Volver a comprobar».')}</span>
           {:else if d.problem === 'daemon'}
-            <span class="muted">Abre <strong>Docker Desktop</strong> y espera a que diga que está en marcha; luego pulsa «Volver a comprobar».</span>
+            <span class="muted">{tr('Abre')} <strong>{tr('Docker Desktop')}</strong> {tr('y espera a que diga que está en marcha; luego pulsa «Volver a comprobar».')}</span>
           {/if}
         </div>
       {/if}
@@ -156,41 +157,41 @@
   <section class="card block" class:off={!dockerOk && !st.server.running}>
     <div class="step">
       <span class="num" class:done={st.server.running}>2</span>
-      <h2>Servidor de pruebas</h2>
+      <h2>{tr('Servidor de pruebas')}</h2>
       {#if st.server.running && st.server.byPort}
-        <span class="badge ok"><CircleCheck size={12} /> En marcha</span>
-        <span class="muted small">(lo veo por su puerto; para pararlo o borrarlo desde aquí, arregla primero el paso 1)</span>
+        <span class="badge ok"><CircleCheck size={12} /> {tr('En marcha')}</span>
+        <span class="muted small">{tr('(lo veo por su puerto; para pararlo o borrarlo desde aquí, arregla primero el paso 1)')}</span>
       {:else if st.server.running}
-        <span class="badge ok"><CircleCheck size={12} /> En marcha</span>
+        <span class="badge ok"><CircleCheck size={12} /> {tr('En marcha')}</span>
       {:else if st.server.exists}
-        <span class="badge">Parado</span>
+        <span class="badge">{tr('Parado')}</span>
       {:else}
-        <span class="badge">No creado</span>
+        <span class="badge">{tr('No creado')}</span>
       {/if}
     </div>
     <div class="buttons">
       {#if !st.server.running}
         <button class="btn primary" onclick={() => run('start')} disabled={busy || !dockerOk}>
-          <Play size={15} /> {st.server.exists ? 'Arrancar' : 'Crear y arrancar'}
+          <Play size={15} /> {st.server.exists ? tr('Arrancar') : tr('Crear y arrancar')}
         </button>
       {:else}
-        <button class="btn" onclick={() => run('stop')} disabled={busy || !dockerOk}><Square size={14} /> Parar</button>
+        <button class="btn" onclick={() => run('stop')} disabled={busy || !dockerOk}><Square size={14} /> {tr('Parar')}</button>
       {/if}
-      <button class="btn danger" onclick={() => run('remove')} disabled={busy || !dockerOk || !st.server.exists}><Trash2 size={14} /> Borrar</button>
+      <button class="btn danger" onclick={() => run('remove')} disabled={busy || !dockerOk || !st.server.exists}><Trash2 size={14} /> {tr('Borrar')}</button>
       {#if st.server.running && st.coolifyUp}
-        <button class="btn" onclick={() => api.OpenURL(st!.coolifyUrl)}><ExternalLink size={14} /> Panel de Coolify</button>
+        <button class="btn" onclick={() => api.OpenURL(st!.coolifyUrl)}><ExternalLink size={14} /> {tr('Panel de Coolify')}</button>
       {/if}
     </div>
     {#if st.server.running && !st.coolifyUp}
-      <p class="muted small">El servidor está recién creado: no tiene Docker ni Coolify. Para instalarlos, dalo de alta (paso 3), asóciale una plantilla con el módulo <strong>Coolify</strong> y pulsa <strong>Aplicar</strong>. Después aparecerá aquí el botón «Panel de Coolify».</p>
+      <p class="muted small">{tr('El servidor está recién creado: no tiene Docker ni Coolify. Para instalarlos, dalo de alta (paso 3), asóciale una plantilla con el módulo')} <strong>{tr('Coolify')}</strong> {tr('y pulsa')} <strong>{tr('Aplicar')}</strong>{tr('. Después aparecerá aquí el botón «Panel de Coolify».')}</p>
     {/if}
-    <p class="muted small">Parar conserva lo instalado. Borrar lo deja como recién creado (las claves y la huella se mantienen).</p>
+    <p class="muted small">{tr('Parar conserva lo instalado. Borrar lo deja como recién creado (las claves y la huella se mantienen).')}</p>
 
     {#if busy || lines.length}
       <div class="progress">
         <div class="p-head">
           {#if busy}<LoaderCircle size={15} class="spin" /> {labels[action] ?? action}…
-          {:else if result?.ok}<CircleCheck size={15} /> {labels[result.action] ?? result.action}: terminado
+          {:else if result?.ok}<CircleCheck size={15} /> {tr('{0}: terminado', labels[result.action] ?? result.action)}
           {:else if result}<CircleX size={15} /> {labels[result.action] ?? result.action}: {result.error}{/if}
         </div>
         <pre class="log selectable" bind:this={logEl}>{lines.join('\n')}</pre>
@@ -202,31 +203,31 @@
   <section class="card block" class:off={!st.server.running}>
     <div class="step">
       <span class="num" class:done={!!st.serverId}>3</span>
-      <h2>Usarlo en Draupnode</h2>
-      {#if st.serverId}<span class="badge ok"><CircleCheck size={12} /> Dado de alta</span>{/if}
+      <h2>{tr('Usarlo en Draupnode')}</h2>
+      {#if st.serverId}<span class="badge ok"><CircleCheck size={12} /> {tr('Dado de alta')}</span>{/if}
     </div>
     <div class="buttons">
       {#if st.serverId}
-        <button class="btn" onclick={() => (ui.view = 'servers')}><ServerCog size={15} /> Ver en Servidores</button>
-        <button class="btn primary" onclick={() => openRecipe('')}><ArrowRight size={15} /> Crear una plantilla</button>
+        <button class="btn" onclick={() => (ui.view = 'servers')}><ServerCog size={15} /> {tr('Ver en Servidores')}</button>
+        <button class="btn primary" onclick={() => openRecipe('')}><ArrowRight size={15} /> {tr('Crear una plantilla')}</button>
       {:else}
-        <button class="btn primary" onclick={register} disabled={!st.server.running}><ServerCog size={15} /> Dar de alta en Draupnode</button>
-        <span class="muted small">Con la clave sin contraseña y la huella ya confiada.</span>
+        <button class="btn primary" onclick={register} disabled={!st.server.running}><ServerCog size={15} /> {tr('Dar de alta en Draupnode')}</button>
+        <span class="muted small">{tr('Con la clave sin contraseña y la huella ya confiada.')}</span>
       {/if}
     </div>
     <table>
       <tbody>
-        <tr><td>IP · puerto</td><td><code class="selectable">{st.host}</code> · <code>{st.port}</code></td></tr>
-        <tr><td>Usuario</td><td><code>{st.user}</code> <span class="muted small">sudo sin contraseña, como en Oracle · contraseña <code>{st.password}</code></span></td></tr>
-        <tr><td>Otro usuario</td><td><code>prueba</code> / <code>{st.password}</code> <span class="muted small">sudo CON contraseña (para probar que la app la pide)</span></td></tr>
+        <tr><td>{tr('IP · puerto')}</td><td><code class="selectable">{st.host}</code> · <code>{st.port}</code></td></tr>
+        <tr><td>{tr('Usuario')}</td><td><code>{st.user}</code> <span class="muted small">{tr('sudo sin contraseña, como en Oracle · contraseña')} <code>{st.password}</code></span></td></tr>
+        <tr><td>{tr('Otro usuario')}</td><td><code>prueba</code> / <code>{st.password}</code> <span class="muted small">{tr('sudo CON contraseña (para probar que la app la pide)')}</span></td></tr>
         {#each st.keys as k}
           <tr>
             <td><KeyRound size={13} /> {k.label}</td>
-            <td><code class="selectable path">{k.path}</code>{#if k.passphrase}<span class="muted small gap">contraseña <code>{k.passphrase}</code></span>{/if}</td>
+            <td><code class="selectable path">{k.path}</code>{#if k.passphrase}<span class="muted small gap">{tr('contraseña')} <code>{k.passphrase}</code></span>{/if}</td>
           </tr>
         {/each}
-        <tr><td>Huella</td><td><code class="selectable">{st.fingerprint}</code></td></tr>
-        <tr><td>Por terminal</td><td><code class="selectable">ssh -i {st.keys[0]?.path} -p {st.port} {st.user}@{st.host}</code></td></tr>
+        <tr><td>{tr('Huella')}</td><td><code class="selectable">{st.fingerprint}</code></td></tr>
+        <tr><td>{tr('Por terminal')}</td><td><code class="selectable">ssh -i {st.keys[0]?.path} -p {st.port} {st.user}@{st.host}</code></td></tr>
       </tbody>
     </table>
   </section>

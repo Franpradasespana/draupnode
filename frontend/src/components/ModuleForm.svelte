@@ -7,6 +7,7 @@
   import EnvEditor from './EnvEditor.svelte'
   import { api, type Module } from '../lib/api'
   import { FolderOpen } from '@lucide/svelte'
+  import { t } from '../lib/i18n.svelte'
 
   let { m, values = $bindable(), errors = {}, projectId, onsecret }: {
     m: Module; values: Record<string, unknown>; errors?: Record<string, string>; projectId: string; onsecret?: () => void
@@ -28,7 +29,7 @@
 </script>
 
 {#if !m.variables?.some((v) => !v.managed)}
-  <p class="muted none">Este módulo no tiene opciones: se instala tal cual.</p>
+  <p class="muted none">{t('Este módulo no tiene opciones: se instala tal cual.')}</p>
 {:else}
   <div class="rows">
     {#each m.variables.filter((v) => !v.managed && shown(v.name)) as v (v.name)}
@@ -46,7 +47,7 @@
           {:else if isGit && v.name === 'git_app_local_dir'}
             <div class="dirrow">
               <VarField {v} bind:value={values[v.name]} error={errors[v.name]} bare />
-              <button type="button" class="btn sm" onclick={chooseDir}><FolderOpen size={14} /> Elegir…</button>
+              <button type="button" class="btn sm" onclick={chooseDir}><FolderOpen size={14} /> {t('Elegir…')}</button>
             </div>
           {:else if envRows}
             <EnvEditor bind:value={values[v.name]} error={errors[v.name]} />

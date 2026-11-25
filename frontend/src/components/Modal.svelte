@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
   import { X } from '@lucide/svelte'
+  import { t } from '../lib/i18n.svelte'
 
   // height: alto fijo (p. ej. un asistente por pasos, para que los botones no se muevan al cambiar de paso).
   let { title, onclose, width = 520, height = 0, children, footer }: {
@@ -23,7 +24,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label={title} style="width: min({width}px, calc(100vw - 32px)){height ? `; height: min(${height}px, calc(100vh - 32px))` : ''}">
     <header>
       <h2>{title}</h2>
-      <button class="btn icon ghost sm" onclick={onclose} aria-label="Cerrar"><X size={17} /></button>
+      <button class="btn icon ghost sm" onclick={onclose} aria-label={t('Cerrar')}><X size={17} /></button>
     </header>
     <div class="body">{@render children()}</div>
     {#if footer}<footer>{@render footer()}</footer>{/if}

@@ -5,8 +5,9 @@
   import { History, CircleCheck, CircleX, CircleSlash, Circle, ScrollText, LoaderCircle } from '@lucide/svelte'
   import Modal from './Modal.svelte'
   import { api, type RunEntry } from '../lib/api'
+  import { t as tr } from '../lib/i18n.svelte'
 
-  let { serverId, projectId = '', refreshKey = '', limit = 0, title = 'Historial de ejecuciones' }: { serverId: string; projectId?: string; refreshKey?: string; limit?: number; title?: string } = $props()
+  let { serverId, projectId = '', refreshKey = '', limit = 0, title = tr('Historial de ejecuciones') }: { serverId: string; projectId?: string; refreshKey?: string; limit?: number; title?: string } = $props()
 
   let list = $state<RunEntry[]>([])
   let all = $state(false)
@@ -22,7 +23,7 @@
     open = { e, text: '', loading: true }
     try {
       const t = await api.ReadRunLog(e.projectId, e.name)
-      if (open) open = { e, text: t || '(vacío)', loading: false }
+      if (open) open = { e, text: t || tr('(vacío)'), loading: false }
     } catch (err) {
       if (open) open = { e, text: String(err), loading: false }
     }
@@ -36,7 +37,7 @@
 <section class="card hist">
   <h2><History size={17} /> {title}</h2>
   {#if !list.length}
-    <p class="muted">Todavía no se ha simulado ni aplicado nada{projectId || !serverId ? '' : ' en este servidor'}.</p>
+    <p class="muted">{tr('Todavía no se ha simulado ni aplicado nada{0}.', projectId || !serverId ? '' : tr(' en este servidor'))}</p>
   {:else}
     <div class="rows">
       {#each shown as e (e.projectId + e.name)}
@@ -48,20 +49,20 @@
           <span class="mode m-{e.mode}">{modeLabel(e.mode)}</span>
           {#if !serverId}<strong class="proj">{e.server}</strong><span class="proj muted">{e.project}</span>{:else if !projectId}<strong class="proj">{e.project}</strong>{/if}
           <span class="res muted">
-            {#if !e.known}—{:else if e.canceled}cancelada{:else if e.ok}{e.changed ? `${e.changed} cambio(s)` : 'sin cambios'}{:else}{e.error || `${e.failed} fallo(s)`}{/if}
+            {#if !e.known}—{:else if e.canceled}cancelada{:else if e.ok}{e.changed ? `${e.changed} cambio(s)` : tr('sin cambios')}{:else}{e.error || `${e.failed} fallo(s)`}{/if}
             {#if e.known && e.durationMs} · {dur(e.durationMs)}{/if}
           </span>
           <ScrollText size={14} class="ic" />
         </button>
       {/each}
     </div>
-    {#if !limit && list.length > 8}<button class="btn sm ghost" onclick={() => (all = !all)}>{all ? 'Ver menos' : `Ver las ${list.length}`}</button>{/if}
+    {#if !limit && list.length > 8}<button class="btn sm ghost" onclick={() => (all = !all)}>{all ? tr('Ver menos') : tr('Ver las {0}', list.length)}</button>{/if}
   {/if}
 </section>
 
 {#if open}
-  <Modal title={`Registro · ${open.e.project} · ${modeLabel(open.e.mode)} · ${when(open.e.at)}`} width={980} onclose={() => (open = null)}>
-    {#if open.loading}<p class="muted"><LoaderCircle size={15} class="spin" /> Leyendo…</p>
+  <Modal title={tr('Registro · {0} · {1} · {2}', open.e.project, modeLabel(open.e.mode), when(open.e.at))} width={980} onclose={() => (open = null)}>
+    {#if open.loading}<p class="muted"><LoaderCircle size={15} class="spin" /> {tr('Leyendo…')}</p>
     {:else}<pre class="log selectable">{open.text}</pre>{/if}
   </Modal>
 {/if}

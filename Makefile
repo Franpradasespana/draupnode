@@ -5,7 +5,7 @@ export PATH := $(HOME)/.local/go/bin:$(HOME)/go/bin:$(PATH)
 # Ubuntu 24.04+ trae WebKitGTK 4.1 (no 4.0): Wails necesita esta etiqueta.
 TAGS ?= webkit2_41
 
-.PHONY: help deps-linux doctor test check dev demo capturas gif licencias build build-windows install-linux uninstall-linux clean
+.PHONY: help deps-linux doctor test check dev demo capturas capturas-en demo-catalogo i18n gif licencias build build-windows install-linux uninstall-linux clean
 
 help:
 	@echo "make deps-linux    Instala (con sudo) lo que necesita Wails en Ubuntu/Debian"
@@ -14,6 +14,9 @@ help:
 	@echo "make dev           App de escritorio con recarga en caliente"
 	@echo "make demo          Solo la interfaz en el navegador, con datos simulados"
 	@echo "make capturas      Rehace las capturas de la ayuda (necesita Google Chrome o Chromium)"
+	@echo "make capturas-en   Lo mismo, en inglés (src/assets/ayuda/en/)"
+	@echo "make demo-catalogo Vuelca el catálogo de módulos a la demo, en español e inglés"
+	@echo "make i18n          Textos sin traducir al inglés (interfaz, Go y módulos)"
 	@echo "make gif           Rehace el GIF del README con esas capturas (necesita Pillow)"
 	@echo "make licencias     Rehace la lista de licencias de las librerías incluidas"
 	@echo "make build         Ejecutable para este sistema en build/bin/"
@@ -42,6 +45,18 @@ demo:
 
 capturas:
 	cd frontend && node scripts/capturas.mjs
+
+capturas-en:
+	cd frontend && CAPTURAS_LANG=en node scripts/capturas.mjs
+
+# Catálogo de la demo del navegador, en español e inglés (tras cambiar módulos).
+demo-catalogo:
+	go run ./herramientas/democat
+
+# Textos de la interfaz sin traducir al inglés (y los que sobran en en.json).
+i18n:
+	python3 herramientas/i18n/extraer.py
+	go test ./internal/i18n/ ./internal/modules/ -run Traduc
 
 gif:
 	python3 herramientas/gif_readme.py

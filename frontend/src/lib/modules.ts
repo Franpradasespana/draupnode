@@ -1,6 +1,7 @@
 // Reglas de los módulos que la interfaz aplica al instante, sin esperar al
 // backend. Son las mismas que internal/modules (Catalog.Resolve y Clashes).
 import type { Module } from './api'
+import { t } from './i18n.svelte'
 
 type Lookup = (id: string) => Module | undefined
 
@@ -67,21 +68,21 @@ export function sameValues(a: unknown, b: unknown): boolean {
 
 // Cortafuegos del proveedor de nube (fuera del servidor): dónde abrir los puertos.
 const CLOUDS: Record<string, [string, string]> = {
-  oracle: ['Oracle Cloud', 'la «Security List» de su VCN (Networking → Virtual Cloud Networks → la red → Security Lists → Add Ingress Rules)'],
-  aws: ['AWS', 'el «Security Group» de la instancia (EC2 → Security Groups → Inbound rules)'],
-  gcp: ['Google Cloud', 'las reglas de cortafuegos de su VPC (VPC network → Firewall)'],
-  azure: ['Azure', 'el «Network Security Group» de la máquina (Networking → Inbound port rules)'],
-  hetzner: ['Hetzner Cloud', 'su «Firewall» de Hetzner, si le has puesto uno'],
-  digitalocean: ['DigitalOcean', 'su «Cloud Firewall», si le has puesto uno'],
-  ovh: ['OVHcloud', 'su «Firewall Network», si lo tienes activado'],
-  scaleway: ['Scaleway', 'su «Security Group»'],
-  linode: ['Akamai/Linode', 'su «Cloud Firewall», si le has puesto uno'],
-  vultr: ['Vultr', 'su «Firewall Group», si le has puesto uno'],
+  oracle: [t('Oracle Cloud'), t('la «Security List» de su VCN (Networking → Virtual Cloud Networks → la red → Security Lists → Add Ingress Rules)')],
+  aws: ['AWS', t('el «Security Group» de la instancia (EC2 → Security Groups → Inbound rules)')],
+  gcp: [t('Google Cloud'), t('las reglas de cortafuegos de su VPC (VPC network → Firewall)')],
+  azure: [t('Azure'), t('el «Network Security Group» de la máquina (Networking → Inbound port rules)')],
+  hetzner: [t('Hetzner Cloud'), t('su «Firewall» de Hetzner, si le has puesto uno')],
+  digitalocean: ['DigitalOcean', t('su «Cloud Firewall», si le has puesto uno')],
+  ovh: ['OVHcloud', t('su «Firewall Network», si lo tienes activado')],
+  scaleway: [t('Scaleway'), t('su «Security Group»')],
+  linode: ['Akamai/Linode', t('su «Cloud Firewall», si le has puesto uno')],
+  vultr: [t('Vultr'), t('su «Firewall Group», si le has puesto uno')],
 }
 
 /** Aviso para abrir puertos en el cortafuegos del proveedor de nube. */
 export function cloudHint(cloud: string | undefined, ports: string): string {
   const c = cloud ? CLOUDS[cloud] : undefined
-  if (c) return `Este servidor está en ${c[0]}: abre también ${ports} en ${c[1]}. Es un cortafuegos aparte y Draupnode no puede tocarlo.`
-  return `Si este servidor está en la nube (Oracle, AWS, Google, Azure, Hetzner…), abre también ${ports} en el cortafuegos del proveedor: es aparte y Draupnode no puede tocarlo.`
+  if (c) return t('Este servidor está en {0}: abre también {1} en {2}. Es un cortafuegos aparte y Draupnode no puede tocarlo.', c[0], ports, c[1])
+  return t('Si este servidor está en la nube (Oracle, AWS, Google, Azure, Hetzner…), abre también {0} en el cortafuegos del proveedor: es aparte y Draupnode no puede tocarlo.', ports)
 }

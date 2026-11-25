@@ -1,6 +1,7 @@
 <script lang="ts">
   // Texto con las direcciones http(s) convertidas en enlaces que se abren en el navegador.
   import { api } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
 
   let { text }: { text: string } = $props()
 
@@ -20,7 +21,7 @@
   })
 </script>
 
-{#each parts as p}{#if p.url}<a href={p.t} onclick={(e) => { e.preventDefault(); api.OpenURL(p.t) }} title="Abrir en el navegador">{p.t}</a>{:else}{p.t}{/if}{/each}
+{#each parts as p}{#if p.url}<a href={p.t} onclick={(e) => { e.preventDefault(); api.OpenURL(p.t) }} title={t('Abrir en el navegador')}>{p.t}</a>{:else}{p.t}{/if}{/each}
 
 <style>
   a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }

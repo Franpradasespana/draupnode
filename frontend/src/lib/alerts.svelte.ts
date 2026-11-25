@@ -6,6 +6,7 @@ import { ui, toast, refreshProjects } from './state.svelte'
 import { withConnection } from './connect'
 import { sameValues } from './modules'
 import type { Project } from './api'
+import { t, plural } from './i18n.svelte'
 
 export type AlertItem =
   | { kind: 'backups'; key: string; projectId: string; name: string; server: string; due: BackupDue }
@@ -35,8 +36,8 @@ export function watchServers() {
         const d = alerts.down[p.id]
         if (p.reachable) {
           if (d && d.fails >= DOWN_AFTER) {
-            const name = ui.servers.find((x) => x.id === p.id)?.name ?? 'El servidor'
-            toast(`${name} vuelve a responder`)
+            const name = ui.servers.find((x) => x.id === p.id)?.name ?? t('El servidor')
+            toast(t('{0} vuelve a responder', name))
           }
           delete alerts.down[p.id]
         } else {
@@ -111,7 +112,7 @@ export function alertItems(): AlertItem[] {
     const n = pendingModules(p)
     if (!n) continue
     const srv = ui.servers.find((x) => x.id === p.serverId)
-    out.push({ kind: 'pending', key: `p:${p.id}:${n}`, projectId: p.id, name: `${n} ${n === 1 ? 'módulo' : 'módulos'}`, server: srv?.name ?? '', applied: !!p.appliedAt })
+    out.push({ kind: 'pending', key: `p:${p.id}:${n}`, projectId: p.id, name: plural(n, 'módulo', 'módulos'), server: srv?.name ?? '', applied: !!p.appliedAt })
   }
   if (alerts.update) out.push({ kind: 'update', key: 'u:' + alerts.update.latest, ...alerts.update })
   return out.filter((a) => !alerts.hidden.includes(a.key))
@@ -131,10 +132,10 @@ export async function fetchBackups(d: BackupDue, quiet = false): Promise<boolean
     const r: BackupResult | null = quiet ? await call('', '', '') : await withConnection(srv, call)
     if (r?.status === 'ok' && r.fetch) {
       alerts.due = alerts.due.filter((x) => x.projectId !== d.projectId)
-      toast(`Copias de «${d.name}» traídas a ${r.fetch.dir}`)
+      toast(t('Copias de «{0}» traídas a {1}', d.name, r.fetch.dir))
       return true
     }
-    if (!quiet && r && r.status !== 'ok') toast(r.message || 'No se pudieron traer', 'error')
+    if (!quiet && r && r.status !== 'ok') toast(r.message || t('No se pudieron traer'), 'error')
     return false
   } catch (e) {
     if (!quiet) toast(String(e), 'error')
@@ -172,32 +173,32 @@ export function serverFindings(ov: ServerOverview): { id: string; text: string; 
   const out: { id: string; text: string; bad: boolean }[] = []
   for (const d of ov.disks ?? []) {
     const pct = d.size ? Math.round((d.used / d.size) * 100) : 0
-    if (pct >= DISK_WARN) out.push({ id: 'disk:' + d.mount, text: `Disco ${d.mount} al ${pct} %`, bad: pct >= 95 })
+    if (pct >= DISK_WARN) out.push({ id: 'disk:' + d.mount, text: t('Disco {0} al {1} %', d.mount, pct), bad: pct >= 95 })
   }
   // Previsión del historial: a este ritmo, cuándo se llena el disco.
   const fc = ov.history?.forecast
   if (fc?.days !== undefined && fc.days < DISK_FULL_DAYS) {
-    const when = fc.days < 1 ? 'en menos de un día' : `en unos ${Math.round(fc.days)} días`
-    out.push({ id: 'diskfull', text: `A este ritmo, el disco se llena ${when} (crece ${((fc.perDay ?? 0) / 1024 ** 3).toFixed(1)} GB al día)`, bad: fc.days < 3 })
+    const when = fc.days < 1 ? t('en menos de un día') : t('en unos {0} días', Math.round(fc.days))
+    out.push({ id: 'diskfull', text: t('A este ritmo, el disco se llena {0} (crece {1} GB al día)', when, ((fc.perDay ?? 0) / 1024 ** 3).toFixed(1)), bad: fc.days < 3 })
   }
   const sick = (ov.containers ?? []).filter((c) => ['restarting', 'dead'].includes(c.state) || c.health === 'unhealthy')
-  if (sick.length) out.push({ id: 'ctr:' + sick.map((c) => c.name).sort().join(','), text: `${sick.length === 1 ? 'Contenedor con problemas' : sick.length + ' contenedores con problemas'}: ${sick.map((c) => c.name).join(', ')}`, bad: true })
-  if (ov.failed?.length) out.push({ id: 'svc:' + [...ov.failed].sort().join(','), text: `${ov.failed.length === 1 ? 'Servicio caído' : 'Servicios caídos'}: ${ov.failed.join(', ')}`, bad: true })
+  if (sick.length) out.push({ id: 'ctr:' + sick.map((c) => c.name).sort().join(','), text: `${sick.length === 1 ? t('Contenedor con problemas') : sick.length + t(' contenedores con problemas')}: ${sick.map((c) => c.name).join(', ')}`, bad: true })
+  if (ov.failed?.length) out.push({ id: 'svc:' + [...ov.failed].sort().join(','), text: `${ov.failed.length === 1 ? t('Servicio caído') : t('Servicios caídos')}: ${ov.failed.join(', ')}`, bad: true })
   const up = ov.updates
-  if (up?.reboot) out.push({ id: 'reboot', text: `Necesita reiniciarse${up.rebootFor?.length ? ` (${up.rebootFor.slice(0, 2).join(', ')})` : ''} para terminar de aplicar actualizaciones`, bad: false })
-  if (up && up.security > 0) out.push({ id: 'secupd:' + up.security, text: `${up.security} ${up.security === 1 ? 'actualización de seguridad pendiente' : 'actualizaciones de seguridad pendientes'}`, bad: false })
+  if (up?.reboot) out.push({ id: 'reboot', text: t('Necesita reiniciarse{0} para terminar de aplicar actualizaciones', up.rebootFor?.length ? ` (${up.rebootFor.slice(0, 2).join(', ')})` : ''), bad: false })
+  if (up && up.security > 0) out.push({ id: 'secupd:' + up.security, text: `${up.security} ${up.security === 1 ? t('actualización de seguridad pendiente') : t('actualizaciones de seguridad pendientes')}`, bad: false })
   for (const c of ov.certs ?? []) {
-    if (c.error) out.push({ id: 'cert:' + c.domain, text: `HTTPS de ${c.domain}: ${c.error}`, bad: false })
-    else if (c.days !== undefined && c.days < 21) out.push({ id: 'cert:' + c.domain, text: c.days < 0 ? `El certificado de ${c.domain} ha caducado` : `El certificado de ${c.domain} caduca en ${c.days} días`, bad: c.days < 7 })
+    if (c.error) out.push({ id: 'cert:' + c.domain, text: t('HTTPS de {0}: {1}', c.domain, c.error), bad: false })
+    else if (c.days !== undefined && c.days < 21) out.push({ id: 'cert:' + c.domain, text: c.days < 0 ? t('El certificado de {0} ha caducado', c.domain) : t('El certificado de {0} caduca en {1} días', c.domain, c.days), bad: c.days < 7 })
   }
-  if (ov.clock?.known && !ov.clock.synced) out.push({ id: 'clock', text: 'La hora del servidor no está sincronizada (fallan certificados, copias y registros)', bad: false })
+  if (ov.clock?.known && !ov.clock.synced) out.push({ id: 'clock', text: t('La hora del servidor no está sincronizada (fallan certificados, copias y registros)'), bad: false })
   const sec = ov.security
-  if (sec && sec.failed24h >= 50 && !sec.fail2ban) out.push({ id: 'ssh', text: `${sec.failed24h} intentos de entrar por SSH en 24 h (${sec.ips} IPs) y sin fail2ban: añade el módulo «SSH seguro»`, bad: false })
+  if (sec && sec.failed24h >= 50 && !sec.fail2ban) out.push({ id: 'ssh', text: t('{0} intentos de entrar por SSH en 24 h ({1} IPs) y sin fail2ban: añade el módulo «SSH seguro»', sec.failed24h, sec.ips), bad: false })
   for (const b of ov.backups ?? []) {
     if (b.running) continue
-    if (!b.ok) out.push({ id: 'bk:' + b.slug, text: `La última copia de «${b.slug}» falló`, bad: true })
-    else if (b.ago === null) out.push({ id: 'bk0:' + b.slug, text: `No consta ninguna copia de «${b.slug}»`, bad: false })
-    else if (b.ago > BACKUP_HOURS * 3600) out.push({ id: 'bkold:' + b.slug, text: `La última copia de «${b.slug}» es de hace ${Math.round(b.ago / 3600)} h`, bad: false })
+    if (!b.ok) out.push({ id: 'bk:' + b.slug, text: t('La última copia de «{0}» falló', b.slug), bad: true })
+    else if (b.ago === null) out.push({ id: 'bk0:' + b.slug, text: t('No consta ninguna copia de «{0}»', b.slug), bad: false })
+    else if (b.ago > BACKUP_HOURS * 3600) out.push({ id: 'bkold:' + b.slug, text: t('La última copia de «{0}» es de hace {1} h', b.slug, Math.round(b.ago / 3600)), bad: false })
   }
   return out
 }

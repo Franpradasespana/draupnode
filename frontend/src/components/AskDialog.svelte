@@ -1,5 +1,6 @@
 <script lang="ts">
   import Modal from './Modal.svelte'
+  import { t } from '../lib/i18n.svelte'
   let { title, message, label, password, done }: { title: string; message: string; label: string; password: boolean; done: (v: string | null) => void } = $props()
   let value = $state('')
 </script>
@@ -14,8 +15,8 @@
     </label>
   </form>
   {#snippet footer()}
-    <button class="btn" onclick={() => done(null)}>Cancelar</button>
-    <button class="btn primary" type="submit" form="ask-form" disabled={!value}>Continuar</button>
+    <button class="btn" onclick={() => done(null)}>{t('Cancelar')}</button>
+    <button class="btn primary" type="submit" form="ask-form" disabled={!value}>{t('Continuar')}</button>
   {/snippet}
 </Modal>
 

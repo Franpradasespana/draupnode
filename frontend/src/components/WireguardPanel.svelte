@@ -8,6 +8,7 @@
   import { api, errorText, type Project, type ProjectSecret } from '../lib/api'
   import { ask, toast, ui } from '../lib/state.svelte'
   import { cloudHint } from '../lib/modules'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let { project }: { project: Project } = $props()
   const HIDE_AFTER_MS = 3 * 60 * 1000
@@ -25,13 +26,13 @@
   onDestroy(hide)
 
   async function open() {
-    const master = await ask('Dispositivos de la VPN', 'Sus configuraciones llevan su clave privada: escribe la contraseña de la bóveda para verlas.', 'Contraseña de la bóveda')
+    const master = await ask(tr('Dispositivos de la VPN'), tr('Sus configuraciones llevan su clave privada: escribe la contraseña de la bóveda para verlas.'), tr('Contraseña de la bóveda'))
     if (master === null) return
     busy = true
     try {
       const all = await api.ProjectSecrets(project.id, master)
       list = all.filter((s) => s.kind === 'generated' && /^wireguard_.+\.conf$/.test(s.name))
-      if (!list.length) toast('Aún no hay configuraciones: pulsa Aplicar para generarlas.', 'error')
+      if (!list.length) toast(tr('Aún no hay configuraciones: pulsa Aplicar para generarlas.'), 'error')
       clearTimeout(timer)
       timer = setTimeout(hide, HIDE_AFTER_MS)
     } catch (e) {
@@ -51,7 +52,7 @@
   async function save(s: ProjectSecret) {
     try {
       const p = await api.SaveTextFile(`${project.slug || 'vpn'}-${device(s)}.conf`, s.value)
-      if (p) toast('Guardado en ' + p)
+      if (p) toast(tr('Guardado en ') + p)
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -59,9 +60,9 @@
   async function copy(t: string) {
     try {
       await navigator.clipboard.writeText(t)
-      toast('Copiado')
+      toast(tr('Copiado'))
     } catch {
-      toast('No se pudo copiar', 'error')
+      toast(tr('No se pudo copiar'), 'error')
     }
   }
 </script>
@@ -70,27 +71,27 @@
   <div class="head">
     <Shield size={18} />
     <div class="txt">
-      <strong>Dispositivos de la VPN</strong>
-      <span class="muted">Puerto {vals.wireguard_port ?? 51820}/udp · red {vals.wireguard_network ?? '10.8.0.0/24'}{vals.wireguard_route_all ? ' · todo el tráfico por la VPN' : ''}</span>
+      <strong>{tr('Dispositivos de la VPN')}</strong>
+      <span class="muted">{tr('Puerto {0}/udp · red {1}{2}', vals.wireguard_port ?? 51820, vals.wireguard_network ?? '10.8.0.0/24', vals.wireguard_route_all ? tr(' · todo el tráfico por la VPN') : '')}</span>
     </div>
     {#if list}
-      <button class="btn sm" onclick={hide}><Lock size={14} /> Ocultar</button>
+      <button class="btn sm" onclick={hide}><Lock size={14} /> {tr('Ocultar')}</button>
     {:else}
-      <button class="btn sm" onclick={open} disabled={busy}><QrCode size={14} /> Ver configuraciones</button>
+      <button class="btn sm" onclick={open} disabled={busy}><QrCode size={14} /> {tr('Ver configuraciones')}</button>
     {/if}
   </div>
-  <p class="hint"><TriangleAlert size={15} /> {cloudHint(cloud, `el puerto ${vals.wireguard_port ?? 51820}/UDP`)}</p>
+  <p class="hint"><TriangleAlert size={15} /> {cloudHint(cloud, tr('el puerto {0}/UDP', vals.wireguard_port ?? 51820))}</p>
   {#if list}
-    <p class="muted small">En el móvil: app WireGuard → «+» → «Escanear código QR». En el ordenador: guarda el .conf e impórtalo en WireGuard. No lo compartas: quien lo tenga entra en tu VPN.</p>
+    <p class="muted small">{tr('En el móvil: app WireGuard → «+» → «Escanear código QR». En el ordenador: guarda el .conf e impórtalo en WireGuard. No lo compartas: quien lo tenga entra en tu VPN.')}</p>
     <div class="peers">
       {#each list as s (s.name)}
         <div class="peer">
-          <div class="qr" aria-label={'QR de ' + device(s)}>{@html qr(s.value)}</div>
+          <div class="qr" aria-label={tr('QR de ') + device(s)}>{@html qr(s.value)}</div>
           <div class="info">
             <strong>{device(s)}</strong>
             <div class="btns">
-              <button class="btn sm" onclick={() => save(s)}><Download size={14} /> Guardar .conf</button>
-              <button class="btn sm ghost" onclick={() => copy(s.value)}><Copy size={14} /> Copiar</button>
+              <button class="btn sm" onclick={() => save(s)}><Download size={14} /> {tr('Guardar .conf')}</button>
+              <button class="btn sm ghost" onclick={() => copy(s.value)}><Copy size={14} /> {tr('Copiar')}</button>
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@
   import { withConnection } from '../lib/connect'
   import { toast, confirmDialog } from '../lib/state.svelte'
   import { DISK_FULL_DAYS } from '../lib/alerts.svelte'
+  import { t } from '../lib/i18n.svelte'
 
   let { server, history, loading = false, onchange }: { server: Server; history?: ServerHistory; loading?: boolean; onchange: () => void } = $props()
 
@@ -26,20 +27,20 @@
     busy = true
     try {
       const r = await withConnection<DockerResult>(server, (s, a, u) => api.ServerHistory(server.id, true, false, s, a, u))
-      if (r?.status === 'ok') { toast(history?.installed ? 'Historial actualizado' : 'Historial activado: guarda una muestra cada 5 minutos'); onchange() }
-      else if (r) toast(r.message || 'No se pudo activar', 'error')
+      if (r?.status === 'ok') { toast(history?.installed ? t('Historial actualizado') : t('Historial activado: guarda una muestra cada 5 minutos')); onchange() }
+      else if (r) toast(r.message || t('No se pudo activar'), 'error')
     } finally {
       busy = false
     }
   }
   async function disable() {
-    const ok = await confirmDialog({ title: `Dejar de guardar el historial de ${server.name}`, message: 'Se quita el temporizador del servidor y se borra lo guardado (CPU, memoria, disco y uso de las apps). Puedes volver a activarlo cuando quieras, pero empezará de cero.', confirmLabel: 'Quitar y borrar', danger: true })
+    const ok = await confirmDialog({ title: t('Dejar de guardar el historial de {0}', server.name), message: t('Se quita el temporizador del servidor y se borra lo guardado (CPU, memoria, disco y uso de las apps). Puedes volver a activarlo cuando quieras, pero empezará de cero.'), confirmLabel: t('Quitar y borrar'), danger: true })
     if (!ok) return
     busy = true
     try {
       const r = await withConnection<DockerResult>(server, (s, a, u) => api.ServerHistory(server.id, false, false, s, a, u))
-      if (r?.status === 'ok') { toast('Historial quitado'); onchange() }
-      else if (r) toast(r.message || 'No se pudo quitar', 'error')
+      if (r?.status === 'ok') { toast(t('Historial quitado')); onchange() }
+      else if (r) toast(r.message || t('No se pudo quitar'), 'error')
     } finally {
       busy = false
     }
@@ -68,54 +69,53 @@
 
 <section class="card block">
   <div class="h2row">
-    <h2><ChartLine size={17} /> Historial {#if sinceText}<span class="muted small">· desde el {sinceText}</span>{/if}</h2>
+    <h2><ChartLine size={17} /> {t('Historial')} {#if sinceText}<span class="muted small">{t('· desde el {0}', sinceText)}</span>{/if}</h2>
     {#if h?.hasData}
-      <div class="seg" role="tablist" aria-label="Periodo">
-        <button role="tab" aria-selected={range === 'day'} class:on={range === 'day'} onclick={() => setRange('day')}>24 horas</button>
-        <button role="tab" aria-selected={range === 'month'} class:on={range === 'month'} onclick={() => setRange('month')}>30 días</button>
+      <div class="seg" role="tablist" aria-label={t('Periodo')}>
+        <button role="tab" aria-selected={range === 'day'} class:on={range === 'day'} onclick={() => setRange('day')}>{t('24 horas')}</button>
+        <button role="tab" aria-selected={range === 'month'} class:on={range === 'month'} onclick={() => setRange('month')}>{t('30 días')}</button>
       </div>
     {/if}
   </div>
 
   {#if !h}
-    <p class="muted">{loading ? 'Leyendo…' : '—'}</p>
+    <p class="muted">{loading ? t('Leyendo…') : '—'}</p>
   {:else}
     {#if !h.installed}
       <div class="intro">
-        <p>Guarda cada 5 minutos la CPU, la memoria, el disco y lo que gasta cada app, para ver cómo evoluciona y <strong>avisarte antes de que se llene el disco</strong>.
-          Lo hace un pequeño temporizador en el propio servidor, así que funciona aunque Draupnode esté cerrado (ocupa unos pocos MB y guarda un año).</p>
-        <button class="btn primary" onclick={enable} disabled={busy}>{#if busy}<LoaderCircle size={14} class="spin" />{:else}<ChartLine size={14} />{/if} Empezar a guardar el historial</button>
+        <p>{t('Guarda cada 5 minutos la CPU, la memoria, el disco y lo que gasta cada app, para ver cómo evoluciona y')} <strong>{t('avisarte antes de que se llene el disco')}</strong>{t('. Lo hace un pequeño temporizador en el propio servidor, así que funciona aunque Draupnode esté cerrado (ocupa unos pocos MB y guarda un año).')}</p>
+        <button class="btn primary" onclick={enable} disabled={busy}>{#if busy}<LoaderCircle size={14} class="spin" />{:else}<ChartLine size={14} />{/if} {t('Empezar a guardar el historial')}</button>
       </div>
     {:else if h.outdated || !h.timer}
-      <p class="small warn-t"><TriangleAlert size={13} /> {h.outdated ? 'El recolector del servidor es de una versión anterior.' : 'El temporizador del historial está parado: no se guardan muestras nuevas.'}
-        <button class="lnk" onclick={enable} disabled={busy}>{busy ? 'un momento…' : h.outdated ? 'Actualizarlo' : 'Ponerlo en marcha'}</button></p>
+      <p class="small warn-t"><TriangleAlert size={13} /> {h.outdated ? t('El recolector del servidor es de una versión anterior.') : t('El temporizador del historial está parado: no se guardan muestras nuevas.')}
+        <button class="lnk" onclick={enable} disabled={busy}>{busy ? t('un momento…') : h.outdated ? t('Actualizarlo') : t('Ponerlo en marcha')}</button></p>
     {/if}
 
     {#if h.hasData}
       <div class="charts">
-        <HistoryChart title={range === 'day' ? 'CPU' : 'CPU (media por hora; banda: máximo)'} points={cpu} max={cpuMax} top={100} format={pctf} long={range === 'month'} now={last ? pctf(last[1]) : ''} />
-        <HistoryChart title={range === 'day' ? 'Memoria usada' : 'Memoria (media por hora; banda: máximo)'} points={mem} max={memMax} top={h.memT || 1} format={fmt} long={range === 'month'} now={last ? fmt(last[2]) : ''} />
-        <HistoryChart title="Disco / usado" points={disk} top={h.diskT || 1} format={fmt} long={range === 'month'} now={last ? fmt(last[3]) : ''} />
+        <HistoryChart title={range === 'day' ? 'CPU' : t('CPU (media por hora; banda: máximo)')} points={cpu} max={cpuMax} top={100} format={pctf} long={range === 'month'} now={last ? pctf(last[1]) : ''} />
+        <HistoryChart title={range === 'day' ? t('Memoria usada') : t('Memoria (media por hora; banda: máximo)')} points={mem} max={memMax} top={h.memT || 1} format={fmt} long={range === 'month'} now={last ? fmt(last[2]) : ''} />
+        <HistoryChart title={t('Disco / usado')} points={disk} top={h.diskT || 1} format={fmt} long={range === 'month'} now={last ? fmt(last[3]) : ''} />
       </div>
 
       <p class="fc small">
         <HardDrive size={14} />
         {#if !fc?.enough}
-          <span class="muted">Previsión del disco: hacen falta al menos 12 horas de muestras (llevas {Math.round(fc?.hours ?? 0)} h).</span>
+          <span class="muted">{t('Previsión del disco: hacen falta al menos 12 horas de muestras (llevas {0} h).', Math.round(fc?.hours ?? 0))}</span>
         {:else if fc.days !== undefined}
-          <span class:warn-t={fc.days < DISK_FULL_DAYS} class:bad-t={fc.days < 3}>A este ritmo (<strong>+{fmt(fc.perDay ?? 0)} al día</strong>) el disco se llena en <strong>{fc.days < 1 ? 'menos de un día' : `unos ${Math.round(fc.days)} días`}</strong>, hacia el {fullDate}.</span>
-          <span class="muted">Quedan {fmt(fc.free ?? 0)} libres.</span>
+          <span class:warn-t={fc.days < DISK_FULL_DAYS} class:bad-t={fc.days < 3}>{t('A este ritmo (')}<strong>{t('+{0} al día', fmt(fc.perDay ?? 0))}</strong>{t(') el disco se llena en')} <strong>{fc.days < 1 ? t('menos de un día') : t('unos {0} días', Math.round(fc.days))}</strong>{t(', hacia el {0}.', fullDate)}</span>
+          <span class="muted">{t('Quedan {0} libres.', fmt(fc.free ?? 0))}</span>
         {:else}
-          <span><CircleCheck size={13} class="ok-i" /> Disco estable: {(fc.perDay ?? 0) >= 0 ? `crece ${fmt(fc.perDay ?? 0)} al día` : `baja ${fmt(-(fc.perDay ?? 0))} al día`} (últimos {Math.round(Math.min(fc.hours, 168) / 24) || 1} días). Quedan {fmt(fc.free ?? 0)} libres.</span>
+          <span><CircleCheck size={13} class="ok-i" /> {t('Disco estable: {0} (últimos {1} días). Quedan {2} libres.', (fc.perDay ?? 0) >= 0 ? t('crece {0} al día', fmt(fc.perDay ?? 0)) : t('baja {0} al día', fmt(-(fc.perDay ?? 0))), Math.round(Math.min(fc.hours, 168) / 24) || 1, fmt(fc.free ?? 0))}</span>
         {/if}
       </p>
     {:else if h.installed}
-      <p class="muted small">Activado. La primera muestra llega en unos minutos; pulsa «Actualizar» luego.</p>
+      <p class="muted small">{t('Activado. La primera muestra llega en unos minutos; pulsa «Actualizar» luego.')}</p>
     {/if}
 
     {#if h.installed}
-      <p class="foot muted small">Una muestra cada 5 minutos (temporizador <span class="mono">draupnode-historial</span> en el servidor).
-        <button class="lnk small" onclick={disable} disabled={busy}>Dejar de guardar…</button></p>
+      <p class="foot muted small">{t('Una muestra cada 5 minutos (temporizador')} <span class="mono">draupnode-historial</span> {t('en el servidor).')}
+        <button class="lnk small" onclick={disable} disabled={busy}>{t('Dejar de guardar…')}</button></p>
     {/if}
   {/if}
 </section>

@@ -4,6 +4,7 @@
   import { moduleIcon } from '../lib/icons'
   import type { Module } from '../lib/api'
   import type { CardState } from '../lib/modules'
+  import { t } from '../lib/i18n.svelte'
 
   let { m, state, note = '', errors = 0, onclick, disabled = false }: {
     m: Module; state: CardState; note?: string; errors?: number; onclick: () => void; disabled?: boolean
@@ -11,7 +12,7 @@
 
   const Icon = $derived(moduleIcon(m.id))
   const label: Record<CardState, string> = {
-    installed: 'Instalado', left: 'Sin gestionar', pending: 'Añadido', required: 'Añadido', clash: 'No compatible', none: '',
+    installed: t('Instalado'), left: t('Sin gestionar'), pending: t('Añadido'), required: t('Añadido'), clash: t('No compatible'), none: '',
   }
 </script>
 
@@ -28,7 +29,7 @@
     {:else if state === 'pending' || state === 'required'}<Check size={13} /> {label[state]}
     {:else if state === 'clash'}<Lock size={13} /> {label[state]}
     {:else if state === 'left'}{label[state]}
-    {:else}<Plus size={13} /> Añadir{/if}
+    {:else}<Plus size={13} /> {t('Añadir')}{/if}
   </span>
 </button>
 

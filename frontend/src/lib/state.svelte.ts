@@ -1,6 +1,7 @@
 // Estado global de la interfaz (Svelte 5 runes).
 import { api, onEvent, vaultCode, type RecipeView, type AppInfo, type ModulesInfo, type Project, type RunEvent, type RunSummary, type SecretsInfo, type Server } from './api'
 import { applyPalette, BUILTIN_PALETTES, DEFAULT_PALETTE_ID, isHex, COLOR_KEYS, type Palette } from './palettes'
+import { t } from './i18n.svelte'
 
 export type View = 'dashboard' | 'servers' | 'catalog' | 'projects' | 'lab' | 'docker' | 'terminal' | 'settings' | 'alerts' | 'modules'
 
@@ -164,7 +165,7 @@ export function sanitizePalettes(raw: unknown): Palette[] {
     if (!ok) return []
     const id = typeof o.id === 'string' && o.id.startsWith('custom-') ? o.id : 'custom-' + Math.random().toString(36).slice(2, 9)
     const mode = o.mode === 'light' || o.mode === 'mixed' ? o.mode : 'dark'
-    return [{ id, name: o.name.slice(0, 40), tag: String(o.tag ?? 'Personalizada').slice(0, 40), mode, colors: { ...o.colors }, custom: true }]
+    return [{ id, name: o.name.slice(0, 40), tag: String(o.tag ?? t('Personalizada')).slice(0, 40), mode, colors: { ...o.colors }, custom: true }]
   })
 }
 
@@ -175,7 +176,7 @@ export async function persistSettings() {
 export function setTheme(id: string, persist = true) {
   ui.themeId = id
   applyPalette(currentPalette().colors)
-  if (persist) persistSettings().catch(() => toast('No se pudo guardar el tema', 'error'))
+  if (persist) persistSettings().catch(() => toast(t('No se pudo guardar el tema'), 'error'))
 }
 
 export async function refreshServers() {
@@ -193,7 +194,7 @@ export async function refreshModules(reload = false) {
 }
 
 /** Pide un texto (contraseña…) en un diálogo. null si se cancela. */
-export function ask(title: string, message: string, label = 'Contraseña', password = true): Promise<string | null> {
+export function ask(title: string, message: string, label = t('Contraseña'), password = true): Promise<string | null> {
   return new Promise((resolve) => {
     ui.ask = { title, message, label, password, resolve: (v) => { ui.ask = null; resolve(v) } }
   })
@@ -202,7 +203,7 @@ export function ask(title: string, message: string, label = 'Contraseña', passw
 /** Pide confirmación. */
 export function confirmDialog(o: { title: string; message: string; detail?: string; confirmLabel?: string; danger?: boolean }): Promise<boolean> {
   return new Promise((resolve) => {
-    ui.confirm = { confirmLabel: 'Aceptar', ...o, resolve: (ok) => { ui.confirm = null; resolve(ok) } }
+    ui.confirm = { confirmLabel: t('Aceptar'), ...o, resolve: (ok) => { ui.confirm = null; resolve(ok) } }
   })
 }
 
@@ -210,7 +211,7 @@ export function confirmDialog(o: { title: string; message: string; detail?: stri
 const pending: Record<string, RunEvent[]> = {}
 
 export function startRun(projectId: string, runId: string, check: boolean, uninstall?: string[]) {
-  ui.runs[projectId] = { runId, projectId, check, uninstall, startedAt: Date.now(), stage: 'Conectando…', tasks: [], lines: [], notes: [], done: false }
+  ui.runs[projectId] = { runId, projectId, check, uninstall, startedAt: Date.now(), stage: t('Conectando…'), tasks: [], lines: [], notes: [], done: false }
   for (const e of pending[runId] ?? []) handleRunEvent(e)
   delete pending[runId]
 }
@@ -246,8 +247,8 @@ function handleRunEvent(e: RunEvent) {
       break
     case 'task': {
       const name = String(ev.name).replace(/^[\w-]+ : /, '')
-      r.tasks.push({ name: name === 'Gathering Facts' ? 'Recoger datos del servidor' : name, role: ev.role || '', handler: !!ev.handler, status: 'running', diffs: [] })
-      r.stage = 'Ejecutando Ansible'
+      r.tasks.push({ name: name === 'Gathering Facts' ? t('Recoger datos del servidor') : name, role: ev.role || '', handler: !!ev.handler, status: 'running', diffs: [] })
+      r.stage = t('Ejecutando Ansible')
       break
     }
     case 'ok':
@@ -317,8 +318,8 @@ export function requestStore(current: '' | 'keyring' | 'vault' = ''): Promise<'k
 }
 
 export function storeName(s: string): string {
-  if (s === 'keyring') return ui.secrets?.keyring.name ?? 'el llavero del sistema'
-  if (s === 'vault') return 'la bóveda cifrada de Draupnode'
+  if (s === 'keyring') return ui.secrets?.keyring.name ?? t('el llavero del sistema')
+  if (s === 'vault') return t('la bóveda cifrada de Draupnode')
   return '—'
 }
 
@@ -333,7 +334,7 @@ export async function withVault<T>(fn: () => Promise<T>, reason = ''): Promise<T
     const code = vaultCode(e)
     if (!code) throw e
     const ok = await requestVault(code === 'missing' ? 'create' : 'unlock', reason)
-    if (!ok) throw 'Cancelado: la contraseña no se ha guardado'
+    if (!ok) throw t('Cancelado: la contraseña no se ha guardado')
     return await fn()
   }
 }
@@ -358,10 +359,10 @@ export function kbToGB(kb?: string): string {
 }
 
 export function timeAgo(iso?: string): string {
-  if (!iso) return 'nunca'
+  if (!iso) return t('nunca')
   const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'hace un momento'
-  if (s < 3600) return `hace ${Math.round(s / 60)} min`
-  if (s < 86400) return `hace ${Math.round(s / 3600)} h`
-  return `hace ${Math.round(s / 86400)} días`
+  if (s < 60) return t('hace un momento')
+  if (s < 3600) return t('hace {0} min', Math.round(s / 60))
+  if (s < 86400) return t('hace {0} h', Math.round(s / 3600))
+  return t('hace {0} días', Math.round(s / 86400))
 }

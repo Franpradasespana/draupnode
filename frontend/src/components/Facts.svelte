@@ -1,20 +1,21 @@
 <script lang="ts">
   import { Check, X } from '@lucide/svelte'
   import { kbToGB } from '../lib/state.svelte'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let { facts }: { facts: Record<string, string> } = $props()
 
   const rows = $derived([
-    ['Sistema', facts.os],
-    ['Equipo', facts.hostname],
-    ['Kernel', facts.kernel],
-    ['Arquitectura', facts.arch],
+    [tr('Sistema'), facts.os],
+    [tr('Equipo'), facts.hostname],
+    [tr('Kernel'), facts.kernel],
+    [tr('Arquitectura'), facts.arch],
     ['CPU', facts.cpus],
     ['RAM', kbToGB(facts.mem_kb)],
-    ['Disco libre', `${kbToGB(facts.disk_free_kb)} de ${kbToGB(facts.disk_total_kb)}`],
-    ['Encendido', facts.uptime?.replace(/^up /, '')],
+    [tr('Disco libre'), `${kbToGB(facts.disk_free_kb)} de ${kbToGB(facts.disk_total_kb)}`],
+    [tr('Encendido'), facts.uptime?.replace(/^up /, '')],
   ])
-  const sudoLabel = $derived(facts.sudo === 'root' ? 'root' : facts.sudo === 'yes' ? 'sudo sin contraseña' : 'sin sudo')
+  const sudoLabel = $derived(facts.sudo === 'root' ? 'root' : facts.sudo === 'yes' ? tr('sudo sin contraseña') : tr('sin sudo'))
   const tools = ['python3', 'docker', 'git', 'curl', 'ansible']
 </script>
 
@@ -23,7 +24,7 @@
     <div class="row"><span class="muted">{k}</span><span class="selectable">{v || '—'}</span></div>
   {/each}
   <div class="row">
-    <span class="muted">Permisos</span>
+    <span class="muted">{tr('Permisos')}</span>
     <span class:ok={facts.sudo !== 'no'} class:bad={facts.sudo === 'no'}>{sudoLabel}</span>
   </div>
 </div>

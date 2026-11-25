@@ -2,22 +2,23 @@
   // Qué instalar para tener llavero del sistema (cuando no lo hay).
   import { Copy, Lightbulb } from '@lucide/svelte'
   import { ui, toast } from '../lib/state.svelte'
+  import { t } from '../lib/i18n.svelte'
 
   const list = $derived(ui.secrets?.keyring.suggestions ?? [])
 
   async function copy(cmd: string) {
     try {
       await navigator.clipboard.writeText(cmd)
-      toast('Comando copiado')
+      toast(t('Comando copiado'))
     } catch {
-      toast('No se pudo copiar', 'error')
+      toast(t('No se pudo copiar'), 'error')
     }
   }
 </script>
 
 {#if list.length}
   <div class="help">
-    <p class="head"><Lightbulb size={15} /> Este equipo no tiene llavero del sistema. Puedes usar la bóveda de Draupnode o instalar uno de estos:</p>
+    <p class="head"><Lightbulb size={15} /> {t('Este equipo no tiene llavero del sistema. Puedes usar la bóveda de Draupnode o instalar uno de estos:')}</p>
     <ul>
       {#each list as s}
         <li>
@@ -26,13 +27,13 @@
           {#if s.command}
             <div class="cmd">
               <code class="selectable">{s.command}</code>
-              <button type="button" class="btn icon sm ghost" title="Copiar" aria-label="Copiar comando" onclick={() => copy(s.command!)}><Copy size={14} /></button>
+              <button type="button" class="btn icon sm ghost" title={t('Copiar')} aria-label={t('Copiar comando')} onclick={() => copy(s.command!)}><Copy size={14} /></button>
             </div>
           {/if}
         </li>
       {/each}
     </ul>
-    <p class="muted foot">Después de instalarlo, cierra y vuelve a abrir Draupnode.</p>
+    <p class="muted foot">{t('Después de instalarlo, cierra y vuelve a abrir Draupnode.')}</p>
   </div>
 {/if}
 

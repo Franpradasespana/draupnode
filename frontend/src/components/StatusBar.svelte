@@ -2,6 +2,7 @@
   import { ExternalLink, RefreshCw, LoaderCircle, Server as ServerIcon, Activity, ChevronDown } from '@lucide/svelte'
   import { api, errorText, type ServerLive } from '../lib/api'
   import { ui, timeAgo, contextServerId, setActiveServer, openServerProjects, openDeployment } from '../lib/state.svelte'
+  import { t as tr, plural } from '../lib/i18n.svelte'
 
   const id = $derived(contextServerId())
   const srv = $derived(ui.servers.find((s) => s.id === id))
@@ -37,7 +38,7 @@
 
   // Ejecuciones en marcha (de cualquier proyecto).
   const running = $derived(Object.values(ui.runs).filter((r) => !r.done))
-  const projName = (pid: string) => ui.projects.find((p) => p.id === pid)?.name ?? 'servidor'
+  const projName = (pid: string) => ui.projects.find((p) => p.id === pid)?.name ?? tr('servidor')
 
   function pick(e: Event) {
     const v = (e.currentTarget as HTMLSelectElement).value
@@ -48,12 +49,12 @@
 
 <footer class="status">
   {#if !srv}
-    <span class="muted"><ServerIcon size={13} /> Sin servidores</span>
+    <span class="muted"><ServerIcon size={13} /> {tr('Sin servidores')}</span>
   {:else}
     <span class="dot" class:ok={live?.reachable} class:err={live && !live.reachable} class:wait={!live}></span>
-    <label class="pick" title="Servidor que se muestra en esta barra">
+    <label class="pick" title={tr('Servidor que se muestra en esta barra')}>
       <span>{srv.name}</span><ChevronDown size={12} />
-      <select value={srv.id} onchange={pick} aria-label="Servidor de la barra de estado">
+      <select value={srv.id} onchange={pick} aria-label={tr('Servidor de la barra de estado')}>
         {#each ui.servers as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
       </select>
     </label>
@@ -61,44 +62,44 @@
 
     <span class="sep"></span>
     {#if !live}
-      <span class="muted">Comprobando…</span>
+      <span class="muted">{tr('Comprobando…')}</span>
     {:else if live.reachable}
-      <span class="ok-t" title="El puerto SSH responde">En línea · {live.latencyMs} ms</span>
+      <span class="ok-t" title={tr('El puerto SSH responde')}>{tr('En línea · {0} ms', live.latencyMs)}</span>
     {:else}
-      <span class="bad-t" title={live.error}>No responde</span>
+      <span class="bad-t" title={live.error}>{tr('No responde')}</span>
     {/if}
 
     <span class="sep hide-md"></span>
     {#if lc?.ok}
-      <span class="muted hide-md">Conexión SSH comprobada {timeAgo(lc.at)}{lc.facts?.os ? ' · ' + lc.facts.os : ''}</span>
+      <span class="muted hide-md">{tr('Conexión SSH comprobada {0}{1}', timeAgo(lc.at), lc.facts?.os ? ' · ' + lc.facts.os : '')}</span>
     {:else if lc}
-      <span class="bad-t hide-md" title={lc.error}>La última prueba de conexión falló</span>
+      <span class="bad-t hide-md" title={lc.error}>{tr('La última prueba de conexión falló')}</span>
     {:else}
-      <button class="lnk hide-md" onclick={() => (ui.view = 'servers')}>Sin probar la conexión</button>
+      <button class="lnk hide-md" onclick={() => (ui.view = 'servers')}>{tr('Sin probar la conexión')}</button>
     {/if}
 
     {#if running.length}
       <span class="sep"></span>
       {#each running as r (r.runId)}
         <button class="lnk run" onclick={() => openDeployment(r.projectId)}>
-          <LoaderCircle size={12} class="spin" /> {r.check ? 'Simulando' : 'Aplicando'} «{projName(r.projectId)}»: {r.stage}
+          <LoaderCircle size={12} class="spin" /> {r.check ? tr('Simulando') : tr('Aplicando')} «{projName(r.projectId)}»: {r.stage}
         </button>
       {/each}
     {/if}
 
     <span class="grow"></span>
-    <button class="lnk hide-sm" onclick={() => openServerProjects(srv.id)} title="Ficha de este servidor">
-      <Activity size={12} /> {nProj} {nProj === 1 ? 'módulo' : 'módulos'}
+    <button class="lnk hide-sm" onclick={() => openServerProjects(srv.id)} title={tr('Ficha de este servidor')}>
+      <Activity size={12} /> {plural(nProj, 'módulo', 'módulos')}
     </button>
-    <button class="icon-b" onclick={refresh} disabled={checking} title="Volver a comprobar" aria-label="Volver a comprobar">
+    <button class="icon-b" onclick={refresh} disabled={checking} title={tr('Volver a comprobar')} aria-label={tr('Volver a comprobar')}>
       <RefreshCw size={12} class={checking ? 'spin' : ''} />
     </button>
     {#if live?.webUrl}
       <button class="web" onclick={() => api.OpenURL(live!.webUrl!)} title={live.webUrl}>
-        <ExternalLink size={12} /> Abrir {live.webLabel === 'Coolify' ? 'Coolify' : 'la web'}
+        <ExternalLink size={12} /> {tr('Abrir {0}', live.webLabel === 'Coolify' ? tr('Coolify') : tr('la web'))}
       </button>
     {:else if live}
-      <span class="muted" title="Ni Coolify (puerto 8000) ni una web (80/443) responden en este servidor">Sin web</span>
+      <span class="muted" title={tr('Ni Coolify (puerto 8000) ni una web (80/443) responden en este servidor')}>{tr('Sin web')}</span>
     {/if}
   {/if}
 </footer>

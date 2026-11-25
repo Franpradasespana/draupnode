@@ -6,6 +6,7 @@
   import { api, type MonitorStats, type Project } from '../lib/api'
   import { toast, ui } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let { project, dashboard = 'recursos' }: { project: Project; dashboard?: string } = $props()
 
@@ -20,9 +21,9 @@
     try {
       const r = await withConnection(server, (s, a) => api.OpenGrafana(project.id, s, a))
       if (!r) return
-      if (r.status !== 'ok' || !r.url) return toast(r.message || 'No se pudo abrir Grafana', 'error')
+      if (r.status !== 'ok' || !r.url) return toast(r.message || tr('No se pudo abrir Grafana'), 'error')
       await api.OpenURL(r.url + (dashboard ? `d/${dashboard}` : ''))
-      toast('Grafana abierta en el navegador. Usuario admin; la contraseña está en «Contraseñas» de este módulo.')
+      toast(tr('Grafana abierta en el navegador. Usuario admin; la contraseña está en «Contraseñas» de este módulo.'))
     } finally {
       busy = ''
     }
@@ -34,7 +35,7 @@
       const r = await withConnection(server, (s, a) => api.MonitorSummary(project.id, s, a))
       if (!r) return
       if (r.status !== 'ok') {
-        if (!quiet) toast(r.message || 'No se pudo leer el estado', 'error')
+        if (!quiet) toast(r.message || tr('No se pudo leer el estado'), 'error')
         return
       }
       stats = r.stats ?? null
@@ -53,46 +54,46 @@
   }
   function dur(s: number): string {
     const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60)
-    return d ? `${d} d ${h} h` : h ? `${h} h ${m} min` : `${m} min`
+    return d ? `${d} d ${h} h` : h ? tr('{0} h {1} min', h, m) : `${m} min`
   }
   const level = (pct: number) => (pct >= 90 ? 'bad' : pct >= 75 ? 'warn' : 'ok')
-  const JOBS: Record<string, string> = { prometheus: 'Prometheus', node: 'Servidor', cadvisor: 'Contenedores', postgres: 'PostgreSQL' }
+  const JOBS: Record<string, string> = { prometheus: tr('Prometheus'), node: tr('Servidor'), cadvisor: tr('Contenedores'), postgres: 'PostgreSQL' }
 </script>
 
 <section class="card mon">
   <div class="head">
     <Activity size={18} />
     <div class="txt">
-      <strong>Estado de {server?.name ?? 'el servidor'}</strong>
-      <span class="muted">Grafana y Prometheus solo escuchan en el servidor; Draupnode llega a ellos por SSH.</span>
+      <strong>{tr('Estado de {0}', server?.name ?? tr('el servidor'))}</strong>
+      <span class="muted">{tr('Grafana y Prometheus solo escuchan en el servidor; Draupnode llega a ellos por SSH.')}</span>
     </div>
     <div class="btns">
       <button class="btn sm" onclick={() => refresh()} disabled={!!busy}>
-        {#if busy === 'stats'}<LoaderCircle size={14} class="spin" />{:else}<RefreshCw size={14} />{/if} {stats ? 'Actualizar' : 'Ver estado'}
+        {#if busy === 'stats'}<LoaderCircle size={14} class="spin" />{:else}<RefreshCw size={14} />{/if} {stats ? tr('Actualizar') : tr('Ver estado')}
       </button>
       <button class="btn sm primary" onclick={openGrafana} disabled={!!busy}>
-        {#if busy === 'grafana'}<LoaderCircle size={14} class="spin" />{:else}<ExternalLink size={14} />{/if} Abrir Grafana
+        {#if busy === 'grafana'}<LoaderCircle size={14} class="spin" />{:else}<ExternalLink size={14} />{/if} {tr('Abrir Grafana')}
       </button>
     </div>
   </div>
 
   {#if stats}
     <div class="tiles">
-      <div class="tile {level(stats.cpu)}"><Cpu size={16} /><span class="v">{stats.cpu.toFixed(0)} %</span><span class="l">CPU · {stats.cpus} núcleos · carga {stats.load.toFixed(2)}</span><i style:width={`${Math.min(100, stats.cpu)}%`}></i></div>
-      <div class="tile {level(stats.ram)}"><MemoryStick size={16} /><span class="v">{stats.ram.toFixed(0)} %</span><span class="l">RAM de {bytes(stats.ramTotal)}</span><i style:width={`${Math.min(100, stats.ram)}%`}></i></div>
+      <div class="tile {level(stats.cpu)}"><Cpu size={16} /><span class="v">{stats.cpu.toFixed(0)} %</span><span class="l">{tr('CPU · {0} núcleos · carga {1}', stats.cpus, stats.load.toFixed(2))}</span><i style:width={`${Math.min(100, stats.cpu)}%`}></i></div>
+      <div class="tile {level(stats.ram)}"><MemoryStick size={16} /><span class="v">{stats.ram.toFixed(0)} %</span><span class="l">{tr('RAM de {0}', bytes(stats.ramTotal))}</span><i style:width={`${Math.min(100, stats.ram)}%`}></i></div>
       {#if stats.disk >= 0}
-        <div class="tile {level(stats.disk)}"><HardDrive size={16} /><span class="v">{stats.disk.toFixed(0)} %</span><span class="l">Disco · {bytes(stats.diskFree)} libres</span><i style:width={`${Math.min(100, stats.disk)}%`}></i></div>
+        <div class="tile {level(stats.disk)}"><HardDrive size={16} /><span class="v">{stats.disk.toFixed(0)} %</span><span class="l">{tr('Disco · {0} libres', bytes(stats.diskFree))}</span><i style:width={`${Math.min(100, stats.disk)}%`}></i></div>
       {:else}
-        <div class="tile"><HardDrive size={16} /><span class="v">—</span><span class="l">Disco: sin datos de «/»</span></div>
+        <div class="tile"><HardDrive size={16} /><span class="v">—</span><span class="l">{tr('Disco: sin datos de «/»')}</span></div>
       {/if}
-      <div class="tile"><Container size={16} /><span class="v">{stats.containers >= 0 ? stats.containers : '—'}</span><span class="l">{stats.containers >= 0 ? 'contenedores en marcha' : 'sin cAdvisor'}</span></div>
-      <div class="tile"><Clock size={16} /><span class="v">{dur(stats.uptime)}</span><span class="l">encendido</span></div>
+      <div class="tile"><Container size={16} /><span class="v">{stats.containers >= 0 ? stats.containers : '—'}</span><span class="l">{stats.containers >= 0 ? tr('contenedores en marcha') : tr('sin cAdvisor')}</span></div>
+      <div class="tile"><Clock size={16} /><span class="v">{dur(stats.uptime)}</span><span class="l">{tr('encendido')}</span></div>
     </div>
     <div class="targets">
       {#each stats.targets as t}
-        <span class="tg" class:down={!t.up}><span class="dot"></span>{JOBS[t.job] ?? t.job}{t.up ? '' : ' · no responde'}</span>
+        <span class="tg" class:down={!t.up}><span class="dot"></span>{JOBS[t.job] ?? t.job}{t.up ? '' : tr(' · no responde')}</span>
       {/each}
-      <span class="muted small">· actualizado {new Date(stats.at).toLocaleTimeString('es-ES')}</span>
+      <span class="muted small">{tr('· actualizado {0}', new Date(stats.at).toLocaleTimeString('es-ES'))}</span>
     </div>
   {/if}
 </section>

@@ -6,6 +6,7 @@
   import { api, errorText, type DockerResult, type Project, type ServerMarker, type ServerOverview } from '../lib/api'
   import { ui, toast, timeAgo, refreshProjects, moduleName, confirmDialog, openDeployment } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
+  import { t } from '../lib/i18n.svelte'
 
   let { serverId, ov, deployments }: { serverId: string; ov: ServerOverview; deployments: Project[] } = $props()
 
@@ -37,35 +38,35 @@
   })
   async function removeOrphan(name: string) {
     const ok = await confirmDialog({
-      title: `Borrar la app «${name}»`,
-      message: `Draupnode ya no gestiona esta app. Se paran y borran sus contenedores (dn-${name}) y su carpeta /srv/draupnode/apps/${name}.`,
-      detail: 'Sus datos (volúmenes: la base de datos, ficheros subidos…) se conservan salvo que marques la casilla siguiente.',
-      confirmLabel: 'Borrar la app', danger: true,
+      title: t('Borrar la app «{0}»', name),
+      message: t('Draupnode ya no gestiona esta app. Se paran y borran sus contenedores (dn-{0}) y su carpeta /srv/draupnode/apps/{1}.', name, name),
+      detail: t('Sus datos (volúmenes: la base de datos, ficheros subidos…) se conservan salvo que marques la casilla siguiente.'),
+      confirmLabel: t('Borrar la app'), danger: true,
     })
     if (!ok) return
     const purge = await confirmDialog({
-      title: '¿Borrar también sus datos?',
-      message: `Sus volúmenes de Docker (la base de datos y lo que guarde «${name}»). No se puede deshacer.`,
-      confirmLabel: 'Sí, borrar los datos', danger: true,
+      title: t('¿Borrar también sus datos?'),
+      message: t('Sus volúmenes de Docker (la base de datos y lo que guarde «{0}»). No se puede deshacer.', name),
+      confirmLabel: t('Sí, borrar los datos'), danger: true,
     })
     busy = name
     try {
       const r = await withConnection<DockerResult>(ui.servers.find((s) => s.id === serverId), (s, a, u) => api.RemoveOrphanApp(serverId, name, purge, s, a, u))
-      if (r?.status === 'ok') toast(`«${name}» borrada${purge ? ' con sus datos' : ' (sus datos se conservan)'}. Pulsa «Actualizar» para verlo.`)
-      else if (r) toast(r.message || 'No se pudo borrar', 'error')
+      if (r?.status === 'ok') toast(t('«{0}» borrada{1}. Pulsa «Actualizar» para verlo.', name, purge ? t(' con sus datos') : t(' (sus datos se conservan)')))
+      else if (r) toast(r.message || t('No se pudo borrar'), 'error')
     } finally {
       busy = ''
     }
   }
 
   const NOTES: Record<string, string> = {
-    docker: 'Se puede añadir sin problema: el módulo Docker respeta lo instalado.',
-    firewall: 'Hay reglas de Draupnode: añadir el Cortafuegos las mantiene.',
-    nginx: 'Si añades el módulo nginx, Draupnode reescribe sus sitios: copia antes tu configuración.',
-    caddy: 'Si añades el módulo Caddy, Draupnode reescribe su Caddyfile: copia antes tu configuración.',
-    coolify: 'Instalado aparte. Añadir el módulo Coolify no lo reinstala, pero revísalo en el servidor de pruebas antes.',
-    wireguard: 'Si añades el módulo WireGuard, Draupnode reescribe wg0.conf y sus dispositivos.',
-    ssh: 'Si añades «SSH seguro», Draupnode cambia la configuración de SSH: comprueba antes que entras con clave.',
+    docker: t('Se puede añadir sin problema: el módulo Docker respeta lo instalado.'),
+    firewall: t('Hay reglas de Draupnode: añadir el Cortafuegos las mantiene.'),
+    nginx: t('Si añades el módulo nginx, Draupnode reescribe sus sitios: copia antes tu configuración.'),
+    caddy: t('Si añades el módulo Caddy, Draupnode reescribe su Caddyfile: copia antes tu configuración.'),
+    coolify: t('Instalado aparte. Añadir el módulo Coolify no lo reinstala, pero revísalo en el servidor de pruebas antes.'),
+    wireguard: t('Si añades el módulo WireGuard, Draupnode reescribe wg0.conf y sus dispositivos.'),
+    ssh: t('Si añades «SSH seguro», Draupnode cambia la configuración de SSH: comprueba antes que entras con clave.'),
   }
 
   async function recover(m: ServerMarker, guessed = false) {
@@ -73,12 +74,12 @@
     try {
       const r = await api.RecoverFromServer(serverId, JSON.stringify(m))
       await refreshProjects()
-      toast(['Módulos recuperados.', ...r.notes, guessed ? 'Revisa sus módulos: se han deducido de lo que hay en el servidor.' : ''].filter(Boolean).join(' '))
-      const ok = await confirmDialog({ title: 'Contraseñas', message: `¿Traer ya a la bóveda las contraseñas que generaron sus módulos en el servidor?`, confirmLabel: 'Traer ahora' })
+      toast([t('Módulos recuperados.'), ...r.notes, guessed ? t('Revisa sus módulos: se han deducido de lo que hay en el servidor.') : ''].filter(Boolean).join(' '))
+      const ok = await confirmDialog({ title: t('Contraseñas'), message: t('¿Traer ya a la bóveda las contraseñas que generaron sus módulos en el servidor?'), confirmLabel: t('Traer ahora') })
       if (ok) {
         const res = await withConnection(ui.servers.find((s) => s.id === serverId), (s, a, u) => api.FetchProjectSecrets(r.project.id, s, a, u))
-        if (res?.status === 'ok') toast(`${res.count} contraseña(s) traídas a la bóveda`)
-        else if (res) toast(res.message || 'No se pudieron traer', 'error')
+        if (res?.status === 'ok') toast(t('{0} contraseña(s) traídas a la bóveda', res.count))
+        else if (res) toast(res.message || t('No se pudieron traer'), 'error')
       }
       openDeployment(r.project.id)
     } catch (e) {
@@ -97,22 +98,22 @@
 </script>
 
 <section class="card adopt">
-    <h2><PackageSearch size={17} /> Lo que ya hay en este servidor</h2>
+    <h2><PackageSearch size={17} /> {t('Lo que ya hay en este servidor')}</h2>
     {#if !markers.length && !orphans.length && !outside.length && !orphanApps.length}
-      <p class="muted small">Todo lo que Draupnode instaló aquí ya está en sus módulos. Si abres Draupnode en otro equipo (o pierdes sus datos), aquí saldrá con el botón «Recuperar».</p>
+      <p class="muted small">{t('Todo lo que Draupnode instaló aquí ya está en sus módulos. Si abres Draupnode en otro equipo (o pierdes sus datos), aquí saldrá con el botón «Recuperar».')}</p>
     {/if}
 
     {#each markers as m (m.slug)}
       <div class="item">
         <ArchiveRestore size={16} class="ic" />
         <div class="txt">
-          <span><strong>{m.nombre || m.slug}</strong>{#if m.plantilla && m.plantilla !== m.nombre} <span class="muted">(plantilla «{m.plantilla}»)</span>{/if}</span>
-          <span class="muted small">Instalada con Draupnode{m.draupnode ? ' ' + m.draupnode : ''}{m.at ? ' ' + timeAgo(m.at) : ''}, pero este Draupnode no la conoce. Módulos: {m.modulos.map((x) => moduleName(x.id)).join(', ')}.</span>
+          <span><strong>{m.nombre || m.slug}</strong>{#if m.plantilla && m.plantilla !== m.nombre} <span class="muted">{t('(plantilla «{0}»)', m.plantilla)}</span>{/if}</span>
+          <span class="muted small">{t('Instalada con Draupnode{0}{1}, pero este Draupnode no la conoce. Módulos: {2}.', m.draupnode ? ' ' + m.draupnode : '', m.at ? ' ' + timeAgo(m.at) : '', m.modulos.map((x) => moduleName(x.id)).join(', '))}</span>
         </div>
         {#if blocked(m.slug)}
-          <span class="muted small nb" title="Este servidor ya tiene módulos en Draupnode">Añade sus módulos a mano (Añadir módulos) o aplica una plantilla con ellos.</span>
+          <span class="muted small nb" title={t('Este servidor ya tiene módulos en Draupnode')}>{t('Añade sus módulos a mano (Añadir módulos) o aplica una plantilla con ellos.')}</span>
         {:else}
-          <button class="btn sm primary" onclick={() => recover(m)} disabled={!!busy}>{busy === m.slug ? 'Recuperando…' : 'Recuperar'}</button>
+          <button class="btn sm primary" onclick={() => recover(m)} disabled={!!busy}>{busy === m.slug ? t('Recuperando…') : t('Recuperar')}</button>
         {/if}
       </div>
     {/each}
@@ -123,9 +124,9 @@
         <ArchiveRestore size={16} class="ic" />
         <div class="txt">
           <strong>{s}</strong>
-          <span class="muted small">Contraseñas de una plantilla aplicada con un Draupnode anterior a la 0.42 (sin ficha). Se puede recuperar con lo que se ve instalado{g.modulos.length ? ': ' + g.modulos.map((x) => moduleName(x.id)).join(', ') : ''}; revisa después sus módulos.</span>
+          <span class="muted small">{t('Contraseñas de una plantilla aplicada con un Draupnode anterior a la 0.42 (sin ficha). Se puede recuperar con lo que se ve instalado{0}; revisa después sus módulos.', g.modulos.length ? ': ' + g.modulos.map((x) => moduleName(x.id)).join(', ') : '')}</span>
         </div>
-        <button class="btn sm" onclick={() => recover(g, true)} disabled={!!busy || !g.modulos.length || blocked(s)}>{busy === s ? 'Recuperando…' : 'Recuperar'}</button>
+        <button class="btn sm" onclick={() => recover(g, true)} disabled={!!busy || !g.modulos.length || blocked(s)}>{busy === s ? t('Recuperando…') : t('Recuperar')}</button>
       </div>
     {/each}
 
@@ -134,18 +135,18 @@
         <Trash2 size={16} class="ic warn" />
         <div class="txt">
           <strong>{o.name}</strong>
-          <span class="muted small">App que Draupnode ya no gestiona{o.containers.length ? ` · ${o.containers.length} contenedor(es): ${o.containers.map((c) => `${c.name} (${c.state})`).join(', ')}` : ''}{o.dir ? ` · carpeta /srv/draupnode/apps/${o.name}` : ''}. Suele quedarse al cambiar el nombre de una «Tu app» o al quitarla sin desinstalar.</span>
+          <span class="muted small">{t('App que Draupnode ya no gestiona{0}{1}. Suele quedarse al cambiar el nombre de una «Tu app» o al quitarla sin desinstalar.', o.containers.length ? t(' · {0} contenedor(es): {1}', o.containers.length, o.containers.map((c) => `${c.name} (${c.state})`).join(', ')) : '', o.dir ? t(' · carpeta /srv/draupnode/apps/{0}', o.name) : '')}</span>
         </div>
-        <button class="btn sm danger" onclick={() => removeOrphan(o.name)} disabled={!!busy}>{busy === o.name ? 'Borrando…' : 'Borrar…'}</button>
+        <button class="btn sm danger" onclick={() => removeOrphan(o.name)} disabled={!!busy}>{busy === o.name ? t('Borrando…') : t('Borrar…')}</button>
       </div>
     {/each}
 
     {#if outside.length}
       <div class="out">
-        <p class="small"><strong>Instalado fuera de los módulos de Draupnode:</strong> {outside.map((s) => moduleName(s.module)).join(', ')}.</p>
-        <p class="muted small">Draupnode no lo toca. Si añades su módulo a este servidor, pasará a gestionarlo:</p>
+        <p class="small"><strong>{t('Instalado fuera de los módulos de Draupnode:')}</strong> {outside.map((s) => moduleName(s.module)).join(', ')}.</p>
+        <p class="muted small">{t('Draupnode no lo toca. Si añades su módulo a este servidor, pasará a gestionarlo:')}</p>
         <ul>
-          {#each outside as s}<li class="small"><strong>{moduleName(s.module)}</strong>{s.active ? '' : ' (parado)'}: {NOTES[s.module] ?? 'su módulo puede cambiar la configuración que tenga: pruébalo antes en el servidor de pruebas.'}</li>{/each}
+          {#each outside as s}<li class="small"><strong>{moduleName(s.module)}</strong>{s.active ? '' : ' (parado)'}: {NOTES[s.module] ?? t('su módulo puede cambiar la configuración que tenga: pruébalo antes en el servidor de pruebas.')}</li>{/each}
         </ul>
       </div>
     {/if}

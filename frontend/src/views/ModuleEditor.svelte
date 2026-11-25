@@ -8,6 +8,7 @@
   import Modal from '../components/Modal.svelte'
   import { api, errorText, type ModuleImportReport, type UserModule } from '../lib/api'
   import { ui, toast, confirmDialog, ask, refreshModules } from '../lib/state.svelte'
+  import { t as tr } from '../lib/i18n.svelte'
 
   let list = $state<UserModule[]>([])
   let cur = $state<UserModule | null>(null)
@@ -30,7 +31,7 @@
 
   async function guard(): Promise<boolean> {
     if (!dirty) return true
-    return confirmDialog({ title: 'Cambios sin guardar', message: `«${file}» tiene cambios sin guardar. ¿Descartarlos?`, confirmLabel: 'Descartar', danger: true })
+    return confirmDialog({ title: tr('Cambios sin guardar'), message: tr('«{0}» tiene cambios sin guardar. ¿Descartarlos?', file), confirmLabel: tr('Descartar'), danger: true })
   }
 
   async function pick(m: UserModule, f = 'module.yaml') {
@@ -58,7 +59,7 @@
       saved = text
       list = list.map((x) => (x.id === cur!.id ? cur! : x))
       await refreshModules()
-      toast(cur.problems.length ? 'Guardado, pero hay problemas: míralos abajo' : 'Guardado y comprobado', cur.problems.length ? 'error' : 'ok')
+      toast(cur.problems.length ? tr('Guardado, pero hay problemas: míralos abajo') : tr('Guardado y comprobado'), cur.problems.length ? 'error' : 'ok')
     } catch (e) {
       toast(errorText(e), 'error')
     } finally {
@@ -75,7 +76,7 @@
       cur = null
       file = ''
       await load(m.id)
-      toast('Módulo creado: ya aparece en el Catálogo')
+      toast(tr('Módulo creado: ya aparece en el Catálogo'))
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -84,10 +85,10 @@
   // ---- Compartir: exportar a un fichero e importar uno revisándolo antes
   async function exportModule() {
     if (!cur) return
-    if (dirty && !(await confirmDialog({ title: 'Cambios sin guardar', message: `«${file}» tiene cambios sin guardar: se exportará lo guardado. ¿Seguir?`, confirmLabel: 'Exportar lo guardado' }))) return
+    if (dirty && !(await confirmDialog({ title: tr('Cambios sin guardar'), message: tr('«{0}» tiene cambios sin guardar: se exportará lo guardado. ¿Seguir?', file), confirmLabel: tr('Exportar lo guardado') }))) return
     try {
       const p = await api.ExportUserModule(cur.id)
-      if (p) toast('Módulo exportado: ' + p)
+      if (p) toast(tr('Módulo exportado: ') + p)
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -111,7 +112,7 @@
       cur = null
       file = ''
       await load(m.id)
-      toast(`«${m.name}» importado: ya aparece en el Catálogo`)
+      toast(tr('«{0}» importado: ya aparece en el Catálogo', m.name))
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -119,7 +120,7 @@
 
   async function newFile() {
     if (!cur || !(await guard())) return
-    const f = await ask('Fichero nuevo', 'Ruta dentro del módulo, por ejemplo role/templates/config.j2 o role/handlers/main.yml.', 'Ruta', false)
+    const f = await ask(tr('Fichero nuevo'), tr('Ruta dentro del módulo, por ejemplo role/templates/config.j2 o role/handlers/main.yml.'), tr('Ruta'), false)
     if (!f) return
     try {
       cur = await api.SaveUserModuleFile(cur.id, f.trim(), '')
@@ -133,7 +134,7 @@
 
   async function delFile() {
     if (!cur) return
-    if (!(await confirmDialog({ title: 'Borrar fichero', message: `¿Borrar «${file}» de ${cur.id}?`, confirmLabel: 'Borrar', danger: true }))) return
+    if (!(await confirmDialog({ title: tr('Borrar fichero'), message: tr('¿Borrar «{0}» de {1}?', file, cur.id), confirmLabel: tr('Borrar'), danger: true }))) return
     try {
       cur = await api.DeleteUserModuleFile(cur.id, file)
       list = list.map((x) => (x.id === cur!.id ? cur! : x))
@@ -146,14 +147,14 @@
 
   async function delModule() {
     if (!cur) return
-    if (!(await confirmDialog({ title: 'Borrar módulo', message: `¿Borrar el módulo «${cur.name}» y todos sus ficheros? No se puede deshacer. (Lo que ya instaló en tus servidores no se toca.)`, confirmLabel: 'Borrar módulo', danger: true }))) return
+    if (!(await confirmDialog({ title: tr('Borrar módulo'), message: tr('¿Borrar el módulo «{0}» y todos sus ficheros? No se puede deshacer. (Lo que ya instaló en tus servidores no se toca.)', cur.name), confirmLabel: tr('Borrar módulo'), danger: true }))) return
     try {
       await api.DeleteUserModule(cur.id)
       await refreshModules()
       cur = null
       file = text = saved = ''
       await load()
-      toast('Módulo borrado')
+      toast(tr('Módulo borrado'))
     } catch (e) {
       toast(errorText(e), 'error')
     }
@@ -162,12 +163,12 @@
 
 <div class="head">
   <div>
-    <h1>Editor de módulos</h1>
-    <p class="muted">Tus propios módulos: un formulario (<code>module.yaml</code>) y un rol de Ansible (<code>role/</code>). Empieza con un ejemplo o copiando uno incluido. Al guardar se comprueban y aparecen en el Catálogo y en las plantillas.</p>
+    <h1>{tr('Editor de módulos')}</h1>
+    <p class="muted">{tr('Tus propios módulos: un formulario (')}<code>module.yaml</code>{tr(') y un rol de Ansible (')}<code>role/</code>{tr('). Empieza con un ejemplo o copiando uno incluido. Al guardar se comprueban y aparecen en el Catálogo y en las plantillas.')}</p>
   </div>
   <div class="hbtns">
-    <button class="btn" onclick={inspectImport} title="Importar un módulo que te han pasado (.draupnode-modulo); se revisa antes"><Upload size={15} /> Importar…</button>
-    <button class="btn primary" onclick={() => (creating = { id: '', from: '' })}><Plus size={15} /> Nuevo módulo</button>
+    <button class="btn" onclick={inspectImport} title={tr('Importar un módulo que te han pasado (.draupnode-modulo); se revisa antes')}><Upload size={15} /> {tr('Importar…')}</button>
+    <button class="btn primary" onclick={() => (creating = { id: '', from: '' })}><Plus size={15} /> {tr('Nuevo módulo')}</button>
   </div>
 </div>
 
@@ -180,7 +181,7 @@
         {#if m.problems.length}<CircleX size={14} class="bad" />{:else if m.notes.length}<TriangleAlert size={14} class="warn" />{:else}<CircleCheck size={14} class="ok" />{/if}
       </button>
     {:else}
-      <p class="muted small">Todavía no tienes módulos propios. Pulsa «Nuevo módulo».</p>
+      <p class="muted small">{tr('Todavía no tienes módulos propios. Pulsa «Nuevo módulo».')}</p>
     {/each}
   </aside>
 
@@ -191,24 +192,24 @@
           {#each cur.files as f (f)}
             <button class="file" class:on={file === f} onclick={() => openFile(f)}><FileCode size={13} /> {f}{#if file === f && dirty} •{/if}</button>
           {/each}
-          <button class="file add" onclick={newFile} title="Fichero nuevo"><FilePlus size={13} /> Nuevo</button>
+          <button class="file add" onclick={newFile} title={tr('Fichero nuevo')}><FilePlus size={13} /> {tr('Nuevo')}</button>
         </div>
       </div>
       <div class="ed">
         {#key cur.id}<CodeEditor value={saved} {file} onchange={(v) => (text = v)} onsave={save} />{/key}
       </div>
       <div class="actions">
-        <button class="btn primary" onclick={save} disabled={!dirty || saving}><Save size={15} /> {saving ? 'Guardando…' : dirty ? 'Guardar (Ctrl+S)' : 'Guardado'}</button>
-        {#if file !== 'module.yaml' && file !== 'role/tasks/main.yml'}<button class="btn sm ghost" onclick={delFile}><Trash2 size={14} /> Borrar fichero</button>{/if}
+        <button class="btn primary" onclick={save} disabled={!dirty || saving}><Save size={15} /> {saving ? tr('Guardando…') : dirty ? tr('Guardar (Ctrl+S)') : tr('Guardado')}</button>
+        {#if file !== 'module.yaml' && file !== 'role/tasks/main.yml'}<button class="btn sm ghost" onclick={delFile}><Trash2 size={14} /> {tr('Borrar fichero')}</button>{/if}
         <div class="spacer"></div>
-        <button class="btn sm ghost" onclick={() => api.OpenUserModuleDir(cur!.id)}><FolderOpen size={14} /> Abrir carpeta</button>
-        <button class="btn sm" onclick={exportModule} disabled={cur.problems.length > 0} title={cur.problems.length ? 'Arregla sus problemas antes de exportarlo' : 'Guardarlo en un fichero para pasárselo a otra persona'}><Download size={14} /> Exportar…</button>
-        <button class="btn sm danger" onclick={delModule}><Trash2 size={14} /> Borrar módulo</button>
+        <button class="btn sm ghost" onclick={() => api.OpenUserModuleDir(cur!.id)}><FolderOpen size={14} /> {tr('Abrir carpeta')}</button>
+        <button class="btn sm" onclick={exportModule} disabled={cur.problems.length > 0} title={cur.problems.length ? tr('Arregla sus problemas antes de exportarlo') : tr('Guardarlo en un fichero para pasárselo a otra persona')}><Download size={14} /> {tr('Exportar…')}</button>
+        <button class="btn sm danger" onclick={delModule}><Trash2 size={14} /> {tr('Borrar módulo')}</button>
       </div>
       <div class="state">
         {#each cur.problems as p}<p class="bad"><CircleX size={15} /> {p}</p>{/each}
         {#each cur.notes as n}<p class="warn"><TriangleAlert size={15} /> {n}</p>{/each}
-        {#if !cur.problems.length}<p class="ok"><CircleCheck size={15} /> Se carga bien: está en el Catálogo{cur.usedBy?.length ? ` y lo usan: ${cur.usedBy.join(', ')}` : ' y lo puedes añadir a una plantilla'}.</p>{/if}
+        {#if !cur.problems.length}<p class="ok"><CircleCheck size={15} /> {tr('Se carga bien: está en el Catálogo{0}.', cur.usedBy?.length ? tr(' y lo usan: {0}', cur.usedBy.join(', ')) : tr(' y lo puedes añadir a una plantilla'))}</p>{/if}
       </div>
     </section>
   {/if}
@@ -219,19 +220,19 @@
 {/if}
 
 {#if creating}
-  <Modal title="Nuevo módulo" width={520} onclose={() => (creating = null)}>
-    <label class="field"><span>Nombre corto (id)</span>
+  <Modal title={tr('Nuevo módulo')} width={520} onclose={() => (creating = null)}>
+    <label class="field"><span>{tr('Nombre corto (id)')}</span>
       <input class="input mono" bind:value={creating.id} placeholder="mi-modulo" />
-      <small class="muted">Minúsculas, números y guiones. Es el nombre de la carpeta; las variables empezarán por «{(creating.id || 'mi-modulo').replaceAll('-', '_')}_».</small>
+      <small class="muted">{tr('Minúsculas, números y guiones. Es el nombre de la carpeta; las variables empezarán por «{0}_».', (creating.id || 'mi-modulo').replaceAll('-', '_'))}</small>
     </label>
-    <label class="field"><span>Partir de</span>
+    <label class="field"><span>{tr('Partir de')}</span>
       <select class="input" bind:value={creating.from}>
-        <option value="">Un ejemplo sencillo (instala paquetes y pone un mensaje)</option>
-        {#each builtins as b}<option value={b.id}>Copia de «{b.name}»</option>{/each}
+        <option value="">{tr('Un ejemplo sencillo (instala paquetes y pone un mensaje)')}</option>
+        {#each builtins as b}<option value={b.id}>{tr('Copia de «{0}»', b.name)}</option>{/each}
       </select>
-      {#if creating.from}<small class="muted">Es una copia: si en un servidor instalas a la vez el original y la copia, usarán las mismas carpetas y contenedores. Cámbialos en la copia.</small>{/if}
+      {#if creating.from}<small class="muted">{tr('Es una copia: si en un servidor instalas a la vez el original y la copia, usarán las mismas carpetas y contenedores. Cámbialos en la copia.')}</small>{/if}
     </label>
-    <div class="mrow"><button class="btn primary" onclick={create} disabled={!/^[a-z][a-z0-9-]{1,40}$/.test(creating.id.trim())}><Plus size={15} /> Crear</button></div>
+    <div class="mrow"><button class="btn primary" onclick={create} disabled={!/^[a-z][a-z0-9-]{1,40}$/.test(creating.id.trim())}><Plus size={15} /> {tr('Crear')}</button></div>
   </Modal>
 {/if}
 

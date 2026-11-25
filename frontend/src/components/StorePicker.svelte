@@ -2,24 +2,25 @@
   // «Dónde guardarla»: llavero del sistema o bóveda cifrada de Draupnode.
   import { KeyRound, LockKeyhole } from '@lucide/svelte'
   import { ui } from '../lib/state.svelte'
+  import { t } from '../lib/i18n.svelte'
 
   let { value = $bindable() }: { value: 'keyring' | 'vault' } = $props()
 
   const sx = $derived(ui.secrets)
   const vaultState = $derived(
-    !sx?.vault.exists ? 'Se creará ahora con una contraseña maestra' : sx.vault.unlocked ? 'Desbloqueada' : 'Bloqueada: se pedirá la contraseña maestra',
+    !sx?.vault.exists ? t('Se creará ahora con una contraseña maestra') : sx.vault.unlocked ? t('Desbloqueada') : t('Bloqueada: se pedirá la contraseña maestra'),
   )
 </script>
 
-<div class="picker" role="radiogroup" aria-label="Dónde guardar la contraseña">
+<div class="picker" role="radiogroup" aria-label={t('Dónde guardar la contraseña')}>
   <label class="opt" class:on={value === 'keyring'} class:disabled={!sx?.keyring.available}>
     <input type="radio" bind:group={value} value="keyring" disabled={!sx?.keyring.available} />
     <KeyRound size={16} />
     <div>
-      <strong>Llavero del sistema</strong>
+      <strong>{t('Llavero del sistema')}</strong>
       <span>{sx?.keyring.name ?? '…'}</span>
       <em class:bad={!sx?.keyring.available}>
-        {sx?.keyring.available ? 'Detectado · se abre con tu sesión' : 'No disponible en este equipo'}
+        {sx?.keyring.available ? t('Detectado · se abre con tu sesión') : t('No disponible en este equipo')}
       </em>
     </div>
   </label>
@@ -27,8 +28,8 @@
     <input type="radio" bind:group={value} value="vault" />
     <LockKeyhole size={16} />
     <div>
-      <strong>Bóveda cifrada de Draupnode</strong>
-      <span>Argon2id + XChaCha20-Poly1305 (256 bits)</span>
+      <strong>{t('Bóveda cifrada de Draupnode')}</strong>
+      <span>{t('Argon2id + XChaCha20-Poly1305 (256 bits)')}</span>
       <em>{vaultState}</em>
     </div>
   </label>

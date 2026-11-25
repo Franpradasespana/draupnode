@@ -1,3 +1,4 @@
+import { t as tr } from './i18n.svelte'
 // Paletas de Draupnode.
 // Las 12 primeras salen de las láminas «Paletas de color para DvergNode»
 // (DEV/1 IMAGENES/Draupnode). Las 3 últimas son nuevas.
@@ -26,16 +27,16 @@ export interface Palette {
 }
 
 export const COLOR_KEYS: { key: keyof Colors; label: string }[] = [
-  { key: 'bg', label: 'Fondo' },
-  { key: 'sidebar', label: 'Barra lateral' },
-  { key: 'panel', label: 'Paneles' },
-  { key: 'border', label: 'Bordes' },
-  { key: 'accent', label: 'Acento' },
-  { key: 'accent2', label: 'Acento 2' },
-  { key: 'text', label: 'Texto' },
-  { key: 'muted', label: 'Texto secundario' },
-  { key: 'success', label: 'Correcto' },
-  { key: 'danger', label: 'Error' },
+  { key: 'bg', label: tr('Fondo') },
+  { key: 'sidebar', label: tr('Barra lateral') },
+  { key: 'panel', label: tr('Paneles') },
+  { key: 'border', label: tr('Bordes') },
+  { key: 'accent', label: tr('Acento') },
+  { key: 'accent2', label: tr('Acento 2') },
+  { key: 'text', label: tr('Texto') },
+  { key: 'muted', label: tr('Texto secundario') },
+  { key: 'success', label: tr('Correcto') },
+  { key: 'danger', label: tr('Error') },
 ]
 
 const p = (id: string, name: string, tag: string, mode: Palette['mode'], hex: string[]): Palette => {
@@ -45,37 +46,37 @@ const p = (id: string, name: string, tag: string, mode: Palette['mode'], hex: st
 
 export const BUILTIN_PALETTES: Palette[] = [
   // Nuevas
-  p('draupnir-gold', 'Draupnir Gold', 'El anillo de oro · por defecto', 'dark',
+  p('draupnir-gold', tr('Draupnir Gold'), tr('El anillo de oro · por defecto'), 'dark',
     ['0E0D0B', '15130F', '1D1A15', '3A3328', 'E3B04B', 'F2CF7A', 'F3EDE1', 'A79E8C', '6CC48A', 'E5675C']),
-  p('muspelheim', 'Muspelheim', 'Reino de fuego', 'dark',
+  p('muspelheim', tr('Muspelheim'), tr('Reino de fuego'), 'dark',
     ['140C0C', '1C1111', '261716', '462A26', 'FF6A3D', 'FFB347', 'F7E9E4', 'B5958D', '66C98A', 'F0507A']),
-  p('niflheim', 'Niflheim', 'Reino de hielo · claro', 'light',
+  p('niflheim', tr('Niflheim'), tr('Reino de hielo · claro'), 'light',
     ['EEF3F7', 'E2EAF1', 'FFFFFF', 'C8D5E1', '3A6EA5', '2B8FB8', '0F1B2A', '56677A', '2E9E6B', 'C93D4A']),
   // Lámina I
-  p('obsidian-forge', 'Obsidian Forge', 'DevOps industrial', 'dark',
+  p('obsidian-forge', tr('Obsidian Forge'), tr('DevOps industrial'), 'dark',
     ['111318', '181B22', '20242D', '303642', 'F28C45', 'FF9F5C', 'E8EAF0', '929AAA', '45C486', 'EF6262']),
-  p('nordic-frost', 'Nordic Frost', 'Mitología nórdica', 'dark',
+  p('nordic-frost', tr('Nordic Frost'), tr('Mitología nórdica'), 'dark',
     ['0D141C', '131E29', '1C2B39', '304455', '79C9E8', '65D6C4', 'E5F0F6', '8DA6B8', '65C995', 'E76F78']),
-  p('olympus', 'Olympus', 'Mitología griega', 'dark',
+  p('olympus', tr('Olympus'), tr('Mitología griega'), 'dark',
     ['11101A', '191727', '242137', '39334F', 'D6AE62', '9B83E8', 'F0EDF7', 'A29BB8', '65C995', 'E87985']),
-  p('cyber-terminal', 'Cyber Terminal', 'Hacker / terminal', 'dark',
+  p('cyber-terminal', tr('Cyber Terminal'), tr('Hacker / terminal'), 'dark',
     ['090D0B', '101713', '151F19', '26382C', '70E08A', '318B55', 'E0F2E4', '82988A', '70E08A', 'ED6868']),
-  p('graphite-blue', 'Graphite Blue', 'SaaS profesional', 'dark',
+  p('graphite-blue', tr('Graphite Blue'), tr('SaaS profesional'), 'dark',
     ['11151D', '171E29', '202A38', '303D4F', '528BFF', '82ABFF', 'EDF2FA', '9AA9BD', '4CCB91', 'F16D75']),
-  p('ember-steel', 'Ember & Steel', 'Forja mitológica', 'dark',
+  p('ember-steel', tr('Ember & Steel'), tr('Forja mitológica'), 'dark',
     ['121212', '1B1A19', '252321', '403A34', 'C47A48', 'E6A653', 'F0ECE6', 'A69C90', '79B88A', 'D76D60']),
   // Lámina II
-  p('fjord-light', 'Fjord Light', 'Nórdico claro', 'light',
+  p('fjord-light', tr('Fjord Light'), tr('Nórdico claro'), 'light',
     ['F4F7FA', 'E9EEF3', 'FFFFFF', 'D3DCE5', '2F7FB8', '2A9D96', '1A2633', '5C6B7A', '2E9E6B', 'D64550']),
-  p('runestone-parchment', 'Runestone Parchment', 'Pergamino / rúnico', 'light',
+  p('runestone-parchment', tr('Runestone Parchment'), tr('Pergamino / rúnico'), 'light',
     ['F5F0E8', 'EBE3D6', 'FFFDF9', 'D9CDBB', 'B5562A', '8C6A3E', '2B241C', '6E6356', '4F8F5B', 'C2453B']),
-  p('cloud-indigo', 'Cloud Indigo', 'SaaS claro', 'light',
+  p('cloud-indigo', tr('Cloud Indigo'), tr('SaaS claro'), 'light',
     ['F7F8FA', 'FFFFFF', 'FFFFFF', 'E2E5EA', '5B5BD6', '7C7CE8', '16181D', '646B78', '1F9D6B', 'E04B4B']),
-  p('sand-slate', 'Sand & Slate', 'Mixto: barra lateral oscura', 'mixed',
+  p('sand-slate', tr('Sand & Slate'), tr('Mixto: barra lateral oscura'), 'mixed',
     ['F3F1EC', '23272E', 'FFFFFF', 'DEDAD2', 'E07A2E', '2D6A8F', '1E2229', '6B6F78', '2E9E6B', 'D64550']),
-  p('midgard-moss', 'Midgard Moss', 'Bosque oscuro', 'dark',
+  p('midgard-moss', tr('Midgard Moss'), tr('Bosque oscuro'), 'dark',
     ['10150F', '161D15', '1F281D', '34412F', 'A3C163', 'D9B45A', 'E9EEDF', '98A38C', '7CC27A', 'E06C5F']),
-  p('aurora-borealis', 'Aurora Borealis', 'Oscuro vibrante', 'dark',
+  p('aurora-borealis', tr('Aurora Borealis'), tr('Oscuro vibrante'), 'dark',
     ['0F1020', '15172B', '1E2140', '333863', 'C77DFF', '5EE0C8', 'ECEBFA', '9A9CC0', '5EE0A0', 'FF6B81']),
 ]
 

@@ -1,14 +1,15 @@
 <script lang="ts">
   import { Boxes, SquareTerminal } from '@lucide/svelte'
   import type { View } from '../lib/state.svelte'
+  import { t } from '../lib/i18n.svelte'
 
   let { view }: { view: View } = $props()
 
   const info: Record<string, { icon: typeof Boxes; title: string; phase: string; text: string; items: string[] }> = {
     terminal: {
-      icon: SquareTerminal, title: 'Terminal SSH', phase: 'Fase 3',
-      text: 'Una consola real contra tus servidores, sin salir de la app.',
-      items: ['Pestañas por servidor', 'Usa la misma clave y frase del llavero', 'Copiar y pegar, búsqueda en la salida'],
+      icon: SquareTerminal, title: t('Terminal SSH'), phase: t('Fase 3'),
+      text: t('Una consola real contra tus servidores, sin salir de la app.'),
+      items: [t('Pestañas por servidor'), t('Usa la misma clave y frase del llavero'), t('Copiar y pegar, búsqueda en la salida')],
     },
   }
   const v = $derived(info[view])
