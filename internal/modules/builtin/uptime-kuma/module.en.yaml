@@ -1,0 +1,42 @@
+# Textos en inglés de «uptime-kuma» (los ids, variables y valores están en module.yaml).
+name: Uptime Kuma (are my websites alive?)
+category: 6 · Monitoring
+description: Checks every minute that your websites, ports and services respond, warns you (Telegram, ntfy, email…) and makes a public status page.
+details: |
+  Uptime Kuma 2 in Docker. The first user to log in becomes the
+  administrator: log in straight after applying.
+  Better on a server DIFFERENT from the one it watches: if that server goes down,
+  this one keeps warning.
+  Its data is in /srv/draupnode/apps/uptime-kuma (included in the backups of the
+  Backups module). Licence: MIT.
+uninstall_warning: Stops and removes the Uptime Kuma containers.
+uninstall_data: Also delete its data (the checks, their history and the configured alerts). This cannot be undone.
+variables:
+  uptime_kuma_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  uptime_kuma_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  uptime_kuma_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  uptime_kuma_update:
+    label: Update Uptime Kuma when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Uptime Kuma» and apply.
+  - Press «Open (SSH tunnel)», create the administrator and add an HTTP check (for example https://example.com).
+  comprobar:
+  - The check shows green with its response time and repeats every minute.
+  - If you set an address that does not exist, it shows red and warns (if you have configured an alert).
+  necesita:
+  - 'Nothing when installing it. Inside: what to watch and how to alert (Telegram, ntfy, email…).'
+  problemas:
+  - It watches websites on this same server and does not warn when it goes down → install it on ANOTHER server.

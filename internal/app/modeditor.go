@@ -40,7 +40,7 @@ func (a *App) modDir(id string) (string, error) {
 	return filepath.Join(a.userModulesDir(), id), nil
 }
 
-// modFile: ruta segura de un fichero del módulo (module.yaml o dentro de role/).
+// modFile: ruta segura de un fichero del módulo (module.yaml, module.en.yaml o dentro de role/).
 func (a *App) modFile(id, rel string) (string, error) {
 	dir, err := a.modDir(id)
 	if err != nil {
@@ -51,8 +51,8 @@ func (a *App) modFile(id, rel string) (string, error) {
 	if rel == "" || clean != rel || strings.HasPrefix(clean, "/") || strings.HasPrefix(clean, "..") || strings.Contains(clean, "/../") || strings.ContainsAny(clean, "\\\x00") {
 		return "", i18n.Errorf("ruta no válida: %q", rel)
 	}
-	if clean != "module.yaml" && !strings.HasPrefix(clean, "role/") {
-		return "", i18n.New("los ficheros van en module.yaml o dentro de role/ (tasks/, templates/, files/, handlers/…)")
+	if clean != "module.yaml" && clean != "module.en.yaml" && !strings.HasPrefix(clean, "role/") {
+		return "", i18n.New("los ficheros van en module.yaml, module.en.yaml (textos en inglés) o dentro de role/ (tasks/, templates/, files/, handlers/…)")
 	}
 	return filepath.Join(dir, filepath.FromSlash(clean)), nil
 }
@@ -222,6 +222,9 @@ func (a *App) CreateUserModule(id, from string) (UserModule, error) {
 			if k == "module.yaml" {
 				s = regexp.MustCompile(`(?m)^id:\s*\S+`).ReplaceAllString(s, "id: "+id)
 				s = regexp.MustCompile(`(?m)^name:\s*"?([^"\n]*)"?`).ReplaceAllString(s, `name: "$1 (mi versión)"`)
+			}
+			if k == "module.en.yaml" {
+				s = regexp.MustCompile(`(?m)^name:\s*"?([^"\n]*)"?`).ReplaceAllString(s, `name: "$1 (my version)"`)
 			}
 			files[k] = []byte(s)
 		}

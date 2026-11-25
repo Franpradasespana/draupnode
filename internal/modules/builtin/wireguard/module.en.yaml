@@ -1,0 +1,62 @@
+# Textos en inglés de «wireguard» (los ids, variables y valores están en module.yaml).
+name: WireGuard (VPN)
+category: 1 · System
+description: Your own VPN. With it you get into the server as if you were on its network, to see panels (Grafana, Cockpit…) without opening them to the internet.
+details: |
+  WireGuard (GPL-2) from the system, with the wg0 interface. Each name in
+  «Devices» (laptop, phone…) has its own configuration: it is generated ON the
+  server the first time, with its own key, and Draupnode brings it to your
+  vault. On this module's page you see it with its QR code (for the WireGuard
+  phone app) or save it as a .conf (for the computer).
+  Removing a name from the list removes its access.
+  It opens the chosen UDP port in iptables (if present). On Oracle Cloud open it
+  also in the Security List, as UDP.
+  With «All traffic through the VPN», the device goes out to the internet through
+  the server (useful on public wifi); otherwise, only what is for the server
+  goes through the VPN.
+uninstall_warning: Stops the VPN and removes the wg0 interface. The devices can no longer connect.
+uninstall_data: Also delete the server's and the devices' keys (if you reinstall it, they will all have to be configured again).
+variables:
+  wireguard_peers:
+    label: Devices
+    help: One per line (laptop, phone…). Each one has its key and its address on the VPN.
+    pattern_help: Lowercase letters, numbers and hyphens
+  wireguard_port:
+    label: UDP port
+  wireguard_network:
+    label: VPN network
+    help: A private /24 network not used by your home or the server. The server is the .1.
+    pattern_help: A private /24 network, e.g. 10.8.0.0/24
+  wireguard_endpoint:
+    label: Server's public address
+    help: The one the devices connect through. Empty = the same one Draupnode logs in with.
+    pattern_help: IP or name, without a port
+  wireguard_route_all:
+    label: All traffic through the VPN
+    help: The device goes out to the internet through the server.
+  wireguard_dns:
+    label: DNS for the devices
+    help: Empty = their usual one. With AdGuard Home on the server it is set by itself (the VPN's .1). Example 9.9.9.9.
+    pattern_help: Comma-separated IPs
+links:
+- Official website
+- Apps for phone and computer
+- Source code
+secrets:
+- Device WireGuard configuration
+prueba:
+  lab: 'Yes: the test container uses your computer''s kernel, which has WireGuard. To really connect from a device you need a server reachable from outside (UDP port 51820).'
+  pasos:
+  - Add «WireGuard (VPN)» with the devices portatil and movil and apply.
+  - 'On the module page, «See configurations»: each device''s one is there with its QR code.'
+  - 'In «Terminal»: «sudo wg show».'
+  comprobar:
+  - wg show shows the wg0 interface with 10.8.0.1 and one peer per device.
+  - 'On a public server: with the WireGuard phone app and the QR code, you connect and «ping 10.8.0.1» responds.'
+  necesita:
+  - 'The devices, one per line (laptop, phone…): each one will have its configuration and QR code in «See configurations».'
+  - UDP port 51820 open in the cloud provider's firewall (Draupnode's only handles TCP).
+  - '«Server''s public address»: empty = the one Draupnode uses to log in; if you log in through a private IP or a tunnel, set the public one.'
+  problemas:
+  - The phone connects but there is no traffic (a «handshake» that never arrives) → 51820/UDP is closed at the cloud provider, or the public address is not the right one.
+  - No internet with the VPN on → «All traffic through the VPN» needs the server to reach the internet; turn it off if you only want to reach the panels.

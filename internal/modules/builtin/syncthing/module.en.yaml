@@ -1,0 +1,42 @@
+# Textos en inglés de «syncthing» (los ids, variables y valores están en module.yaml).
+name: Syncthing (sync folders)
+category: 7 · Apps
+description: Syncs folders between your computers and the server, without anyone's cloud. For example, to upload your music or your photos.
+details: |
+  Syncthing in Docker. Its panel can only be seen from the server («Open»
+  or the VPN): set a user and password the first time (Actions →
+  Settings → GUI). To sync with your computers it uses port 22000
+  (TCP and UDP), which is opened in the Firewall; in the cloud, open it also
+  in the provider's firewall.
+  The synced folders are left in /srv/draupnode/apps/syncthing/data.
+  Its data is in /srv/draupnode/apps/syncthing (included in the backups of the
+  Backups module). Licence: MPL-2.0.
+uninstall_warning: Stops and removes the Syncthing containers.
+uninstall_data: Also delete its data (the folders synced on the server and this Syncthing's identity). This cannot be undone.
+variables:
+  syncthing_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  syncthing_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  syncthing_update:
+    label: Update Syncthing when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes. To really sync with your computer, the server must be reachable (port 22000).
+  pasos:
+  - Add «Syncthing» and apply.
+  - 'Press «Open (SSH tunnel)»: it is the server''s Syncthing panel.'
+  comprobar:
+  - The panel loads and shows this device's ID, to add it in your computer's Syncthing.
+  - On a public server, when you add it on your computer and share a folder, the files appear on the server.
+  necesita:
+  - 'Nothing: «Open (SSH tunnel)» for its panel. To sync, port 22000 (TCP and UDP) open at the cloud provider.'
+  problemas:
+  - The devices do not connect → 22000 is closed at the cloud provider (Draupnode's Firewall only opens TCP).
+  - It cannot write to a folder → use folders inside the ones the module creates (they belong to user 1000).

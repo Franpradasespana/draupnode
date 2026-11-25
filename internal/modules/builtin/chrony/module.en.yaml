@@ -1,0 +1,31 @@
+# Textos en inglés de «chrony» (los ids, variables y valores están en module.yaml).
+name: Exact time (chrony)
+category: 1 · System
+description: Keeps the server's clock exact to the second. It matters for certificates, logs, backups and two-factor authentication (TOTP codes).
+details: |
+  Installs chrony (GPL-2.0), the time client of Red Hat, Debian and the
+  new Ubuntus: it replaces systemd-timesyncd and corrects the time
+  gradually, without jumps. It uses the given time servers on top of the
+  ones the system brings.
+  Optional: changes the server's time zone (empty = leaves it alone).
+uninstall_warning: Removes chrony and leaves systemd-timesyncd (Ubuntu's default) again so the time keeps being adjusted.
+variables:
+  chrony_servers:
+    label: Time servers
+    help: One per line. The ntp.org «pools» spread the load over many volunteer servers.
+    pattern_help: A server name (time.example.com)
+links:
+- Official website
+- Source code
+prueba:
+  lab: 'No: inside the test container chrony would change YOUR computer''s time (they share the clock). Try it on a virtual machine or a server.'
+  pasos:
+  - Add «Exact time» with the default servers and apply.
+  - Change the time servers (for example time.cloudflare.com) and apply again.
+  comprobar:
+  - 'Server page → Summary → System: the clock shows as synchronised.'
+  - 'In «Terminal»: «chronyc sources» shows the chosen servers, some with «*» or «+».'
+  necesita:
+  - 'Nothing: the default time servers will do.'
+  problemas:
+  - '«chronyc sources» without any «*» → the provider blocks outgoing traffic on port 123/UDP: use the provider''s time server (for example 169.254.169.254 on some clouds).'

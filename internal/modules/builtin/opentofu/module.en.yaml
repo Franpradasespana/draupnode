@@ -1,0 +1,56 @@
+# Textos en inglés de «opentofu» (los ids, variables y valores están en module.yaml).
+name: OpenTofu (infrastructure as code)
+category: 9 · Kubernetes and IaC
+description: The free alternative to Terraform. Describe your infrastructure in files (DNS, cloud servers, buckets, accounts…) and OpenTofu creates it and keeps it that way. It reads the same .tf files.
+details: |
+  OpenTofu (MPL-2.0, Linux Foundation) from its official repository.
+  Terraform stopped being free software in 2023 (BUSL licence); OpenTofu
+  is its free continuation and uses the same files and providers.
+  It only installs the «tofu» command, or also, with a Git repository, prepares
+  a working folder: when applying it fetches the code, runs «tofu init» and
+  «tofu plan» and shows you the plan summary. With «Apply the plan» it
+  runs it («tofu apply»); otherwise, you apply it yourself in the Terminal.
+  The state (terraform.tfstate) is left in /srv/draupnode/apps/opentofu and
+  is included in the backups of the Backups module.
+  The providers' keys (your DNS API, your cloud's…) go in
+  «Secret variables»: they are stored encrypted in your vault.
+uninstall_warning: Removes the «tofu» command. The infrastructure it created is NOT deleted (for that, «tofu destroy» first).
+uninstall_data: Also delete the working folder with the state (terraform.tfstate). Without the state, OpenTofu no longer knows what it created.
+variables:
+  opentofu_repo:
+    label: Git repository with your .tf files
+    help: Optional. https://… (public or with a token), or file:///path for a Git folder on the server itself. Empty = only installs «tofu».
+    pattern_help: https://… or file:///… or empty
+  opentofu_token:
+    label: Access token (private repository)
+    help: For a private repository over https (with read-only permission). Empty if it is public.
+  opentofu_branch:
+    label: Branch
+    pattern_help: Branch name
+  opentofu_subdir:
+    label: Folder inside the repository
+    help: Where the .tf files are. Empty = the root.
+    pattern_help: Relative path, without «..»
+  opentofu_env:
+    label: Secret variables
+    help: 'The ones your providers ask for, separated by «;»: CLOUDFLARE_API_TOKEN=xxx; TF_VAR_key=yyy'
+  opentofu_apply:
+    label: Apply the plan
+    help: Besides planning, runs «tofu apply» (creates, changes or DELETES whatever the plan says). Check the plan first with this unticked.
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes.
+  pasos:
+  - 'Add «OpenTofu» without a repository and apply: it only installs «tofu».'
+  - 'In «Terminal» create a test repository: «sudo mkdir -p /srv/tf && cd /srv/tf && sudo git init -q -b main && echo ''resource "terraform_data" "hola" { input = "mundo" }'' | sudo tee main.tf && sudo git add . && sudo git -c user.email=a@b -c user.name=prueba commit -qm uno». Set «file:///srv/tf» as the repository and apply; then tick «Apply the plan» and apply again.'
+  comprobar:
+  - «tofu version» responds in the Terminal.
+  - 'The first apply with a repository says «Plan: 1 to add»; with «Apply the plan», «Apply complete! Resources: 1 added», and the next one «No changes».'
+  - The state is in /srv/draupnode/apps/opentofu/trabajo (terraform.tfstate).
+  necesita:
+  - 'Nothing to have just «tofu». For the working folder: the repository with your .tf files and, if your providers ask for them, their keys in «Secret variables».'
+  problemas:
+  - '«tofu init» fails downloading a provider → the OpenTofu registry (registry.opentofu.org) does not respond or the provider does not exist with that name: check the required_providers block.'
+  - The plan asks for variables → set them as TF_VAR_name=value in «Secret variables», or with a default value in your .tf files.

@@ -1,0 +1,46 @@
+# Textos en inglés de «samba» (los ids, variables y valores están en module.yaml).
+name: Samba (shared folders)
+category: 7 · Apps
+description: Server folders as network drives on Windows, macOS or Linux (\\server\folder). Only through the VPN or the local network, never to the internet.
+details: |
+  Samba (GPL-3) from the system. It only listens on the server itself, on the VPN
+  (wg0, if WireGuard is there) and on the local network interfaces you specify
+  (for example eth0 on a home Raspberry Pi). It opens nothing in the
+  Firewall: sharing files over the internet without a VPN is dangerous.
+  Each line in «Folders» is «name /path»; you log in with the module's user
+  and its password generated on the server (in «Passwords»). From the VPN: \\10.8.0.1\name (Windows) or
+  smb://10.8.0.1/name (macOS/Linux).
+uninstall_warning: Uninstalls Samba. The shared folders can no longer be seen on the network; their content is not touched.
+uninstall_data: Also delete the Samba user (the folders and their files are NOT deleted).
+variables:
+  samba_shares:
+    label: Folders
+    help: 'One per line: «name /path» (e.g. «documents /srv/compartido/documentos»). They are created if they do not exist.'
+    pattern_help: name /path
+  samba_user:
+    label: User
+    pattern_help: Lowercase letters, numbers, - and _
+  samba_interfaces:
+    label: Local network interfaces
+    help: 'Besides the VPN. Empty = VPN only. Example: eth0 (see «ip a» on the server).'
+    pattern_help: Interface name (eth0, enp3s0…)
+links:
+- Official website
+- Source code
+secrets:
+- Shared folders user
+prueba:
+  lab: Yes (it needs WireGuard, or a network interface in «Local network interfaces»).
+  pasos:
+  - With WireGuard installed, add «Samba» with the folder «compartido /srv/compartido» and apply.
+  - 'In «Terminal»: «sudo apt-get install -y smbclient» and «smbclient //10.8.0.1/compartido -U compartir» (password from Passwords); inside, «put /etc/hostname prueba.txt» and «ls».'
+  comprobar:
+  - It uploads and lists the file; with another user it gives LOGON_FAILURE.
+  - It listens on 10.8.0.1 and 127.0.0.1, never on the public IP.
+  necesita:
+  - 'The folders, one per line: «name /path» (created if they do not exist). The user and its password are in Passwords.'
+  - WireGuard (it only listens on the VPN) or a local network interface in «Local network interfaces» (e.g. eth0). It is never opened to the internet.
+  problemas:
+  - The folder cannot be seen → connect to the VPN first and use \\10.8.0.1\name (Windows) or smb://10.8.0.1/name (macOS/Linux).
+  - '«LOGON_FAILURE» → user or password: use the ones from Passwords.'
+  - You cannot write → the folder on the server belongs to another user; the one Draupnode creates does allow it.

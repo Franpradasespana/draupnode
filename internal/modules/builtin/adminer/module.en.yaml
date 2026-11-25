@@ -1,0 +1,46 @@
+# Textos en inglés de «adminer» (los ids, variables y valores están en module.yaml).
+name: Adminer (view and edit databases)
+category: 4 · Databases
+description: 'A page to view and edit your PostgreSQL and MariaDB databases: tables, data, SQL queries, import and export.'
+details: |
+  Adminer (a single PHP file) in Docker, on the shared databases' network.
+  When you log in, choose the system and type the server
+  («pg-compartido» or «mariadb-compartido», or your app's container
+  name) with its user and password (in «Passwords»).
+  It stores nothing. Better without a domain: log in with «Open» (SSH tunnel).
+  Its data is in /srv/draupnode/apps/adminer (included in the backups of the
+  Backups module). Licence: Apache-2.0 or GPL-2.0.
+uninstall_warning: Stops and removes the Adminer containers.
+uninstall_data: Also delete its data (nothing (Adminer stores no data)). This cannot be undone.
+variables:
+  adminer_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  adminer_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  adminer_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  adminer_network:
+    label: Docker network
+    help: The same as the shared PostgreSQL/MariaDB («apps» if you have not changed it). The apps on that network reach this container by its name.
+    pattern_help: Letters, numbers, dot, hyphen and underscore
+  adminer_update:
+    label: Update Adminer when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes (with «Shared PostgreSQL» or «Shared MariaDB» so there is something to connect to).
+  pasos:
+  - Add «Shared PostgreSQL» and «Adminer», and apply.
+  - 'Press «Open (SSH tunnel)» on Adminer and log in: system PostgreSQL, server «pg-compartido», user and password from «Passwords».'
+  comprobar:
+  - It shows the databases and lets you open tables and run SQL queries.
+  necesita:
+  - Nothing in Adminer. To log in, the database user and password (in «Passwords»).
+  problemas:
+  - '«No such host» when logging in → the database is not on the same Docker network: set your database''s network in «Docker network» («apps» by default).'

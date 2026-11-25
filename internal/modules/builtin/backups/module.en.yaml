@@ -1,0 +1,104 @@
+# Textos en inglés de «backups» (los ids, variables y valores están en module.yaml).
+name: Backups (restic)
+category: 5 · Backups
+description: Daily encrypted backup with restic of your databases, Coolify, the secrets folder and the folders you choose. Optionally, a second copy outside the server.
+details: |
+  restic (open source, BSD) stores the backups encrypted and deduplicated in
+  {carpeta}/<project>/restic-repo. Its password is generated on the server and
+  Draupnode brings it to your vault: WITHOUT IT THE BACKUPS CANNOT BE OPENED.
+  Every day at the given time (systemd): it dumps PostgreSQL and the
+  Coolify database if present, copies Draupnode's secrets folder and your folders,
+  deletes old backups according to what you keep and checks the repository.
+  A backup that is only on the server does not save you if you lose the server:
+  use «Bring backups to this computer», or a remote destination of your own
+  (another server over SFTP, a restic rest-server or an S3-compatible store like
+  MinIO or Garage; all open source).
+uninstall_warning: Removes the daily backup (timer and script). Backups already made are kept.
+uninstall_data: Also delete the local backup repository and its password. The remote destination's backups are not touched.
+variables:
+  backups_time:
+    label: Daily backup time
+    help: Server time (HH:MM). It is delayed up to 10 minutes at random.
+    pattern_help: Format HH:MM (e.g. 03:30)
+  backups_paths:
+    label: Folders to back up
+    help: One per line. Draupnode's secrets folder is always backed up.
+    pattern_help: Absolute path (starts with /)
+  backups_postgres:
+    label: Dump PostgreSQL
+    help: All the databases of the given container (pg_dumpall), if it exists.
+  backups_postgres_container:
+    label: PostgreSQL container
+    pattern_help: Lowercase letters, numbers, - and _
+  backups_mariadb:
+    label: Dump MariaDB
+    help: Each database of the given container (mariadb-dump), if it exists.
+  backups_mariadb_container:
+    label: MariaDB container
+    pattern_help: Lowercase letters, numbers, - and _
+  backups_apps:
+    label: Back up Draupnode's apps
+    help: The /srv/draupnode/apps folder (code, .env and data of the apps installed with Draupnode), if it exists.
+  backups_coolify:
+    label: Back up Coolify
+    help: Its database, its .env and its SSH keys, if Coolify is installed.
+  backups_keep_daily:
+    label: Daily backups to keep
+  backups_keep_weekly:
+    label: Weekly backups to keep
+  backups_keep_monthly:
+    label: Monthly backups to keep
+  backups_check:
+    label: Check the repository after each backup
+  backups_run_now:
+    label: Make the first backup when applying
+  backups_dir:
+    label: Backups folder on the server
+    help: One folder per server is created inside.
+    pattern_help: Absolute path
+  backups_remote_type:
+    label: Also back up outside the server
+    help: «sftp» = another server of yours; «rest-server» = restic's backup server; «s3» = S3-compatible (MinIO, Garage…).
+  backups_remote:
+    label: Remote destination
+    help: 'sftp: user@203.0.113.40:/srv/copias/web · rest-server: https://backups.example.com:8000/web · s3: https://minio.example.com/bucket/web'
+    pattern_help: No spaces
+  backups_remote_port:
+    label: Destination SSH port (sftp)
+  backups_remote_user:
+    label: Destination user (rest-server) or Access Key (s3)
+  backups_remote_password:
+    label: Destination password (rest-server) or Secret Key (s3)
+    help: It is stored encrypted in your vault and only travels to the server when applying.
+  backups_remote_cacert:
+    label: Destination certificate (rest-server)
+    help: Draupnode fills it in when the destination is another server of yours with the «Backup destination» module (its own certificate, in base64). Empty = normal certificate (Let's Encrypt…).
+    pattern_help: Draupnode fills it in
+  backups_remote_append_only:
+    label: The destination is append-only
+    help: Old backups on the destination are not deleted from here (the destination does not allow it). This server's are.
+links:
+- restic
+- Documentation
+- Source code
+secrets:
+- Backups password (restic)
+- Public key for the backup server (SFTP)
+prueba:
+  lab: Yes.
+  pasos:
+  - With «Shared PostgreSQL» installed, add «Backups» with «Make the first backup when applying» and apply.
+  - 'Server page → Backups tab: press «See backups» and then «Back up now».'
+  - 'Try restoring: on a backup, «Restore database…» → «Restore into the new database» (not in its place).'
+  comprobar:
+  - The backups appear with their date and size, and the dump of each database (postgres-…/tienda.dump).
+  - The restored database has the same data as the original.
+  - «Bring backups to this computer» downloads the backup to your computer.
+  necesita:
+  - Nothing for the daily local backup (databases, apps, Coolify and the secrets folder). Add yours in «Folders to back up» (absolute paths).
+  - 'To also store outside: the type (sftp, rest-server or s3) and the address (e.g. sftp: user@203.0.113.40:/srv/copias/web). The easiest: «Also store on another server» from the Backups tab.'
+  - At least 5 GB free.
+  problemas:
+  - The remote SFTP backup fails with «Permission denied (publickey)» → add on the other server the public key shown in Passwords («Public key for the backup server (SFTP)»).
+  - Alert «The last backup is more than 26 h old» → look at the backup log (Backups tab) and check that the server's clock is synchronised.
+  - 'Without the backups password (restic) they cannot be restored: do «Export backup…» (Settings) in Draupnode and keep it off the computer.'

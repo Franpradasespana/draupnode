@@ -389,7 +389,7 @@
  "lo pone Draupnode: en el servidor que hace las copias, Copias → «Guardar también en otro servidor» y elige este": "Draupnode sets it: on the server that makes the backups, Backups → «Also store on another server» and choose this one",
  "lo usan estas plantillas: %s. Quítalo de ellas antes": "these templates use it: %s. Remove it from them first",
  "los días deben estar entre 1 y 365": "the days must be between 1 and 365",
- "los ficheros van en module.yaml o dentro de role/ (tasks/, templates/, files/, handlers/…)": "files go in module.yaml or inside role/ (tasks/, templates/, files/, handlers/…)",
+ "los ficheros van en module.yaml, module.en.yaml (textos en inglés) o dentro de role/ (tasks/, templates/, files/, handlers/…)": "files go in module.yaml, module.en.yaml (English texts) or inside role/ (tasks/, templates/, files/, handlers/…)",
  "modo no válido": "invalid mode",
  "monta todo el disco del servidor dentro de un contenedor": "mounts the server's whole disk inside a container",
  "método de autenticación desconocido: %q": "unknown authentication method: %q",

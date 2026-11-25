@@ -1,0 +1,53 @@
+# Textos en inglés de «k3s» (los ids, variables y valores están en module.yaml).
+name: Kubernetes (k3s)
+category: 9 · Kubernetes and IaC
+description: Full, lightweight Kubernetes on your server (k3s, CNCF-certified), with Helm to install Kubernetes applications with one command.
+details: |
+  k3s (Apache-2.0) by SUSE/Rancher: a single-binary Kubernetes,
+  designed for small servers (it asks for ~1 GB of RAM). It installs with its
+  official installer and its configuration in /etc/rancher/k3s/config.yaml.
+  By default WITHOUT its Traefik or its load balancer, so they don't take
+  ports 80/443 from Caddy, nginx or Coolify: publish your services with a
+  domain in Caddy/nginx pointing to a NodePort, or turn on Traefik if the
+  server is only for Kubernetes.
+  Helm (Apache-2.0) is installed from get.helm.sh checking its SHA-256 sum.
+  In the Terminal: kubectl get pods -A (with sudo, or as your user if
+  you tick «kubectl for your user»).
+  It can go together with Docker: each one has its own containers.
+uninstall_warning: Uninstalls k3s with its own uninstaller. EVERYTHING in the cluster IS DELETED (pods, volumes, secrets). Helm and your kubeconfig are removed too.
+variables:
+  k3s_channel:
+    label: Version
+    help: «stable» = the one k3s recommends. «latest» = the newest.
+  k3s_update:
+    label: Update k3s when applying
+    help: Runs the official installer again, which takes it to the latest version of the chosen channel.
+  k3s_traefik:
+    label: Use k3s's Traefik and load balancer
+    help: They take ports 80 and 443. Only if the server is only for Kubernetes (not with Caddy, nginx or Coolify).
+  k3s_public_api:
+    label: Open the API (6443) to the internet
+    help: 'To use kubectl from your computer without a tunnel. Better not: use the VPN or an SSH tunnel (ssh -L 6443:127.0.0.1:6443).'
+  k3s_helm:
+    label: Install Helm
+  k3s_user_kubeconfig:
+    label: kubectl for your user
+    help: Copies cluster access to your SSH user's ~/.kube/config (if not root), to use kubectl without sudo.
+links:
+- Official website
+- Source code
+- Helm
+prueba:
+  lab: 'Yes. If the test server was created before 0.63 it is very slow (k3s copies each whole image): delete it and create it again so it has its volume for Kubernetes.'
+  pasos:
+  - Add «Kubernetes (k3s)» with Helm and apply (about 2 minutes).
+  - 'In «Terminal»: «kubectl create deployment hola --image=nginx --port=80» and, after a while, «kubectl get pods».'
+  comprobar:
+  - The apply note says the node is «Ready» with its version.
+  - «kubectl get nodes» and «kubectl get pods -A» work as your user (without sudo) and «helm version» responds.
+  - The «hola-…» pod reaches «Running» (delete it with «kubectl delete deployment hola»).
+  necesita:
+  - 'Nothing: the defaults (no Traefik, closed API, with Helm) work alongside Caddy, nginx or Coolify.'
+  problemas:
+  - 'Pods cannot reach other services or the API (CrashLoop in coredns) → the firewall blocks the pod network: apply k3s again, which opens cni0 and the 10.42/10.43 networks.'
+  - 'Traefik does not start → ports 80/443 are taken by Caddy, nginx or Coolify: turn off «Use Traefik».'

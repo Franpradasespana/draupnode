@@ -1,0 +1,33 @@
+# Textos en inglés de «firewall» (los ids, variables y valores están en module.yaml).
+name: Firewall (iptables)
+category: 1 · System
+description: Opens the given TCP ports in the server's firewall and saves the rules so they survive a restart.
+details: |
+  Uses iptables + netfilter-persistent, which is what Oracle Cloud's Ubuntu images
+  come with (their INPUT ends in REJECT, so each port has to be opened).
+  On Oracle Cloud also open the same ports in the VCN's «Security List»:
+  that is a separate firewall, outside the server.
+uninstall_warning: Removes the rules Draupnode opened in iptables (except SSH, so as not to lose the connection). The server's other rules are not touched.
+variables:
+  firewall_tcp_ports:
+    label: Open TCP ports
+    help: Port 22 (SSH) is always opened even if it is not in the list.
+    pattern_help: Port number between 1 and 65535
+links:
+- iptables (netfilter)
+- Source code
+prueba:
+  lab: Yes (the test container has iptables).
+  pasos:
+  - Add «Firewall» with ports 22, 80 and 443 and apply.
+  - Then add another port (for example 8080), apply, and then remove it and apply again.
+  comprobar:
+  - 'Server page → Network and security: «The firewall lets through» shows 22/tcp, 80/tcp and 443/tcp.'
+  - 'In «Terminal»: «sudo iptables -S INPUT» has the rules with the draupnode tag and «/etc/iptables/rules.v4» stores them.'
+  - SSH keeps working (the server page is still read) and 8080 appears and disappears when you add and remove it.
+  necesita:
+  - The TCP ports you want open, one per line. The ones other modules need (80/443 for Caddy or nginx, 8000 for Coolify…) are added by themselves when you tick them.
+  - 'Always keep the SSH one (22 or the one you set in «Secure SSH»): Draupnode does not let you remove it.'
+  problemas:
+  - 'A port opened here cannot be seen from outside → the cloud provider (Oracle, AWS…) has its own firewall: open it in its panel too (the server page warns you if it detects it).'
+  - A Docker port can be seen from outside even if it is not in the list → what Docker publishes bypasses iptables; publish apps only on 127.0.0.1 (the modules already do) and go in through Caddy/nginx or the tunnel.

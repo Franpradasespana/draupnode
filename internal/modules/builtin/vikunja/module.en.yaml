@@ -1,0 +1,44 @@
+# Textos en inglés de «vikunja» (los ids, variables y valores están en module.yaml).
+name: Vikunja (tasks and projects)
+category: 7 · Apps
+description: Task lists and projects (list, Kanban board, Gantt and table), shared with your family or your team. Like Todoist or Trello, but yours.
+details: |
+  Vikunja in Docker, with its SQLite database (no separate database
+  server). Create your account and, once you are all in, turn off «Allow
+  registration» and apply again.
+  Its data is in /srv/draupnode/apps/vikunja (included in the backups of the
+  Backups module). Licence: AGPL-3.0.
+uninstall_warning: Stops and removes the Vikunja containers.
+uninstall_data: Also delete its data (all tasks, projects, attachments and users). This cannot be undone.
+variables:
+  vikunja_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  vikunja_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  vikunja_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  vikunja_registration:
+    label: Allow registration
+    help: Leave it on to create your accounts; then turn it off and apply.
+  vikunja_update:
+    label: Update Vikunja when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Vikunja» and apply.
+  - Press «Open (SSH tunnel)», sign up, create a project and a task. Then turn off «Allow registration» and apply.
+  comprobar:
+  - The task is saved and shows in the list and on the board.
+  - With registration closed, the page no longer lets you create new accounts.
+  necesita:
+  - Nothing.
+  problemas:
+  - The phone apps do not connect → give it a domain with HTTPS (that way Vikunja knows its public address).

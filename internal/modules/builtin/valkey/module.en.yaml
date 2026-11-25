@@ -1,0 +1,46 @@
+# Textos en inglés de «valkey» (los ids, variables y valores están en module.yaml).
+name: Valkey (Redis-compatible cache)
+category: 4 · Databases
+description: In-memory cache and queues, Redis-compatible, for your apps. It is the free continuation of Redis (which stopped being free software in 7.4).
+details: |
+  Valkey 9 in Docker, shared by your apps: it listens on 127.0.0.1 and,
+  inside Docker, as «valkey-compartido» on the given network (the one of the
+  shared PostgreSQL and MariaDB). With a password (in «Passwords»).
+  In your apps: redis://:PASSWORD@valkey-compartido:6379/0
+  It stores the data on disk (appendonly) so it is not lost on restart.
+  Its data is in /srv/draupnode/apps/valkey (included in the backups of the
+  Backups module). Licence: BSD-3-Clause.
+uninstall_warning: Stops and removes the Valkey containers.
+uninstall_data: Also delete its data (what your apps store in Valkey). This cannot be undone.
+variables:
+  valkey_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  valkey_network:
+    label: Docker network
+    help: The same as the shared PostgreSQL/MariaDB («apps» if you have not changed it). The apps on that network reach this container by its name.
+    pattern_help: Letters, numbers, dot, hyphen and underscore
+  valkey_maxmemory_mb:
+    label: Maximum memory (MB)
+    help: 0 = no limit. If it fills up, it deletes the least used keys (cache mode).
+  valkey_update:
+    label: Update Valkey when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- Valkey password
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Valkey» and apply.
+  - 'In «Terminal»: «sudo docker run --rm --network apps valkey/valkey:9 valkey-cli -h valkey-compartido -a PASSWORD ping» (the password is in «Passwords»).'
+  comprobar:
+  - The test command answers «PONG»; without a password it answers «NOAUTH».
+  - 'It only listens on 127.0.0.1:6379 and on the «apps» Docker network: it cannot be seen from outside.'
+  necesita:
+  - 'Nothing. In your apps: redis://:PASSWORD@valkey-compartido:6379/0, connecting their container to the «apps» network.'
+  problemas:
+  - Your app cannot find it → its container must be on the «apps» network (the same as «Docker network»).
+  - 'Warning «Memory overcommit must be enabled» in its logs → it is only a warning; if you want to remove it: «vm.overcommit_memory = 1» in /etc/sysctl.d/.'

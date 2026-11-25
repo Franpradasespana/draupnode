@@ -1,0 +1,38 @@
+# Textos en inglés de «aide» (los ids, variables y valores están en module.yaml).
+name: AIDE (watch system files)
+category: 8 · Security
+description: Keeps a «snapshot» of the important system files (programs, configuration) and every day tells you whether any has changed without you doing it.
+details: |
+  AIDE (GPL-2.0), Debian/Ubuntu's file integrity monitor.
+  When applying it takes the snapshot (the first time takes a few minutes). Every day
+  it compares it and leaves the result in /var/log/aide/aide.log.
+  Changes you make with Draupnode should not show up: with «Take
+  the snapshot when applying», the snapshot is redone after every apply.
+  It does not watch what changes by itself: app data, Docker, logs.
+  After updating the system you will see changes in programs: that is normal.
+uninstall_warning: Removes AIDE and its daily check.
+uninstall_data: Also delete the stored snapshot and the logs.
+variables:
+  aide_rebase_on_apply:
+    label: Take the snapshot when applying
+    help: After applying (changes you have made) it redoes the snapshot, so it only warns you about what you did not do.
+  aide_exclude:
+    label: Folders that are not watched
+    help: Besides the default ones (app data, Docker, logs). One per line.
+    pattern_help: Absolute path
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes (the first snapshot takes a few minutes).
+  pasos:
+  - Add «AIDE» and apply.
+  - 'In «Terminal», change a watched file: «echo ''# prueba'' | sudo tee -a /etc/hosts» and run the check: «sudo systemctl start dailyaidecheck».'
+  comprobar:
+  - «ls -lh /var/lib/aide/aide.db» exists.
+  - After the test, «sudo tail -n 40 /var/log/aide/aide.log» shows /etc/hosts as changed. If you apply AIDE again, it stops showing (new snapshot).
+  necesita:
+  - 'Nothing. Optional: folders of yours that change by themselves and you don''t want watched.'
+  problemas:
+  - 'It warns about many changes after updating the system → that is normal: apply AIDE again to take the new snapshot.'
+  - The first apply takes a long time → on slow disks the snapshot can take 10-20 minutes; wait.

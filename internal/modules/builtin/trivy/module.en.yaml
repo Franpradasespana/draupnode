@@ -1,0 +1,39 @@
+# Textos en inglés de «trivy» (los ids, variables y valores están en module.yaml).
+name: Trivy (vulnerabilities in your containers)
+category: 8 · Security
+description: Every week it reviews the images of the containers you have running and tells you which have known security flaws (CVE) and whether there is already a fixed version.
+details: |
+  Trivy (Apache-2.0) by Aqua Security, from its official repository.
+  It reviews the images of all running containers (including
+  Coolify's and your apps'). It only reports: updating is up to you (in each app,
+  «Update when applying» and apply; in yours, rebuild the image).
+  The report is left in /var/lib/draupnode/trivy/informe.txt.
+  The first time it downloads its vulnerability database (~1 GB on disk).
+uninstall_warning: Removes Trivy and its weekly review.
+uninstall_data: Also delete its vulnerability database (~1 GB) and the reports.
+variables:
+  trivy_severity:
+    label: Minimum severity
+    help: Which flaws are counted. With «CRITICAL» only the most serious ones.
+  trivy_ignore_unfixed:
+    label: Only the ones that already have a fix
+    help: Hides the flaws for which there is no fixed version yet (you can't do anything about them).
+  trivy_run_now:
+    label: Review when applying
+    help: The first time takes several minutes (it downloads the vulnerability database).
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes (with some container running, for example a catalog app).
+  pasos:
+  - Add an app (for example «Uptime Kuma») and «Trivy» with «Review when applying», and apply.
+  - Change the severity to «CRITICAL» and apply again.
+  comprobar:
+  - The apply note says how many images it reviewed and how many flaws there are per image.
+  - 'In «Terminal»: «sudo less /var/lib/draupnode/trivy/informe.txt» has the table of flaws and «systemctl list-timers draupnode-trivy.timer» the next review.'
+  necesita:
+  - 'Nothing: the defaults (high and critical, only with a fix) are what is useful.'
+  problemas:
+  - It fails downloading the database («TOOMANYREQUESTS» from ghcr.io) → wait a while and apply again.
+  - Lots of flaws show up → update the apps (in each one, «Update when applying») and review again.

@@ -1,0 +1,46 @@
+# Textos en inglés de «umami» (los ids, variables y valores están en module.yaml).
+name: Umami (statistics for your websites)
+category: 7 · Apps
+description: How many visits your websites get, from where and which pages, without cookies or tracking anyone. A free, respectful alternative to Google Analytics.
+details: |
+  Umami in Docker, with its own PostgreSQL. Draupnode changes the
+  «admin» user's password (by default «umami») to one generated
+  on the server (in «Passwords»).
+  Add your website in Umami and paste its <script> tag into your pages. To
+  receive visits from the internet it needs a domain with HTTPS.
+  Its data is in /srv/draupnode/apps/umami (included in the backups of the
+  Backups module). Licence: MIT.
+uninstall_warning: Stops and removes the Umami containers.
+uninstall_data: Also delete its data (all statistics and its database). This cannot be undone.
+variables:
+  umami_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  umami_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  umami_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  umami_update:
+    label: Update Umami when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- Umami «admin» user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Umami» and apply.
+  - Press «Open (SSH tunnel)» and log in with «admin» and the password from «Passwords»; add a website.
+  comprobar:
+  - The default password («umami») no longer works; the one from «Passwords» does.
+  - Umami gives you the <script> tag for your website.
+  necesita:
+  - Nothing to test it. To count real visits, a domain with Caddy or nginx.
+  problemas:
+  - It does not count visits → your website must load the script from https://your-umami-domain (without HTTPS browsers block it).
+  - Ad blockers block it → that is normal for some visitors.

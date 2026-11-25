@@ -1,0 +1,37 @@
+# Textos en inglés de «lynis» (los ids, variables y valores están en module.yaml).
+name: Lynis (security review)
+category: 8 · Security
+description: Reviews the server's security (hundreds of checks) and gives you a score from 0 to 100 with specific advice to improve it. Every week, by itself.
+details: |
+  Lynis (GPL-3.0) by CISOfy, the leading free security auditor.
+  It only looks: it changes nothing. When applying it runs a review (1-2 minutes)
+  and, if you want, another one every week.
+  The report is left in /var/lib/draupnode/lynis/informe.txt; the advice
+  («Suggestions») and warnings («Warnings») are what to look at.
+  Much of the advice is solved by other modules: Secure SSH, Firewall,
+  Automatic updates, auditd, AIDE…
+uninstall_warning: Removes Lynis and its weekly review.
+uninstall_data: Also delete the stored reports.
+variables:
+  lynis_weekly:
+    label: Review every week
+    help: Sundays in the early hours. The last review's report stays on the server.
+  lynis_run_now:
+    label: Review when applying
+    help: It takes 1-2 minutes. That way you see the score in the apply note.
+links:
+- Official website
+- Source code
+prueba:
+  lab: 'Yes (the score comes out lower than on a real server: a container has no kernel of its own).'
+  pasos:
+  - Add «Lynis» with «Review when applying» and apply.
+  - Then add «Secure SSH» or «Automatic updates», apply and apply Lynis again.
+  comprobar:
+  - 'The apply note says «Hardening index: N/100» and how many warnings and suggestions there are.'
+  - 'In «Terminal»: «sudo less /var/lib/draupnode/lynis/informe.txt» has the report and «systemctl list-timers draupnode-lynis.timer» the next review.'
+  - After adding other security modules, the score goes up.
+  necesita:
+  - Nothing.
+  problemas:
+  - 'The score looks low → that is normal the first time: look at the advice, much of it is fixed with other Security modules. There is no need to reach 100.'

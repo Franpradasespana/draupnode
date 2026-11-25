@@ -1,0 +1,47 @@
+# Textos en inglés de «navidrome» (los ids, variables y valores están en module.yaml).
+name: Navidrome (music)
+category: 7 · Apps
+description: 'Your own Spotify: listen to your music collection from the browser or the phone (Subsonic-compatible apps).'
+details: |
+  Navidrome in Docker. It reads the music from the given folder (read-
+  only) and rescans it by itself every hour. The first user to
+  log in becomes the administrator: log in straight after applying.
+  Compatible phone apps (Subsonic): Symfonium, Tempo, Substreamer, play:Sub…
+  Its data is in /srv/draupnode/apps/navidrome (included in the backups of the
+  Backups module). Licence: GPL-3.0.
+uninstall_warning: Stops and removes the Navidrome containers.
+uninstall_data: Also delete its data (the Navidrome database (users, playlists, favourites; your music is not touched)). This cannot be undone.
+variables:
+  navidrome_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  navidrome_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  navidrome_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  navidrome_music:
+    label: Music folder
+    help: Where your music is on the server (upload it with SFTP, Syncthing…).
+    pattern_help: Absolute path
+  navidrome_update:
+    label: Update Navidrome when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Navidrome» with the default music folder (/srv/musica) and apply.
+  - In «Terminal», copy an MP3 to /srv/musica.
+  - Press «Open (SSH tunnel)» and create the administrator (the first one to log in).
+  comprobar:
+  - The song appears and plays in the browser (Navidrome rescans the folder every hour; to avoid waiting, restart its container in the Containers tab).
+  necesita:
+  - 'Nothing: the music folder is /srv/musica. The first one to log in creates the administrator.'
+  problemas:
+  - New music does not show up → it rescans the folder every hour; to avoid waiting, restart its container in the Containers tab.
+  - 'It does not see the music → it is in another folder: change «Music folder».'

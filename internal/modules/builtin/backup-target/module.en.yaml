@@ -1,0 +1,79 @@
+# Textos en inglés de «backup-target» (los ids, variables y valores están en module.yaml).
+name: Backup destination (rest-server)
+category: 5 · Backups
+description: Turns this server into the place where OTHER servers store their backups. It only lets backups be added, never deleted, so an intruder on the other server cannot destroy them.
+details: |
+  Uses rest-server (by the restic authors, BSD-2) in Docker, with HTTPS and
+  in «append-only» mode (--append-only): the source servers can
+  upload new backups but not delete or change the existing ones. Each source
+  server has its own user and folder and cannot see the others'
+  (--private-repos). Backups arrive encrypted: this server cannot
+  read them.
+  Normally you don't touch this by hand: on the page of another server's
+  «Backups» module, «Also store on another server…» creates this template and
+  leaves both sides configured (user, password and certificate).
+  Rotation: with «Delete old backups» on, THIS server deletes
+  every day the ones older than the given days (and keeps one a month if you
+  ask). For that it needs each server's backups password:
+  Draupnode gives it when applying (once it has it, that is, after
+  applying on the source server). That way this server could read the backups;
+  if you don't want that, turn it off and nothing will ever be deleted here (watch the
+  disk).
+uninstall_warning: Stops rest-server and the rotation. The other servers can no longer store their backups here (their remote backup will fail until you choose another destination).
+uninstall_data: Also delete ALL the backups stored here. If the source server is lost, there will be nothing to restore from.
+variables:
+  backup_target_port:
+    label: HTTPS port
+    help: The source servers connect through it. It is opened in the Firewall.
+  backup_target_dir:
+    label: Backups folder
+    help: Inside, one folder per source server.
+    pattern_help: Absolute path
+  backup_target_container:
+    label: Container name
+    pattern_help: Lowercase letters, numbers, - and _
+  backup_target_clients:
+    label: Servers that store here
+    help: Draupnode fills them in («name:hash of its password»). Removing a line removes its access; its backups stay.
+    pattern_help: Draupnode fills it in
+  backup_target_tls_cert:
+    label: HTTPS certificate
+    help: Draupnode generates it (in base64). The source servers use it to check that they are talking to this one and not another.
+    pattern_help: Draupnode fills it in
+  backup_target_tls_key:
+    label: HTTPS private key
+    help: Draupnode generates it and it is stored encrypted in your vault.
+  backup_target_prune:
+    label: Delete old backups (rotation)
+    help: This server deletes every day the backups older than the days below. It needs the backups' password (Draupnode gives it when applying).
+  backup_target_keep_days:
+    label: Keep the backups of the last (days)
+  backup_target_keep_monthly:
+    label: And also one backup a month for (months)
+    help: 0 = no more.
+  backup_target_prune_time:
+    label: Rotation time
+    help: Better far from the backup time (while it rotates, the source waits to back up).
+    pattern_help: Format HH:MM
+  backup_target_keys:
+    label: Backup passwords (Draupnode sets them)
+links:
+- rest-server (source code)
+- restic
+prueba:
+  lab: 'Two servers are needed: the test one as destination and another (a second Ubuntu, or a VPS) as source. With only one, just check that the destination starts.'
+  pasos:
+  - 'It is not added by hand: on the source server (with «Backups»), Backups tab → «Also store on another server» and choose the destination.'
+  - Draupnode adds this module to the destination with its certificate and configures the source's backups; press «Apply both now».
+  - On the source, «Back up now» and then «See remote backups».
+  comprobar:
+  - The source's backups appear on the destination.
+  - 'The destination''s backups cannot be deleted from the source (append-only mode): an intruder on the source cannot destroy them.'
+  necesita:
+  - 'Nothing by hand: it is configured from the server that makes the backups (Backups → «Also store on another server»), which sets the certificate and passwords.'
+  - At least 10 GB free, and the port (8000 by default) open in the provider's firewall for the source server.
+  problemas:
+  - '«HTTPS private key: Draupnode sets it…» in red → do not add it by hand, use «Also store on another server».'
+  - The source cannot reach it («connection refused», «timeout») → the port is closed at the destination's cloud provider.
+  - 'The destination''s IP changed → use «Also store on another server» again: the certificate is tied to the address.'
+  - It clashes with Coolify on 8000 → change the destination's port.

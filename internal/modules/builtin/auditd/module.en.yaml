@@ -1,0 +1,39 @@
+# Textos en inglés de «auditd» (los ids, variables y valores están en module.yaml).
+name: auditd (audit log)
+category: 8 · Security
+description: Records who touches the important parts of the server (users, sudo, SSH, the clock, kernel modules, Docker) so you can investigate afterwards if something happens.
+details: |
+  The Linux kernel audit system (auditd, GPL-2.0) with a
+  sensible rule set for a server: changes to users and
+  passwords, sudoers, SSH configuration, cron, system time,
+  kernel modules and Docker, and every use of sudo.
+  Search in the Terminal: sudo ausearch -k draupnode-usuarios -i
+  (keys: draupnode-usuarios, -sudo, -ssh, -cron, -hora, -modulos,
+  -docker) or a summary with sudo aureport --summary.
+  With «Lock the rules» nobody (not even root) can change them without
+  restarting: safer, but to remove the module you have to restart.
+uninstall_warning: Removes auditd and its rules. If the rules were locked, they are fully removed on restart.
+uninstall_data: Also delete the audit logs (/var/log/audit).
+variables:
+  auditd_immutable:
+    label: Lock the rules
+    help: Nobody can change them or turn off auditing without restarting the server.
+  auditd_log_mb:
+    label: Size of each log (MB)
+    help: 5 are kept; when full, they rotate.
+links:
+- Documentation
+- Source code
+prueba:
+  lab: 'No: a container cannot use kernel auditing. Try it on a virtual machine or a server.'
+  pasos:
+  - Add «auditd» and apply.
+  - 'In «Terminal», do something watched: «sudo useradd prueba-audit && sudo userdel prueba-audit».'
+  comprobar:
+  - «sudo auditctl -l» shows the rules with the draupnode-… keys
+  - «sudo ausearch -k draupnode-usuarios -i | tail» shows the test user being added and removed.
+  necesita:
+  - Nothing.
+  problemas:
+  - 'It fails loading the rules («Operation not permitted») → they were locked: restart the server and apply again.'
+  - 'It fails in a container or on old VPSs (OpenVZ/LXC) → there is no kernel auditing there: remove the module.'

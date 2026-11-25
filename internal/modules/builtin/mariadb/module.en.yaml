@@ -1,0 +1,52 @@
+# Textos en inglés de «mariadb» (los ids, variables y valores están en module.yaml).
+name: Shared MariaDB
+category: 4 · Databases
+description: A MariaDB (MySQL-compatible) in Docker for your apps, with one database and one user per app. The passwords are generated on the server.
+details: |
+  MariaDB (GPL-2) in Docker. It is only reachable from the given Docker network
+  (the apps see it by the container name); no port is published.
+  The passwords are generated on the server itself the first time and
+  stored in /etc/draupnode/secretos/<project>/ (root only); Draupnode brings
+  a copy to your vault. The Backups module dumps its databases every day.
+  It can go together with the shared PostgreSQL (each app uses the one it needs).
+uninstall_warning: Stops and removes the MariaDB container. The apps that use it are left without a database.
+uninstall_data: Also delete the DATA of all databases and their passwords. This cannot be undone.
+variables:
+  mariadb_version:
+    label: MariaDB version
+    help: The LTS ones (with years of updates).
+  mariadb_container:
+    label: Container name
+    help: It is the «host» your apps connect to.
+    pattern_help: Lowercase letters, numbers, - and _
+  mariadb_network:
+    label: Shared Docker network
+    pattern_help: Lowercase letters, numbers, - and _
+  mariadb_databases:
+    label: Databases
+    help: One per line. Each one will have a user with the same name and its own password.
+    pattern_help: Lowercase letters, numbers and _ (starting with a letter)
+  mariadb_dir:
+    label: Folder on the server
+    pattern_help: Absolute path
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- MariaDB «root» user
+- Database user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Shared MariaDB» with a database, for example «blog», and apply.
+  - See its user and password on the module page → Passwords.
+  - 'In «Terminal»: «docker exec -it mariadb-compartido mariadb -u blog -p blog -e ''select 1''» (paste the password).'
+  comprobar:
+  - The query returns 1.
+  - 'Server page → Apps and databases → Databases: MariaDB appears with the «blog» database.'
+  necesita:
+  - The databases you want, one per line (lowercase letters, numbers and _). Each one with its user and password (in Passwords).
+  problemas:
+  - An app does not connect → it must be on the «apps» network and use the host mariadb-compartido.
+  - «Access denied» with root → the root password is in Passwords (MariaDB «root» user).

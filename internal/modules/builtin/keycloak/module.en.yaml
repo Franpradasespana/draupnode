@@ -1,0 +1,47 @@
+# Textos en inglés de «keycloak» (los ids, variables y valores están en module.yaml).
+name: Keycloak (single sign-on)
+category: 8 · Security
+description: 'A single user and password (with two-factor) for all your apps: single sign-on with OpenID Connect and SAML, like «Sign in with Google» but yours.'
+details: |
+  Keycloak 26 in Docker, with its own PostgreSQL. Draupnode creates the
+  temporary administrator «admin» (in «Passwords»): log in, create your
+  own administrator user in the «master» realm and delete «admin»
+  (Keycloak reminds you).
+  For your apps to use it, it needs a domain with HTTPS (Caddy or nginx).
+  It is heavy: it asks for 1.2 GB of RAM and takes a minute to start.
+  Its data is in /srv/draupnode/apps/keycloak (included in the backups of the
+  Backups module). Licence: Apache-2.0.
+uninstall_warning: Stops and removes the Keycloak containers.
+uninstall_data: Also delete its data (users, realms, clients and its database). This cannot be undone.
+variables:
+  keycloak_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  keycloak_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  keycloak_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  keycloak_update:
+    label: Update Keycloak when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- Keycloak temporary administrator
+prueba:
+  lab: Yes, if the test server has 1.5 GB free (it takes a minute to start).
+  pasos:
+  - Add «Keycloak» and apply.
+  - Press «Open (SSH tunnel)», log in to the console with «admin» and the password from «Passwords», and create a realm and a user.
+  comprobar:
+  - The administration console opens and lets you create realms, users and clients.
+  - 'In «Terminal», the token answers 200: «curl -s -o /dev/null -w ''%{http_code}'' -d grant_type=password -d client_id=admin-cli -d username=admin -d password=PASSWORD http://127.0.0.1:8180/realms/master/protocol/openid-connect/token».'
+  necesita:
+  - Nothing to test it. For your apps to use it, a domain with Caddy or nginx.
+  problemas:
+  - 'It warns that «admin» is temporary → that is expected: create your own administrator in the master realm and delete «admin».'
+  - Apps say «invalid redirect_uri» or «HTTPS required» → give it a domain with HTTPS and use that address in the clients.

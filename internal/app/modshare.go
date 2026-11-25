@@ -247,14 +247,14 @@ func readModulePack(p string) (modManifest, map[string][]byte, error) {
 	return man, files, nil
 }
 
-// safeModPath: module.yaml o algo dentro de role/, sin «..», rutas absolutas
+// safeModPath: module.yaml, module.en.yaml o algo dentro de role/, sin «..», rutas absolutas
 // ni caracteres raros.
 func safeModPath(rel string) bool {
 	clean := path.Clean(rel)
 	if rel == "" || clean != rel || strings.HasPrefix(clean, "/") || strings.HasPrefix(clean, "..") || strings.Contains(clean, "/../") || strings.ContainsAny(clean, "\\\x00:") {
 		return false
 	}
-	return clean == "module.yaml" || (strings.HasPrefix(clean, "role/") && len(clean) > len("role/"))
+	return clean == "module.yaml" || clean == "module.en.yaml" || (strings.HasPrefix(clean, "role/") && len(clean) > len("role/"))
 }
 
 func (a *App) inspectModulePath(p string) ModuleImportReport {

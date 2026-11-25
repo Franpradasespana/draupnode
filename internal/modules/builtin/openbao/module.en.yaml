@@ -1,0 +1,52 @@
+# Textos en inglés de «openbao» (los ids, variables y valores están en module.yaml).
+name: OpenBao (secrets vault)
+category: 8 · Security
+description: Stores and hands out your apps' passwords, keys and certificates securely, with permissions and a log of who reads what. The free continuation of HashiCorp Vault.
+details: |
+  OpenBao 2 in Docker (Vault stopped being free software in 2023).
+  Draupnode initialises it the first time with a single unseal key and
+  stores the key and the root token in «Passwords»: COPY THEM to your password
+  manager; without the key, the data cannot be recovered.
+  When it restarts, OpenBao starts sealed. With «Unseal by itself»,
+  the server unseals it at startup using the key stored on it
+  (convenient, but anyone who gets root on the server can read everything).
+  Web panel at /ui (log in with the root token).
+  Its data is in /srv/draupnode/apps/openbao (included in the backups of the
+  Backups module). Licence: MPL-2.0.
+uninstall_warning: Stops and removes the OpenBao containers.
+uninstall_data: Also delete its data (all the stored secrets (encrypted)). This cannot be undone.
+variables:
+  openbao_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  openbao_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  openbao_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  openbao_auto_unseal:
+    label: Unseal by itself
+    help: When the server starts (and when applying) it unseals it with the key stored on the server. Without this, you unseal it yourself in /ui with the key.
+  openbao_update:
+    label: Update OpenBao when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- OpenBao unseal key and root token
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «OpenBao» (with «Unseal by itself») and apply.
+  - 'In «Terminal»: «sudo docker restart dn-openbao» and then «sudo systemctl start draupnode-openbao» (the same it does when the server starts).'
+  comprobar:
+  - «Passwords» has the unseal key and the root token; with «Open (SSH tunnel)», /ui lets you log in with the token.
+  - After restarting the container it is sealed («curl -s http://127.0.0.1:8200/v1/sys/seal-status» says sealed true) and the service unseals it.
+  necesita:
+  - Nothing. Copy the unseal key and the root token to your password manager.
+  problemas:
+  - After restarting the server it is sealed → without «Unseal by itself» you have to unseal it by hand in /ui with the key.
+  - 'You have lost the unseal key → the data cannot be recovered: that is why you must copy it off the server.'

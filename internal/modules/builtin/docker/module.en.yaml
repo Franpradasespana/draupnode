@@ -1,0 +1,37 @@
+# Textos en inglés de «docker» (los ids, variables y valores están en module.yaml).
+name: Docker
+category: 2 · Containers
+description: Installs Docker Engine with the official script, leaves it running and gives your user permission.
+details: |
+  If «classic storage» is ticked, it turns off the containerd image store
+  BEFORE any images are downloaded. Without that cAdvisor cannot measure CPU/RAM
+  per container in Grafana. If Coolify is already installed it is not touched, because
+  changing it afterwards would leave its containers unable to start.
+uninstall_warning: Stops and uninstalls Docker. ALL the containers on the server are stopped, including the ones Draupnode did not install.
+uninstall_data: Also delete /var/lib/docker and /var/lib/containerd (images, containers and volumes of ALL apps). Without this, if you reinstall Docker everything is back.
+variables:
+  docker_classic_storage:
+    label: Classic overlay2 storage
+    help: Needed to see CPU/RAM per container in monitoring.
+  docker_users:
+    label: Other users in the docker group
+    help: Your connection user is always added.
+    pattern_help: Linux user name
+links:
+- Official website
+- Documentation
+- Source code (Moby)
+prueba:
+  lab: Yes (Docker inside Docker, with its data in a separate volume).
+  pasos:
+  - Add «Docker» and apply.
+  - 'In «Terminal»: «docker run --rm hello-world».'
+  comprobar:
+  - The test container says «Hello from Docker!» without using sudo (your user is in the docker group).
+  - The server page shows the Containers tab with its counter and «Clean Docker…».
+  necesita:
+  - Nothing. Your connection user is added to the docker group; add others in «Other users in the docker group».
+  - Leave «Classic overlay2 storage» on if you are going to use Monitoring (otherwise each container's CPU/RAM cannot be seen).
+  problemas:
+  - «permission denied … docker.sock» when using docker in the Terminal → open a new Terminal (the group applies when you log in again).
+  - «no space left on device» → Server page → Containers → «Clean Docker…».

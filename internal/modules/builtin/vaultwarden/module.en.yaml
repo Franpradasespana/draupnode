@@ -1,0 +1,53 @@
+# Textos en inglés de «vaultwarden» (los ids, variables y valores están en module.yaml).
+name: Vaultwarden (passwords)
+category: 7 · Apps
+description: Your password manager, compatible with the Bitwarden apps and extensions. Your passwords, on your server.
+details: |
+  Vaultwarden (free Bitwarden-compatible server) in Docker.
+  It needs HTTPS: give it a domain (with Caddy or nginx on the server) or log in
+  through the VPN/«Open» (127.0.0.1 also counts as secure).
+  Create your account and, once you are all in, turn off «Allow registration»
+  and apply again. The /admin panel uses the «Admin token»
+  (in «Passwords»).
+  Its data is in /srv/draupnode/apps/vaultwarden (included in the backups of the
+  Backups module). Licence: AGPL-3.0.
+uninstall_warning: Stops and removes the Vaultwarden containers.
+uninstall_data: Also delete its data (all users' encrypted vault). This cannot be undone.
+variables:
+  vaultwarden_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  vaultwarden_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  vaultwarden_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  vaultwarden_signups:
+    label: Allow registration
+    help: Leave it on to create your accounts; then turn it off and apply.
+  vaultwarden_update:
+    label: Update Vaultwarden when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Source code and wiki
+- Bitwarden apps
+secrets:
+- Vaultwarden /admin panel token
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Vaultwarden» (account registration open) and apply.
+  - Press «Open (SSH tunnel)», create your account and save a password.
+  - If you want the /admin panel, its token is in Passwords.
+  comprobar:
+  - The Bitwarden website loads, you sign up and the password is saved.
+  - With a domain (Caddy or nginx), the Bitwarden apps and extensions connect to https://your-domain.
+  necesita:
+  - 'Nothing to test it: «Open (SSH tunnel)». To really use it with the Bitwarden apps and extensions: a domain with Caddy or nginx (HTTPS).'
+  - Leave «Allow registration» on until you have created your accounts; then turn it off and apply.
+  problemas:
+  - 'It restarts non-stop with «DOMAIN variable needs to contain the protocol» → it was a bug in Draupnode before 0.60 (it sent an empty domain): update and apply again.'
+  - The Bitwarden apps do not connect → they need https://your-domain; through the tunnel only the website works.
+  - The /admin panel asks for a token → it is in Passwords.

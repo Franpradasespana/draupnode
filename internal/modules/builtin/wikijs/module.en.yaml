@@ -1,0 +1,40 @@
+# Textos en inglés de «wikijs» (los ids, variables y valores están en module.yaml).
+name: Wiki.js (wiki and documentation)
+category: 7 · Apps
+description: 'A nice, fast wiki for your team''s documentation or your notes: visual or Markdown editor, search, permissions and history.'
+details: |
+  Wiki.js 2 in Docker, with its own PostgreSQL. The first time,
+  log in and fill in the wizard: create the administrator and set the site
+  address (https://your-domain or the one «Open» gives you).
+  Its data is in /srv/draupnode/apps/wikijs (included in the backups of the
+  Backups module). Licence: AGPL-3.0.
+uninstall_warning: Stops and removes the Wiki.js containers.
+uninstall_data: Also delete its data (all pages, users and its database). This cannot be undone.
+variables:
+  wikijs_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  wikijs_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  wikijs_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  wikijs_update:
+    label: Update Wiki.js when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Wiki.js» and apply.
+  - 'Press «Open (SSH tunnel)» and follow the wizard: create the administrator and set the site address.'
+  comprobar:
+  - After the wizard you can create a page and search for it.
+  necesita:
+  - 'Nothing: Draupnode creates the database. The administrator is created in the wizard.'
+  problemas:
+  - Links point to another address → change «Site URL» in Administration → General to your domain.

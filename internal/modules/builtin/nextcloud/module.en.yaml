@@ -1,0 +1,48 @@
+# Textos en inglés de «nextcloud» (los ids, variables y valores están en module.yaml).
+name: Nextcloud (your cloud)
+category: 7 · Apps
+description: 'Your own Google Drive: files synced with your computers and phone, calendar, contacts, shared documents and hundreds of apps.'
+details: |
+  Nextcloud (stable version) in Docker, with its own PostgreSQL,
+  Valkey for the cache and background jobs (cron). Draupnode
+  creates the «admin» user with a password generated on the server
+  (in «Passwords»). The first time it takes a few minutes to install.
+  For the desktop and phone apps, better with a domain and HTTPS.
+  The files are in /srv/draupnode/apps/nextcloud/html/data (included
+  in the backups: they can take a lot of space).
+  Its data is in /srv/draupnode/apps/nextcloud (included in the backups of the
+  Backups module). Licence: AGPL-3.0.
+uninstall_warning: Stops and removes the Nextcloud containers.
+uninstall_data: Also delete its data (all files, calendars, contacts and its database). This cannot be undone.
+variables:
+  nextcloud_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  nextcloud_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  nextcloud_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  nextcloud_update:
+    label: Update Nextcloud when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- Nextcloud «admin» user
+prueba:
+  lab: Yes, if the test server has 2 GB free (the first time takes a few minutes).
+  pasos:
+  - Add «Nextcloud» and apply.
+  - Press «Open (SSH tunnel)», log in with «admin» and the password from «Passwords» and upload a file.
+  comprobar:
+  - The file shows on the website and in /srv/draupnode/apps/nextcloud/html/data/admin/files.
+  - 'In «Terminal»: «sudo docker exec -u www-data dn-nextcloud php occ status» says installed: true and «… occ config:app:get core backgroundjobs_mode» says cron.'
+  necesita:
+  - Nothing to test it. For the desktop and phone apps, a domain with Caddy or nginx.
+  problemas:
+  - «Access through untrusted domain» → apply with the domain set (Draupnode adds it to the trusted domains).
+  - The first apply says it is still installing → wait a few minutes and apply again.

@@ -1,0 +1,59 @@
+# Textos en inglés de «monitoring» (los ids, variables y valores están en module.yaml).
+name: Monitoring (metrics)
+category: 6 · Monitoring
+description: Prometheus and Grafana with ready-made dashboards for the server's CPU, RAM and disk, each container and PostgreSQL. Grafana opens from Draupnode through an SSH tunnel.
+details: |
+  All in Docker and open source: Prometheus, node-exporter (the server),
+  cAdvisor (each container), postgres-exporter (if there is PostgreSQL in this
+  same template) and Grafana OSS with the «Resources» and «PostgreSQL» dashboards.
+  Grafana and Prometheus only listen on the server itself (127.0.0.1): they are not
+  opened to the internet or in the Firewall. Draupnode opens them through the same
+  SSH connection («Open Grafana» on the module page). The user is admin;
+  the password is generated on the server and you have it in its passwords.
+  It takes about 400-600 MB of RAM.
+uninstall_warning: Stops and removes Prometheus, Grafana and the exporters. If Logs (Loki) is there, uninstall it first.
+uninstall_data: Also delete the stored metrics and the Grafana configuration (dashboards you have changed, users).
+variables:
+  monitoring_retention_days:
+    label: Days of metrics to keep
+  monitoring_cadvisor:
+    label: Per-container metrics (cAdvisor)
+    help: CPU and RAM per container. It needs Docker's classic storage (option of the Docker module).
+  monitoring_postgres:
+    label: PostgreSQL metrics
+    help: Only if PostgreSQL is in this same template (it uses its superuser password).
+  monitoring_postgres_container:
+    label: PostgreSQL container
+    pattern_help: Lowercase letters, numbers, - and _
+  monitoring_postgres_network:
+    label: PostgreSQL Docker network
+    pattern_help: Lowercase letters, numbers, - and _
+  monitoring_grafana_port:
+    label: Grafana port on the server
+    help: Local only (127.0.0.1); Draupnode reaches it over SSH.
+  monitoring_prometheus_port:
+    label: Prometheus port on the server
+    help: Local only. Draupnode uses it for the summary on the module page.
+links:
+- Prometheus
+- Grafana
+- Grafana source code
+- node_exporter
+- cAdvisor
+secrets:
+- Grafana access
+prueba:
+  lab: Yes (it needs 1.5 GB of RAM).
+  pasos:
+  - Add «Monitoring (metrics)» and apply.
+  - 'Press «Open Grafana» (on the module page or in Apps and databases): it opens through an SSH tunnel.'
+  - Log in with the admin user and the password from Passwords.
+  comprobar:
+  - Grafana loads and the «Resources» (CPU, RAM, disk), containers and PostgreSQL dashboards have data.
+  - 'Grafana cannot be seen from outside: it only listens on the server''s 127.0.0.1.'
+  necesita:
+  - Nothing. 1.5 GB of RAM and 5 GB of disk. To see PostgreSQL, the shared PostgreSQL installed.
+  problemas:
+  - The container dashboards are empty → turn on «Classic overlay2 storage» in Docker and apply (with containerd's new storage, cAdvisor cannot see the containers).
+  - It clashes with another app on 3000 → change «Grafana port on the server» (Draupnode warns about repeated ports).
+  - «Open Grafana» does not load → the SSH tunnel needs the connection password stored or the vault open.

@@ -1,0 +1,36 @@
+# Textos en inglés de «clamav» (los ids, variables y valores están en module.yaml).
+name: ClamAV (antivirus)
+category: 8 · Security
+description: Scans for viruses and malware every night in the folders you choose (for example, what users upload to your apps), with the signature database always up to date.
+details: |
+  ClamAV (GPL-2.0), Cisco Talos's free antivirus. freshclam
+  updates the signatures several times a day; the scan is a separate
+  command, at the given time and with low priority so it does not get in the way.
+  It only warns: it does not delete or move anything. What it finds is left in
+  /var/lib/draupnode/clamav/encontrado.txt and in the scan note.
+  During the scan it uses ~1.5 GB of RAM (it loads all the signatures).
+uninstall_warning: Removes ClamAV and its daily scan.
+uninstall_data: Also delete the signature database (~300 MB) and the reports.
+variables:
+  clamav_paths:
+    label: Folders to scan
+    help: One per line. The ones with your apps' data and the users' ones. Do not put the whole «/» (it would take hours).
+    pattern_help: Absolute path
+  clamav_hour:
+    label: Daily scan time
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes, if the test server has 2 GB free. The first signature download (~300 MB) takes a few minutes.
+  pasos:
+  - Add «ClamAV» with the default folders and apply.
+  - 'In «Terminal», leave the EICAR test file (harmless): «echo ''X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'' | sudo tee /srv/eicar.txt» and run «sudo systemctl start draupnode-clamav».'
+  comprobar:
+  - «systemctl status clamav-freshclam» is active and «ls /var/lib/clamav» has main, daily and bytecode.
+  - After the test, «sudo cat /var/lib/draupnode/clamav/encontrado.txt» lists /srv/eicar.txt (delete it afterwards).
+  necesita:
+  - The folders to scan (the default ones will do) and the time.
+  problemas:
+  - The scan fails for lack of memory → the server needs 2 GB of RAM; add «Swap memory» or remove the module.
+  - 'freshclam does not download («403» or «cool-down») → your provider''s network is blocked by the signature server: wait a few hours.'

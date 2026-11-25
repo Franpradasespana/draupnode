@@ -1,0 +1,44 @@
+# Textos en inglés de «adguard» (los ids, variables y valores están en module.yaml).
+name: AdGuard Home (no ads on the VPN)
+category: 7 · Apps
+description: Blocks ads, trackers and dangerous websites on all your devices connected to the VPN, without installing anything on them.
+details: |
+  AdGuard Home (GPL-3) in Docker. Its DNS only listens on the VPN (WireGuard's .1),
+  never on the internet: an open DNS is used to attack others.
+  Draupnode sets its address as the DNS of the VPN devices (you have to
+  scan the QR code again or import their .conf).
+  Its panel can only be seen from the server: «Open» on the module page
+  (SSH tunnel), through the VPN or with a domain. User and password generated on
+  the server (in «Passwords»).
+  Queries go out encrypted (DNS over HTTPS) to Quad9 and Cloudflare;
+  you can change that in its panel.
+uninstall_warning: Stops AdGuard Home. The VPN devices are left without DNS until you remove WireGuard's DNS and apply again.
+uninstall_data: Also delete its configuration and statistics.
+variables:
+  adguard_port:
+    label: Panel port (local only)
+  adguard_domain:
+    label: Panel domain
+    help: Optional. With Caddy or nginx on the server, the panel is published at https://domain.
+    pattern_help: A domain or empty
+  adguard_update:
+    label: Update AdGuard Home when applying
+links:
+- Official website
+- Source code
+secrets:
+- AdGuard Home panel user
+prueba:
+  lab: Yes (it needs WireGuard).
+  pasos:
+  - With WireGuard installed, add «AdGuard Home» and apply.
+  - 'In «Terminal»: «sudo apt-get install -y dnsutils», then «dig +short @10.8.0.1 doubleclick.net» and «dig +short @10.8.0.1 example.com».'
+  - Press «Open (SSH tunnel)» and log in with the user from Passwords.
+  comprobar:
+  - doubleclick.net returns 0.0.0.0 (blocked) and example.com its real IP.
+  - The AdGuard panel loads and counts the queries; the WireGuard configurations have DNS = 10.8.0.1.
+  necesita:
+  - 'Nothing (it needs WireGuard): the VPN devices use its DNS by themselves. The panel user is in Passwords.'
+  problemas:
+  - 'It does not block ads → the device is not using the VPN, or its configuration predates AdGuard: import the one from «See configurations» again (it has DNS = 10.8.0.1).'
+  - A legitimate website does not load → add it to the allowlist in the AdGuard panel.

@@ -1,0 +1,35 @@
+# Textos en inglés de «logs» (los ids, variables y valores están en module.yaml).
+name: Logs (Loki)
+category: 6 · Monitoring
+description: Stores and searches in Grafana the logs of all containers and of the system (SSH, sudo, services). Loki + Grafana Alloy.
+details: |
+  Loki stores the logs and Grafana Alloy collects them: the output of each
+  Docker container and the system journal (journald). They are searched in Grafana,
+  in the «Container logs» dashboard. All open source.
+  It needs Monitoring (it uses its Grafana). It takes about 300-500 MB of RAM;
+  that is why it is separate.
+uninstall_warning: Stops and removes Loki and Alloy, and the Grafana logs dashboard.
+uninstall_data: Also delete the stored logs.
+variables:
+  logs_retention_days:
+    label: Days of logs to keep
+  logs_journal:
+    label: System logs (journald)
+    help: SSH, sudo, services, backups… on top of the containers.
+links:
+- Loki
+- Loki source code
+- Grafana Alloy
+prueba:
+  lab: Yes (it needs Monitoring and 2 GB of RAM).
+  pasos:
+  - With Monitoring installed, add «Logs (Loki)» and apply.
+  - In Grafana, open the «Logs» dashboard or Explore → Loki.
+  - In «Terminal», do something that leaves a trace (for example «sudo true» or restarting a container).
+  comprobar:
+  - The logs of the containers and the system (SSH, sudo, services) appear, and what you did shows up straight away.
+  necesita:
+  - Nothing (it needs Monitoring). 2 GB of RAM; it keeps 14 days by default.
+  problemas:
+  - No system logs appear → turn on «System logs (journald)».
+  - The disk fills up → lower «Days of logs to keep».

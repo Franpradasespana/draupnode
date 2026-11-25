@@ -1,0 +1,46 @@
+# Textos en inglés de «portainer» (los ids, variables y valores están en module.yaml).
+name: Portainer (Docker panel)
+category: 2 · Containers
+description: 'A web panel to see and manage Docker: containers, images, volumes, networks, logs and Compose stacks.'
+details: |
+  Portainer Community Edition (the free one) in Docker. Draupnode creates the
+  «admin» user with a password generated on the server (in
+  «Passwords»).
+  CAREFUL: Portainer handles the whole of Docker, which is equivalent to being root on the
+  server. Better without a domain: log in with «Open» (SSH tunnel) or through the VPN.
+  Its data is in /srv/draupnode/apps/portainer (included in the backups of the
+  Backups module). Licence: zlib (Community edition).
+uninstall_warning: Stops and removes the Portainer containers.
+uninstall_data: Also delete its data (its configuration, users and saved stacks (your containers are not touched)). This cannot be undone.
+variables:
+  portainer_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  portainer_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  portainer_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  portainer_update:
+    label: Update Portainer when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Documentation
+- Source code
+secrets:
+- Portainer «admin» user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Portainer» and apply.
+  - Press «Open (SSH tunnel)» and log in with «admin» and the password from «Passwords».
+  comprobar:
+  - The panel shows the «local» environment with the server's containers (the dn-… ones).
+  - From Portainer you can see a container's logs and restart it.
+  necesita:
+  - 'Nothing: Draupnode creates the «admin» user and its password.'
+  problemas:
+  - 'It asks to create the administrator or says it has timed out → Portainer only reads the password the first time: uninstall it with «also delete the data» and apply again.'
+  - 'It handles the whole of Docker (it is like being root): do not give it a domain unless needed; log in through the tunnel or the VPN.'

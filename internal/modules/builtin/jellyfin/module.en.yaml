@@ -1,0 +1,47 @@
+# Textos en inglés de «jellyfin» (los ids, variables y valores están en module.yaml).
+name: Jellyfin (films and series)
+category: 7 · Apps
+description: 'Your own Netflix: films, series and photos from the browser, the TV or the phone.'
+details: |
+  Jellyfin in Docker. It reads your videos from the given folder (read-
+  only). The first time, log in and follow the wizard (create the
+  administrator and add the «/media» library).
+  Transcoding video live uses a lot of CPU: better clients that
+  play it as is (the Jellyfin app, Kodi…).
+  Its data is in /srv/draupnode/apps/jellyfin (included in the backups of the
+  Backups module). Licence: GPL-2.0.
+uninstall_warning: Stops and removes the Jellyfin containers.
+uninstall_data: Also delete its data (Jellyfin's configuration and cache (your videos are not touched)). This cannot be undone.
+variables:
+  jellyfin_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  jellyfin_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  jellyfin_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  jellyfin_media:
+    label: Videos folder
+    pattern_help: Absolute path
+  jellyfin_update:
+    label: Update Jellyfin when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes (it needs 1.5 GB of RAM).
+  pasos:
+  - Add «Jellyfin» with the default videos folder (/srv/media) and apply.
+  - In «Terminal», copy a short video to /srv/media.
+  - Press «Open (SSH tunnel)», follow the wizard and add the /media library.
+  comprobar:
+  - The video appears in the library and plays in the browser.
+  necesita:
+  - 'Nothing: the videos folder is /srv/media (inside Jellyfin, /media). 1.5 GB of RAM.'
+  problemas:
+  - 'It does not see the videos → they are in another folder: change «Videos folder», or copy them to /srv/media, and add the /media library in Jellyfin.'
+  - Videos stutter → the server cannot transcode them on the fly; use formats the device plays directly.

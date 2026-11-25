@@ -25,3 +25,8 @@ una página), `db_dir` (carpeta de PostgreSQL a la que no se cambian permisos), 
 Solo software libre (ver la licencia en cada ficha). Por eso, por ejemplo, Valkey en lugar
 de Redis (no libre desde la 7.4), OpenBao en lugar de Vault y OpenTofu en lugar de Terraform
 (BUSL desde 2023).
+
+Textos en inglés: el generador no toca `module.en.yaml`. Si cambias textos de una ficha (o
+añades una app), vuelve a escribir los de inglés con `python3 herramientas/i18n/modulos_en.py
+traducciones.json` (un JSON «texto en español» → «English text» con los nuevos; los que ya
+estaban se conservan) y comprueba con `make i18n` que no falta ninguno.

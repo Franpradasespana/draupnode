@@ -290,6 +290,15 @@ func load(fsys fs.FS, dir, source string) (*Module, error) {
 	if err := m.validate(); err != nil {
 		return nil, err
 	}
+	// Textos en otro idioma (module.en.yaml): solo cambian lo que se lee,
+	// nunca ids, variables ni valores.
+	if l := i18n.Lang(); l != i18n.ES {
+		if tr, err := fs.ReadFile(fsys, path.Join(dir, "module."+l+".yaml")); err == nil {
+			if err := m.applyTranslation(tr); err != nil {
+				return nil, fmt.Errorf("module.%s.yaml: %w", l, err)
+			}
+		}
+	}
 	role, err := fs.Sub(fsys, path.Join(dir, "role"))
 	if err != nil {
 		return nil, err

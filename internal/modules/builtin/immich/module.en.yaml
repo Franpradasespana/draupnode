@@ -1,0 +1,49 @@
+# Textos en inglés de «immich» (los ids, variables y valores están en module.yaml).
+name: Immich (photos and videos)
+category: 7 · Apps
+description: 'Your own Google Photos: automatic backup of your phone''s photos, albums, search by what is in the photo and by faces.'
+details: |
+  Immich (version 3) in Docker, like its official compose file: server,
+  machine learning (search and faces), Valkey and its PostgreSQL with
+  vectors. It is heavy: it asks for 4 GB of RAM and the first time it downloads about
+  3 GB. The first user to log in becomes the administrator: log in
+  straight after applying.
+  On the phone, the Immich app with the server's address (better with a
+  domain and HTTPS, or through the VPN).
+  The photos are in /srv/draupnode/apps/immich/library (included in the
+  backups: they can take a lot of space).
+  Its data is in /srv/draupnode/apps/immich (included in the backups of the
+  Backups module). Licence: AGPL-3.0.
+uninstall_warning: Stops and removes the Immich containers.
+uninstall_data: Also delete its data (all the uploaded photos and videos and its database). This cannot be undone.
+variables:
+  immich_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  immich_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  immich_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  immich_update:
+    label: Update Immich when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+prueba:
+  lab: 'Yes, if the test server has 4 GB of free RAM. Its images are big: the first time takes a while.'
+  pasos:
+  - Add «Immich» and apply.
+  - Press «Open (SSH tunnel)» and create the administrator (the first one to log in).
+  - Upload a few photos from the browser.
+  comprobar:
+  - The photos show on the timeline and, after a while, search finds things by what is in them.
+  necesita:
+  - 'Nothing: the first one to log in creates the administrator. 4 GB of free RAM (face and object recognition uses quite a lot).'
+  problemas:
+  - It fails with «toomanyrequests» from ghcr.io → GitHub's image registry limits downloads; wait a few minutes and apply again.
+  - «4000 MB of RAM needed…» → the server is too small for Immich.
+  - Search finds nothing → analysing the photos takes a while; check it in Administration → Jobs.

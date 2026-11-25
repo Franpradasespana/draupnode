@@ -1,0 +1,54 @@
+# Textos en inglés de «forgejo» (los ids, variables y valores están en module.yaml).
+name: Forgejo (your own GitHub)
+category: 7 · Apps
+description: 'Your own GitHub: Git repositories, issues, code reviews and packages, on your server.'
+details: |
+  Forgejo 15 in Docker, with its SQLite database (no separate database
+  server). Draupnode creates the «administrador» user with a password
+  generated on the server (in «Passwords»).
+  Git over SSH on the given port (it is opened in the Firewall):
+  git clone ssh://git@server:PORT/user/repo.git
+  New user registration is closed unless you open it.
+  Its data is in /srv/draupnode/apps/forgejo (included in the backups of the
+  Backups module). Licence: GPL-3.0.
+uninstall_warning: Stops and removes the Forgejo containers.
+uninstall_data: Also delete its data (all repositories, users and issues). This cannot be undone.
+variables:
+  forgejo_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  forgejo_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  forgejo_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  forgejo_ssh_port:
+    label: Git SSH port
+    help: To clone and push over SSH. It cannot be the server's SSH port.
+  forgejo_registration:
+    label: Allow registration
+    help: Otherwise, only the administrator creates users.
+  forgejo_update:
+    label: Update Forgejo when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- Forgejo administrator
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Forgejo» and apply.
+  - Press «Open (SSH tunnel)» and log in with the administrator from Passwords.
+  - Create a repository and push something to it with git.
+  comprobar:
+  - Forgejo loads, you log in as administrator and the repository keeps your commits.
+  - User registration is closed (only the administrator creates accounts).
+  necesita:
+  - 'Nothing: the administrator is created by itself (in Passwords). Optional domain; the SSH port for git (2222) is opened in the Firewall.'
+  problemas:
+  - 'It fails with «Bind for 127.0.0.1:3000 failed: port is already allocated» → it clashed with Grafana; since 0.60 its default port is 3001 and Draupnode warns about repeated ports. Change «Port on the server (local only)».'
+  - git push over SSH does not work → use Forgejo's SSH port (2222 by default) and open it at the cloud provider.

@@ -1,0 +1,51 @@
+# Textos en inglés de «registry» (los ids, variables y valores están en module.yaml).
+name: Docker image registry
+category: 2 · Containers
+description: 'Your own private Docker Hub: keep your images on the server and pull them from your computers or your CI with a user and password.'
+details: |
+  Docker's official registry (CNCF Distribution 3) with a user and
+  password (generated on the server, in «Passwords»).
+  To use it from other computers give it a domain (Caddy or nginx) and run
+  «docker login your-domain»: Docker only talks to registries with HTTPS
+  (except 127.0.0.1). The images are stored in
+  /srv/draupnode/apps/registry/data (they can take a lot of space).
+  Its data is in /srv/draupnode/apps/registry (included in the backups of the
+  Backups module). Licence: Apache-2.0.
+uninstall_warning: Stops and removes the Docker Registry containers.
+uninstall_data: Also delete its data (all the uploaded images). This cannot be undone.
+variables:
+  registry_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  registry_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  registry_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  registry_user:
+    label: User
+    help: «docker login» is done with this user and the generated password.
+    pattern_help: Lowercase letters, numbers, - and _
+  registry_update:
+    label: Update the registry when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Documentation
+- Source code
+secrets:
+- Image registry user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Docker image registry» and apply.
+  - 'In «Terminal»: «sudo docker login 127.0.0.1:5000 -u draupnode» (password in «Passwords»), «sudo docker pull busybox», «sudo docker tag busybox 127.0.0.1:5000/prueba/busybox:1» and «sudo docker push 127.0.0.1:5000/prueba/busybox:1».'
+  comprobar:
+  - «docker login» says «Login Succeeded» and the push finishes.
+  - «curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5000/v2/_catalog» without a user returns 401.
+  necesita:
+  - Nothing to test it on the server. To use it from other computers, a domain with Caddy or nginx (Docker requires HTTPS).
+  problemas:
+  - '«http: server gave HTTP response to HTTPS client» from another computer → give it a domain (Caddy/nginx) and use «docker login your-domain».'
+  - Pushing large images through nginx fails with «413» → raise the maximum request size in nginx.

@@ -1,0 +1,52 @@
+# Textos en inglés de «coolify» (los ids, variables y valores están en module.yaml).
+name: Coolify
+category: 3 · Platforms
+description: A panel to deploy your apps from GitHub/GitLab with automatic domain and HTTPS (Traefik proxy + Let's Encrypt).
+details: |
+  Installs Coolify with its official installer.
+  If you set an administrator email, Draupnode creates that user when installing with
+  a password generated on the server itself (stored in
+  /etc/draupnode/secretos/<project>/coolify_admin, root only). If you leave it empty,
+  log in STRAIGHT AWAY at http://IP:8000 and create your user: the first one to log in
+  becomes the administrator (there are 10 minutes).
+  These two options only count on the first installation; afterwards they are changed
+  from the Coolify panel.
+  When ticked, its panel ports (8000, 6001 and 6002) are added to the Firewall
+  list; remove them from there once the panel has its own domain.
+  On Oracle Cloud open them in the Security List too.
+uninstall_warning: Stops and removes the Coolify containers (panel, database, proxy). The apps you deployed with Coolify can no longer be seen through their domain, because their proxy is removed; their containers are not deleted.
+uninstall_data: Also delete /data/coolify and its volumes (the panel configuration, users, SSH keys and backups). Without this, if you reinstall Coolify everything comes back as it was.
+variables:
+  coolify_admin_email:
+    label: Administrator email
+    help: Empty = the first one to open the panel creates the administrator.
+    pattern_help: A valid email (name@domain.ext)
+    placeholder: you@example.com
+  coolify_admin_user:
+    label: Administrator name
+    pattern_help: 3 to 40 letters, numbers, . _ or -
+  coolify_autoupdate:
+    label: Automatic updates
+    help: Coolify updates itself to each new version. Turn it off if you prefer to update from the panel yourself.
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- Coolify administrator
+prueba:
+  lab: Yes. It needs 2 GB of RAM and 30 GB of disk; on the test server its panel is at http://127.0.0.1:18000.
+  pasos:
+  - Add «Coolify» (it brings Docker and the Firewall), set your email as administrator and apply (it takes a few minutes).
+  - See the administrator's password on the module page → Passwords.
+  - Open http://127.0.0.1:18000 in your browser.
+  comprobar:
+  - The Coolify panel loads and you log in with your email and that password.
+  - 'Server page → Apps and databases: «Coolify panel» appears; the apps you publish in Coolify show up there with their address.'
+  necesita:
+  - 'Put your email in «Administrator email»: if you leave it empty, the first one to open the panel (port 8000, open to the internet) takes the administrator account.'
+  - At least 2 GB of RAM and 30 GB of disk. It cannot go with Caddy or nginx (all three want ports 80 and 443).
+  problemas:
+  - «1800 MB of RAM needed…» → the server is too small for Coolify.
+  - The panel does not load from outside → open 8000 in the cloud provider's firewall (Draupnode's Firewall already opens it).
+  - '«Caddy and Coolify cannot go together» → remove Caddy/nginx: Coolify brings its own proxy (Traefik).'

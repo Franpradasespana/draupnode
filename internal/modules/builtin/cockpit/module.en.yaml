@@ -1,0 +1,45 @@
+# Textos en inglés de «cockpit» (los ids, variables y valores están en module.yaml).
+name: Cockpit (server panel)
+category: 6 · Monitoring
+description: 'A web panel to see and manage the server: CPU, memory, disks, services, logs, updates and a terminal in the browser.'
+details: |
+  Cockpit (LGPL-2.1) from the system. It is not published on the internet: it only listens
+  on 127.0.0.1 (and on the VPN if WireGuard is there). It opens with «Open» on this
+  module's page (SSH tunnel), through the VPN or with a domain (Caddy or nginx
+  on the server).
+  To log in, Draupnode creates its own user with a password generated
+  on the server (in «Passwords»); if you tick «Can
+  administer», that user has sudo.
+uninstall_warning: Uninstalls Cockpit. The panel user stays (you can delete it with «delete data»).
+uninstall_data: Also delete the panel user and its folder.
+variables:
+  cockpit_port:
+    label: Port (local only)
+  cockpit_user:
+    label: Panel user
+    pattern_help: Lowercase letters, numbers, - and _
+  cockpit_admin:
+    label: Can administer (sudo)
+    help: Without this, it can only look.
+  cockpit_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain or empty
+links:
+- Official website
+- Source code
+secrets:
+- User to log in to Cockpit
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Cockpit» and apply.
+  - Press «Open (SSH tunnel)» and log in with the user from Passwords.
+  comprobar:
+  - The panel shows CPU, memory, services and logs, and its terminal works.
+  - 'It only listens on 127.0.0.1 (and on the VPN if there is one): it cannot be seen from outside.'
+  necesita:
+  - 'Nothing: it opens with «Open (SSH tunnel)» and the user from Passwords. Optional domain (with Caddy or nginx).'
+  problemas:
+  - It does not let you administer → turn on «Can administer (sudo)» and apply.
+  - It clashes with another app on 9090 → change its port.

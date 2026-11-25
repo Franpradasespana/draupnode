@@ -1,0 +1,120 @@
+# Textos en inglés de «git-app» (los ids, variables y valores están en module.yaml).
+name: Your app (Git or folder)
+category: 3 · Platforms
+description: Deploys your app with its docker-compose.yml (for example, the one Docker Creator generates), from a Git repository or from a folder on this computer. When applying, it updates it.
+details: |
+  Clones the repository into /srv/draupnode/apps/<name> and starts it with
+  «docker compose up -d --build». Every time you apply, it fetches the latest from the
+  branch and builds it again (only what changes is restarted).
+  Private repository, two ways:
+  - With the https:// address and a read-only «Access token» (GitHub:
+    Fine-grained token with «Contents: Read-only» only for that repository).
+    It is stored encrypted in your vault; it is not left written on the server.
+  - With the SSH address (git@github.com:user/repo.git): Draupnode creates a
+    «deploy key» on the server; you see it in «Passwords» and add it to your
+    GitHub/GitLab/Forgejo (Settings → Deploy keys, read-only).
+  Variables (.env): the normal ones, one per line «KEY=value»; the ones that must
+  be secret and random (SECRET_KEY, DB_PASSWORD…), in «Generate on the
+  server»: they are created once and do not change.
+  Domain: with Caddy or nginx on the server, it is added to its sites by itself.
+  One app per template: for another one, attach another template to the same server.
+uninstall_warning: Stops and removes the app's containers.
+uninstall_data: Also delete its folder, its Docker volumes (the app's data and its database) and its generated values.
+variables:
+  git_app_source:
+    label: Where the code comes from
+    help: '«git» = from a repository (GitHub, GitLab, Forgejo…). «carpeta» = from a folder on this computer: Draupnode uploads it to the server every time you apply (no need to know git).'
+  git_app_local_dir:
+    label: Folder on this computer
+    help: 'Only with «carpeta»: the project''s, with its docker-compose (Docker Creator generates it). It is uploaded without .git, .env, virtual environments or node_modules (nor what its .dockerignore lists).'
+  git_app_repo:
+    label: Repository
+    help: 'Only with «git»: https://github.com/user/repo.git (public, or private with the token below) or git@github.com:user/repo.git (private, with a deploy key).'
+    pattern_help: https:// address or git@server:user/repo.git
+  git_app_token:
+    label: Access token (only if the repository is private)
+    help: 'For an https:// address of a private repository. On GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens, only this repository and «Contents: Read-only» permission (on GitLab/Forgejo, a token with repository read access). It is stored encrypted in your vault and is not left written on the server. If it is public, leave it empty. Without a token: use the git@… address and the deploy key.'
+  git_app_branch:
+    label: Branch
+    pattern_help: Branch name
+  git_app_name:
+    label: App name
+    help: For its folder and its containers.
+    pattern_help: Lowercase letters, numbers and hyphens
+  git_app_compose:
+    label: Compose file
+    help: Inside the repository.
+    pattern_help: Path to a .yml
+  git_app_env:
+    label: Variables (.env)
+    help: 'Your app''s non-secret ones, one per row (name and value). The highlighted ones must be completed or reviewed before applying. Passwords do not go here: in «Generate on the server (random secrets)» or in «Secret variables».'
+    pattern_help: KEY=value
+  git_app_env_generate:
+    label: Generate on the server (random secrets)
+    help: 'Variable names, one per line (SECRET_KEY, DB_PASSWORD…). They are created once and kept. If the app requires a format, add it with «:»: NAME:fernet (cryptography.Fernet key), NAME:base64-32 (32 bytes in Base64), NAME:hex-32, NAME:hex-64 (e.g. Rails'' SECRET_KEY_BASE), NAME:laravel (Laravel''s APP_KEY, «base64:…»). With nothing: 40 letters and numbers.'
+    pattern_help: NAME or NAME:fernet / :base64-32 / :hex-32 / :hex-64 / :laravel
+  git_app_env_secret:
+    label: Secret variables with your own value
+    help: 'Tokens or keys you already have: «KEY=value; OTHER=value». They are stored encrypted in your vault.'
+  git_app_post_command:
+    label: Command after starting
+    help: 'It runs every time you apply, inside the service below, with the app already running. To prepare the database: «./manage.py migrate» (Django), «php artisan migrate --force» (Laravel), «npx prisma migrate deploy»… Empty = nothing.'
+  git_app_post_service:
+    label: Service where the command runs
+    help: The service name in the docker-compose (e.g. web, app).
+    pattern_help: Name of a service in the compose file
+  git_app_owner:
+    label: Owner of the app folder
+    help: If the app runs in the container with a non-root user and needs to write to its folder («Permission denied» error), put its UID:GID here, e.g. 1000:1000. Empty = leaves it as it is (root's).
+    pattern_help: UID or UID:GID (numbers), or empty
+  git_app_build_minutes:
+    label: Maximum build time (minutes)
+    help: If the build takes longer, it is stopped. It is also stopped if it goes 10 minutes without progress (without writing anything).
+  git_app_db:
+    label: Database
+    help: '«propia» = the one the docker-compose brings (or none). «postgres-compartido» = this server''s shared PostgreSQL: Draupnode adds it if missing, creates a database and a user named after the app, connects the app to its network and passes it the details (DATABASE_URL, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, POSTGRES_*, Laravel''s DB_DATABASE/DB_USERNAME). The ones you set in «Variables (.env)» win.'
+  git_app_db_host:
+    label: Shared PostgreSQL server
+  git_app_db_network:
+    label: Shared PostgreSQL network
+  git_app_port:
+    label: App port on the server
+    help: The one your compose file publishes (for the domain and the check). 0 = do not check.
+  git_app_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (shop.example.com) or empty
+  git_app_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual with a domain). Otherwise, it is opened in the Firewall.
+  git_app_update:
+    label: Fetch the latest from Git when applying
+links:
+- Git
+- Docker Compose
+- Compose source code
+secrets:
+- Deploy key (add it to the repository, read-only)
+- Generated value for the .env
+- Generated value for the .env (another app)
+prueba:
+  lab: 'Yes: it is exactly what the test server is for. Try it with a public repository or with a folder on your computer.'
+  pasos:
+  - 'With a folder on your computer: in Docker Creator choose the folder, «Save to the folder» and «Publish on the server» with the test server; «Your app» ends up added with its variables (the «Publish your app step by step» guide tells it all).'
+  - 'With Git: add «Your app (Git or folder)» with «git» and a public repository, and press «Read the repository» to fill in its variables.'
+  - Check the highlighted variables and press «Simulate» (it checks the compose file, the variables and the ports without touching the app).
+  - Press «Apply» and then «Open (SSH tunnel)».
+  comprobar:
+  - The app responds in the browser and, if it has a database, has run its migrations.
+  - 'Server page → Apps and databases → Usage per app: it shows with its CPU and memory.'
+  - Change something in your project, apply again and it is updated.
+  necesita:
+  - 'Where the code comes from: «git» with the repository address (and a read-only token or a deploy key if it is private) or «carpeta» with the one on your computer. It must have a docker-compose.yml.'
+  - '«App name» (its folder and its containers) and «App port on the server»: the one your compose file publishes on 127.0.0.1 (0 = do not check). Each app on the server, with a different name and port.'
+  - The variables of its .env («Read the repository» or Docker Creator fill them in); passwords, in «Generate on the server (random secrets)». If it uses a database, «postgres-compartido» or its own in the compose file.
+  problemas:
+  - '«Permission denied» → the image does not run as root: put its UID:GID in «Owner of the app folder».'
+  - 'It responds but gives database errors → the database needs preparing: set «Command after starting» (./manage.py migrate, php artisan migrate --force…).'
+  - '«port is already allocated» or the port in red → another app uses that port: change the one in the compose file and «App port on the server».'
+  - The build gets cut off → it takes longer than «Maximum build time (minutes)» or goes 10 minutes without writing anything (development or watch mode in the Dockerfile).
+  - Below an app error, «What it means» appears with the most likely cause (a missing library, a variable, the database extension…).

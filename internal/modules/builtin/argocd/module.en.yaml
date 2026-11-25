@@ -1,0 +1,42 @@
+# Textos en inglés de «argocd» (los ids, variables y valores están en module.yaml).
+name: Argo CD (continuous deployment on Kubernetes)
+category: 9 · Kubernetes and IaC
+description: 'GitOps: you tell it which Git repository describes your Kubernetes applications and Argo CD keeps the cluster the same as the repository, with a panel to see everything.'
+details: |
+  Argo CD (Apache-2.0, CNCF) with its official installation in the
+  «argocd» namespace of this server's Kubernetes (k3s module).
+  The panel opens with «Open» (SSH tunnel), through the VPN or with a domain
+  (Caddy or nginx): a service on the server leaves it on 127.0.0.1.
+  User «admin»; its initial password is in «Passwords».
+  It needs ~1 GB of RAM on top of k3s.
+uninstall_warning: Removes Argo CD from the cluster. The applications it deployed stay in Kubernetes (no longer watched).
+variables:
+  argocd_port:
+    label: Port on the server (local only)
+    help: The panel listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  argocd_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  argocd_version:
+    label: Version
+    help: «stable» = the latest stable. Or a specific one, like v3.2.0.
+    pattern_help: stable or vX.Y.Z
+links:
+- Official website
+- Source code
+secrets:
+- Argo CD «admin» user
+prueba:
+  lab: Yes, if the test server has 3 GB of free RAM (k3s + Argo CD).
+  pasos:
+  - Add «Argo CD» (it adds k3s by itself) and apply; it takes a few minutes.
+  - 'Press «Open (SSH tunnel)», log in with «admin» and create an example application: repository https://github.com/argoproj/argocd-example-apps.git, path «guestbook», cluster «in-cluster», namespace «default».'
+  comprobar:
+  - The panel opens and lets you log in with the password from «Passwords».
+  - The «guestbook» application reaches «Synced» and «Healthy», and «kubectl get pods» shows its pods.
+  necesita:
+  - 'Nothing: it installs with the defaults. Optional domain (with Caddy or nginx).'
+  problemas:
+  - The panel does not open → look at «systemctl status draupnode-argocd» (the service that leaves it on 127.0.0.1) and «kubectl -n argocd get pods».
+  - 'It runs out of memory → the server needs about 3 GB: add «Swap memory» or use a bigger one.'

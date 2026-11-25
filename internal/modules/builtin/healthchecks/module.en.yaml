@@ -1,0 +1,50 @@
+# Textos en inglés de «healthchecks» (los ids, variables y valores están en module.yaml).
+name: Healthchecks (did my tasks run?)
+category: 6 · Monitoring
+description: 'Warns you when a scheduled task does NOT run: backups, cron, scripts. Each task pings an address when it finishes; if one day it does not arrive, you find out.'
+details: |
+  Healthchecks in Docker, with its SQLite database. Draupnode creates the
+  administrator user (email admin@localhost, password in «Passwords»).
+  Create one check per task and add at the end of the task:
+  curl -fsS -m 10 --retry 5 https://your-domain/ping/<code>
+  Better on a server DIFFERENT from the tasks' one, and with a domain so
+  that pings from other servers arrive.
+  Its data is in /srv/draupnode/apps/healthchecks (included in the backups of the
+  Backups module). Licence: BSD-3-Clause.
+uninstall_warning: Stops and removes the Healthchecks containers.
+uninstall_data: Also delete its data (the checks, their history and the alerts). This cannot be undone.
+variables:
+  healthchecks_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  healthchecks_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  healthchecks_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  healthchecks_registration:
+    label: Allow registration
+    help: Otherwise, only the administrator logs in (and can invite others to their projects).
+  healthchecks_update:
+    label: Update Healthchecks when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- Healthchecks administrator
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Healthchecks» and apply.
+  - Press «Open (SSH tunnel)», log in with admin@localhost and the password from «Passwords», and create a check with a 1-minute period.
+  comprobar:
+  - When you ping its address («curl http://127.0.0.1:8020/ping/<code>» in the Terminal) it turns green.
+  - If you stop pinging, once the period and the grace time pass it turns red.
+  necesita:
+  - Nothing when installing it. For pings from other servers to arrive, a domain with Caddy or nginx.
+  problemas:
+  - Email alerts are not sent → Healthchecks needs a mail server (SMTP); better use ntfy, Telegram or another integration.

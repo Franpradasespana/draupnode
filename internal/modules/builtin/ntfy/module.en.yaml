@@ -1,0 +1,51 @@
+# Textos en inglés de «ntfy» (los ids, variables y valores están en module.yaml).
+name: ntfy (your notification server)
+category: 6 · Monitoring
+description: 'Your own push notification server: send alerts to your phone (ntfy app) with a simple HTTP request. The Alerts module can use it.'
+details: |
+  ntfy in Docker, closed: nobody reads or publishes without a user. Draupnode
+  creates the «admin» user and a token (in «Passwords»).
+  For Draupnode's Alerts: in the Alerts module set the server to
+  https://your-domain and the token. In the ntfy phone app, add your
+  server with the user and password.
+  It needs a domain with HTTPS to use it from the phone.
+  Its data is in /srv/draupnode/apps/ntfy (included in the backups of the
+  Backups module). Licence: Apache-2.0 or GPL-2.0.
+uninstall_warning: Stops and removes the ntfy containers.
+uninstall_data: Also delete its data (users, tokens and stored messages). This cannot be undone.
+variables:
+  ntfy_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  ntfy_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  ntfy_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  ntfy_ios_push:
+    label: Instant notifications on iPhone
+    help: On iPhone, notifications arrive straight away only if your server asks ntfy.sh to wake the app up (it sends an identifier, never the message).
+  ntfy_update:
+    label: Update ntfy when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- ntfy «admin» user and token
+prueba:
+  lab: Yes (the phone needs a domain with HTTPS).
+  pasos:
+  - Add «ntfy» and apply.
+  - 'In «Terminal»: «curl -H ''Authorization: Bearer TOKEN'' -d hola http://127.0.0.1:2586/prueba» (the token is in «Passwords») and the same without the header.'
+  comprobar:
+  - With the token it answers 200; without it, 403 (it is closed).
+  - With a domain, the ntfy phone app (server https://your-domain, user «admin») receives the «hola» on the «prueba» topic.
+  necesita:
+  - Nothing to install it. For the phone, a domain with Caddy or nginx.
+  problemas:
+  - On iPhone notifications arrive late → turn on «Instant notifications on iPhone».
+  - The Alerts do not arrive → in the Alerts module set your server https://your-domain and the token from «Passwords».

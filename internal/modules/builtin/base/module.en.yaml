@@ -1,0 +1,41 @@
+# Textos en inglés de «base» (los ids, variables y valores están en module.yaml).
+name: Base system
+category: 1 · System
+description: Basic packages, time zone, swap memory and automatic security updates.
+details: |
+  Waits for apt to be free (on a freshly created server it is usually busy
+  with updates), installs the given packages, sets the time zone,
+  creates /swapfile if asked and turns on unattended-upgrades for security patches.
+no_uninstall: they are the system's basic packages and settings (time zone, swap, security updates); other programs use them and removing them could break them.
+variables:
+  base_packages:
+    label: Packages to install
+    pattern_help: apt package name (lowercase letters, numbers, . + -)
+  base_timezone:
+    label: Time zone
+    pattern_help: Format Region/City, e.g. Europe/Madrid
+  base_swap_mb:
+    label: Swap (MB)
+    help: Swap memory in /swapfile. 0 = do not create. Useful on servers with little RAM.
+  base_auto_updates:
+    label: Automatic security updates
+links:
+- Ubuntu Server (documentation)
+- Debian
+- Automatic updates (unattended-upgrades)
+prueba:
+  lab: Yes. In a container the swap is not created (it uses the computer's) and it says so in a note.
+  pasos:
+  - In «Test server», «Create and start» and «Add to Draupnode». Open its page → Modules.
+  - 'Add «Base system» (Europe/Madrid, default packages) and press «Simulate»: there should be changes and 0 failures.'
+  - Press «Apply». Then «Simulate» again.
+  comprobar:
+  - The apply finishes with 0 failures and the second simulation says 0 changes (everything is as requested).
+  - 'In «Terminal»: «timedatectl» shows Europe/Madrid and «htop --version» responds.'
+  - «systemctl status unattended-upgrades» is active (automatic security updates).
+  necesita:
+  - 'Nothing: it works with the default values. Check the time zone (format Region/City, e.g. Europe/Madrid).'
+  - 'Swap: 2048 MB by default; on servers with little RAM (1 GB) raise it. 0 = do not create.'
+  problemas:
+  - It takes long or hangs on «Wait for apt to be free» → a freshly created server is updating itself; wait a few minutes and apply again.
+  - '«Swap skipped: the server is a container» → normal on the test server; on a real VPS it is created.'

@@ -1,0 +1,50 @@
+# Textos en inglés de «postgres» (los ids, variables y valores están en module.yaml).
+name: Shared PostgreSQL
+category: 4 · Databases
+description: A PostgreSQL in Docker for all your apps, with one database and one user per app. The passwords are generated on the server.
+details: |
+  It is only reachable from the given Docker network (the apps see it by the container
+  name). The passwords are generated on the server itself the first
+  time and stored in /etc/draupnode/secretos/<project>/ (root only); they are never
+  overwritten when relaunching.
+uninstall_warning: Stops and removes the PostgreSQL container. The apps that use it are left without a database.
+uninstall_data: Also delete the DATA of all databases and their passwords. This cannot be undone.
+variables:
+  postgres_version:
+    label: PostgreSQL version
+  postgres_container:
+    label: Container name
+    help: It is the «host» your apps connect to.
+    pattern_help: Lowercase letters, numbers, - and _
+  postgres_network:
+    label: Shared Docker network
+    pattern_help: Lowercase letters, numbers, - and _
+  postgres_databases:
+    label: Databases
+    help: One per line. Each one will have a user with the same name and its own password.
+    pattern_help: Lowercase letters, numbers and _ (starting with a letter)
+  postgres_dir:
+    label: Folder on the server
+    pattern_help: Absolute path
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- «postgres» superuser
+- Database user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Shared PostgreSQL» with a database, for example «tienda», and apply.
+  - See the user and password of «tienda» on the module page → Passwords.
+  - 'In «Terminal»: «docker exec -it pg-compartido psql -U tienda -d tienda -c ''select 1''».'
+  comprobar:
+  - The query returns 1.
+  - 'Server page → Apps and databases → Databases: pg-compartido appears with the «tienda» database and its size.'
+  - If you uninstall without «delete data» and install again, the database and its password are still there.
+  necesita:
+  - The databases you want, one per line (lowercase letters, numbers and _; starting with a letter). Each one will have a user with its name and its password (in Passwords).
+  problemas:
+  - An app does not connect → it must be on the «apps» network and use the host pg-compartido (with «Your app», choose «postgres-compartido» and it does it by itself).
+  - You removed a database from the list and it is still there → databases are not deleted so as not to lose data; delete it by hand if you want.

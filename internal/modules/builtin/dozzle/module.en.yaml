@@ -1,0 +1,44 @@
+# Textos en inglés de «dozzle» (los ids, variables y valores están en module.yaml).
+name: Dozzle (Docker logs)
+category: 6 · Monitoring
+description: Watch live, from the browser, what all the containers write (their logs), with a search box. Very light.
+details: |
+  Dozzle in Docker. It only reads: it stores nothing and does not touch the containers.
+  It asks for a user and password («admin», password in «Passwords»):
+  logs may contain sensitive data.
+  To keep the logs and search them days later, the «Logs» module
+  (Loki + Grafana) is better.
+  Its data is in /srv/draupnode/apps/dozzle (included in the backups of the
+  Backups module). Licence: MIT.
+uninstall_warning: Stops and removes the Dozzle containers.
+uninstall_data: Also delete its data (its user and settings). This cannot be undone.
+variables:
+  dozzle_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  dozzle_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  dozzle_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  dozzle_update:
+    label: Update Dozzle when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- Dozzle «admin» user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «Dozzle» and apply.
+  - Press «Open (SSH tunnel)» and log in with «admin» and the password from «Passwords».
+  comprobar:
+  - Without a user it shows nothing; with it, it shows all the containers and their logs live.
+  necesita:
+  - Nothing.
+  problemas:
+  - A container does not show up → Dozzle shows the running ones; tick «Show stopped» in its menu.

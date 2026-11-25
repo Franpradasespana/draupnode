@@ -1,0 +1,47 @@
+# Textos en inglés de «paperless» (los ids, variables y valores están en module.yaml).
+name: Paperless-ngx (documents)
+category: 7 · Apps
+description: 'Scan or upload your papers (invoices, contracts, receipts…) and find them instantly: it reads the text (OCR), tags them and files them.'
+details: |
+  Paperless-ngx in Docker, with its own PostgreSQL and Valkey (Redis-compatible). Draupnode
+  creates the «admin» user with a password generated on the server (in
+  «Passwords»). Whatever you leave in the «consume» folder (for
+  example with Syncthing or from the scanner) is imported by itself.
+  The first time it takes a few minutes to start.
+  Its data is in /srv/draupnode/apps/paperless (included in the backups of the
+  Backups module). Licence: GPL-3.0.
+uninstall_warning: Stops and removes the Paperless-ngx containers.
+uninstall_data: Also delete its data (all documents, its database and its tags). This cannot be undone.
+variables:
+  paperless_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  paperless_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  paperless_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  paperless_ocr_language:
+    label: Documents language (OCR)
+  paperless_update:
+    label: Update Paperless-ngx when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Documentation
+- Source code
+secrets:
+- Paperless-ngx «admin» user
+prueba:
+  lab: Yes (it needs 2 GB of RAM).
+  pasos:
+  - Add «Paperless-ngx» and apply.
+  - Press «Open (SSH tunnel)», log in with admin (password in Passwords) and upload a PDF.
+  comprobar:
+  - The document appears and, after a few seconds, it can be searched by the text it contains (OCR in Spanish and English).
+  necesita:
+  - 'Nothing: the admin user is in Passwords. 2 GB of RAM. OCR language: spa+eng by default.'
+  problemas:
+  - It does not find a document's text → wait for the OCR to finish (Tasks in its panel) or change the OCR language.
+  - It runs out of memory → it needs 2 GB; with less, raise the swap in Base system.

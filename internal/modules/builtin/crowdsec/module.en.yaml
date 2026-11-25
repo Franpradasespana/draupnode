@@ -1,0 +1,43 @@
+# Textos en inglés de «crowdsec» (los ids, variables y valores están en module.yaml).
+name: CrowdSec (attack blocking)
+category: 8 · Security
+description: Reads the server's logs, detects attacks (SSH brute force, scans, bots against your websites) and blocks those IPs in the firewall. It also uses the list of malicious IPs shared by the community.
+details: |
+  CrowdSec (MIT) from its official repository, with the iptables
+  bouncer. It watches SSH and the system, and nginx or Caddy if present. If there is
+  Docker, it also protects the ports the containers publish.
+  Your IP (the one you apply from) and the ones in «IPs that are never blocked» are
+  never blocked.
+  It can go together with fail2ban (Secure SSH module): they complement each other.
+  «Community list»: CrowdSec sends the IPs that attack you (nothing else)
+  and in return receives the ones attacking everyone.
+  Queries in the Terminal: sudo cscli decisions list (blocked IPs),
+  sudo cscli alerts list, sudo cscli metrics.
+uninstall_warning: Removes CrowdSec and its bouncer; the IPs it had blocked can get in again.
+uninstall_data: Also delete its configuration and its alerts database.
+variables:
+  crowdsec_whitelist:
+    label: IPs that are never blocked
+    help: One IP or network per line (203.0.113.10 or 203.0.113.0/24). Your IP when applying is added by itself.
+    pattern_help: An IP or a network (IP/mask)
+  crowdsec_community:
+    label: Community list
+    help: Shares the IPs that attack you and receives the ones attacking others (free). Without this, it only blocks what it sees on this server.
+links:
+- Official website
+- Documentation
+- Source code
+prueba:
+  lab: Yes.
+  pasos:
+  - Add «CrowdSec» and apply.
+  - 'In «Terminal», simulate an attack: «sudo cscli decisions add --ip 203.0.113.50 --duration 5m».'
+  comprobar:
+  - «sudo cscli metrics» shows that it reads the SSH log (auth.log or journald) and «sudo cscli bouncers list» has the iptables bouncer.
+  - After the test, «sudo cscli decisions list» shows 203.0.113.50 and «sudo iptables -S | grep -i crowdsec» has its rules; «sudo cscli decisions delete --ip 203.0.113.50» removes it.
+  - Your own connection keeps working (your IP is on the allowlist).
+  necesita:
+  - 'Nothing. Optional: the IPs you always log in from (your home, your office, the VPN) in «IPs that are never blocked».'
+  problemas:
+  - You have locked yourself out → log in through the provider's console and run «sudo cscli decisions delete --ip YOUR_IP»; then add your IP to the allowlist.
+  - It does not watch nginx/Caddy → install those modules first and apply CrowdSec again (it detects what is there when applying).

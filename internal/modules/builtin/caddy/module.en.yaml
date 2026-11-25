@@ -1,0 +1,57 @@
+# Textos en inglés de «caddy» (los ids, variables y valores están en module.yaml).
+name: Caddy (web and automatic HTTPS)
+category: 3 · Platforms
+description: Publishes your apps on your domain with HTTPS. Caddy requests and renews the Let's Encrypt certificates by itself.
+details: |
+  Caddy (Apache-2) from the Ubuntu/Debian repository, as a system service.
+  Each line in «Sites» is «domain target»:
+    photos.example.com 127.0.0.1:2283      → forwards to the app on that port
+    blog.example.com /srv/www/blog         → serves that folder (static website)
+  The domain must already point to this server's IP (A/AAAA record)
+  and ports 80 and 443 must be open (they are added to the Firewall):
+  that way Caddy gets the certificate by itself. While the DNS does not point here, that
+  site will not have HTTPS (the others will). A domain ending in .localhost
+  uses Caddy's own certificate (for testing).
+  Before reloading, the configuration is checked: if it has an error, the
+  previous one keeps running.
+  It cannot go with Coolify or nginx: all three want ports 80 and 443.
+uninstall_warning: Uninstalls Caddy. Your sites can no longer be seen through their domain; the apps behind keep running.
+uninstall_data: Also delete the certificates Caddy had obtained (/var/lib/caddy). If you reinstall it, it requests them again.
+variables:
+  caddy_sites:
+    label: Sites
+    help: 'One line per site: «domain target». Target = 127.0.0.1:PORT (an app) or /folder (static website).'
+    pattern_help: 'Example: photos.example.com 127.0.0.1:2283'
+    placeholder: photos.example.com 127.0.0.1:2283
+  caddy_email:
+    label: Email for Let's Encrypt
+    help: Optional. They warn you if a certificate cannot be renewed.
+    pattern_help: A valid email or empty
+  caddy_compress:
+    label: Compress responses (gzip/zstd)
+  caddy_security_headers:
+    label: Security headers
+    help: HSTS, not letting the website be framed by another, not guessing file types…
+links:
+- Official website
+- Documentation
+- Source code
+prueba:
+  lab: 'Yes, but without Let''s Encrypt (the test server is not reachable from the internet): use a .localhost domain and Caddy signs its own certificate. With a real domain, the real certificate is tested on a public server.'
+  pasos:
+  - First install something that listens, for example «Vaultwarden» (port 8222).
+  - Add «Caddy» with the site «vault.localhost 127.0.0.1:8222» and apply.
+  - |-
+    In «Terminal»: «curl -sk --resolve vault.localhost:443:127.0.0.1 https://vault.localhost -o /dev/null -w '%{http_code}
+    '».
+  comprobar:
+  - 'The command returns 200: Caddy serves the app over HTTPS.'
+  - 'Server page → Apps and databases: the site vault.localhost (Caddy) appears.'
+  - A second «Apply» changes nothing.
+  necesita:
+  - 'The sites, one per line: «domain target». Target = 127.0.0.1:PORT (an app) or /folder (static website). App modules with a domain are added by themselves.'
+  - 'For real HTTPS: the domain must point to the server''s IP and ports 80 and 443 must be open (also in the provider''s firewall). Optional email, for renewal notices.'
+  problemas:
+  - The certificate does not come through («obtaining certificate» / «challenge failed») → the domain does not point to this server yet, or 80/443 are closed at the cloud provider.
+  - «Caddy and nginx cannot go together» → choose one of the two.
+  - It answers 502 → the target app is not listening on that port (check it in Apps and databases → Usage per app).

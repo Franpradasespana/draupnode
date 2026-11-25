@@ -1,0 +1,64 @@
+# Textos en inglés de «ssh» (los ids, variables y valores están en module.yaml).
+name: Secure SSH + fail2ban
+category: 1 · System
+description: Locks SSH down to the essentials (no root, no passwords, few attempts) and blocks with fail2ban whoever tries passwords.
+details: |
+  Writes /etc/ssh/sshd_config.d/01-draupnode.conf (it takes precedence over the rest, like
+  the 50-cloud-init.conf that sets PasswordAuthentication yes) and checks it with
+  «sshd -t» before reloading: if something is wrong, it leaves it as it was.
+  So you don't lock yourself out, Draupnode does not let you remove passwords if
+  it logs in with one, or forbid root if it logs in as root, and when applying it checks
+  that your user has an authorised key.
+  fail2ban never blocks the IP you connect from.
+  If you change the port, it is opened in the Firewall before changing SSH and
+  Draupnode updates the server at the end. On Oracle Cloud also open it
+  in the Security List BEFORE applying. Port 22 stays open in the Firewall
+  until you remove it yourself.
+uninstall_warning: Removes the hardening and fail2ban. SSH is NOT uninstalled (it is how Draupnode connects) - it goes back to its previous configuration; if the server came that way, it may accept passwords again.
+variables:
+  ssh_port:
+    label: SSH port
+    help: 22 is the usual one. Changing it reduces bot noise, it is not real security.
+  ssh_password_auth:
+    label: Allow password login
+    help: Unticked = SSH key only (recommended).
+  ssh_root_login:
+    label: Log in as root
+    help: «no» = nobody logs in as root (sudo is used). «solo-con-clave» = root can, but never with a password.
+  ssh_allow_users:
+    label: Only these users can log in
+    help: One per line. Empty = any user with a key.
+    pattern_help: Linux user name (lowercase letters, numbers, _ . -)
+  ssh_max_auth_tries:
+    label: Attempts per connection
+  ssh_fail2ban:
+    label: Install fail2ban
+  ssh_fail2ban_maxretry:
+    label: Failures before blocking
+  ssh_fail2ban_bantime:
+    label: Block time
+    help: Repeat offenders are blocked for a week («recidive» jail).
+  ssh_fail2ban_ignore:
+    label: IPs that are never blocked
+    help: Besides yours, which is added by itself. One per line (IP or network, e.g. 203.0.113.0/24).
+    pattern_help: An IP or a network (203.0.113.7 or 203.0.113.0/24)
+links:
+- OpenSSH
+- OpenSSH source code
+- fail2ban
+prueba:
+  lab: Yes. Leave it on port 22 on the test server so as not to lose the connection.
+  pasos:
+  - Add «Secure SSH + fail2ban» with port 22, no passwords and no root, and apply.
+  - 'From a terminal on your computer, try logging in with a password: «ssh -p 2222 -o PubkeyAuthentication=no ubuntu@127.0.0.1».'
+  comprobar:
+  - Draupnode keeps logging in with the key (the server page is read).
+  - The password attempt is rejected («Permission denied (publickey)»).
+  - 'Server page → Network and security: fail2ban shows as active; in «Terminal», «sudo fail2ban-client status sshd» confirms it.'
+  necesita:
+  - 'Nothing to start: no passwords, no root and fail2ban on.'
+  - 'If you change the port: open it first in the cloud provider''s firewall. «Only these users can log in», one per line; empty = anyone with a key.'
+  problemas:
+  - 'After applying nobody logs in with a password → that is expected: log in with your SSH key.'
+  - You changed the port and Draupnode no longer connects → the cloud provider has it closed; open it in its panel or go back to 22 from its console.
+  - fail2ban has blocked your own IP → put your IP in «IPs that are never blocked»; meanwhile, log in from another network or wait for the block time (1 h).
