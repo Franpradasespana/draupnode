@@ -257,7 +257,7 @@
     ctrBusy = name + ':' + action
     try {
       const r = await withConnection<DockerResult>(server, (s, a, u) => api.ContainerAction(id, name, action, s, a, u))
-      if (r?.status === 'ok') { toast(`${name}: ${action === 'start' ? 'arrancado' : action === 'stop' ? 'parado' : 'reiniciado'}`); await load() }
+      if (r?.status === 'ok') { toast(tr(action === 'start' ? '{0}: arrancado' : action === 'stop' ? '{0}: parado' : '{0}: reiniciado', name)); await load() }
       else if (r) toast(r.message || tr('No se pudo'), 'error')
     } finally {
       ctrBusy = ''

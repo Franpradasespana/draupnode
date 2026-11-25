@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BulkPanel from './components/BulkPanel.svelte'
   import { onMount } from 'svelte'
   import { LayoutDashboard, Server, Boxes, FolderGit2, Container, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X, Bell, ChevronRight, Puzzle } from '@lucide/svelte'
   import Logo from './components/Logo.svelte'
@@ -184,6 +185,7 @@
   </main>
 
   <StatusBar />
+  <BulkPanel />
 </div>
 
 {#if ui.help}

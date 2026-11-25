@@ -85,6 +85,40 @@ export interface TestResult {
   durationMs: number
 }
 
+/** Crear servidores en la nube (Hetzner Cloud, DigitalOcean). */
+export interface CloudProvider {
+  id: string
+  name: string
+  tokenUrl: string
+  tokenHelp: string
+  user: string
+  image: string
+  hasToken: boolean
+}
+export interface CloudOption {
+  id: string
+  label: string
+  detail?: string
+  priceMonth?: number
+  currency?: string
+  regions?: string[]
+  ramMb?: number
+}
+export interface CloudCatalog {
+  regions: CloudOption[]
+  sizes: CloudOption[]
+}
+export interface CloudCreateRequest {
+  provider: string
+  name: string
+  region: string
+  size: string
+  keyPath: string
+  newKey: boolean
+  passphrase: string
+  savePassphrase: boolean
+}
+
 export interface KeyInfo {
   path: string
   name: string
@@ -793,6 +827,11 @@ interface Backend {
   LastOverviews(): Promise<Record<string, CachedOverview>>
   PublishDockerApp(dir: string, spec: DockerSpec, serverId: string): Promise<PublishResult>
   ServerUpgrade(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
+  CloudProviders(): Promise<CloudProvider[]>
+  CloudSetToken(provider: string, token: string): Promise<void>
+  CloudForgetToken(provider: string): Promise<void>
+  CloudCatalog(provider: string): Promise<CloudCatalog>
+  CloudCreateServer(req: CloudCreateRequest): Promise<Server>
   ServerReboot(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   ServerHistory(serverId: string, enable: boolean, keepData: boolean, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   RemoveOrphanApp(serverId: string, name: string, purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
@@ -869,6 +908,7 @@ function mockBackend(): Backend {
   let servers: Server[] = load('servers', [
     { id: 'demo1', name: tr('Servidor web'), host: '203.0.113.10', port: 22, user: 'ubuntu', authMethod: 'key', keyPath: keys[1].path, keyEncrypted: true, secretStore: '', notes: tr('Servidor de ejemplo de la demo (la contraseña es «demo»)'), createdAt: new Date().toISOString() },
   ] as Server[])
+  const cloudTokens: Record<string, string> = { hetzner: 'demo' } // la demo ya tiene el de Hetzner
   let settings: Settings = load('settings', { theme: 'draupnir-gold', secretBackend: 'auto' })
   const trusted = new Set<string>(load('trusted', []))
   const stored: Record<string, string> = load('secrets', {})
@@ -1033,6 +1073,53 @@ function mockBackend(): Backend {
     },
     async FindKeys() {
       return keys
+    },
+    async CloudProviders() {
+      return [
+        { id: 'hetzner', name: 'Hetzner Cloud', tokenUrl: 'https://console.hetzner.cloud/projects', tokenHelp: tr('En la consola de Hetzner: tu proyecto → Security → API tokens → Generate API token, con permiso «Read & Write».'), user: 'root', image: 'Ubuntu 24.04', hasToken: !!cloudTokens.hetzner },
+        { id: 'digitalocean', name: 'DigitalOcean', tokenUrl: 'https://cloud.digitalocean.com/account/api/tokens', tokenHelp: tr('En DigitalOcean: API → Tokens → Generate New Token, con permisos de escritura (o los de droplet, ssh_key, regions y sizes).'), user: 'root', image: 'Ubuntu 24.04', hasToken: !!cloudTokens.digitalocean },
+      ]
+    },
+    async CloudSetToken(provider, token) {
+      await wait(600)
+      if (!vault.exists) throw tr('VAULT_MISSING: no hay bóveda')
+      if (!vault.unlocked) throw tr('VAULT_LOCKED: la bóveda está bloqueada')
+      if (token.trim().length < 8) throw tr('el proveedor no acepta el token (401): comprueba que es correcto y que tiene permiso de escritura')
+      cloudTokens[provider] = token
+    },
+    async CloudForgetToken(provider) {
+      delete cloudTokens[provider]
+    },
+    async CloudCatalog(provider) {
+      await wait(500)
+      if (provider === 'hetzner') return {
+        regions: [{ id: 'fsn1', label: 'Falkenstein (DE)', detail: 'fsn1' }, { id: 'hel1', label: 'Helsinki (FI)', detail: 'hel1' }, { id: 'nbg1', label: 'Nuremberg (DE)', detail: 'nbg1' }],
+        sizes: [
+          { id: 'cx22', label: 'CX22 · 2 vCPU · 4 GB RAM · 40 GB', priceMonth: 4.59, currency: 'EUR', ramMb: 4096 },
+          { id: 'cx32', label: 'CX32 · 4 vCPU · 8 GB RAM · 80 GB', priceMonth: 7.59, currency: 'EUR', ramMb: 8192 },
+          { id: 'cx42', label: 'CX42 · 8 vCPU · 16 GB RAM · 160 GB', priceMonth: 18.59, currency: 'EUR', ramMb: 16384 },
+        ],
+      }
+      return {
+        regions: [{ id: 'ams3', label: 'Amsterdam 3', detail: 'ams3' }, { id: 'fra1', label: 'Frankfurt 1', detail: 'fra1' }],
+        sizes: [
+          { id: 's-1vcpu-1gb', label: 's-1vcpu-1gb · 1 vCPU · 1 GB RAM · 25 GB', priceMonth: 6, currency: 'USD', ramMb: 1024 },
+          { id: 's-2vcpu-4gb', label: 's-2vcpu-4gb · 2 vCPU · 4 GB RAM · 80 GB', priceMonth: 24, currency: 'USD', ramMb: 4096 },
+        ],
+      }
+    },
+    async CloudCreateServer(req) {
+      if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(req.name)) throw tr('el nombre solo puede tener minúsculas, números y guiones (sin empezar ni acabar en guion)')
+      const st = (stage: string) => mockEmit('cloud', { stage })
+      st(tr('Preparando la clave SSH')); await wait(500)
+      st(tr('Pidiendo el servidor al proveedor')); await wait(800)
+      st(tr('El proveedor está creando el servidor…')); await wait(1500)
+      st(tr('Esperando a que arranque su SSH ({0})…', '203.0.113.50')); await wait(1000)
+      const srv: Server = { id: Math.random().toString(16).slice(2, 10), name: req.name, host: '203.0.113.50', port: 22, user: 'root', authMethod: 'key',
+        keyPath: req.newKey ? '/home/demo/.config/draupnode/claves/' + req.provider + '-' + req.name : req.keyPath, keyEncrypted: false, secretStore: '', notes: '', createdAt: new Date().toISOString() } as Server
+      servers = [...servers, srv]
+      save('servers', servers)
+      return srv
     },
     async SSHConfigHosts() {
       return [{ alias: 'web', hostName: '203.0.113.10', user: 'ubuntu', port: 22, identityFile: keys[1].path }]
@@ -1865,6 +1952,9 @@ function mockBackend(): Backend {
       }
     }
     at(300, { kind: 'ev', ev: { ev: 'stats', ok: 30, changed, failures: 0, unreachable: 0, skipped: 2 } })
+    // Como el plugin de Ansible: al empezar la obra dice cuántas tareas tiene.
+    const play = steps.findIndex(([, e]) => (e.ev as { ev?: string })?.ev === 'play')
+    steps.splice(play + 1, 0, [steps[play][0], { kind: 'ev', ev: { ev: 'plan', total: steps.filter(([, e]) => (e.ev as { ev?: string })?.ev === 'task').length } }])
     const start = Date.now()
     for (const [ms, e] of steps) {
       setTimeout(() => {

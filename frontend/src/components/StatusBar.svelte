@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RunProgress from './RunProgress.svelte'
   import { ExternalLink, RefreshCw, LoaderCircle, Server as ServerIcon, Activity, ChevronDown } from '@lucide/svelte'
   import { api, errorText, type ServerLive } from '../lib/api'
   import { ui, timeAgo, contextServerId, setActiveServer, openServerProjects, openDeployment } from '../lib/state.svelte'
@@ -82,7 +83,8 @@
       <span class="sep"></span>
       {#each running as r (r.runId)}
         <button class="lnk run" onclick={() => openDeployment(r.projectId)}>
-          <LoaderCircle size={12} class="spin" /> {r.check ? tr('Simulando') : tr('Aplicando')} «{projName(r.projectId)}»: {r.stage}
+          <LoaderCircle size={12} class="spin" /> {r.check ? tr('Simulando') : tr('Aplicando')} «{projName(r.projectId)}»
+          <span class="rpw"><RunProgress run={r} compact /></span>
         </button>
       {/each}
     {/if}
@@ -105,6 +107,7 @@
 </footer>
 
 <style>
+  .rpw { display: inline-flex; width: 110px; margin-left: 6px; vertical-align: middle; }
   .status {
     grid-column: 1 / -1;
     display: flex; align-items: center; gap: 10px;

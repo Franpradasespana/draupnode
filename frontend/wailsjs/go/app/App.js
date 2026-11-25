@@ -106,6 +106,26 @@ export function CloseTunnels() {
   return window['go']['app']['App']['CloseTunnels']();
 }
 
+export function CloudCatalog(arg1) {
+  return window['go']['app']['App']['CloudCatalog'](arg1);
+}
+
+export function CloudCreateServer(arg1) {
+  return window['go']['app']['App']['CloudCreateServer'](arg1);
+}
+
+export function CloudForgetToken(arg1) {
+  return window['go']['app']['App']['CloudForgetToken'](arg1);
+}
+
+export function CloudProviders() {
+  return window['go']['app']['App']['CloudProviders']();
+}
+
+export function CloudSetToken(arg1, arg2) {
+  return window['go']['app']['App']['CloudSetToken'](arg1, arg2);
+}
+
 export function ContainerAction(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['app']['App']['ContainerAction'](arg1, arg2, arg3, arg4, arg5, arg6);
 }

@@ -3,6 +3,7 @@
 import {app} from '../models';
 import {dockerize} from '../models';
 import {store} from '../models';
+import {cloudapi} from '../models';
 import {sshx} from '../models';
 import {copia} from '../models';
 
@@ -57,6 +58,16 @@ export function ChooseProjectDir():Promise<string>;
 export function CloseTerminals():Promise<void>;
 
 export function CloseTunnels():Promise<void>;
+
+export function CloudCatalog(arg1:string):Promise<cloudapi.Catalog>;
+
+export function CloudCreateServer(arg1:app.CloudCreateRequest):Promise<app.ServerView>;
+
+export function CloudForgetToken(arg1:string):Promise<void>;
+
+export function CloudProviders():Promise<Array<app.CloudProvider>>;
+
+export function CloudSetToken(arg1:string,arg2:string):Promise<void>;
 
 export function ContainerAction(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<app.DockerResult>;
 

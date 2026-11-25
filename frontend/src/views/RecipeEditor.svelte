@@ -4,13 +4,15 @@
   // servidor, no aquí. Al guardar, los servidores que la usan reciben los
   // cambios (sin aplicarlos) y conservan lo suyo.
   import { untrack } from 'svelte'
-  import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck, Sparkles, Check, Undo2 } from '@lucide/svelte'
+  import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck, Sparkles, Check, Undo2, Layers } from '@lucide/svelte'
   import ModuleCard from '../components/ModuleCard.svelte'
   import VarField from '../components/VarField.svelte'
+  import Modal from '../components/Modal.svelte'
+  import { bulk, runBulk } from '../lib/bulk.svelte'
   import { api, errorText, type Module, type ProjectCheck, type Recipe } from '../lib/api'
   import { ui, toast, refreshProjects, moduleName, confirmDialog, openServerModules } from '../lib/state.svelte'
   import { clashesWith, type CardState } from '../lib/modules'
-  import { t as tr } from '../lib/i18n.svelte'
+  import { t as tr, plural } from '../lib/i18n.svelte'
 
   let { id }: { id: string } = $props()
 
@@ -146,6 +148,36 @@
     }
   }
   const freeServers = $derived(ui.servers)
+
+  // Aplicar en varios servidores a la vez: añade sus módulos a cada uno y,
+  // si se marca, los instala uno detrás de otro (con su barra de progreso).
+  let multi = $state(false)
+  let multiPick = $state<Record<string, boolean>>({})
+  let multiNow = $state(true)
+  let multiBusy = $state(false)
+  const multiSel = $derived(ui.servers.filter((s) => multiPick[s.id]))
+  async function deployMany() {
+    if (!multiSel.length) return
+    if (dirty && !(await save())) return
+    multiBusy = true
+    const jobs: { serverId: string; projectId: string; kind: 'apply' }[] = []
+    const failed: string[] = []
+    for (const s of multiSel) {
+      try {
+        const r = await api.ApplyTemplate(s.id, draft.id)
+        jobs.push({ serverId: s.id, projectId: r.project.id, kind: 'apply' })
+      } catch (e) {
+        failed.push(`${s.name}: ${errorText(e)}`)
+      }
+    }
+    await refreshProjects()
+    multiBusy = false
+    multi = false
+    if (failed.length) toast(failed.join(' · '), 'error')
+    if (!jobs.length) return
+    if (multiNow) await runBulk(tr('Aplicar «{0}»', draft.name), jobs)
+    else toast(tr('Módulos añadidos en {0}: se instalan al pulsar Aplicar en cada uno (o desde el Panel, «Aplicar módulos»).', plural(jobs.length, 'servidor', 'servidores')))
+  }
   const secretCount = (m: Module) => (m.variables ?? []).filter((v) => v.type === 'secret' && !v.managed).length
 </script>
 
@@ -171,6 +203,7 @@
           {#each freeServers as s}<option value={s.id}>{s.name}</option>{/each}
         </select>
         <button class="btn sm" onclick={deploy} disabled={!deployTo} title={tr('Añade sus módulos a ese servidor (no instala nada hasta que pulses Aplicar allí)')}><Plus size={14} /> {tr('Aplicar')}</button>
+        {#if freeServers.length > 1}<button class="btn sm ghost" onclick={() => (multi = true)} disabled={bulk.running}><Layers size={14} /> {tr('En varios servidores…')}</button>{/if}
       {/if}
     </div>
   {:else}
@@ -247,7 +280,26 @@
   <button class="btn primary" onclick={save} disabled={saving || !dirty || !draft.name.trim() || errorCount > 0}><Save size={15} /> {saving ? tr('Guardando…') : dirty || !draft.id ? tr('Guardar') : tr('Guardado')}</button>
 </div>
 
+{#if multi}
+  <Modal title={tr('Aplicar «{0}» en varios servidores', draft.name)} onclose={() => (multi = false)} width={520}>
+    <p class="muted small">{tr('Se añaden sus módulos a cada servidor marcado (los que ya tenga se quedan como están).')}</p>
+    <div class="mlist">
+      {#each ui.servers as s (s.id)}
+        <label class="mrow"><input type="checkbox" bind:checked={multiPick[s.id]} /> <strong>{s.name}</strong> <span class="muted small">{s.user}@{s.host}</span></label>
+      {/each}
+    </div>
+    <label class="mrow now"><input type="checkbox" bind:checked={multiNow} /> {tr('Instalar ahora en cada uno (Aplicar), uno detrás de otro')}</label>
+    {#snippet footer()}
+      <button class="btn" onclick={() => (multi = false)}>{tr('Cancelar')}</button>
+      <button class="btn primary" onclick={deployMany} disabled={!multiSel.length || multiBusy}><Layers size={15} /> {multiNow ? tr('Añadir y aplicar en {0}', plural(multiSel.length, 'servidor', 'servidores')) : tr('Añadir a {0}', plural(multiSel.length, 'servidor', 'servidores'))}</button>
+    {/snippet}
+  </Modal>
+{/if}
+
 <style>
+  .mlist { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-height: 40vh; overflow: auto; }
+  .mrow { display: flex; gap: 8px; align-items: center; font-size: 13.5px; cursor: pointer; }
+  .mrow.now { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--border-soft); }
   .foot { position: sticky; bottom: -40px; margin: 24px -32px -40px; padding: 12px 32px; display: flex; gap: 10px; align-items: center; background: var(--panel); border-top: 1px solid var(--border); z-index: 5; transition: background .15s; }
   .foot.dirty { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); border-top-color: var(--accent); }
   .foot.bad { background: color-mix(in srgb, var(--danger) 12%, var(--panel)); border-top-color: var(--danger); }

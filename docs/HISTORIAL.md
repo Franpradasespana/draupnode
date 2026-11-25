@@ -1229,3 +1229,27 @@ algo, conectarse…), volver a aplicar (0 cambios), desinstalar con sus datos y 
   `README.en.md` y su GIF (`docs/img/draupnode.en.gif`).
 - Se quedan en español: los nombres de las tareas de Ansible que se ven al aplicar, los comentarios de los ficheros que
   genera Docker Creator, `docs/GUIA_PUBLICAR.md` (en inglés está en la ayuda) y el aviso de COPYRIGHT.
+
+## 2026-11-25 · 0.65.0 · Varios servidores a la vez, crear en la nube, asistente y barra de progreso
+
+- **Barra de progreso** al simular, aplicar o desinstalar (`RunProgress.svelte`): el plugin de Ansible cuenta las
+  tareas de la obra al empezar (evento `plan`) y la barra avanza por tareas terminadas («tarea 5 de 22»); antes (subir,
+  preparar Ansible) se mueve sola. Una pequeña en la barra de estado, en cualquier pantalla.
+- **Panel → «Pendiente en tus servidores»** (`PendingTable.svelte`): una fila por servidor con módulos sin aplicar,
+  actualizaciones (y de seguridad) y reinicio pendiente; marcas servidores y «Aplicar módulos», «Instalar
+  actualizaciones» o «Reiniciar» en todos, uno detrás de otro.
+- **Tareas en grupo** (`lib/bulk.svelte.ts` + `BulkPanel.svelte`, recuadro flotante abajo a la derecha): estado de
+  cada servidor, barra de progreso del que se está aplicando, «Parar después de este»; si uno pide contraseña se
+  pregunta y si falla se sigue.
+- **Plantilla en varios servidores**: «En varios servidores…» la aplica a los marcados y, si se quiere, los instala
+  uno detrás de otro.
+- **Crear en la nube** (`internal/cloudapi`, `CloudCreateDialog.svelte`): Hetzner Cloud y DigitalOcean con su API.
+  Token cifrado en la bóveda (`cloud:<proveedor>`), regiones y tamaños con precio al mes, clave SSH nueva solo para
+  ese servidor (en `claves/` de la configuración, 0600) o una tuya (sube su .pub), Ubuntu 24.04, espera a que conteste
+  el SSH y lo da de alta (root). Tests con una API falsa. Oracle Cloud no: su API pide peticiones firmadas y red propia.
+- **Asistente «¿Qué quieres montar?»** (`SetupWizard.svelte`, `lib/goals.ts`): objetivos (webs con dominio, Coolify,
+  nube, contraseñas, fotos, multimedia, VPN sin anuncios, documentos, Git, vigilancia, Kubernetes) → módulos con sus
+  dependencias, sin choques y con lo básico; crea la plantilla y, si hay servidor, la aplica e instala. En el Panel
+  (sin plantillas), en Plantillas y en un servidor sin módulos.
+- Ayuda y capturas nuevas (`pendientes`, `asistente`, `asistente-modulos`, `nube`, `aplicando`) en los dos idiomas;
+  traducidos algunos restos («terminada», «cancelada», «fallidas», «libres», «arrancado/parado»…).

@@ -1,10 +1,13 @@
 <script lang="ts">
   // Proyectos = recetas: qué módulos y con qué opciones, sin servidor. Se
   // asocian a uno o varios servidores (desde aquí o desde la ficha del servidor).
-  import { Plus, FolderGit2, Server as ServerIcon, CircleCheck } from '@lucide/svelte'
+  import { Plus, FolderGit2, Server as ServerIcon, CircleCheck, Sparkles } from '@lucide/svelte'
+  import SetupWizard from '../components/SetupWizard.svelte'
   import RecipeEditor from './RecipeEditor.svelte'
   import { ui, moduleName, openRecipe, openServerModules } from '../lib/state.svelte'
   import { t } from '../lib/i18n.svelte'
+
+  let wizard = $state(false)
 </script>
 
 {#if ui.recipeId !== null}
@@ -15,7 +18,8 @@
       <h1>{t('Plantillas')}</h1>
       <p class="muted">{t('Una plantilla es un grupo de módulos con sus opciones, para añadirlos de una vez a un servidor. Al aplicarla, sus módulos pasan a ser del servidor (allí ves de qué plantilla vino cada uno) y se instalan cuando pulsas Aplicar. Editar una plantilla no cambia los servidores en los que ya se aplicó.')}</p>
     </div>
-    <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> {t('Nueva plantilla')}</button>
+    <div class="acts"><button class="btn" onclick={() => (wizard = true)}><Sparkles size={16} /> {t('¿Qué quieres montar?')}</button>
+    <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> {t('Nueva plantilla')}</button></div>
   </div>
 
   {#if !ui.recipes.length}
@@ -23,7 +27,8 @@
       <FolderGit2 size={34} strokeWidth={1.4} />
       <h2>{t('Aún no hay plantillas')}</h2>
       <p class="muted">{t('Crea una: elige los módulos (Docker, Caddy, copias, apps…) y sus opciones. No hace falta tener servidor todavía.')}</p>
-      <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> {t('Nueva plantilla')}</button>
+      <div class="acts"><button class="btn" onclick={() => (wizard = true)}><Sparkles size={16} /> {t('¿Qué quieres montar?')}</button>
+    <button class="btn primary" onclick={() => openRecipe('')}><Plus size={16} /> {t('Nueva plantilla')}</button></div>
     </div>
   {:else}
     <div class="list">
@@ -49,7 +54,10 @@
   {/if}
 {/if}
 
+{#if wizard}<SetupWizard onclose={() => (wizard = false)} />{/if}
+
 <style>
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
   .head p { margin-top: 4px; max-width: 760px; }
   .empty { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 48px 24px; color: var(--muted); }

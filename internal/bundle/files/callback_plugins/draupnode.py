@@ -45,6 +45,23 @@ class CallbackModule(CallbackBase):
 
     def v2_playbook_on_play_start(self, play):
         self._emit(ev="play", name=play.get_name())
+        # Cuántas tareas tiene la obra (las fijas; un include_tasks cuenta como
+        # una): la aplicación lo usa para la barra de progreso.
+        try:
+            self._emit(ev="plan", total=self._count(play.compile()))
+        except Exception:  # noqa: BLE001 - solo es para la barra
+            pass
+
+    def _count(self, blocks):
+        n = 0
+        for b in blocks or []:
+            for part in (getattr(b, "block", None), getattr(b, "rescue", None), getattr(b, "always", None)):
+                for t in part or []:
+                    if hasattr(t, "block"):
+                        n += self._count([t])
+                    elif getattr(t, "action", "") != "meta":
+                        n += 1
+        return n
 
     def v2_playbook_on_task_start(self, task, is_conditional):
         self._emit(ev="task", name=task.get_name(), role=self._role(task))

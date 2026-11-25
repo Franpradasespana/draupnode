@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Plus, Plug, Pencil, Trash2, LoaderCircle, KeyRound, UserRound, ShieldAlert, ShieldQuestion, Fingerprint, Server as ServerIcon, FolderGit2 } from '@lucide/svelte'
+  import { Plus, Plug, Pencil, Trash2, LoaderCircle, KeyRound, UserRound, ShieldAlert, ShieldQuestion, Fingerprint, Server as ServerIcon, FolderGit2, Cloud } from '@lucide/svelte'
+  import CloudCreateDialog from '../components/CloudCreateDialog.svelte'
   import Modal from '../components/Modal.svelte'
   import ServerForm from './ServerForm.svelte'
   import ServerDetail from './ServerDetail.svelte'
@@ -19,6 +20,7 @@
     | null
 
   let dialog = $state<Dialog>(null)
+  let cloudOpen = $state(false)
   let testing = $state<Record<string, boolean>>({})
   let pass = $state('')
   let rememberPass = $state(true)
@@ -108,7 +110,10 @@
     <h1>{t('Servidores')}</h1>
     <p class="muted">{t('Conexiones SSH a las máquinas que Draupnode va a preparar.')}</p>
   </div>
-  <button class="btn primary" onclick={() => (dialog = { kind: 'form', server: null })}><Plus size={16} /> {t('Añadir servidor')}</button>
+  <div class="head-acts">
+    <button class="btn" onclick={() => (cloudOpen = true)}><Cloud size={16} /> {t('Crear en la nube…')}</button>
+    <button class="btn primary" onclick={() => (dialog = { kind: 'form', server: null })}><Plus size={16} /> {t('Añadir servidor')}</button>
+  </div>
 </div>
 
 {#if ui.servers.length === 0}
@@ -116,7 +121,10 @@
     <ServerIcon size={34} strokeWidth={1.4} />
     <h2>{t('Aún no hay servidores')}</h2>
     <p class="muted">{t('Añade tu primer servidor con su IP, usuario y clave SSH (con o sin frase de paso).')}</p>
-    <button class="btn primary" onclick={() => (dialog = { kind: 'form', server: null })}><Plus size={16} /> {t('Añadir servidor')}</button>
+    <div class="head-acts">
+      <button class="btn" onclick={() => (cloudOpen = true)}><Cloud size={16} /> {t('Crear en la nube…')}</button>
+      <button class="btn primary" onclick={() => (dialog = { kind: 'form', server: null })}><Plus size={16} /> {t('Añadir servidor')}</button>
+    </div>
   </div>
 {:else}
   <div class="list">
@@ -169,7 +177,7 @@
             <span>{lc.facts.arch}</span>
             <span>{lc.facts.cpus} CPU</span>
             <span>{kbToGB(lc.facts.mem_kb)} RAM</span>
-            <span>{kbToGB(lc.facts.disk_free_kb)} libres</span>
+            <span>{t('{0} libres', kbToGB(lc.facts.disk_free_kb))}</span>
           </div>
         {:else if lc && !lc.ok}
           <p class="fail">{lc.error}</p>
@@ -258,7 +266,10 @@
   </Modal>
 {/if}
 
+{#if cloudOpen}<CloudCreateDialog onclose={() => (cloudOpen = false)} />{/if}
+
 <style>
+  .head-acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
   .head p { margin-top: 4px; }
   .empty { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 48px 24px; color: var(--muted); }

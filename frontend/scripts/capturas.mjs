@@ -126,6 +126,11 @@ const ALL_SHOTS = [
   { name: 'modulos', view: 'modules', act: [['click', 'button', 'Nuevo módulo'], ['wait', 400], ['type', 'input[placeholder="mi-modulo"]', 'mis-paquetes'], ['click', 'button', 'Crear'], ['wait', 1200]] },
   { name: 'modulo-importar', view: 'modules', act: [['click', 'button', 'Importar'], ['wait', 1200]] },
   { name: 'adoptar', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 800], ['js', `document.querySelector('.adopt')?.scrollIntoView()`], ['wait', 300]] },
+  { name: 'pendientes', view: 'dashboard', act: [['wait', 3500], ['js', `document.querySelector('.pend')?.scrollIntoView({ block: 'center' })`], ['wait', 400]] },
+  { name: 'asistente', view: 'projects', act: [['click', 'button', '¿Qué quieres montar?'], ['wait', 500], ['click', 'button.goal', 'Mi nube'], ['click', 'button.goal', 'Gestor de contraseñas'], ['click', 'button.goal', 'Vigilar el servidor'], ['wait', 300]] },
+  { name: 'asistente-modulos', view: 'projects', act: [['click', 'button', '¿Qué quieres montar?'], ['wait', 500], ['click', 'button.goal', 'Mi nube'], ['click', 'button.goal', 'Gestor de contraseñas'], ['click', 'button', 'Siguiente'], ['wait', 400]] },
+  { name: 'nube', view: 'servers', act: [['click', 'button', 'Crear en la nube'], ['wait', 600], ['click', 'button.prov', 'Hetzner Cloud'], ['wait', 1200]] },
+  { name: 'aplicando', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 900], ['click', 'button', 'Simular'], ['wait', 4200]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]

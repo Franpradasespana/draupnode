@@ -4,10 +4,12 @@
   // última ficha (se refresca sola si la contraseña está guardada) y la
   // actividad reciente de todos los servidores.
   import { onMount } from 'svelte'
-  import { Plus, CircleCheck, Circle, Server as ServerIcon, LayoutTemplate, Box, BellRing } from '@lucide/svelte'
+  import { Plus, CircleCheck, Circle, Server as ServerIcon, LayoutTemplate, Box, BellRing, Sparkles } from '@lucide/svelte'
   import AlertsList from '../components/AlertsList.svelte'
   import ServerCard from '../components/ServerCard.svelte'
   import RunHistory from '../components/RunHistory.svelte'
+  import PendingTable from '../components/PendingTable.svelte'
+  import SetupWizard from '../components/SetupWizard.svelte'
   import { api } from '../lib/api'
   import { ui, openServer } from '../lib/state.svelte'
   import { alerts, alertItems, rememberOverview, pendingModules } from '../lib/alerts.svelte'
@@ -90,6 +92,7 @@
     { done: ui.projects.some((p) => p.lastRun?.ok && !p.lastRun.check), text: tr('Simula y aplica, o exporta un único instalar.sh'), go: 'servers' as const },
   ])
   const pad = (n: number) => String(n).padStart(2, '0')
+  let wizard = $state(false)
 </script>
 
 <div class="head">
@@ -108,7 +111,7 @@
         <li class:done={st.done}>
           {#if st.done}<CircleCheck size={18} />{:else}<Circle size={18} />{/if}
           <span>{st.text}</span>
-          {#if !st.done}<button class="btn sm ghost go" onclick={() => (ui.view = st.go)}>Ir</button>{/if}
+          {#if !st.done}<button class="btn sm ghost go" onclick={() => (ui.view = st.go)}>{tr('Ir')}</button>{/if}
         </li>
       {/each}
     </ol>
@@ -143,6 +146,14 @@
     </button>
   </div>
 
+  {#if !ui.recipes.length && !ui.projects.some((p) => p.modules.length)}
+    <section class="card wiz">
+      <Sparkles size={20} />
+      <div><strong>{tr('¿Qué quieres montar?')}</strong><p class="muted small">{tr('Dinos qué quieres tener (una web, tu nube, una VPN…) y Draupnode elige los módulos y los instala.')}</p></div>
+      <button class="btn primary" onclick={() => (wizard = true)}>{tr('Empezar')}</button>
+    </section>
+  {/if}
+
   <section class="attention">
     <h2>{tr('Necesita atención')}</h2>
     {#if items.length}
@@ -151,6 +162,8 @@
       <p class="card ok-box"><CircleCheck size={17} /> {tr('Todo en orden: los servidores responden y no hay nada pendiente.')}</p>
     {/if}
   </section>
+
+  <PendingTable />
 
   <section>
     <h2>{tr('Servidores')}</h2>
@@ -166,7 +179,14 @@
   </div>
 {/if}
 
+{#if wizard}<SetupWizard onclose={() => (wizard = false)} serverId={servers.length === 1 ? servers[0].id : ''} />{/if}
+
 <style>
+  .wiz { display: flex; gap: 14px; align-items: center; margin-bottom: 22px; }
+  .wiz > :global(svg) { color: var(--accent); flex: none; }
+  .wiz > div { flex: 1; }
+  .wiz p { margin: 2px 0 0; }
+  .small { font-size: 12.5px; }
   .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
   .head p { margin-top: 4px; }
   h2 { font-size: 16px; margin: 0 0 10px; }

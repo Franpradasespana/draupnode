@@ -1,5 +1,6 @@
 <script lang="ts">
   import Linkify from './Linkify.svelte'
+  import RunProgress from './RunProgress.svelte'
   import { tick } from 'svelte'
   import { Trash2, LoaderCircle, CircleCheck, CircleX, CircleDot, CircleMinus, Square, ScrollText, ListChecks, Info, Eye, Hammer } from '@lucide/svelte'
   import { api } from '../lib/api'
@@ -52,10 +53,10 @@
   const changedTasks = $derived(run.tasks.filter((t) => t.status === 'changed' && !t.handler))
   const failedTasks = $derived(run.tasks.filter((t) => t.status === 'failed'))
   const stLabel = (st: string) =>
-    st === 'changed' ? (run.check ? tr('se cambiará') : 'hecho')
+    st === 'changed' ? (run.check ? tr('se cambiará') : tr('hecho'))
     : st === 'ok' ? tr('ya está bien')
     : st === 'skipped' ? tr('no hace falta')
-    : st === 'failed' ? 'fallo' : ''
+    : st === 'failed' ? tr('fallo') : ''
 
   const roleName = (r: string) => (r === '' ? tr('Preparación') : r === 'draupnode_preflight' ? tr('Comprobaciones previas') : moduleName(r))
 </script>
@@ -73,10 +74,10 @@
       <div>
         <strong>
           {#if run.uninstall?.length}<Trash2 size={14} /> {tr('Desinstalación')}{:else if run.check}<Eye size={14} /> {tr('Simulación')}{:else}<Hammer size={14} /> {tr('Aplicación')}{/if}
-          {#if !run.done} {tr('en curso')}{:else if run.summary?.canceled} cancelada{:else if run.summary?.ok} terminada{:else} {tr('con errores')}{/if}
+          {#if !run.done} {tr('en curso')}{:else if run.summary?.canceled} {tr('cancelada')}{:else if run.summary?.ok} {tr('terminada')}{:else} {tr('con errores')}{/if}
         </strong>
         <span class="muted">
-          {#if !run.done}{run.stage} · {/if}{tr('{0} tareas · {1} {2}', counts.done, counts.changed, run.check ? tr('se cambiarían') : tr('con cambios'))}{#if counts.failed} · <span class="bad">{counts.failed} fallidas</span>{/if} · {fmtTime(elapsed)}
+          {#if !run.done}{run.stage} · {/if}{tr('{0} tareas · {1} {2}', counts.done, counts.changed, run.check ? tr('se cambiarían') : tr('con cambios'))}{#if counts.failed} · <span class="bad">{tr('{0} fallidas', counts.failed)}</span>{/if} · {fmtTime(elapsed)}
         </span>
       </div>
     </div>
@@ -91,6 +92,7 @@
       {/if}
     </div>
   </header>
+  <div class="progress"><RunProgress {run} /></div>
 
   {#if run.done && run.summary?.error && !run.summary.canceled}
     <p class="error">{run.summary.error}</p>
@@ -176,6 +178,7 @@
 </section>
 
 <style>
+  .progress { margin: 10px 0 4px; }
   .run { display: flex; flex-direction: column; gap: 12px; padding: 16px; margin-bottom: 16px; }
   .run.ok { border-color: color-mix(in srgb, var(--success) 50%, var(--border)); }
   .run.fail { border-color: color-mix(in srgb, var(--danger) 50%, var(--border)); }

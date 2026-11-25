@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack, tick, type Snippet } from 'svelte'
-  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, Unlink, Pencil, Plus, Search, X, Upload, Undo2 } from '@lucide/svelte'
+  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, Unlink, Pencil, Plus, Search, X, Upload, Undo2, Sparkles } from '@lucide/svelte'
+  import SetupWizard from '../components/SetupWizard.svelte'
   import Modal from '../components/Modal.svelte'
   import { moduleIcon } from '../lib/icons'
   import RunPanel from '../components/RunPanel.svelte'
@@ -494,6 +495,7 @@
   function closeRun() {
     if (draft.id) delete ui.runs[draft.id]
   }
+  let setupWizard = $state(false)
 </script>
 
 <div class="pe" oninput={touch} onchange={touch}>
@@ -612,6 +614,7 @@
         {/if}
         {#if !ordered.length && !leftList.length}
           <p class="muted">{tr('Nada todavía: pulsa')} <strong>{tr('«Añadir módulos»')}</strong> {tr('para elegir qué instalar en {0}.', server?.name ?? tr('el servidor'))}</p>
+          <p class="muted">{tr('¿No sabes por dónde empezar?')} <button class="btn sm" onclick={() => (setupWizard = true)}><Sparkles size={14} /> {tr('¿Qué quieres montar?')}</button></p>
         {:else if !needsApply && stored?.appliedAt}
           <p class="okline"><CircleCheck size={16} /> {tr('Todo aplicado {0}. No hay nada pendiente.', timeAgo(stored.appliedAt))}</p>
         {:else}
@@ -758,6 +761,8 @@
   {/if}
 
 </div>
+
+{#if setupWizard}<SetupWizard onclose={() => (setupWizard = false)} serverId={server?.id ?? ''} />{/if}
 
 <style>
   .bar { display: flex; align-items: center; gap: 8px; margin: -8px 0 8px; }

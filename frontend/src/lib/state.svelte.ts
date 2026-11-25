@@ -42,6 +42,20 @@ export interface RunState {
   stats?: Record<string, number>
   summary?: RunSummary
   done: boolean
+  /** Tareas que tiene la obra (lo dice Ansible al empezar; para la barra de progreso). */
+  total?: number
+}
+
+/** Progreso de una ejecución, de 0 a 100. Hasta que Ansible empieza
+ *  (subir, preparar Ansible…) avanza poco; luego, por tareas terminadas.
+ *  `known` es false mientras no se sabe cuántas tareas hay. */
+export function runProgress(r: RunState): { pct: number; done: number; total: number; known: boolean } {
+  const tasks = r.tasks.filter((t) => !t.handler)
+  const done = tasks.filter((t) => t.status !== 'running').length
+  if (r.done) return { pct: 100, done, total: Math.max(r.total ?? 0, done), known: true }
+  const total = Math.max(r.total ?? 0, tasks.length)
+  if (!total) return { pct: r.lines.length ? 4 : 1, done: 0, total: 0, known: false }
+  return { pct: Math.min(99, 5 + Math.round((94 * done) / total)), done, total, known: true }
 }
 
 export const ui = $state({
@@ -280,6 +294,9 @@ function handleRunEvent(e: RunEvent) {
       break
     case 'stats':
       r.stats = ev as Record<string, number>
+      break
+    case 'plan':
+      r.total = (r.total ?? 0) + (Number(ev.total) || 0)
       break
   }
 }
