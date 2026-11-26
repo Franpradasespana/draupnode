@@ -223,6 +223,8 @@ export function serverFindings(ov: ServerOverview): { id: string; text: string; 
   if (ov.clock?.known && !ov.clock.synced) out.push({ id: 'clock', text: t('La hora del servidor no está sincronizada (fallan certificados, copias y registros)'), bad: false })
   const sec = ov.security
   if (sec && sec.failed24h >= 50 && !sec.fail2ban) out.push({ id: 'ssh', text: t('{0} intentos de entrar por SSH en 24 h ({1} IPs) y sin fail2ban: añade el módulo «SSH seguro»', sec.failed24h, sec.ips), bad: false })
+  const clam = ov.hardening?.clamav
+  if (clam?.found) out.push({ id: 'clamav:' + clam.found, text: t('El antivirus ha encontrado {0} fichero(s) sospechoso(s): {1}', clam.found, clam.files.slice(0, 2).join(', ')), bad: true })
   for (const b of ov.backups ?? []) {
     if (b.running) continue
     if (!b.ok) out.push({ id: 'bk:' + b.slug, text: t('La última copia de «{0}» falló', b.slug), bad: true })

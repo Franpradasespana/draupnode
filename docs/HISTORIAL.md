@@ -1330,3 +1330,19 @@ otro», descartada).
   sale en los avisos (si un certificado ya se mira desde fuera, no se avisa dos veces por el de dentro).
 - Tests con servidores HTTPS/HTTP de prueba y APIs falsas; ayuda y capturas (`servidor-dominios` y las de la ficha,
   por la pestaña nueva) en los dos idiomas.
+
+## 2026-11-26 · 0.70.0 · Nota de seguridad del servidor
+
+- **Datos** (parte `hardening` de `overview.py`): `sshd -T` (contraseñas, teclado interactivo, root, puerto),
+  actualizaciones automáticas (`20auto-upgrades` + `unattended-upgrades`), y lo que dejan los módulos de seguridad:
+  índice/avisos/consejos de Lynis (`informe.dat`), vulnerabilidades por imagen de Trivy (`resumen.txt`), ficheros
+  sospechosos de ClamAV, si AIDE vio cambios, decisiones de CrowdSec y si auditd está activo.
+- **Nota de 0 a 100** (`frontend/src/lib/security.ts`): comprobaciones con peso según lo que protegen (SSH solo con
+  clave 15, root sin contraseña 10, cortafuegos 15, bloqueo de ataques 10, actualizaciones automáticas 10, parches de
+  seguridad 10, reinicio 5, puertos de más al mundo 10 —contando los que publica Docker—, Lynis 10, Trivy 5, ClamAV 10,
+  AIDE 5); a medias cuenta la mitad y lo que no se puede comprobar no resta.
+- **Ficha**: recuadro «Seguridad del servidor» arriba de «Red y seguridad» con «Qué arreglar primero» (cómo arreglarlo
+  y botón: ir a Módulos, instalar parches, reiniciar, ver puertos) y todas las comprobaciones; «Seguridad NN/100» en el
+  Resumen. Lo que encuentre ClamAV sale en «Necesita atención» y en los avisos.
+- Probado el script en Ubuntu desechable (con informes de Lynis/Trivy/ClamAV de ejemplo). Ayuda y capturas
+  (`servidor-seguridad`, `servidor`, `servidor-red`) en los dos idiomas.

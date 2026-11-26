@@ -316,6 +316,74 @@ def _():
             f2b = {"banned": int(cur.group(1)), "total": int(tot.group(1)) if tot else 0}
     return {"failed24h": failed, "ips": len(ips), "top": [{"ip": i, "count": c} for i, c in top], "fail2ban": f2b}
 
+@part("hardening")
+def _():
+    # Datos para la nota de seguridad (la calcula la aplicación): SSH, actualizaciones
+    # automáticas y lo que dejaron Lynis, Trivy, ClamAV, AIDE y CrowdSec.
+    h = {}
+    sshd = run("sshd", "-T", timeout=10)
+    if sshd:
+        cfg = {}
+        for l in sshd.splitlines():
+            k, _, v = l.partition(" ")
+            cfg.setdefault(k, v.strip())
+        h["ssh"] = {"password": cfg.get("passwordauthentication", "yes") == "yes",
+                    "kbd": cfg.get("kbdinteractiveauthentication", "no") == "yes",
+                    "root": cfg.get("permitrootlogin", "yes"), "port": int(cfg.get("port", "22") or 22)}
+    auto = ""
+    try:
+        auto = open("/etc/apt/apt.conf.d/20auto-upgrades").read()
+    except OSError:
+        pass
+    h["autoUpdates"] = bool(re.search(r'Unattended-Upgrade\s+"1"', auto)) and run("systemctl", "is-enabled", "unattended-upgrades").strip() == "enabled"
+    def age(path):
+        try:
+            return max(0, int(time.time() - os.path.getmtime(path)))
+        except OSError:
+            return None
+    lyn = "/var/lib/draupnode/lynis/informe.dat"
+    if os.path.exists(lyn):
+        txt = open(lyn, errors="replace").read()
+        m = re.findall(r"^hardening_index=(\d+)", txt, re.M)
+        h["lynis"] = {"index": int(m[-1]) if m else None, "warnings": len(re.findall(r"^warning\[\]=", txt, re.M)),
+                      "suggestions": len(re.findall(r"^suggestion\[\]=", txt, re.M)), "ago": age(lyn)}
+    tri = "/var/lib/draupnode/trivy/resumen.txt"
+    if os.path.exists(tri):
+        vulns, imgs, failed = 0, 0, 0
+        for l in open(tri, errors="replace").read().splitlines()[1:]:
+            img, _, n = l.rpartition(": ")
+            if not img:
+                continue
+            imgs += 1
+            if n.strip().isdigit():
+                vulns += int(n)
+            else:
+                failed += 1
+        h["trivy"] = {"vulns": vulns, "images": imgs, "failed": failed, "ago": age(tri)}
+    clam = "/var/lib/draupnode/clamav/encontrado.txt"
+    if os.path.exists("/usr/local/sbin/draupnode-clamav"):
+        found = open(clam, errors="replace").read().splitlines() if os.path.exists(clam) else []
+        h["clamav"] = {"found": len([l for l in found if l.strip()]), "files": [l.rsplit(":", 1)[0] for l in found[:5]], "ago": age(clam)}
+    if os.path.exists("/var/lib/aide/aide.db"):
+        log = ""
+        try:
+            log = open("/var/log/aide/aide.log", errors="replace").read()[-20000:]
+        except OSError:
+            pass
+        diff = None
+        if "found differences" in log or "found NO differences" in log:
+            diff = log.rfind("found differences") > log.rfind("found NO differences")
+        h["aide"] = {"differences": diff, "ago": age("/var/log/aide/aide.log")}
+    if shutil.which("cscli"):
+        dec = run("cscli", "decisions", "list", "-o", "json", timeout=15).strip()
+        try:
+            n = len(json.loads(dec) or [])
+        except Exception:
+            n = 0
+        h["crowdsec"] = {"active": run("systemctl", "is-active", "crowdsec").strip() == "active", "decisions": n}
+    h["auditd"] = run("systemctl", "is-active", "auditd").strip() == "active"
+    return h
+
 @part("certs")
 def _():
     # Caducidad de los certificados HTTPS de los dominios de nginx/Caddy (los 10 primeros).

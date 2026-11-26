@@ -7,7 +7,7 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
-    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole, Gauge, Earth,
+    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole, Gauge, Earth, ShieldCheck,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectEditor from './ProjectEditor.svelte'
@@ -23,6 +23,8 @@
   import DriftPanel from '../components/DriftPanel.svelte'
   import SnapshotsPanel from '../components/SnapshotsPanel.svelte'
   import DomainsPanel from '../components/DomainsPanel.svelte'
+  import SecurityPanel from '../components/SecurityPanel.svelte'
+  import { securityChecks, securityScore, scoreLevel } from '../lib/security'
   import Sparkline from '../components/Sparkline.svelte'
   import { alerts, rememberOverview, serverFindings, driftOpen, domainProblem } from '../lib/alerts.svelte'
   import { t as tr, agoText } from '../lib/i18n.svelte'
@@ -190,9 +192,10 @@
   const rootDisk = $derived(ov?.disks?.find((d) => d.mount === '/') ?? ov?.disks?.[0])
   // Lo mismo que lista «Necesita atención» en el Resumen.
   const drifted = $derived(driftOpen(alerts.drifts[id]).length)
+  const secScore = $derived(ov ? securityScore(securityChecks(ov, project?.installedModules ?? [])) : null)
   const domainIssues = $derived((alerts.domains[id]?.domains ?? []).map(domainProblem).filter((p) => !!p))
   // Avisos del sistema (reinicio, actualizaciones de seguridad, certificados, hora, SSH).
-  const sysFindings = $derived(findings.filter((f) => /^(reboot|secupd|cert|clock|ssh)/.test(f.id)))
+  const sysFindings = $derived(findings.filter((f) => /^(reboot|secupd|cert|clock|ssh|clamav)/.test(f.id)))
   const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + sysFindings.length + (pendingMods ? 1 : 0) + (drifted ? 1 : 0))
   const tabs = $derived([
     { id: 'resumen' as Tab, label: tr('Resumen'), icon: LayoutDashboard, badge: attention, bad: isDown || findings.some((f) => f.bad) },
@@ -387,6 +390,14 @@
             <strong class:warn-t={ov.clock?.known && !ov.clock.synced}>{!ov.clock?.known ? '—' : ov.clock.synced ? tr('sincronizada') : tr('sin sincronizar')}</strong>
             <span class="muted small">{ov.clock?.timezone ?? ''}</span></div>
         </div>
+        {#if secScore !== null}
+          <button class="si click" onclick={() => setTab('red')} title={tr('Ver la seguridad del servidor')}>
+            <ShieldCheck size={16} />
+            <div><span class="muted small">{tr('Seguridad')}</span>
+              <strong class:ok-t={scoreLevel(secScore) === 'ok'} class:warn-t={scoreLevel(secScore) === 'warn'} class:bad-t={scoreLevel(secScore) === 'bad'}>{secScore}/100</strong>
+              <span class="muted small">{tr('ver qué arreglar')}</span></div>
+          </button>
+        {/if}
         {#if ov.certs?.length}
           {@const next = [...ov.certs].filter((c) => c.days !== undefined).sort((a, b) => a.days! - b.days!)[0]}
           <div class="si">
@@ -644,8 +655,13 @@
     {/each}
   {/if}
 
+  {#if current === 'red' && ov}
+    <SecurityPanel {ov} installed={project?.installedModules ?? []} onmodules={() => setTab('modulos')} onupgrade={upgrade} onreboot={reboot}
+      onports={() => document.getElementById('puertos')?.scrollIntoView({ behavior: 'smooth' })} />
+  {/if}
+
   {#if current === 'red'}
-    <section class="card block">
+    <section class="card block" id="puertos">
       <h2><Network size={17} /> {tr('Puertos y cortafuegos')}</h2>
       {#if !ov}<p class="muted">{loading ? tr('Leyendo…') : '—'}</p>
       {:else}
@@ -818,6 +834,9 @@
   .si > :global(svg) { color: var(--accent); flex: none; margin-top: 2px; }
   .si > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .si strong { font-size: 14px; }
+  .si.click { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+  .si.click:hover strong { text-decoration: underline; }
+  .ok-t { color: var(--success); }
   .tpl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
   .chip:hover { border-color: var(--muted); }
