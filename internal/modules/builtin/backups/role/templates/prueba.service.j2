@@ -1,0 +1,10 @@
+# Generado por Draupnode (módulo backups).
+[Unit]
+Description=Prueba de restaurar las copias de Draupnode ({{ draupnode_project }})
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart={{ backups_script }} prueba
+Nice=15
+IOSchedulingClass=idle

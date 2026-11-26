@@ -433,6 +433,7 @@
  "la ficha no tiene ningún módulo que conozca este Draupnode": "the record has no module this Draupnode knows",
  "la ficha no tiene un nombre de carpeta válido": "the record has no valid folder name",
  "la monitorización no está instalada en este servidor: márcala y pulsa Aplicar": "monitoring is not installed on this server: tick it and press Apply",
+ "la prueba no dejó resultado (vuelve a aplicar el módulo Copias para tener la prueba)": "the test left no result (apply the Backups module again to get the test)",
  "la simulación terminó con errores (código %d)": "the simulation ended with errors (code %d)",
  "la «Security List» de su VCN (o su Network Security Group): Networking → Virtual Cloud Networks → la red → Security Lists → Add Ingress Rules": "the «Security List» of its VCN (or its Network Security Group): Networking → Virtual Cloud Networks → the network → Security Lists → Add Ingress Rules",
  "las alertas aún no están instaladas: pulsa Aplicar": "alerts are not installed yet: press Apply",

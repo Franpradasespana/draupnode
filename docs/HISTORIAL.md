@@ -1406,3 +1406,17 @@ otro», descartada).
   lo sugiere.
 - Probado en Ubuntu desechable con Caddy en certificados locales: sin sesión redirige a Keycloak; un usuario del realm
   «apps» inicia sesión (formulario de Keycloak) y entra en la app; reaplicar 0 cambios; desinstalar sin restos.
+
+## 2026-11-26 · 0.74.0 · Prueba semanal de restaurar las copias
+
+- Módulo Copias: orden nueva `prueba` en el script del servidor: `restic check --read-data-subset=5%`, restaura la
+  última copia de cada tipo (agrupadas por etiquetas) en una carpeta temporal (si cabe, con margen; si no, lo dice),
+  cuenta ficheros y tamaño, comprueba que cada `.dump` empieza por `PGDMP` y lo abre con `pg_restore -l` en su
+  contenedor, y lo borra todo. Resultado en `/var/lib/draupnode/copias-prueba/<proyecto>.json`.
+- Temporizador semanal `draupnode-copia-<proyecto>-prueba` (opciones «Probar cada semana…» y «Día de la prueba»);
+  desinstalar lo quita.
+- Ficha: el script de la ficha lee el resultado; en la pestaña Copias, «Prueba de restaurar: bien/falló» con lo
+  restaurado y «Probar a restaurar ahora» (`BackupVerify`, por el mismo servicio). Avisos si falla o si hace más de
+  15 días.
+- Probado en Ubuntu desechable con PostgreSQL y una base con datos: bien (ficheros y volcado abiertos, carpeta
+  temporal borrada); con un volcado roto metido en la copia, falla y lo nombra.

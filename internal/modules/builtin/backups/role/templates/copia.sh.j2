@@ -6,6 +6,9 @@
 #   copia ls ID RUTA                          contenido de una carpeta de una copia (JSON)
 #   copia dump ID RUTA                        una ruta de una copia, en tar, por la salida
 #   copia restaurar ID DESTINO RUTA...        restaura rutas en DESTINO («/» = su sitio)
+#   copia prueba     restaura la última copia en una carpeta aparte y comprueba
+#                    que se abre (deja el resultado en JSON); la lanza su
+#                    temporizador semanal
 #   copia restaurar-bd ID VOLCADO CONTENEDOR BASE [sustituir]
 #                    restaura una base: en una base nueva (si BASE ya existe, no
 #                    hace nada) o, con «sustituir», borrando antes la que hay
@@ -70,6 +73,57 @@ case "${1:-copia}" in
     fi
     restic dump "$id" "$volcado" | docker exec -i "$ctr" pg_restore -U postgres -d "$base" --exit-on-error --no-acl
     echo "Base $base restaurada desde la copia $id."
+    exit ;;
+  prueba)
+    # Prueba de verdad: restaurar la última copia de cada tipo (archivos,
+    # volcados…) en una carpeta temporal, contar lo restaurado y abrir cada
+    # volcado de PostgreSQL con pg_restore. El resultado queda en JSON.
+    res=/var/lib/draupnode/copias-prueba; mkdir -p "$res"
+    out="$res/{{ draupnode_project }}.json"
+    tmp=$(mktemp -d /var/tmp/draupnode-prueba-XXXXXX)
+    trap 'rm -rf "$tmp"' EXIT
+    inicio=$(date +%s)
+    error=""; check=true; parcial=false
+    restic check --read-data-subset=5% >"$tmp/check.log" 2>&1 || { check=false; error="restic check: $(tail -n 2 "$tmp/check.log" | tr '\n' ' ')"; }
+    restic snapshots --latest 1 --group-by tags --json > "$tmp/ultimas.json" 2>/dev/null || error="${error:-no se pudieron leer las copias}"
+    ids=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(" ".join(s["id"] for g in (d or []) for s in g["snapshots"]))' "$tmp/ultimas.json" 2>/dev/null || true)
+    [ -n "$ids" ] || error="${error:-no hay ninguna copia que probar}"
+    # ¿Cabe? (lo que ocupan restauradas, con margen)
+    total=0
+    for id in $ids; do
+      t=$(restic stats "$id" --mode restore-size --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("total_size", 0))' || echo 0)
+      total=$((total + t))
+    done
+    libre=$(( $(df --output=avail -B1 /var/tmp | tail -n 1) ))
+    n=0
+    for id in $ids; do
+      if [ $((total * 12 / 10)) -gt "$libre" ]; then parcial=true; break; fi
+      n=$((n + 1))
+      restic restore "$id" --target "$tmp/r/$n" >/dev/null 2>"$tmp/restore.log" || { error="${error:-restaurar $id: $(tail -n 1 "$tmp/restore.log")}"; }
+    done
+    ficheros=$(find "$tmp/r" -type f 2>/dev/null | wc -l)
+    bytes=$(du -sb "$tmp/r" 2>/dev/null | cut -f1); bytes=${bytes:-0}
+    volcados=0; malos=(); nmalos=0
+    while IFS= read -r -d '' f; do
+      volcados=$((volcados + 1))
+      ctr=$(basename "$(dirname "$f")"); ctr=${ctr#postgres-}
+      if [ "$(head -c 5 "$f")" != "PGDMP" ]; then malos+=("$(basename "$f")"); nmalos=$((nmalos + 1)); continue; fi
+      if docker inspect --type container "$ctr" >/dev/null 2>&1; then
+        docker exec -i "$ctr" pg_restore -l < "$f" >/dev/null 2>&1 || { malos+=("$(basename "$f")"); nmalos=$((nmalos + 1)); }
+      fi
+    done < <(find "$tmp/r" -name '*.dump' -print0 2>/dev/null)
+    [ "$nmalos" -eq 0 ] || error="${error:-volcados que no se abren: ${malos[*]}}"
+    [ "$ficheros" -gt 0 ] || [ "$parcial" = true ] || error="${error:-la copia restaurada está vacía}"
+    python3 - "$out" "$inicio" "$check" "$parcial" "$ficheros" "$bytes" "$volcados" "$error" "${malos[@]}" <<'PY'
+import json, sys, time
+o, ini, chk, par, fic, byt, vol, err = sys.argv[1:9]
+malos = sys.argv[9:]
+d = {"at": int(time.time()), "duration": int(time.time()) - int(ini), "ok": not err, "check": chk == "true",
+     "partial": par == "true", "files": int(fic), "bytes": int(byt), "dumps": int(vol), "dumpsBad": malos, "error": err}
+open(o, "w").write(json.dumps(d))
+print(json.dumps(d))
+PY
+    [ -z "$error" ]
     exit ;;
 {% if backups_remote_type != 'no' %}
   remoto) remoto snapshots --json; exit ;;

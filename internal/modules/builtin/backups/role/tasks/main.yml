@@ -79,6 +79,17 @@
     - { src: copia.timer.j2, ext: timer }
   register: backups_units
 
+- name: Prueba semanal de restaurar (servicio y temporizador)
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/system/{{ backups_unit }}-prueba.{{ item.ext }}"
+    mode: "0644"
+  loop:
+    - { src: prueba.service.j2, ext: service }
+    - { src: prueba.timer.j2, ext: timer }
+  register: backups_prueba_units
+  when: backups_verify | bool
+
 - name: Crear el repositorio de copias
   ansible.builtin.shell: |
     {{ backups_script | quote }} snapshots >/dev/null 2>&1 && exit 0
@@ -109,6 +120,15 @@
     enabled: true
     state: started
     daemon_reload: "{{ backups_units is changed }}"
+  when: not ansible_check_mode
+
+- name: Temporizador de la prueba semanal
+  ansible.builtin.systemd:
+    name: "{{ backups_unit }}-prueba.timer"
+    enabled: "{{ backups_verify | bool }}"
+    state: "{{ 'started' if backups_verify | bool else 'stopped' }}"
+    daemon_reload: "{{ backups_prueba_units is changed }}"
+  failed_when: false
   when: not ansible_check_mode
 
 - name: Primera copia (puede tardar)

@@ -263,7 +263,17 @@ def _():
         if not when:
             when = run("systemctl", "show", unit[:-len(".service")] + ".timer", "-p", "LastTriggerUSec", "--value").strip()
         ts = run("date", "+%s", "-d", when).strip() if when and when != "n/a" else ""
-        res.append({"slug": unit[len("draupnode-copia-"):-len(".service")],
+        slug = unit[len("draupnode-copia-"):-len(".service")]
+        if slug.endswith("-prueba"):
+            continue
+        verify = None
+        try:
+            verify = json.load(open("/var/lib/draupnode/copias-prueba/%s.json" % slug))
+        except Exception:
+            pass
+        res.append({"slug": slug, "verify": verify,
+                    "verifyTimer": os.path.exists("/etc/systemd/system/draupnode-copia-%s-prueba.timer" % slug),
+                    "verifyRunning": run("systemctl", "is-active", "draupnode-copia-%s-prueba.service" % slug).strip() == "activating",
                     "ok": info.get("Result") in (None, "", "success"),
                     "running": info.get("ActiveState") == "activating",
                     "ago": max(0, round(time.time() - int(ts))) if ts.isdigit() else None})

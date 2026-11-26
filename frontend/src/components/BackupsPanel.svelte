@@ -2,12 +2,13 @@
   // Copias de seguridad del proyecto (módulo «backups»): hacer una ahora,
   // verlas y traerlas a este equipo.
   import { onDestroy } from 'svelte'
-  import { DatabaseBackup, Play, List, Download, FolderOpen, LoaderCircle, CircleCheck, CircleX, Cloud, RotateCcw, ServerCog } from '@lucide/svelte'
-  import { api, onEvent, type BackupFetchProgress, type BackupResult, type Project, type Snapshot } from '../lib/api'
+  import { DatabaseBackup, Play, List, Download, FolderOpen, LoaderCircle, CircleCheck, CircleX, Cloud, RotateCcw, ServerCog, FlaskConical } from '@lucide/svelte'
+  import { api, onEvent, type BackupFetchProgress, type BackupResult, type BackupVerify, type Project, type Snapshot } from '../lib/api'
   import { toast, timeAgo, ui, refreshProjects } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
   import RestoreDialog from './RestoreDialog.svelte'
   import BackupTargetDialog from './BackupTargetDialog.svelte'
+  import { alerts } from '../lib/alerts.svelte'
   import { t } from '../lib/i18n.svelte'
 
   let { project, disabled = false, onchanged = () => {} }: { project: Project; disabled?: boolean; onchanged?: () => void } = $props()
@@ -17,7 +18,18 @@
   const vals = $derived(project.installedValues?.backups ?? {})
   const remoteType = $derived(String(vals.backups_remote_type ?? 'no'))
 
-  let busy = $state<'' | 'now' | 'list' | 'remote' | 'fetch'>('')
+  let busy = $state<'' | 'now' | 'list' | 'remote' | 'fetch' | 'verify'>('')
+  // Última prueba de restaurar: la de la ficha del servidor o la que se acaba de hacer.
+  let verifyNow = $state<BackupVerify | null>(null)
+  const bk = $derived((alerts.fichas[project.serverId]?.overview.backups ?? []).find((b) => b.slug === project.slug))
+  const verify = $derived(verifyNow ?? bk?.verify ?? null)
+  async function verifyRun() {
+    const r = await call('verify', (s, a, u) => api.BackupVerify(project.id, s, a, u))
+    if (r?.verify) {
+      verifyNow = r.verify
+      toast(r.verify.ok ? t('La copia se restaura bien') : t('La prueba de restaurar falló: {0}', r.verify.error), r.verify.ok ? undefined : 'error')
+    }
+  }
   let snaps = $state<Snapshot[] | null>(null)
   let snapsRemote = $state(false)
   let output = $state<{ ok: boolean; text: string } | null>(null)
@@ -112,6 +124,19 @@
     </div>
   </div>
 
+  <p class="verify small">
+    <FlaskConical size={14} />
+    {#if verify}
+      {t('Prueba de restaurar')}:
+      {#if verify.ok}<span class="ok-t">{t('bien')}</span>{:else}<span class="bad-t">{t('falló')}: {verify.error}</span>{/if}
+      <span class="muted">· {timeAgo(new Date(verify.at * 1000).toISOString())} · {t('{0} ficheros, {1}', verify.files, size(verify.bytes) || '0 B')}{#if verify.dumps}{' · '}{t('{0} volcados de base de datos abiertos', verify.dumps - verify.dumpsBad.length)}{/if}{#if verify.partial}{' · '}{t('no había sitio para restaurarla entera')}{/if}</span>
+    {:else if bk?.verifyTimer}
+      <span class="muted">{t('Prueba de restaurar: aún no se ha hecho (se hace sola cada semana).')}</span>
+    {:else}
+      <span class="muted">{t('Prueba de restaurar: sin activar (actívala en las opciones del módulo, o pruébala ahora).')}</span>
+    {/if}
+  </p>
+
   <div class="btns">
     <button class="btn sm" onclick={now} disabled={disabled || !!busy}>
       {#if busy === 'now'}<LoaderCircle size={14} class="spin" /> {t('Haciendo copia…')}{:else}<Play size={14} /> {t('Hacer copia ahora')}{/if}
@@ -124,6 +149,9 @@
         {#if busy === 'remote'}<LoaderCircle size={14} class="spin" />{:else}<Cloud size={14} />{/if} {t('Ver copias remotas')}
       </button>
     {/if}
+    <button class="btn sm" onclick={verifyRun} disabled={disabled || !!busy} title={t('Restaura la última copia en una carpeta aparte, comprueba que se abre y la borra')}>
+      {#if busy === 'verify'}<LoaderCircle size={14} class="spin" /> {t('Probando…')}{:else}<FlaskConical size={14} /> {t('Probar a restaurar ahora')}{/if}
+    </button>
     <button class="btn sm" onclick={() => (targetOpen = true)} disabled={disabled || !!busy} title={t('Otro servidor tuyo que guarda una segunda copia y no deja borrarla')}>
       <ServerCog size={14} /> {remoteType === 'rest-server' && vals.backups_remote_append_only ? t('Cambiar el otro servidor…') : t('Guardar también en otro servidor…')}
     </button>
@@ -230,4 +258,9 @@
   .bar { height: 6px; border-radius: 3px; background: var(--border-soft); overflow: hidden; }
   .bar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
   code { font-family: var(--mono); font-size: 12px; }
+  .verify { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+  .verify :global(svg) { color: var(--accent); }
+  .small { font-size: 12.5px; }
+  .ok-t { color: var(--success); }
+  .bad-t { color: var(--danger); }
 </style>

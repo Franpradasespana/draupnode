@@ -196,6 +196,8 @@ export const DISK_WARN = 85
 /** Avisar si, a este ritmo, el disco se llena antes de estos días. */
 export const DISK_FULL_DAYS = 14
 export const BACKUP_HOURS = 26
+/** Avisar si la prueba de restaurar tiene más de estos días (se hace cada semana). */
+export const VERIFY_DAYS = 15
 
 /** Lo que conviene mirar en la última ficha leída de un servidor. */
 export function serverFindings(ov: ServerOverview): { id: string; text: string; bad: boolean }[] {
@@ -226,6 +228,9 @@ export function serverFindings(ov: ServerOverview): { id: string; text: string; 
   const clam = ov.hardening?.clamav
   if (clam?.found) out.push({ id: 'clamav:' + clam.found, text: t('El antivirus ha encontrado {0} fichero(s) sospechoso(s): {1}', clam.found, clam.files.slice(0, 2).join(', ')), bad: true })
   for (const b of ov.backups ?? []) {
+    const v = b.verify
+    if (v && !v.ok && !b.verifyRunning) out.push({ id: 'bkver:' + b.slug + ':' + v.at, text: t('La prueba de restaurar las copias de «{0}» falló: {1}', b.slug, v.error), bad: true })
+    else if (v && b.verifyTimer && Date.now() / 1000 - v.at > VERIFY_DAYS * 86400) out.push({ id: 'bkverold:' + b.slug, text: t('No se ha probado a restaurar las copias de «{0}» desde hace {1} días', b.slug, Math.round((Date.now() / 1000 - v.at) / 86400)), bad: false })
     if (b.running) continue
     if (!b.ok) out.push({ id: 'bk:' + b.slug, text: t('La última copia de «{0}» falló', b.slug), bad: true })
     else if (b.ago === null) out.push({ id: 'bk0:' + b.slug, text: t('No consta ninguna copia de «{0}»', b.slug), bad: false })

@@ -5,11 +5,12 @@
     backups_script: "/usr/local/sbin/draupnode-copia-{{ draupnode_project }}"
     backups_unit: "draupnode-copia-{{ draupnode_project }}"
 
-- name: Parar el temporizador
+- name: Parar los temporizadores
   ansible.builtin.systemd:
-    name: "{{ backups_unit }}.timer"
+    name: "{{ item }}"
     enabled: false
     state: stopped
+  loop: ["{{ backups_unit }}.timer", "{{ backups_unit }}-prueba.timer"]
   failed_when: false
 
 - name: Quitar script, servicio y temporizador
@@ -20,6 +21,9 @@
     - "{{ backups_script }}"
     - "/etc/systemd/system/{{ backups_unit }}.service"
     - "/etc/systemd/system/{{ backups_unit }}.timer"
+    - "/etc/systemd/system/{{ backups_unit }}-prueba.service"
+    - "/etc/systemd/system/{{ backups_unit }}-prueba.timer"
+    - "/var/lib/draupnode/copias-prueba/{{ draupnode_project }}.json"
   register: backups_quitado
 
 - name: Recargar systemd

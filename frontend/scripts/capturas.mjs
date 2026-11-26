@@ -111,6 +111,15 @@ const ALL_SHOTS = [
         installedModules: ['base', 'backups'], installedValues: { base: {}, backups: { backups_time: '03:30', backups_remote_type: 'no' } }, appliedAt: ago(60) })
     },
     act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600]] },
+  { name: 'copias-prueba', view: 'servers', seed: (d) => {
+      const p = d.projects.find((x) => x.serverId === 'demo1')
+      p.slug = 'copias'
+      p.modules.push({ id: 'backups', values: { backups_time: '03:30', backups_remote_type: 'no' } })
+      p.installedModules = [...(p.installedModules ?? []), 'backups']
+      p.installedValues = { ...(p.installedValues ?? {}), backups: { backups_time: '03:30', backups_remote_type: 'no' } }
+      p.backupsFetched = { at: ago(2 * 1440), dir: '/home/demo/Draupnode-copias/copias', bytes: 48000000, files: 0 }
+    },
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Copias'], ['wait', 900]] },
   { name: 'destino-copias-aplicar', view: 'servers', seed: 'destino-copias',
     act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 700], ['click', 'button', 'Copias de seguridad'], ['wait', 700], ['click', 'button', 'Guardar también en otro servidor'], ['wait', 600],
       ['click', 'button', 'Preparar'], ['wait', 1000], ['click', 'button', 'Aplicar los dos ahora'], ['wait', 30000]] },

@@ -62,10 +62,25 @@ func (a *App) backupPathsFor(p store.Project) (backupPaths, error) {
 // «ok», la interfaz pide lo que falte (como en RunProject) y reintenta.
 type BackupResult struct {
 	RunStart
-	Snapshots []Snapshot       `json:"snapshots,omitempty"`
-	Output    string           `json:"output,omitempty"`
-	OK        bool             `json:"ok"`
-	Fetch     *store.FetchInfo `json:"fetch,omitempty"`
+	Snapshots []Snapshot        `json:"snapshots,omitempty"`
+	Output    string            `json:"output,omitempty"`
+	OK        bool              `json:"ok"`
+	Fetch     *store.FetchInfo  `json:"fetch,omitempty"`
+	Verify    *BackupVerifyInfo `json:"verify,omitempty"`
+}
+
+// BackupVerifyInfo es el resultado de probar a restaurar la última copia.
+type BackupVerifyInfo struct {
+	At       int64    `json:"at"`
+	Duration int64    `json:"duration"`
+	OK       bool     `json:"ok"`
+	Check    bool     `json:"check"`
+	Partial  bool     `json:"partial"`
+	Files    int64    `json:"files"`
+	Bytes    int64    `json:"bytes"`
+	Dumps    int      `json:"dumps"`
+	DumpsBad []string `json:"dumpsBad"`
+	Error    string   `json:"error"`
 }
 
 // Snapshot es una copia de restic.
@@ -184,6 +199,27 @@ func (a *App) BackupNow(projectID, secret, accept, sudoPassword string) BackupRe
 			res.Output = err.Error()
 		}
 		return res
+	})
+}
+
+// BackupVerify prueba ahora a restaurar la última copia en una carpeta aparte
+// (lo mismo que hace el temporizador semanal) y devuelve el resultado.
+func (a *App) BackupVerify(projectID, secret, accept, sudoPassword string) BackupResult {
+	return a.withServer(projectID, secret, accept, sudoPassword, func(p store.Project, bp backupPaths, c *ssh.Client, su runner.Sudo) BackupResult {
+		name := strings.TrimPrefix(bp.Unit, "draupnode-copia-")
+		u := bundle.ShellQuote(bp.Unit + "-prueba.service")
+		js := bundle.ShellQuote("/var/lib/draupnode/copias-prueba/" + name + ".json")
+		cmd := `if [ -f /etc/systemd/system/` + bp.Unit + `-prueba.service ]; then systemctl start ` + u + `; else ` + bundle.ShellQuote(bp.Script) + ` prueba >/dev/null; fi; cat ` + js
+		out, errOut, _ := execOut(c, su, cmd)
+		var v BackupVerifyInfo
+		if err := json.Unmarshal([]byte(lastJSONLine(out)), &v); err != nil {
+			msg := strings.TrimSpace(errOut)
+			if msg == "" {
+				msg = i18n.T("la prueba no dejó resultado (vuelve a aplicar el módulo Copias para tener la prueba)")
+			}
+			return BackupResult{RunStart: RunStart{Status: "error", Message: msg}}
+		}
+		return BackupResult{OK: v.OK, Verify: &v}
 	})
 }
 

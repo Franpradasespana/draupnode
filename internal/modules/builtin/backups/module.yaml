@@ -95,6 +95,16 @@ variables:
     label: Comprobar el repositorio después de cada copia
     type: bool
     default: true
+  - name: backups_verify
+    label: Probar cada semana que las copias se pueden restaurar
+    help: Restaura la última copia en una carpeta aparte (y la borra), cuenta lo restaurado y abre cada volcado de PostgreSQL. Si falla, sale en los avisos.
+    type: bool
+    default: true
+  - name: backups_verify_day
+    label: Día de la prueba
+    type: select
+    options: [lunes, martes, miercoles, jueves, viernes, sabado, domingo]
+    default: domingo
   - name: backups_run_now
     label: Hacer la primera copia al aplicar
     type: bool
@@ -160,10 +170,12 @@ prueba:
     - "Con «PostgreSQL compartido» instalado, añade «Copias de seguridad» con «Hacer la primera copia al aplicar» y aplica."
     - "Ficha → pestaña Copias: pulsa «Ver copias» y luego «Hacer copia ahora»."
     - "Prueba a restaurar: en una copia, «Restaurar base…» → «Restaurar en la base nueva» (no en su sitio)."
+    - "Pulsa «Probar a restaurar ahora»."
   comprobar:
     - "Salen las copias con su fecha y tamaño, y el volcado de cada base (postgres-…/tienda.dump)."
     - "La base restaurada tiene los mismos datos que la original."
     - "«Traer copias al equipo» descarga la copia a tu equipo."
+    - "«Prueba de restaurar: bien», con los ficheros restaurados y los volcados abiertos; y en «Terminal», systemctl list-timers enseña la prueba semanal."
   necesita:
     - "Nada para la copia local diaria (bases de datos, apps, Coolify y la carpeta de secretos). Añade en «Carpetas que copiar» las tuyas (rutas absolutas)."
     - "Para guardar también fuera: el tipo (sftp, rest-server o s3) y la dirección (p. ej. sftp: usuario@203.0.113.40:/srv/copias/web). Lo más fácil: «Guardar también en otro servidor» desde la pestaña Copias."
@@ -171,4 +183,5 @@ prueba:
   problemas:
     - "La copia remota por SFTP falla con «Permission denied (publickey)» → añade en el otro servidor la clave pública que sale en Contraseñas («Clave pública para el servidor de copias (SFTP)»)."
     - "Aviso «La última copia es de hace más de 26 h» → mira el registro de la copia (pestaña Copias) y que el servidor tenga la hora sincronizada."
+    - "«La prueba de restaurar falló» → el mensaje dice qué (repositorio con errores, volcado que no se abre…): mira «Ver copias» y el registro; si es por espacio, sale «no había sitio para restaurarla entera»."
     - "Sin la contraseña de las copias (restic) no se pueden restaurar: haz «Exportar copia…» (Ajustes) de Draupnode y guárdala fuera del equipo."

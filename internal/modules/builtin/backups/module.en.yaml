@@ -50,6 +50,11 @@ variables:
     label: Monthly backups to keep
   backups_check:
     label: Check the repository after each backup
+  backups_verify:
+    label: Test every week that the backups can be restored
+    help: Restores the latest backup into a separate folder (and deletes it), counts what was restored and opens each PostgreSQL dump. If it fails, it shows in the alerts.
+  backups_verify_day:
+    label: Test day
   backups_run_now:
     label: Make the first backup when applying
   backups_dir:
@@ -90,10 +95,12 @@ prueba:
   - With «Shared PostgreSQL» installed, add «Backups» with «Make the first backup when applying» and apply.
   - 'Server page → Backups tab: press «See backups» and then «Back up now».'
   - 'Try restoring: on a backup, «Restore database…» → «Restore into the new database» (not in its place).'
+  - Press “Test restore now”.
   comprobar:
   - The backups appear with their date and size, and the dump of each database (postgres-…/tienda.dump).
   - The restored database has the same data as the original.
   - «Bring backups to this computer» downloads the backup to your computer.
+  - '“Restore test: fine”, with the restored files and opened dumps; and in “Terminal”, systemctl list-timers shows the weekly test.'
   necesita:
   - Nothing for the daily local backup (databases, apps, Coolify and the secrets folder). Add yours in «Folders to back up» (absolute paths).
   - 'To also store outside: the type (sftp, rest-server or s3) and the address (e.g. sftp: user@203.0.113.40:/srv/copias/web). The easiest: «Also store on another server» from the Backups tab.'
@@ -101,4 +108,5 @@ prueba:
   problemas:
   - The remote SFTP backup fails with «Permission denied (publickey)» → add on the other server the public key shown in Passwords («Public key for the backup server (SFTP)»).
   - Alert «The last backup is more than 26 h old» → look at the backup log (Backups tab) and check that the server's clock is synchronised.
-  - 'Without the backups password (restic) they cannot be restored: do «Export backup…» (Settings) in Draupnode and keep it off the computer.'
+  - '“The restore test failed” → the message says what (repository with errors, a dump that does not open…): look at “See backups” and the log; if it is about space, it says “there was no room to restore it fully”.'
+  - 'Sin la contraseña de las copias (restic) no se pueden restaurar: haz «Exportar copia…» (Ajustes) de Draupnode y guárdala fuera del equipo.'

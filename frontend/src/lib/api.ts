@@ -299,7 +299,22 @@ export interface Snapshot {
   bytes?: number
 }
 
+/** Prueba de restaurar la última copia en una carpeta aparte. */
+export interface BackupVerify {
+  at: number
+  duration: number
+  ok: boolean
+  check: boolean
+  partial: boolean
+  files: number
+  bytes: number
+  dumps: number
+  dumpsBad: string[]
+  error: string
+}
+
 export interface BackupResult extends RunStart {
+  verify?: BackupVerify
   ok: boolean
   snapshots?: Snapshot[]
   output?: string
@@ -692,7 +707,7 @@ export interface ServerOverview {
   firewall?: { active: boolean; tcp: string[]; udp: string[] }
   draupnode?: { markers: ServerMarker[]; secretDirs: string[]; appDirs: string[] }
   software?: { module: string; active: boolean }[]
-  backups?: { slug: string; ok: boolean; running: boolean; ago: number | null }[]
+  backups?: { slug: string; ok: boolean; running: boolean; ago: number | null; verify?: BackupVerify | null; verifyTimer?: boolean; verifyRunning?: boolean }[]
   updates?: { total: number; security: number; reboot: boolean; packages: string[]; rebootFor?: string[] }
   clock?: { synced: boolean; known: boolean; timezone: string }
   security?: { failed24h: number; ips: number; top: { ip: string; count: number }[]; fail2ban: { banned: number; total: number } | null }
@@ -868,6 +883,7 @@ interface Backend {
   OpenAppTunnel(projectId: string, moduleId: string, secret: string, accept: string): Promise<MonitorResult>
   MonitorSummary(projectId: string, secret: string, accept: string): Promise<MonitorResult>
   BackupSnapshots(projectId: string, remote: boolean, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
+  BackupVerify(projectId: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   BackupNow(projectId: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   FetchBackups(projectId: string, dest: string, secret: string, accept: string, sudoPassword: string): Promise<BackupResult>
   ChooseBackupFolder(projectId: string): Promise<string>
@@ -1464,6 +1480,10 @@ function mockBackend(): Backend {
         snaps.push({ id: (0x5e6f7a8b + d * 104729).toString(16).slice(0, 8), time: t, tags: ['draupnode-' + id, 'archivos'], paths: ['/etc/draupnode/secretos/' + id], host: 'srv', bytes: 18_400 })
       }
       return { status: 'ok', ok: true, snapshots: snaps }
+    },
+    async BackupVerify() {
+      await wait(2500)
+      return { status: 'ok', ok: true, verify: { at: Math.floor(Date.now() / 1000), duration: 42, ok: true, check: true, partial: false, files: 1834, bytes: 812 * 1024 ** 2, dumps: 3, dumpsBad: [], error: '' } }
     },
     async BackupNow() {
       await wait(1800)
@@ -2078,7 +2098,7 @@ function mockBackend(): Backend {
         firewall: { active: true, tcp: ['22', '80', '443', '8000'], udp: [] },
         draupnode: { markers: [{ draupnode: '0.41.0', at: new Date(Date.now() - 40 * 86400000).toISOString(), nombre: tr('Copias'), plantilla: tr('Copias diarias'), slug: 'copias', modulos: [{ id: 'docker', values: {} }, { id: 'backups', values: {} }] }], secretDirs: ['copias'], appDirs: [] },
         software: [{ module: 'docker', active: true }, { module: 'nginx', active: true }, { module: 'coolify', active: true }, { module: 'backups', active: true }],
-        backups: [{ slug: 'copias', ok: true, running: false, ago: lab ? 3 * 3600 : 30 * 3600 }],
+        backups: [{ slug: 'copias', ok: true, running: false, ago: lab ? 3 * 3600 : 30 * 3600, verifyTimer: true, verify: { at: Math.floor(Date.now() / 1000) - 3 * 86400, duration: 41, ok: true, check: true, partial: false, files: 1834, bytes: 812 * 1024 ** 2, dumps: 3, dumpsBad: [], error: '' } }],
         updates: lab ? { total: 0, security: 0, reboot: false, packages: [] } : { total: 12, security: 3, reboot: true, packages: ['openssl', 'libssl3', 'linux-image-generic', 'curl'], rebootFor: ['linux-image-6.8.0-52-generic'] },
         clock: { synced: true, known: true, timezone: 'Europe/Madrid' },
         security: lab ? { failed24h: 0, ips: 0, top: [], fail2ban: null } : { failed24h: 412, ips: 37, top: [{ ip: '198.51.100.23', count: 96 }, { ip: '203.0.113.77', count: 41 }], fail2ban: { banned: 6, total: 58 } },
