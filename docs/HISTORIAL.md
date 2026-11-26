@@ -1277,3 +1277,21 @@ otro», descartada).
   monitorización): recién aplicado, 0 diferencias (sin falsos avisos, ~30 s); Caddyfile tocado, temporizador de copias
   desactivado y Uptime Kuma parado salen los tres; aplicar los deja como estaban.
 - Ayuda y captura `servidor-desvios` en los dos idiomas.
+
+## 2026-11-26 · 0.67.0 · Instantáneas del disco antes de aplicar (Hetzner Cloud y DigitalOcean)
+
+- **Servidor vinculado con su máquina del proveedor** (`store.Server.Cloud` = `CloudLink`: proveedor, id, nombre,
+  instantánea antes de aplicar, cuántas guardar). Solo lo cambia `SetServerCloud`: guardar la conexión lo conserva.
+  Los creados con «Crear en la nube» quedan vinculados; los demás, `LinkServerCloud` los busca por su IP en la cuenta
+  (si se dio de alta con un nombre, se resuelve).
+- **API** (`internal/cloudapi/snapshots.go`): buscar por IP (con páginas), hacer instantánea (Hetzner
+  `create_image` con etiqueta `draupnode`, DigitalOcean acción `snapshot`), esperar la acción con su progreso, listar
+  las del servidor (Hetzner: `created_from`), volver a una (Hetzner `rebuild`, DigitalOcean `restore`) y borrar.
+  Las de Draupnode se llaman `draupnode-<servidor>-AAAAMMDD-HHMMSS`; las hechas a mano se ven pero no se borran solas.
+- **Antes de aplicar o desinstalar** (no al simular), si está activado: etapa «Haciendo una instantánea en …» con su
+  progreso; si falla, no se toca el servidor (la ejecución termina con ese error). Después se borran las de Draupnode
+  que sobren (por defecto se guardan 3). Necesita la bóveda abierta (el token está ahí): si no, se pide antes.
+- **Ficha → Resumen → «Instantáneas del disco»** (`SnapshotsPanel.svelte`): vincular (con el token si falta), opciones,
+  lista con tamaño y coste al mes, «Hacer una ahora», «Volver a esta…» (escribiendo el nombre del servidor) y borrar;
+  «No está en ninguno: ocultar» para servidores de otros proveedores.
+- Tests con APIs falsas de los dos proveedores (no probado contra las de verdad: falta una cuenta).

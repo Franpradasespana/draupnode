@@ -30,6 +30,8 @@ export interface Server {
   notes: string
   createdAt?: string
   lastCheck?: CheckResult | null
+  /** Su máquina en el proveedor de nube (para las instantáneas). */
+  cloud?: CloudLink | null
   hasSecret?: boolean
 }
 
@@ -86,6 +88,26 @@ export interface TestResult {
 }
 
 /** Crear servidores en la nube (Hetzner Cloud, DigitalOcean). */
+export interface CloudLink {
+  provider: string
+  id: string
+  name?: string
+  snapshotBeforeApply?: boolean
+  keepSnapshots?: number
+}
+export interface CloudSnapshot {
+  id: string
+  name: string
+  created: string
+  sizeGb: number
+  draupnode: boolean
+}
+export interface SnapshotInfo {
+  snapshots: CloudSnapshot[]
+  pricePerGb: number
+  currency: string
+}
+
 export interface CloudProvider {
   id: string
   name: string
@@ -858,6 +880,13 @@ interface Backend {
   CloudForgetToken(provider: string): Promise<void>
   CloudCatalog(provider: string): Promise<CloudCatalog>
   CloudCreateServer(req: CloudCreateRequest): Promise<Server>
+  LinkServerCloud(serverId: string, provider: string): Promise<Server>
+  UnlinkServerCloud(serverId: string): Promise<Server>
+  SetSnapshotOptions(serverId: string, before: boolean, keep: number): Promise<Server>
+  ServerSnapshots(serverId: string): Promise<SnapshotInfo>
+  TakeServerSnapshot(serverId: string): Promise<string>
+  RestoreServerSnapshot(serverId: string, snapshotId: string): Promise<void>
+  DeleteServerSnapshot(serverId: string, snapshotId: string): Promise<void>
   ServerReboot(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   ServerHistory(serverId: string, enable: boolean, keepData: boolean, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   RemoveOrphanApp(serverId: string, name: string, purge: boolean, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
@@ -1142,10 +1171,64 @@ function mockBackend(): Backend {
       st(tr('El proveedor está creando el servidor…')); await wait(1500)
       st(tr('Esperando a que arranque su SSH ({0})…', '203.0.113.50')); await wait(1000)
       const srv: Server = { id: Math.random().toString(16).slice(2, 10), name: req.name, host: '203.0.113.50', port: 22, user: 'root', authMethod: 'key',
-        keyPath: req.newKey ? '/home/demo/.config/draupnode/claves/' + req.provider + '-' + req.name : req.keyPath, keyEncrypted: false, secretStore: '', notes: '', createdAt: new Date().toISOString() } as Server
+        keyPath: req.newKey ? '/home/demo/.config/draupnode/claves/' + req.provider + '-' + req.name : req.keyPath, keyEncrypted: false, secretStore: '', notes: '', createdAt: new Date().toISOString(),
+        cloud: { provider: req.provider, id: '5' + Math.floor(Math.random() * 1e6), name: req.name, snapshotBeforeApply: true, keepSnapshots: 3 } } as Server
       servers = [...servers, srv]
       save('servers', servers)
       return srv
+    },
+    async LinkServerCloud(sid, provider) {
+      await wait(700)
+      const s = servers.find((x) => x.id === sid)!
+      if (!cloudTokens[provider]) throw tr('falta el token de la API')
+      s.cloud = { provider, id: '4' + Math.floor(Math.random() * 1e6), name: s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), snapshotBeforeApply: true, keepSnapshots: 3 }
+      save('servers', servers)
+      return s
+    },
+    async UnlinkServerCloud(sid) {
+      const s = servers.find((x) => x.id === sid)!
+      s.cloud = null
+      save('servers', servers)
+      return s
+    },
+    async SetSnapshotOptions(sid, before, keep) {
+      const s = servers.find((x) => x.id === sid)!
+      s.cloud = { ...s.cloud!, snapshotBeforeApply: before, keepSnapshots: keep }
+      save('servers', servers)
+      return s
+    },
+    async ServerSnapshots(sid) {
+      await wait(500)
+      const s = servers.find((x) => x.id === sid)!
+      if (!s.cloud) throw tr('este servidor no está vinculado con su proveedor de nube')
+      const snaps = load<Record<string, CloudSnapshot[]>>('instantaneas', {})[sid] ?? [
+        { id: '901', name: 'draupnode-' + (s.cloud.name || 'web') + '-20261124-181205', created: new Date(Date.now() - 2 * 86400000).toISOString(), sizeGb: 3.2, draupnode: true },
+        { id: '880', name: tr('antes de cambiar de Ubuntu'), created: new Date(Date.now() - 40 * 86400000).toISOString(), sizeGb: 2.1, draupnode: false },
+      ]
+      return { snapshots: snaps, pricePerGb: s.cloud.provider === 'hetzner' ? 0.0119 : 0.06, currency: s.cloud.provider === 'hetzner' ? 'EUR' : 'USD' }
+    },
+    async TakeServerSnapshot(sid) {
+      const s = servers.find((x) => x.id === sid)!
+      const st = (stage: string) => mockEmit('snapshot', { serverId: sid, stage })
+      for (const p of [10, 45, 80]) { st(tr('{0} en el proveedor ({1} %, {2})…', tr('Haciendo la instantánea'), p, p / 5 + 's')); await wait(700) }
+      const all = load<Record<string, CloudSnapshot[]>>('instantaneas', {})
+      const cur = all[sid] ?? (await (this.ServerSnapshots as (id: string) => Promise<SnapshotInfo>)(sid)).snapshots
+      const now = new Date()
+      cur.unshift({ id: String(Date.now()), name: 'draupnode-' + (s.cloud?.name || 'web') + '-' + now.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-'), created: now.toISOString(), sizeGb: 3.3, draupnode: true })
+      let n = 0
+      all[sid] = cur.filter((x) => !x.draupnode || ++n <= (s.cloud?.keepSnapshots ?? 3))
+      save('instantaneas', all)
+      return ''
+    },
+    async RestoreServerSnapshot(sid) {
+      for (const p of [20, 60, 95]) { mockEmit('snapshot', { serverId: sid, stage: tr('{0} en el proveedor ({1} %, {2})…', tr('Volviendo a la instantánea'), p, p / 5 + 's') }); await wait(700) }
+    },
+    async DeleteServerSnapshot(sid, id) {
+      await wait(400)
+      const all = load<Record<string, CloudSnapshot[]>>('instantaneas', {})
+      const cur = all[sid] ?? (await (this.ServerSnapshots as (id: string) => Promise<SnapshotInfo>)(sid)).snapshots
+      all[sid] = cur.filter((x) => x.id !== id)
+      save('instantaneas', all)
     },
     async SSHConfigHosts() {
       return [{ alias: 'web', hostName: '203.0.113.10', user: 'ubuntu', port: 22, identityFile: keys[1].path }]

@@ -259,6 +259,9 @@ function handleRunEvent(e: RunEvent) {
       r.stage = ev.name
       r.lines.push('==> ' + ev.name)
       break
+    case 'stageinfo': // cómo va la etapa (sin línea nueva en el registro)
+      r.stage = ev.name
+      break
     case 'task': {
       const name = String(ev.name).replace(/^[\w-]+ : /, '')
       r.tasks.push({ name: name === 'Gathering Facts' ? t('Recoger datos del servidor') : name, role: ev.role || '', handler: !!ev.handler, status: 'running', diffs: [] })

@@ -21,6 +21,7 @@
   import BackupsPanel from '../components/BackupsPanel.svelte'
   import HistoryPanel from '../components/HistoryPanel.svelte'
   import DriftPanel from '../components/DriftPanel.svelte'
+  import SnapshotsPanel from '../components/SnapshotsPanel.svelte'
   import Sparkline from '../components/Sparkline.svelte'
   import { alerts, rememberOverview, serverFindings, driftOpen } from '../lib/alerts.svelte'
   import { t as tr, agoText } from '../lib/i18n.svelte'
@@ -412,6 +413,7 @@
     {/if}
 
     {#if server}<div id="desvios"><DriftPanel {server} onfix={() => setTab('modulos')} /></div>{/if}
+    {#if server}<SnapshotsPanel {server} onrestored={() => { ov = null; load() }} />{/if}
 
     {#if ov}<HistoryPanel {server} history={ov.history} {loading} onchange={load} />{/if}
 

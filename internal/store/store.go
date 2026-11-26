@@ -51,6 +51,20 @@ type Server struct {
 	Notes       string       `json:"notes"`
 	CreatedAt   time.Time    `json:"createdAt"`
 	LastCheck   *CheckResult `json:"lastCheck,omitempty"`
+	// Cloud: el servidor en su proveedor (Hetzner, DigitalOcean), para las
+	// instantáneas. Solo lo cambia SetServerCloud (guardar la conexión lo conserva).
+	Cloud *CloudLink `json:"cloud,omitempty"`
+}
+
+// CloudLink une un servidor de Draupnode con su máquina en el proveedor.
+type CloudLink struct {
+	Provider string `json:"provider"`
+	ID       string `json:"id"`
+	Name     string `json:"name,omitempty"`
+	// SnapshotBeforeApply: hacer una instantánea antes de aplicar o desinstalar.
+	SnapshotBeforeApply bool `json:"snapshotBeforeApply,omitempty"`
+	// KeepSnapshots: cuántas instantáneas de Draupnode se guardan (las más viejas se borran).
+	KeepSnapshots int `json:"keepSnapshots,omitempty"`
 }
 
 // CheckResult resume la última comprobación del servidor.
@@ -455,11 +469,25 @@ func (s *Store) SaveServer(srv Server) (Server, error) {
 			if srv.LastCheck == nil {
 				srv.LastCheck = old.LastCheck
 			}
+			srv.Cloud = old.Cloud
 			s.d.Servers[i] = srv
 			return srv, s.saveLocked()
 		}
 	}
 	return Server{}, i18n.Errorf("servidor %q no encontrado", srv.ID)
+}
+
+// SetServerCloud une el servidor con su máquina en el proveedor (nil = desvincular).
+func (s *Store) SetServerCloud(id string, c *CloudLink) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.d.Servers {
+		if s.d.Servers[i].ID == id {
+			s.d.Servers[i].Cloud = c
+			return s.saveLocked()
+		}
+	}
+	return i18n.Errorf("servidor %q no encontrado", id)
 }
 
 // SetLastCheck guarda el resultado de la última comprobación.

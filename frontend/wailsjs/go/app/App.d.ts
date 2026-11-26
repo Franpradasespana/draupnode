@@ -7,6 +7,8 @@ import {cloudapi} from '../models';
 import {sshx} from '../models';
 import {copia} from '../models';
 
+export function AcceptDrift(arg1:string,arg2:Array<string>):Promise<app.DriftReport>;
+
 export function AlertsRun(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<app.AlertsResult>;
 
 export function AnalyzeProject(arg1:string,arg2:string):Promise<dockerize.Analysis>;
@@ -38,6 +40,8 @@ export function CancelDockerBuild():Promise<boolean>;
 export function CancelDockerLabTest():Promise<boolean>;
 
 export function CancelRun(arg1:string):Promise<boolean>;
+
+export function CheckDrift(arg1:string,arg2:string,arg3:string,arg4:string):Promise<app.DriftResult>;
 
 export function CheckProject(arg1:store.Project):Promise<app.ProjectCheck>;
 
@@ -111,6 +115,8 @@ export function FetchProjectSecrets(arg1:string,arg2:string,arg3:string,arg4:str
 
 export function FindKeys():Promise<Array<sshx.KeyInfo>>;
 
+export function ForgetAcceptedDrift(arg1:string):Promise<app.DriftReport>;
+
 export function ForgetTemplate(arg1:string,arg2:string):Promise<store.Project>;
 
 export function GenerateDocker(arg1:string,arg2:dockerize.Spec):Promise<app.DockerPreview>;
@@ -136,6 +142,8 @@ export function LabAction(arg1:string):Promise<void>;
 export function LabRegister():Promise<app.ServerView>;
 
 export function LabStatus():Promise<app.LabStatus>;
+
+export function LastDrifts():Promise<Record<string, app.DriftReport>>;
 
 export function LastOverviews():Promise<Record<string, app.CachedOverview>>;
 

@@ -90,6 +90,9 @@ func TestCrearServidorEnLaNube(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if v.Cloud == nil || v.Cloud.Provider != "hetzner" || v.Cloud.ID != "5" || !v.Cloud.SnapshotBeforeApply || v.Cloud.KeepSnapshots != DefaultKeepSnapshots {
+		t.Fatalf("vínculo con el proveedor: %+v", v.Cloud)
+	}
 	if v.Host != "127.0.0.1" || v.User != "root" || v.Port != 22 || v.KeyEncrypted || !strings.Contains(v.Notes, "Hetzner") {
 		t.Fatalf("servidor: %+v", v)
 	}

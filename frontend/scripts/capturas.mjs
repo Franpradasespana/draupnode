@@ -80,6 +80,11 @@ const ALL_SHOTS = [
     },
     act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 600],
       ['js', `document.getElementById('desvios')?.scrollIntoView({ block: 'start' })`], ['click', 'button.exp', 'Caddy'], ['wait', 300]] },
+  { name: 'servidor-instantaneas', view: 'servers', seed: (d) => {
+      d.servers[0].cloud = { provider: 'hetzner', id: '4815162', name: 'web', snapshotBeforeApply: true, keepSnapshots: 3 }
+    },
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 1200],
+      ['js', `[...document.querySelectorAll('h2')].find((h) => /Instant|Snapshot/.test(h.textContent))?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300]] },
   { name: 'servidor-apps', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Apps y bases'], ['wait', 600],
     ['js', `document.querySelector('table.usage')?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300]] },
   { name: 'servidor-red', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Red y seguridad'], ['wait', 600]] },

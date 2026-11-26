@@ -555,6 +555,10 @@ func (a *App) connectSudo(srv store.Server, secret, accept, sudoPassword string)
 
 func (a *App) launch(p store.Project, srv store.Server, script []byte, mode runMode, secret, accept, sudoPassword string) RunStart {
 	id := p.ID
+	// La instantánea necesita el token del proveedor, que está en la bóveda.
+	if snapshotBeforeRun(srv, mode) && !a.vault.Status().Unlocked {
+		return RunStart{Status: "vault_locked", Message: i18n.T("Desbloquea la bóveda: ahí está el token del proveedor para hacer la instantánea antes de aplicar.")}
+	}
 	c, su, fail := a.connectSudo(srv, secret, accept, sudoPassword)
 	if fail != nil {
 		return *fail
@@ -625,6 +629,37 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "progress", "text": line}})
 		})
 	}()
+	// Instantánea del disco en el proveedor antes de tocar nada.
+	if srv, err := a.store.Server(p.ServerID); err == nil && snapshotBeforeRun(srv, rm) {
+		send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "stage", "name": i18n.Sprintf("Haciendo una instantánea en %s antes de empezar", cloudProviderName(srv.Cloud.Provider))}})
+		warn, err := a.takeSnapshot(ctx, srv, func(s string) {
+			send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "stageinfo", "name": s}})
+		})
+		if err != nil {
+			stopProg()
+			<-progDone
+			sum.Error = i18n.T("no se pudo hacer la instantánea, así que no se ha tocado el servidor: ") + err.Error()
+			if lw != nil {
+				fmt.Fprintf(lw, "FALLO: %s\n# Fin: ok=false\n", sum.Error)
+				_ = lw.Flush()
+				_ = lf.Close()
+			}
+			_ = a.store.SetLastRun(p.ID, sum)
+			saveRunSummary(logPath, sum)
+			send(RunEvent{Kind: "done", Summary: &sum})
+			return
+		}
+		msg := i18n.T("Instantánea hecha: si algo sale mal, puedes volver a ella desde el Resumen de la ficha.")
+		if warn != "" {
+			msg += " " + warn
+		}
+		lmu.Lock()
+		if lw != nil {
+			fmt.Fprintf(lw, "NOTA DE DRAUPNODE: %s\n", msg)
+		}
+		lmu.Unlock()
+		send(RunEvent{Kind: "ev", Ev: map[string]any{"ev": "notice", "msg": msg}})
+	}
 	// Tu app con «carpeta»: subir el código antes. En la simulación, a una
 	// carpeta aparte (simDir) para revisarlo sin tocar la app; se borra al terminar.
 	if len(rm.uninstall) == 0 && len(localApps(p)) > 0 {

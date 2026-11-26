@@ -478,6 +478,114 @@ export namespace app {
 		}
 	}
 	
+	export class DriftItem {
+	    kind: string;
+	    module?: string;
+	    name: string;
+	    diff?: string;
+	    key: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DriftItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.module = source["module"];
+	        this.name = source["name"];
+	        this.diff = source["diff"];
+	        this.key = source["key"];
+	    }
+	}
+	export class DriftReport {
+	    // Go type: time
+	    at: any;
+	    skipped?: string;
+	    error?: string;
+	    items: DriftItem[];
+	    accepted?: string[];
+	    duration: number;
+	    baseline?: string[];
+	    // Go type: time
+	    baselineAt?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new DriftReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.at = this.convertValues(source["at"], null);
+	        this.skipped = source["skipped"];
+	        this.error = source["error"];
+	        this.items = this.convertValues(source["items"], DriftItem);
+	        this.accepted = source["accepted"];
+	        this.duration = source["duration"];
+	        this.baseline = source["baseline"];
+	        this.baselineAt = this.convertValues(source["baselineAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DriftResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    report?: DriftReport;
+	
+	    static createFrom(source: any = {}) {
+	        return new DriftResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.report = this.convertValues(source["report"], DriftReport);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class EnvImportResult {
 	    status: string;
 	    runId?: string;

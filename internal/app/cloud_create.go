@@ -191,6 +191,12 @@ func (a *App) CloudCreateServer(req CloudCreateRequest) (ServerView, error) {
 	if serr != nil {
 		return view, serr
 	}
+	// Vinculado con su máquina del proveedor: instantánea antes de aplicar.
+	if lerr := a.store.SetServerCloud(view.ID, &store.CloudLink{Provider: req.Provider, ID: cr.ID, Name: req.Name, SnapshotBeforeApply: true, KeepSnapshots: DefaultKeepSnapshots}); lerr == nil {
+		if v, verr := a.serverView(view.ID); verr == nil {
+			view = v
+		}
+	}
 	return view, err // err: el SSH aún no contestaba (el servidor ya está dado de alta)
 }
 
