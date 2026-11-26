@@ -1,0 +1,62 @@
+# Textos en inglés de «stalwart» (los ids, variables y valores están en module.yaml).
+name: Stalwart (complete mail server)
+category: 7 · Apps
+description: 'Your own mail server: receives and sends (SMTP), mailboxes (IMAP and JMAP), filters and anti-spam, all in one, with a web page to manage it.'
+details: |
+  Stalwart in Docker. It opens the mail ports (25, 465, 587 and 993) in the
+  firewall. The “admin” user of the administration web page and its
+  password (temporary, to get started) are created by Stalwart the first
+  time; Draupnode copies them to “Passwords”.
+  CAREFUL, your own email is demanding: you need a domain with its MX,
+  SPF, DKIM and DMARC records (Stalwart tells you which ones in
+  “Management → Domains → DNS records”), a provider that lets port 25
+  out (many block it: Hetzner and DigitalOcean open it if you ask) and
+  the IP's reverse DNS set to your domain.
+  Its data is in /srv/draupnode/apps/stalwart (included in the backups of the
+  Backups module). License: AGPL-3.0.
+uninstall_warning: Stops and removes the Stalwart containers.
+uninstall_data: Also delete its data (all mailboxes, emails and the configuration). This cannot be undone.
+variables:
+  stalwart_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  stalwart_domain:
+    label: Domain
+    help: 'Optional: the one for the administration web page (mail.example.com, with Caddy or nginx).'
+    pattern_help: A domain (app.example.com) or empty
+  stalwart_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  stalwart_smtp:
+    label: SMTP port (receive email)
+    help: 25 is the one other servers use to deliver your email; do not change it unless you know why.
+  stalwart_submissions:
+    label: Port to send from your programs (SSL)
+  stalwart_submission:
+    label: Port to send from your programs (STARTTLS)
+  stalwart_imaps:
+    label: IMAP port (read email)
+  stalwart_update:
+    label: Update Stalwart when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- Stalwart administrator
+prueba:
+  lab: 'Only to see the administration: real email needs a domain, DNS and port 25 open.'
+  pasos:
+  - Add “Stalwart” and apply.
+  - Press “Open (SSH tunnel)” and log in to the administration with “admin” and the password from “Passwords”.
+  - Add your domain and create the records it shows in your DNS.
+  comprobar:
+  - The administration opens and lets you create a domain and a mailbox.
+  - With the DNS done, an email sent from outside reaches the mailbox (check it with an IMAP client).
+  necesita:
+  - A domain, its DNS, outgoing port 25 opened by your provider, and the IP's reverse DNS.
+  problemas:
+  - 'No password in “Passwords” → look in the log: docker logs dn-stalwart | grep password.'
+  - Emails from outside do not arrive → port 25 closed at the provider or a wrong MX record.
+  - Your emails go to spam → SPF, DKIM or DMARC are missing, or the reverse DNS.

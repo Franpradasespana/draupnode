@@ -1,0 +1,168 @@
+---
+- name: Carpeta de Authelia
+  ansible.builtin.set_fact:
+    authelia_dir: /srv/draupnode/apps/authelia
+    authelia_url: "{{ ('https://' ~ authelia_domain) if authelia_domain else ('http://127.0.0.1:' ~ authelia_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Authelia necesita su dominio
+  ansible.builtin.assert:
+    that: authelia_domain | length > 0 and (authelia_domain.split('.') | length) > 2
+    fail_msg: "Pon el dominio del portal de Authelia, con algo delante del dominio principal (auth.ejemplo.com)."
+- name: Dominio principal (el de la cookie de la sesión)
+  ansible.builtin.set_fact:
+    authelia_cookie_domain: "{{ authelia_domain.split('.', 1)[1] }}"
+- name: Los dominios protegidos tienen que colgar del principal
+  ansible.builtin.assert:
+    that: authelia_protect | reject('search', '(^|\\.)' ~ (authelia_cookie_domain | regex_escape) ~ '$') | list | length == 0
+    fail_msg: "Estos dominios no son de {{ authelia_cookie_domain }}: {{ authelia_protect | reject('search', '(^|\\.)' ~ (authelia_cookie_domain | regex_escape) ~ '$') | join(', ') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ authelia_dir }}"
+    - "{{ authelia_dir }}/config"
+
+- name: Contraseña «.authelia_admin_pass» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    authelia_admin_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.authelia_admin_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Contraseña «.authelia_jwt» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    authelia_jwt: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.authelia_jwt', chars=['ascii_letters', 'digits'], length=64) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Contraseña «.authelia_session» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    authelia_session: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.authelia_session', chars=['ascii_letters', 'digits'], length=64) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Contraseña «.authelia_storage» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    authelia_storage: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.authelia_storage', chars=['ascii_letters', 'digits'], length=64) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Configuración de Authelia
+  ansible.builtin.copy:
+    dest: "{{ authelia_dir }}/config/configuration.yml"
+    mode: "0600"
+    content: |
+      # Generado por Draupnode (módulo authelia). Se reescribe al aplicar.
+      server:
+        address: 'tcp://0.0.0.0:9091/'
+      log:
+        level: info
+      theme: auto
+      identity_validation:
+        reset_password:
+          jwt_secret: '{{ authelia_jwt }}'
+      totp:
+        issuer: '{{ authelia_cookie_domain }}'
+      authentication_backend:
+        file:
+          path: /config/users.yml
+          password:
+            algorithm: argon2
+      access_control:
+        default_policy: '{{ authelia_policy }}'
+      session:
+        secret: '{{ authelia_session }}'
+        cookies:
+          - domain: '{{ authelia_cookie_domain }}'
+            authelia_url: 'https://{{ authelia_domain }}'
+      storage:
+        encryption_key: '{{ authelia_storage }}'
+        local:
+          path: /config/db.sqlite3
+      notifier:
+        filesystem:
+          filename: /config/notificaciones.txt
+  no_log: true
+  when: not ansible_check_mode
+
+- name: ¿Está ya el usuario «admin»?
+  ansible.builtin.stat:
+    path: "{{ authelia_dir }}/config/users.yml"
+  register: authelia_users
+
+- name: Cifrar la contraseña de «admin» (argon2, con la propia Authelia)
+  ansible.builtin.command:
+    argv: [docker, run, --rm, docker.io/authelia/authelia:4.39, authelia, crypto, hash, generate, argon2, --password, "{{ authelia_admin_pass }}"]
+  register: authelia_hash
+  no_log: true
+  when: not ansible_check_mode and not authelia_users.stat.exists
+
+- name: Usuario «admin»
+  ansible.builtin.copy:
+    dest: "{{ authelia_dir }}/config/users.yml"
+    mode: "0600"
+    content: |
+      users:
+        admin:
+          disabled: false
+          displayname: 'Administrador'
+          password: '{{ authelia_hash.stdout | regex_search('\$argon2\S+') }}'
+          email: 'admin@{{ authelia_cookie_domain }}'
+          groups: [admins]
+  no_log: true
+  when: not ansible_check_mode and not authelia_users.stat.exists
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/authelia_admin"
+    mode: "0600"
+    content: "Usuario: admin\nContraseña: {{ authelia_admin_pass }}\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ authelia_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Authelia
+  ansible.builtin.command: docker compose -p dn-authelia up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ authelia_dir }}"
+  register: authelia_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: authelia_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in authelia_up.stderr or 'Created' in authelia_up.stderr or 'Recreated' in authelia_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ authelia_port }}/api/health"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: authelia_http
+  until: authelia_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 40
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-authelia
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Authelia {{ 'responde' if (authelia_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-authelia logs, en ' ~ authelia_dir ~ ')' }} en {{ authelia_url }}.
+      Entra en https://{{ authelia_domain }} con «admin» (contraseña en «Contraseñas»). El código para registrar el doble factor queda en {{ authelia_dir }}/config/notificaciones.txt.

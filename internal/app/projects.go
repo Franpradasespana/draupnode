@@ -233,6 +233,7 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 	portClashes(sel, &res, a.moduleName)
 	res.Warnings = append(res.Warnings, missingPorts(sel)...)
 	res.Warnings = append(res.Warnings, syncProxySites(sel)...)
+	res.Warnings = append(res.Warnings, syncAuthelia(sel)...)
 	syncVPNDNS(sel)
 	srv, srvErr := a.store.Server(p.ServerID)
 	if srvErr == nil {

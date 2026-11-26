@@ -1,0 +1,46 @@
+# Textos en inglés de «audiobookshelf» (los ids, variables y valores están en module.yaml).
+name: Audiobookshelf (audiobooks and podcasts)
+category: 7 · Apps
+description: Your audiobooks and podcasts on your server, with mobile apps that remember where you left off.
+details: |
+  Audiobookshelf in Docker. Draupnode creates the “root” user (the
+  administrator) with the password generated on the server (in
+  “Passwords”). Upload audiobooks to
+  /srv/draupnode/apps/audiobookshelf/audiolibros (one folder per book)
+  and podcasts are downloaded automatically into .../podcasts.
+  Its data is in /srv/draupnode/apps/audiobookshelf (included in the backups of the
+  Backups module). License: GPL-3.0.
+uninstall_warning: Stops and removes the Audiobookshelf containers.
+uninstall_data: Also delete its data (the library, audiobooks, podcasts and each user's progress). This cannot be undone.
+variables:
+  audiobookshelf_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  audiobookshelf_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  audiobookshelf_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  audiobookshelf_update:
+    label: Update Audiobookshelf when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- Audiobookshelf “root” user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add “Audiobookshelf” and apply.
+  - Press “Open (SSH tunnel)”, log in as “root” and create a library with the /audiobooks folder.
+  comprobar:
+  - You can log in as “root” with the password from “Passwords”.
+  - An audiobook copied into /srv/draupnode/apps/audiobookshelf/audiolibros shows up in the library after scanning it.
+  necesita:
+  - Nothing.
+  problemas:
+  - 'It asks you to create the root user → the first apply did not get to create it: apply again.'
+  - Books do not show up → each book in its own folder, then press “Scan” in the library.

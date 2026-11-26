@@ -11,7 +11,7 @@
   when: paperless_cf.stat.exists and not ansible_check_mode
 
 - name: Borrar sus datos
-  ansible.builtin.shell: rm -rf /srv/draupnode/apps/paperless {{ draupnode_secrets_dir | quote }}/paperless_admin
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/paperless {{ draupnode_secrets_dir | quote }}/paperless_admin {{ draupnode_secrets_dir | quote }}/paperless_admin {{ draupnode_secrets_dir | quote }}/.paperless_secret_key {{ draupnode_secrets_dir | quote }}/.paperless_db
   when: draupnode_uninstall_purge | bool and not ansible_check_mode
 
 - name: Nota

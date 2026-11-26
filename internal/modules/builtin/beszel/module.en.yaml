@@ -1,0 +1,48 @@
+# Textos en inglés de «beszel» (los ids, variables y valores están en module.yaml).
+name: Beszel (lightweight server monitoring)
+category: 6 · Monitoring
+description: CPU, memory, disk, network and containers of your servers on a simple web page, with history and alerts. Much lighter than Grafana + Prometheus.
+details: |
+  Beszel in Docker: the “hub” (the web page) and the agent of this server.
+  Draupnode creates the key the hub uses to talk to agents and the
+  administrator user (email admin@beszel.local, password in
+  “Passwords”), and registers this server: agent and hub talk through
+  a shared socket, without opening any port. To watch other servers,
+  install the Beszel agent on them with the same key (the public one,
+  which you see when you press “Add system”).
+  Its data is in /srv/draupnode/apps/beszel (included in the backups of the
+  Backups module). License: MIT.
+uninstall_warning: Stops and removes the Beszel containers.
+uninstall_data: Also delete its data (the history and the users). This cannot be undone.
+variables:
+  beszel_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  beszel_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  beszel_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  beszel_update:
+    label: Update Beszel when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- Beszel administrator
+prueba:
+  lab: Yes.
+  pasos:
+  - Add “Beszel” and apply.
+  - Press “Open (SSH tunnel)”, log in with admin@beszel.local and look at the system that is already registered.
+  comprobar:
+  - The system shows green with its CPU, memory and disk.
+  - The system also shows its containers.
+  necesita:
+  - Nothing.
+  problemas:
+  - 'The system shows “down” → look at the agent log: docker logs dn-beszel-agent.'
+  - It does not let you in → if the user was not created automatically, the web asks you to create it the first time.

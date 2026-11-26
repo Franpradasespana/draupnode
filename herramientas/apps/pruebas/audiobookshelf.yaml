@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Audiobookshelf» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con «root» y crea una biblioteca con la carpeta /audiobooks."
+  comprobar:
+    - "Entras con «root» y la contraseña de «Contraseñas»."
+    - "Un audiolibro copiado en /srv/draupnode/apps/audiobookshelf/audiolibros sale en la biblioteca al escanearla."
+  necesita:
+    - "Nada."
+  problemas:
+    - "Te pide crear el usuario root → la primera aplicación no llegó a crearlo: vuelve a aplicar."
+    - "No aparecen los libros → cada libro en su propia carpeta y pulsa «Scan» en la biblioteca."

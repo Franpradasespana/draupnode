@@ -1,0 +1,61 @@
+# Textos en inglés de «msmtp» (los ids, variables y valores están en module.yaml).
+name: Outgoing email (msmtp)
+category: 1 · System
+description: Lets the server send emails (cron notices, automatic update notices and program messages) through your email provider's SMTP.
+details: |
+  Installs msmtp (GPL-3.0) as the system “sendmail”: whatever the server
+  sends by email goes out through the SMTP server you set (your email's,
+  Amazon SES, Stalwart…). Mail to “root” or to any system user reaches the
+  “Send notices to” address.
+  If you tick “Automatic update notices”, it writes to you when an
+  update fails.
+  The SMTP password stays in /etc/msmtprc, readable only by root:
+  programs not running as root cannot send email.
+uninstall_warning: Removes msmtp and its configuration; the server can no longer send email.
+variables:
+  msmtp_host:
+    label: SMTP server
+    help: Your email provider's (smtp.example.com).
+    pattern_help: A server name (smtp.example.com)
+  msmtp_port:
+    label: Port
+    help: 587 (STARTTLS) is the usual one; 465 if your provider uses direct SSL.
+  msmtp_tls:
+    label: Encryption
+    help: “starttls” for 587; “tls” for 465.
+  msmtp_user:
+    label: SMTP user
+    help: Usually your email address. Empty = no user.
+  msmtp_password:
+    label: SMTP password
+    help: Many providers require an “app password” instead of yours.
+  msmtp_from:
+    label: Sender
+    help: The address emails are sent from (your provider usually requires it to be yours).
+    pattern_help: An email address
+  msmtp_to:
+    label: Send notices to
+    help: Whatever goes to root (cron, updates, programs) arrives here.
+    pattern_help: An email address
+  msmtp_unattended:
+    label: Automatic update notices
+    help: It writes to you when an automatic update fails.
+  msmtp_test:
+    label: Send a test email when applying
+links:
+- Official website
+- Source code
+prueba:
+  lab: Yes.
+  pasos:
+  - Add “Outgoing email” with your email's SMTP details and “Send a test email” ticked.
+  - Apply and check your inbox (and the spam folder).
+  comprobar:
+  - The “Prueba de Draupnode” email reaches the “Send notices to” address.
+  - 'In “Terminal”: “echo hola | mail -s prueba root” reaches you too.'
+  necesita:
+  - An email account with SMTP (and its app password, if your provider asks for one).
+  problemas:
+  - “authentication failed” → user or password; Gmail and Outlook need an app password.
+  - '“connection timed out” → the server''s provider blocks outgoing traffic to that port: try 465 with “tls”.'
+  - “sender address rejected” → the sender must be your address on that account.

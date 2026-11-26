@@ -11,7 +11,7 @@
   when: wikijs_cf.stat.exists and not ansible_check_mode
 
 - name: Borrar sus datos
-  ansible.builtin.shell: rm -rf /srv/draupnode/apps/wikijs 
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/wikijs {{ draupnode_secrets_dir | quote }}/.wikijs_db
   when: draupnode_uninstall_purge | bool and not ansible_check_mode
 
 - name: Nota

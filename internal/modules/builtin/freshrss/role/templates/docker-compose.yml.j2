@@ -1,0 +1,32 @@
+# Generado por Draupnode (módulo freshrss). No lo edites a mano: se reescribe al aplicar.
+name: dn-freshrss
+
+services:
+  freshrss:
+    image: docker.io/freshrss/freshrss:latest
+    {% if freshrss_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-freshrss
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      TZ: Etc/UTC
+      CRON_MIN: "1,21,41"
+      FRESHRSS_INSTALL: >-
+        --api-enabled
+        --base-url {{ ('https://' ~ freshrss_domain) if freshrss_domain else ('http://127.0.0.1:' ~ freshrss_port) }}
+        --db-type sqlite
+        --default-user admin
+        --language es
+      FRESHRSS_USER: >-
+        --api-password {{ freshrss_admin_pass }}
+        --language es
+        --password {{ freshrss_admin_pass }}
+        --user admin
+    volumes:
+      - ./data:/var/www/FreshRSS/data
+      - ./extensions:/var/www/FreshRSS/extensions
+    ports:
+      - "127.0.0.1:{{ freshrss_port }}:80"
+{% if (freshrss_public_port | default(0) | int) > 0 %}      - "{{ freshrss_public_port }}:80"
+{% endif %}

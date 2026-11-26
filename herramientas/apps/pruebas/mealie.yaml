@@ -1,0 +1,13 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Mealie» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con changeme@example.com y la contraseña de «Contraseñas», e importa una receta pegando su enlace."
+  comprobar:
+    - "La contraseña de serie («MyPassword») ya no vale; la de «Contraseñas», sí."
+    - "La receta importada sale con sus ingredientes y pasos."
+  necesita:
+    - "Nada."
+  problemas:
+    - "No importa una receta → algunas webs no siguen el formato de recetas; prueba con otra."

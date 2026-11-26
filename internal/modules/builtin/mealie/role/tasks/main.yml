@@ -1,0 +1,101 @@
+---
+- name: Carpeta de Mealie
+  ansible.builtin.set_fact:
+    mealie_dir: /srv/draupnode/apps/mealie
+    mealie_url: "{{ ('https://' ~ mealie_domain) if mealie_domain else ('http://127.0.0.1:' ~ mealie_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ mealie_dir }}"
+    - "{{ mealie_dir }}/data"
+
+- name: Contraseña «.mealie_admin_pass» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    mealie_admin_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.mealie_admin_pass', chars=['ascii_letters', 'digits'], length=24) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ mealie_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Mealie
+  ansible.builtin.command: docker compose -p dn-mealie up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ mealie_dir }}"
+  register: mealie_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: mealie_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in mealie_up.stderr or 'Created' in mealie_up.stderr or 'Recreated' in mealie_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ mealie_port }}/api/app/about"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: mealie_http
+  until: mealie_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 60
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-mealie
+  when: not ansible_check_mode
+
+- name: ¿Sigue la contraseña de serie?
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ mealie_port }}/api/auth/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      username: changeme@example.com
+      password: MyPassword
+    status_code: [200, 401]
+  register: mealie_login
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Poner la generada
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ mealie_port }}/api/users/password"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ mealie_login.json.access_token }}"
+    body_format: json
+    body:
+      currentPassword: MyPassword
+      newPassword: "{{ mealie_admin_pass }}"
+    status_code: [200, 204]
+  changed_when: true
+  no_log: true
+  when: not ansible_check_mode and mealie_login.status == 200
+
+- name: Usuario y contraseña, para verlos en la app
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/mealie_admin"
+    mode: "0600"
+    content: "Usuario: changeme@example.com\nContraseña: {{ mealie_admin_pass }}\nCambia este correo por el tuyo en tu perfil.\n"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Mealie {{ 'responde' if (mealie_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-mealie logs, en ' ~ mealie_dir ~ ')' }} en {{ mealie_url }}.
+      Entra con changeme@example.com (contraseña en «Contraseñas») y cambia ese correo por el tuyo.

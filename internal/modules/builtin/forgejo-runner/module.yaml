@@ -1,0 +1,74 @@
+id: forgejo-runner
+name: Forgejo Runner (Actions de tu Forgejo)
+version: 1.0.0
+category: 7 · Apps
+description: "El que ejecuta las Actions (integración continua) de tu Forgejo o Gitea: pruebas, compilaciones y despliegues al hacer push, como GitHub Actions."
+details: |
+  Forgejo Runner en Docker. Se registra en tu Forgejo con el token que
+  te da (Administración del sitio → Actions → Runners → «Create new
+  runner», o en la configuración de un repositorio/organización) y
+  ejecuta cada trabajo en un contenedor nuevo, con las etiquetas que
+  pongas (por defecto, ubuntu-latest = node:20-bookworm, que entiende la
+  mayoría de las acciones de GitHub).
+  OJO: los trabajos pueden usar Docker del servidor, que equivale a ser
+  root: úsalo solo con repositorios de confianza, mejor en un servidor
+  aparte. Sus datos están en /srv/draupnode/apps/forgejo-runner.
+  Licencia: GPL-3.0-or-later.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: Para y quita el runner. En Forgejo seguirá en la lista (sin conectar) hasta que lo borres allí.
+uninstall_data: Borrar también su registro y su caché. No se puede deshacer.
+variables:
+  - name: forgejo_runner_url
+    label: Dirección de tu Forgejo
+    help: La de la web (https://git.ejemplo.com). Tiene que llegarse desde este servidor.
+    type: string
+    required: true
+    pattern: '^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/.*)?$'
+    pattern_help: Una dirección http(s)://…
+  - name: forgejo_runner_token
+    label: Token de registro
+    help: El que da Forgejo al pulsar «Create new runner». Solo se usa la primera vez.
+    type: secret
+  - name: forgejo_runner_name
+    label: Nombre del runner
+    help: Como saldrá en Forgejo. Vacío = el nombre del servidor.
+    type: string
+    default: ""
+    pattern: '^[A-Za-z0-9._-]*$'
+    pattern_help: Letras, números, punto, guion y guion bajo
+  - name: forgejo_runner_labels
+    label: Etiquetas
+    help: «etiqueta:docker://imagen». En el workflow, «runs-on» elige la etiqueta. Cambiarlas obliga a registrarlo de nuevo (borra su carpeta «data»).
+    type: list
+    default: ["ubuntu-latest:docker://node:20-bookworm", "docker:docker://node:20-bookworm"]
+    pattern: '^[a-z0-9._-]+:(docker://\S+|host)$'
+    pattern_help: Como «ubuntu-latest:docker://node:20-bookworm»
+  - name: forgejo_runner_capacity
+    label: Trabajos a la vez
+    type: int
+    default: 1
+    min: 1
+    max: 16
+links:
+  - label: "Documentación"
+    url: https://forgejo.org/docs/latest/admin/actions/runner-installation/
+  - label: "Código fuente"
+    url: https://code.forgejo.org/forgejo/runner
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, junto con «Forgejo» en el mismo servidor de pruebas: abre en Forgejo «Abrir un puerto a internet» (por ejemplo 3011) y usa http://IP-de-docker0:3011 (mírala con «ip addr show docker0»)."
+  pasos:
+    - "En Forgejo: Administración del sitio → Actions → Runners → «Create new runner» y copia el token."
+    - "Añade «Forgejo Runner» con la dirección de Forgejo y el token, y aplica."
+    - "En un repositorio con Actions activadas, sube .forgejo/workflows/prueba.yml con un trabajo «runs-on: ubuntu-latest» que haga «echo hola»."
+  comprobar:
+    - "En Forgejo, el runner sale en la lista como «Idle» (en espera)."
+    - "El workflow se ejecuta y termina en verde."
+  necesita:
+    - "Un Forgejo (o Gitea) al que se llegue desde este servidor, con Actions activadas."
+  problemas:
+    - "«register: … 401/404» → token caducado o ya usado: crea otro runner en Forgejo, borra /srv/draupnode/apps/forgejo-runner/data/.runner y aplica."
+    - "Los trabajos fallan al hacer checkout → los contenedores de los trabajos no llegan a la dirección de Forgejo: usa su dominio, no 127.0.0.1."

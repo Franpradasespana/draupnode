@@ -1,0 +1,74 @@
+id: beszel
+name: "Beszel (vigilancia ligera de servidores)"
+version: 1.0.0
+category: 6 · Monitorización
+description: "CPU, memoria, disco, red y contenedores de tus servidores en una web sencilla, con historial y alertas. Mucho más ligero que Grafana + Prometheus."
+details: |
+  Beszel en Docker: el «hub» (la web) y el agente de este servidor.
+  Draupnode crea la clave con la que el hub habla con los agentes y el
+  usuario administrador (correo admin@beszel.local, contraseña en
+  «Contraseñas»), y da de alta este servidor: el agente y el hub hablan
+  por un socket compartido, sin abrir ningún puerto. Para vigilar otros
+  servidores, instala en ellos el agente de Beszel con la misma clave
+  (la pública, que ves al pulsar «Add system»).
+  Sus datos están en /srv/draupnode/apps/beszel (entran en las copias del
+  módulo Copias). Licencia: MIT.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [beszel_public_port]
+proxy_site:
+  domain: beszel_domain
+  port: beszel_port
+secrets:
+  - file: beszel_admin
+    label: Administrador de Beszel
+uninstall_warning: "Para y quita los contenedores de Beszel."
+uninstall_data: "Borrar también sus datos (el historial y los usuarios). No se puede deshacer."
+variables:
+  - name: beszel_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8095
+    min: 1024
+    max: 65535
+  - name: beszel_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: beszel_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: beszel_update
+    label: Actualizar Beszel al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://beszel.dev
+  - label: "Código fuente"
+    url: https://github.com/henrygd/beszel
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Beszel» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con admin@beszel.local y mira el sistema que ya está dado de alta."
+  comprobar:
+    - "El sistema sale en verde con su CPU, memoria y disco."
+    - "En el sistema se ven también los contenedores."
+  necesita:
+    - "Nada."
+  problemas:
+    - "El sistema sale «down» → mira el registro del agente: docker logs dn-beszel-agent."
+    - "No deja entrar → si el usuario no se creó solo, la primera vez la web te pide crearlo."

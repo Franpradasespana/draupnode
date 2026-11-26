@@ -1,0 +1,20 @@
+# Generado por Draupnode (módulo audiobookshelf). No lo edites a mano: se reescribe al aplicar.
+name: dn-audiobookshelf
+
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    {% if audiobookshelf_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-audiobookshelf
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    volumes:
+      - ./config:/config
+      - ./metadata:/metadata
+      - ./audiolibros:/audiobooks
+      - ./podcasts:/podcasts
+    ports:
+      - "127.0.0.1:{{ audiobookshelf_port }}:80"
+{% if (audiobookshelf_public_port | default(0) | int) > 0 %}      - "{{ audiobookshelf_public_port }}:80"
+{% endif %}

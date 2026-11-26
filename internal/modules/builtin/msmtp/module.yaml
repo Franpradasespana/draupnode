@@ -1,0 +1,92 @@
+id: msmtp
+name: Correo saliente (msmtp)
+version: 1.0.0
+category: 1 · Sistema
+description: "Que el servidor pueda mandar correos (los avisos de cron, de las actualizaciones automáticas y de los programas) a través del SMTP de tu proveedor de correo."
+details: |
+  Instala msmtp (GPL-3.0) como «sendmail» del sistema: lo que el servidor
+  mande por correo sale por el servidor SMTP que pongas (el de tu correo,
+  Amazon SES, Stalwart…). Lo que vaya a «root» o a cualquier usuario del
+  sistema llega a la dirección de «Mandar los avisos a».
+  Si marcas «Avisos de las actualizaciones automáticas», te escribe cuando
+  una actualización falla.
+  La contraseña del SMTP queda en /etc/msmtprc, solo legible por root:
+  los programas que no corran como root no pueden mandar correo.
+depends: [base]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: Quita msmtp y su configuración; el servidor deja de poder mandar correos.
+variables:
+  - name: msmtp_host
+    label: Servidor SMTP
+    help: El de tu proveedor de correo (smtp.ejemplo.com).
+    type: string
+    required: true
+    pattern: '^[A-Za-z0-9.-]+$'
+    pattern_help: Un nombre de servidor (smtp.ejemplo.com)
+  - name: msmtp_port
+    label: Puerto
+    help: 587 (STARTTLS) es lo normal; 465 si tu proveedor usa SSL directo.
+    type: int
+    default: 587
+    min: 1
+    max: 65535
+  - name: msmtp_tls
+    label: Cifrado
+    help: «starttls» para el 587; «tls» para el 465.
+    type: select
+    options: [starttls, tls]
+    default: starttls
+  - name: msmtp_user
+    label: Usuario del SMTP
+    help: Normalmente tu dirección de correo. Vacío = sin usuario.
+    type: string
+    default: ""
+  - name: msmtp_password
+    label: Contraseña del SMTP
+    help: Muchos proveedores piden una «contraseña de aplicación» en vez de la tuya.
+    type: secret
+  - name: msmtp_from
+    label: Remitente
+    help: La dirección desde la que salen los correos (tu proveedor suele exigir que sea la tuya).
+    type: string
+    required: true
+    pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+    pattern_help: Una dirección de correo
+  - name: msmtp_to
+    label: Mandar los avisos a
+    help: Lo que vaya a root (cron, actualizaciones, programas) llega aquí.
+    type: string
+    required: true
+    pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+    pattern_help: Una dirección de correo
+  - name: msmtp_unattended
+    label: Avisos de las actualizaciones automáticas
+    help: Te escribe cuando una actualización automática falla.
+    type: bool
+    default: true
+  - name: msmtp_test
+    label: Mandar un correo de prueba al aplicar
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://marlam.de/msmtp/
+  - label: "Código fuente"
+    url: https://github.com/marlam/msmtp
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Correo saliente» con los datos del SMTP de tu correo y «Mandar un correo de prueba» marcado."
+    - "Aplica y mira tu bandeja de entrada (y la de spam)."
+  comprobar:
+    - "Te llega el correo «Prueba de Draupnode» a la dirección de «Mandar los avisos a»."
+    - "En «Terminal»: «echo hola | mail -s prueba root» también te llega."
+  necesita:
+    - "Una cuenta de correo con SMTP (y su contraseña de aplicación, si tu proveedor la pide)."
+  problemas:
+    - "«authentication failed» → usuario o contraseña; en Gmail y Outlook hace falta una contraseña de aplicación."
+    - "«connection timed out» → el proveedor del servidor bloquea la salida a ese puerto: prueba el 465 con «tls»."
+    - "«sender address rejected» → el remitente tiene que ser tu dirección de esa cuenta."

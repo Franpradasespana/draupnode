@@ -77,6 +77,7 @@
  "Angular: revisa la carpeta de salida de la compilación (dist/<proyecto>/browser).": "Angular: check the build output folder (dist/<project>/browser).",
  "Aplica primero «%s» (en %s) y después este servidor.": "Apply «%s» first (on %s) and then this server.",
  "Arrancando el servicio de Docker (te pedirá tu contraseña)…": "Starting the Docker service (it will ask for your password)…",
+ "Authelia protege tus apps a través de Caddy: añade el módulo Caddy (con nginx no se hace sola).": "Authelia protects your apps through Caddy: add the Caddy module (it is not automatic with nginx).",
  "Añadidos: ": "Added: ",
  "Añadiendo tu usuario al grupo docker (te pedirá tu contraseña)…": "Adding your user to the docker group (it will ask for your password)…",
  "Carpeta del proyecto": "Project folder",

@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Beszel» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con admin@beszel.local y mira el sistema que ya está dado de alta."
+  comprobar:
+    - "El sistema sale en verde con su CPU, memoria y disco."
+    - "En el sistema se ven también los contenedores."
+  necesita:
+    - "Nada."
+  problemas:
+    - "El sistema sale «down» → mira el registro del agente: docker logs dn-beszel-agent."
+    - "No deja entrar → si el usuario no se creó solo, la primera vez la web te pide crearlo."

@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (sin dominio, el cliente avisará de que no es HTTPS)."
+  pasos:
+    - "Añade «Headscale» (mejor con dominio y Caddy) y aplica."
+    - "Instala Tailscale en tu equipo y ejecuta «tailscale up --login-server <dirección> --authkey <clave de «Contraseñas»>»."
+  comprobar:
+    - "«docker exec dn-headscale headscale nodes list» (en «Terminal») enseña tu equipo."
+    - "Con dos equipos unidos, uno hace ping a la IP 100.64.x.x del otro."
+  necesita:
+    - "Para usarlo de verdad, un dominio con HTTPS."
+  problemas:
+    - "La clave ha caducado (30 días) → borra /etc/draupnode/secretos/<servidor>/headscale_clave y vuelve a aplicar."
+    - "Los equipos no se ven entre sí → usan los servidores DERP de Tailscale para salir de redes difíciles; comprueba que tienen salida a internet."

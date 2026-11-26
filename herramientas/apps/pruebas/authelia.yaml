@@ -1,0 +1,15 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "No del todo: necesita un dominio de verdad con HTTPS (Caddy) para iniciar sesión. En el servidor de pruebas solo se comprueba que arranca."
+  pasos:
+    - "Añade «Caddy» y «Authelia» con el dominio auth.tu-dominio y, en «Dominios protegidos», el de alguna app (por ejemplo kuma.tu-dominio de Uptime Kuma)."
+    - "Aplica y abre https://kuma.tu-dominio."
+  comprobar:
+    - "Antes de ver la app te manda a https://auth.tu-dominio a iniciar sesión."
+    - "Con «admin» y la contraseña de «Contraseñas» (y el código del doble factor) entras en la app."
+  necesita:
+    - "Un dominio con sus subdominios apuntando al servidor y Caddy."
+  problemas:
+    - "Te pide el código de registro del doble factor → está en /srv/draupnode/apps/authelia/config/notificaciones.txt (míralo en «Terminal»)."
+    - "Bucle de redirecciones → la app y Authelia tienen que colgar del mismo dominio principal."
+    - "Con nginx no protege nada → de momento la protección automática es solo con Caddy."

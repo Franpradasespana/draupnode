@@ -1,0 +1,19 @@
+---
+- name: ¿Está Authelia?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/authelia/docker-compose.yml
+  register: authelia_cf
+
+- name: Parar y quitar Authelia
+  ansible.builtin.command: docker compose -p dn-authelia down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/authelia
+  when: authelia_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/authelia {{ draupnode_secrets_dir | quote }}/authelia_admin {{ draupnode_secrets_dir | quote }}/.authelia_admin_pass {{ draupnode_secrets_dir | quote }}/.authelia_jwt {{ draupnode_secrets_dir | quote }}/.authelia_session {{ draupnode_secrets_dir | quote }}/.authelia_storage
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Authelia {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/authelia: si lo reinstalas, vuelve todo.' }}"

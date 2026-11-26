@@ -1,0 +1,47 @@
+# Textos en inglés de «listmonk» (los ids, variables y valores están en module.yaml).
+name: Listmonk (newsletters and mailing lists)
+category: 7 · Apps
+description: 'Send newsletters to your subscribers: lists, templates, campaigns, open and unsubscribe statistics. It sends email through the SMTP you give it.'
+details: |
+  Listmonk in Docker, with its own PostgreSQL. Draupnode creates the
+  “admin” user with the password generated on the server (in “Passwords”).
+  To send it needs an SMTP server (your email provider's, Amazon SES,
+  Stalwart…): set it in “Settings → SMTP”.
+  With a domain, sign-up forms and unsubscribe links work from the
+  internet.
+  Its data is in /srv/draupnode/apps/listmonk (included in the backups of the
+  Backups module). License: AGPL-3.0.
+uninstall_warning: Stops and removes the Listmonk containers.
+uninstall_data: Also delete its data (the lists, subscribers, campaigns and their database). This cannot be undone.
+variables:
+  listmonk_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  listmonk_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  listmonk_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  listmonk_update:
+    label: Update Listmonk when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- Listmonk “admin” user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add “Listmonk” and apply.
+  - Press “Open (SSH tunnel)”, log in to /admin as “admin” and create a list and a campaign.
+  comprobar:
+  - You can log in as “admin” with the password from “Passwords”.
+  - With an SMTP set in Settings → SMTP, “Send test” reaches your inbox.
+  necesita:
+  - To send for real, an SMTP server.
+  problemas:
+  - It does not send → check Settings → SMTP (and your domain's SPF/DKIM records to avoid spam).

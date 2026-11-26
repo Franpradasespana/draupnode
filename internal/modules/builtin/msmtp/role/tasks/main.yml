@@ -1,0 +1,74 @@
+---
+- name: Instalar msmtp (como sendmail del sistema) y mail
+  ansible.builtin.apt:
+    name: [msmtp, msmtp-mta, bsd-mailx]
+    state: present
+    update_cache: true
+    lock_timeout: 600
+
+- name: /etc/msmtprc (solo root puede leerlo, lleva la contraseña)
+  ansible.builtin.copy:
+    dest: /etc/msmtprc
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      # Generado por Draupnode (módulo msmtp). Se reescribe al aplicar.
+      defaults
+      auth {{ 'on' if msmtp_user else 'off' }}
+      tls on
+      tls_starttls {{ 'on' if msmtp_tls == 'starttls' else 'off' }}
+      tls_trust_file /etc/ssl/certs/ca-certificates.crt
+      syslog LOG_MAIL
+      aliases /etc/aliases
+
+      account default
+      host {{ msmtp_host }}
+      port {{ msmtp_port }}
+      from {{ msmtp_from }}
+      {% if msmtp_user %}
+      user {{ msmtp_user }}
+      password {{ msmtp_password | default('') }}
+      {% endif %}
+  no_log: true
+
+- name: Lo que vaya a root (y a cualquier usuario) llega a tu dirección
+  ansible.builtin.copy:
+    dest: /etc/aliases
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo msmtp).
+      root: {{ msmtp_to }}
+      default: {{ msmtp_to }}
+
+- name: Avisos de las actualizaciones automáticas
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/51draupnode-correo
+    mode: "0644"
+    content: |
+      // Generado por Draupnode (módulo msmtp).
+      Unattended-Upgrade::Mail "root";
+      Unattended-Upgrade::MailReport "only-on-error";
+  when: msmtp_unattended | bool
+
+- name: Sin avisos de las actualizaciones automáticas
+  ansible.builtin.file:
+    path: /etc/apt/apt.conf.d/51draupnode-correo
+    state: absent
+  when: not (msmtp_unattended | bool)
+
+- name: Correo de prueba
+  ansible.builtin.shell: |
+    printf 'To: %s\nFrom: %s\nSubject: Prueba de Draupnode (%s)\n\nEl servidor %s ya puede mandar correos.\n' \
+      {{ msmtp_to | quote }} {{ msmtp_from | quote }} "$(hostname)" "$(hostname)" | msmtp -t
+  register: msmtp_prueba
+  changed_when: false
+  failed_when: false
+  when: msmtp_test | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      {% if not (msmtp_test | bool) or ansible_check_mode %}Correo saliente por {{ msmtp_host }}:{{ msmtp_port }}.
+      {% elif msmtp_prueba.rc == 0 %}Correo de prueba enviado a {{ msmtp_to }}: mira tu bandeja (y el spam).
+      {% else %}NO se pudo mandar el correo de prueba: {{ (msmtp_prueba.stderr | default('')) | trim }}{% endif %}

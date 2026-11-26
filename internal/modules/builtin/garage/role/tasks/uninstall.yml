@@ -1,0 +1,19 @@
+---
+- name: ¿Está Garage?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/garage/docker-compose.yml
+  register: garage_cf
+
+- name: Parar y quitar Garage
+  ansible.builtin.command: docker compose -p dn-garage down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/garage
+  when: garage_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/garage {{ draupnode_secrets_dir | quote }}/garage_s3 {{ draupnode_secrets_dir | quote }}/.garage_admin {{ draupnode_secrets_dir | quote }}/.garage_rpc
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Garage {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/garage: si lo reinstalas, vuelve todo.' }}"

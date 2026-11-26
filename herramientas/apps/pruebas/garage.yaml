@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Garage» y aplica."
+    - "Mira en «Contraseñas» la clave S3 y pruébala con un cliente (rclone, aws-cli) contra la dirección, región «garage»."
+  comprobar:
+    - "«docker exec dn-garage /garage status» enseña el nodo con su capacidad."
+    - "Se puede subir y bajar un fichero al bucket con la clave."
+  necesita:
+    - "Nada para probarlo. Para usarlo desde otros servidores, dominio con Caddy o nginx."
+  problemas:
+    - "«Forbidden» o firma no válida → usa la región «garage» y el modo path-style."
+    - "Sin sitio → sube «Espacio que puede usar» y cambia el layout con «garage layout assign» (lo pone Draupnode solo la primera vez)."

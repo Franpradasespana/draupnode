@@ -1,0 +1,19 @@
+# Generado por Draupnode (módulo authelia). No lo edites a mano: se reescribe al aplicar.
+name: dn-authelia
+
+services:
+  authelia:
+    image: docker.io/authelia/authelia:4.39
+    {% if authelia_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-authelia
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      TZ: Etc/UTC
+    volumes:
+      - ./config:/config
+    ports:
+      - "127.0.0.1:{{ authelia_port }}:9091"
+{% if (authelia_public_port | default(0) | int) > 0 %}      - "{{ authelia_public_port }}:9091"
+{% endif %}

@@ -41,7 +41,11 @@ export function CancelDockerLabTest():Promise<boolean>;
 
 export function CancelRun(arg1:string):Promise<boolean>;
 
+export function CheckDomains(arg1:string):Promise<app.DomainReport>;
+
 export function CheckDrift(arg1:string,arg2:string,arg3:string,arg4:string):Promise<app.DriftResult>;
+
+export function CheckImages(arg1:string,arg2:string,arg3:string,arg4:string):Promise<app.ImagesResult>;
 
 export function CheckProject(arg1:store.Project):Promise<app.ProjectCheck>;
 
@@ -79,6 +83,8 @@ export function CreateBackupTarget(arg1:string,arg2:string,arg3:number):Promise<
 
 export function CreateUserModule(arg1:string,arg2:string):Promise<app.UserModule>;
 
+export function DNSProviders():Promise<Array<app.DNSProvider>>;
+
 export function DefaultBackupFolder(arg1:string):Promise<string>;
 
 export function DefaultDockerSpec(arg1:string,arg2:string):Promise<dockerize.Spec>;
@@ -88,6 +94,8 @@ export function DeleteProject(arg1:string):Promise<void>;
 export function DeleteRecipe(arg1:string):Promise<void>;
 
 export function DeleteServer(arg1:string):Promise<void>;
+
+export function DeleteServerSnapshot(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteUserModule(arg1:string):Promise<void>;
 
@@ -143,11 +151,17 @@ export function LabRegister():Promise<app.ServerView>;
 
 export function LabStatus():Promise<app.LabStatus>;
 
+export function LastDomainChecks():Promise<Record<string, app.DomainReport>>;
+
 export function LastDrifts():Promise<Record<string, app.DriftReport>>;
+
+export function LastImageChecks():Promise<Record<string, app.ImageReport>>;
 
 export function LastOverviews():Promise<Record<string, app.CachedOverview>>;
 
 export function Legal():Promise<app.Legal>;
+
+export function LinkServerCloud(arg1:string,arg2:string):Promise<app.ServerView>;
 
 export function ListModules():Promise<app.ModulesInfo>;
 
@@ -183,6 +197,8 @@ export function PingServers():Promise<Array<app.ServerPing>>;
 
 export function PlanUninstallAll(arg1:string):Promise<app.UninstallAllPlan>;
 
+export function PointDomain(arg1:string,arg2:string,arg3:string):Promise<app.PointDomainResult>;
+
 export function ProjectSecrets(arg1:string,arg2:string):Promise<Array<app.ProjectSecret>>;
 
 export function ProjectSecretsInfo(arg1:string):Promise<app.ProjectSecretsSummary>;
@@ -198,6 +214,8 @@ export function RecoverFromServer(arg1:string,arg2:string):Promise<app.RecoverRe
 export function ReloadModules():Promise<app.ModulesInfo>;
 
 export function RemoveOrphanApp(arg1:string,arg2:string,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<app.DockerResult>;
+
+export function RestoreServerSnapshot(arg1:string,arg2:string):Promise<void>;
 
 export function RunHistory(arg1:string,arg2:string,arg3:number):Promise<Array<app.RunEntry>>;
 
@@ -233,9 +251,15 @@ export function ServerOverview(arg1:string,arg2:string,arg3:string,arg4:string):
 
 export function ServerReboot(arg1:string,arg2:string,arg3:string,arg4:string):Promise<app.DockerResult>;
 
+export function ServerSnapshots(arg1:string):Promise<app.SnapshotInfo>;
+
 export function ServerUpgrade(arg1:string,arg2:string,arg3:string,arg4:string):Promise<app.DockerResult>;
 
 export function SetBackupsAuto(arg1:string,arg2:string,arg3:number):Promise<void>;
+
+export function SetDNSToken(arg1:string,arg2:string):Promise<void>;
+
+export function SetExtraDomains(arg1:string,arg2:Array<string>):Promise<app.DomainReport>;
 
 export function SetLanguage(arg1:string):Promise<void>;
 
@@ -245,7 +269,11 @@ export function SetProjectSecret(arg1:string,arg2:string,arg3:string):Promise<vo
 
 export function SetSecretBackend(arg1:string):Promise<void>;
 
+export function SetSnapshotOptions(arg1:string,arg2:boolean,arg3:number):Promise<app.ServerView>;
+
 export function SetUpdateCheck(arg1:boolean):Promise<void>;
+
+export function TakeServerSnapshot(arg1:string):Promise<string>;
 
 export function TerminalClose(arg1:string):Promise<void>;
 
@@ -260,6 +288,10 @@ export function TestConnection(arg1:string,arg2:string,arg3:string):Promise<app.
 export function UninstallAll(arg1:string,arg2:boolean,arg3:string,arg4:string,arg5:string):Promise<app.RunStart>;
 
 export function UninstallModules(arg1:string,arg2:Array<string>,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<app.RunStart>;
+
+export function UnlinkServerCloud(arg1:string):Promise<app.ServerView>;
+
+export function UpdateImages(arg1:string,arg2:Array<string>,arg3:string,arg4:string,arg5:string):Promise<app.ImagesResult>;
 
 export function VaultCreate(arg1:string):Promise<void>;
 

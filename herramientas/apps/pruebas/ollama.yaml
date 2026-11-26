@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, con paciencia: el modelo de serie ocupa unos 2 GB y en CPU responde despacio."
+  pasos:
+    - "Añade «Ollama + Hollama» y aplica (la primera vez tarda: baja el modelo)."
+    - "Pulsa «Abrir (túnel SSH)»; en Hollama, Settings → Servers, añade esa misma dirección (tipo Ollama) y chatea."
+  comprobar:
+    - "El modelo «llama3.2:3b» sale en Hollama y contesta."
+    - "«docker exec dn-ollama ollama list» enseña los modelos."
+  necesita:
+    - "Memoria: unos 4 GB libres para modelos de 3B; 8 GB para 7-8B."
+  problemas:
+    - "Responde muy despacio → es la CPU: usa un modelo más pequeño (qwen2.5:1.5b)."
+    - "Hollama no ve modelos → la dirección del servidor en Hollama tiene que ser la misma por la que entras."

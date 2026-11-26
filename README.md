@@ -52,17 +52,20 @@ En macOS: clic derecho sobre Draupnode → Abrir. En Windows: «Más informació
   Las contraseñas se generan en el propio servidor. Cada módulo se puede desinstalar, con o sin sus datos, y
   **«Desinstalar todo»** deja el servidor como recién preparado.
 - **Plantillas**: conjuntos de módulos con su configuración para añadirlos de una vez a cualquier servidor.
-- **Catálogo** de 50 módulos de código abierto, con su web, su código y su licencia, y una **guía para probar cada uno**
+- **Catálogo** de 64 módulos de código abierto, con su web, su código y su licencia, y una **guía para probar cada uno**
   en el servidor de pruebas (pasos y qué deberías ver), con una lista para ir marcando los que ya has comprobado:
-  - **Sistema y red**: base, cortafuegos, SSH seguro con fail2ban, hora exacta (chrony), WireGuard, Caddy, nginx, AdGuard.
-  - **Seguridad**: CrowdSec, Lynis, ClamAV, AIDE, auditd, Trivy, Keycloak, OpenBao.
+  - **Sistema y red**: base, cortafuegos, SSH seguro con fail2ban, hora exacta (chrony), WireGuard, Headscale, Caddy, nginx, AdGuard,
+    correo saliente (msmtp).
+  - **Seguridad**: CrowdSec, Lynis, ClamAV, AIDE, auditd, Trivy, Keycloak, OpenBao y Authelia (inicio de sesión con
+    doble factor delante de tus apps).
   - **Contenedores y Kubernetes**: Docker, Coolify, Portainer, registro de imágenes, Kubernetes (k3s con Helm),
     Argo CD y OpenTofu (la continuación libre de Terraform).
   - **Bases de datos**: PostgreSQL, MariaDB y Valkey (la continuación libre de Redis) compartidos, y Adminer.
   - **Copias y monitorización**: restic con destino en otro servidor, Prometheus + Grafana, Loki, alertas al móvil,
-    Uptime Kuma, Healthchecks, ntfy, Dozzle y Cockpit.
-  - **Apps**: Nextcloud, Vaultwarden, Immich, Jellyfin, Navidrome, Paperless-ngx, Forgejo, Syncthing, Samba, Wiki.js,
-    Vikunja, Umami y «Tu app».
+    Beszel, Uptime Kuma, Healthchecks, ntfy, Dozzle y Cockpit.
+  - **Apps**: Nextcloud, Vaultwarden, Immich, Jellyfin, Navidrome, Paperless-ngx, Forgejo con su runner, Syncthing,
+    Samba, Wiki.js, Vikunja, Umami, Garage (S3), Ollama con Hollama (IA), Home Assistant, Audiobookshelf, FreshRSS,
+    Mealie, Linkwarden, Listmonk, Stalwart (correo) y «Tu app».
 - **Editor de módulos propios** (CodeMirror) para crear los tuyos o copiar uno incluido, y **exportarlos e importarlos**
   (un fichero `.draupnode-modulo`): al importar, Draupnode comprueba que esté entero y te enseña qué hace en el
   servidor (tareas, órdenes, descargas y lo delicado) antes de aceptarlo.

@@ -1,0 +1,106 @@
+id: stalwart
+name: "Stalwart (servidor de correo completo)"
+version: 1.0.0
+category: 7 · Apps
+description: "Tu propio servidor de correo: recibe y envía (SMTP), buzones (IMAP y JMAP), filtros y antispam, todo en uno, con una web para administrarlo."
+details: |
+  Stalwart en Docker. Abre los puertos del correo (25, 465, 587 y 993)
+  en el cortafuegos. El usuario «admin» de la web de administración y
+  su contraseña (temporal, para arrancar) los crea Stalwart la primera
+  vez; Draupnode los copia a «Contraseñas».
+  OJO, el correo propio es exigente: necesitas un dominio con sus
+  registros MX, SPF, DKIM y DMARC (Stalwart te dice cuáles en
+  «Management → Domains → DNS records»), que tu proveedor deje salir el
+  puerto 25 (muchos lo bloquean: Hetzner y DigitalOcean lo abren si se
+  lo pides) y el DNS inverso de la IP con tu dominio.
+  Sus datos están en /srv/draupnode/apps/stalwart (entran en las copias del
+  módulo Copias). Licencia: AGPL-3.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 500
+firewall_ports_from: [stalwart_public_port, stalwart_smtp, stalwart_submissions, stalwart_submission, stalwart_imaps]
+proxy_site:
+  domain: stalwart_domain
+  port: stalwart_port
+secrets:
+  - file: stalwart_admin
+    label: Administrador de Stalwart
+uninstall_warning: "Para y quita los contenedores de Stalwart."
+uninstall_data: "Borrar también sus datos (todos los buzones, los correos y la configuración). No se puede deshacer."
+variables:
+  - name: stalwart_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8480
+    min: 1024
+    max: 65535
+  - name: stalwart_domain
+    label: Dominio
+    help: "Opcional: el de la web de administración (correo.ejemplo.com, con Caddy o nginx)."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: stalwart_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: stalwart_smtp
+    label: Puerto SMTP (recibir correo)
+    help: 25 es el que usan los demás servidores para entregarte el correo; no lo cambies si no sabes por qué.
+    type: int
+    default: 25
+    min: 1
+    max: 65535
+  - name: stalwart_submissions
+    label: Puerto para enviar desde tus programas (SSL)
+    type: int
+    default: 465
+    min: 1
+    max: 65535
+  - name: stalwart_submission
+    label: Puerto para enviar desde tus programas (STARTTLS)
+    type: int
+    default: 587
+    min: 1
+    max: 65535
+  - name: stalwart_imaps
+    label: Puerto IMAP (leer el correo)
+    type: int
+    default: 993
+    min: 1
+    max: 65535
+  - name: stalwart_update
+    label: Actualizar Stalwart al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://stalw.art
+  - label: "Documentación"
+    url: https://stalw.art/docs/install/docker
+  - label: "Código fuente"
+    url: https://github.com/stalwartlabs/stalwart
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Solo para ver la administración: el correo de verdad necesita dominio, DNS y el puerto 25 abierto."
+  pasos:
+    - "Añade «Stalwart» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y entra en la administración con «admin» y la contraseña de «Contraseñas»."
+    - "Añade tu dominio y crea en tu DNS los registros que te indica."
+  comprobar:
+    - "La administración abre y deja crear un dominio y un buzón."
+    - "Con el DNS hecho, un correo enviado desde fuera llega al buzón (míralo con un cliente IMAP)."
+  necesita:
+    - "Un dominio, su DNS, el puerto 25 de salida abierto por tu proveedor y el DNS inverso de la IP."
+  problemas:
+    - "No hay contraseña en «Contraseñas» → mírala en el registro: docker logs dn-stalwart | grep password."
+    - "No llegan correos de fuera → el puerto 25 cerrado en el proveedor o el registro MX mal."
+    - "Tus correos van a spam → faltan SPF, DKIM o DMARC, o el DNS inverso."

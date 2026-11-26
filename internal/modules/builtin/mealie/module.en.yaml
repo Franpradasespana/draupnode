@@ -1,0 +1,46 @@
+# Textos en inglés de «mealie» (los ids, variables y valores están en module.yaml).
+name: Mealie (recipes and weekly meal plan)
+category: 7 · Apps
+description: 'Your recipes in one place: import them from any website with their link, plan the week''s menu and make the shopping list.'
+details: |
+  Mealie in Docker, with an SQLite database. Draupnode changes the default
+  administrator password (changeme@example.com) to one generated on the
+  server (in “Passwords”). Change that email to yours in your profile
+  afterwards. Sign-up for new users stays closed: invite them from the
+  administration.
+  Its data is in /srv/draupnode/apps/mealie (included in the backups of the
+  Backups module). License: AGPL-3.0.
+uninstall_warning: Stops and removes the Mealie containers.
+uninstall_data: Also delete its data (the recipes, photos, meal plans and users). This cannot be undone.
+variables:
+  mealie_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  mealie_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  mealie_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  mealie_update:
+    label: Update Mealie when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- Mealie administrator
+prueba:
+  lab: Yes.
+  pasos:
+  - Add “Mealie” and apply.
+  - Press “Open (SSH tunnel)”, log in with changeme@example.com and the password from “Passwords”, and import a recipe by pasting its link.
+  comprobar:
+  - The default password (“MyPassword”) no longer works; the one in “Passwords” does.
+  - The imported recipe shows its ingredients and steps.
+  necesita:
+  - Nothing.
+  problemas:
+  - A recipe does not import → some sites do not follow the recipe format; try another one.

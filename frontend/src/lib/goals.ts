@@ -25,7 +25,12 @@ export function goals(): Goal[] {
     { id: 'media', icon: 'film', title: t('Películas, series y música'), text: t('Jellyfin y Navidrome.'), modules: ['jellyfin', 'navidrome'] },
     { id: 'vpn', icon: 'shield', title: t('VPN y sin anuncios'), text: t('WireGuard para entrar a tu red y AdGuard Home para quitar la publicidad.'), modules: ['wireguard', 'adguard'] },
     { id: 'docs', icon: 'file', title: t('Mis papeles en digital'), text: t('Paperless-ngx: escanea, lee el texto y archiva.'), modules: ['paperless'] },
-    { id: 'git', icon: 'git', title: t('Mi propio GitHub'), text: t('Forgejo: repositorios, incidencias y revisiones.'), modules: ['forgejo'] },
+    { id: 'git', icon: 'git', title: t('Mi propio GitHub'), text: t('Forgejo: repositorios, incidencias y revisiones, con sus Actions (Forgejo Runner).'), modules: ['forgejo', 'forgejo-runner'] },
+    { id: 'ai', icon: 'bot', title: t('IA en mi servidor'), text: t('Ollama con una web para chatear, sin mandar nada fuera (pide 4 GB de RAM).'), modules: ['ollama'] },
+    { id: 'home', icon: 'house', title: t('Domótica'), text: t('Home Assistant: luces, enchufes y sensores, sin la nube del fabricante.'), modules: ['home-assistant'] },
+    { id: 'reading', icon: 'book', title: t('Leer y escuchar'), text: t('FreshRSS para tus noticias y Audiobookshelf para audiolibros y pódcasts.'), modules: ['freshrss', 'audiobookshelf'] },
+    { id: 'mesh', icon: 'network', title: t('Red privada entre mis equipos'), text: t('Headscale: tus equipos conectados entre sí con las apps de Tailscale.'), modules: ['headscale'] },
+    { id: 'sso', icon: 'lock', title: t('Una puerta delante de mis apps'), text: t('Authelia: inicio de sesión con doble factor antes de entrar (con Caddy).'), modules: ['caddy', 'authelia'] },
     { id: 'watch', icon: 'activity', title: t('Vigilar el servidor'), text: t('Grafana con métricas y avisos al móvil cuando algo va mal.'), modules: ['monitoring', 'alerts'] },
     { id: 'k8s', icon: 'boxes', title: t('Kubernetes'), text: t('k3s con Helm y Argo CD.'), modules: ['k3s', 'argocd'] },
   ]

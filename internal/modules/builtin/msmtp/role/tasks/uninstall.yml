@@ -1,0 +1,17 @@
+---
+- name: Quitar msmtp
+  ansible.builtin.apt:
+    name: [msmtp-mta, msmtp]
+    state: absent
+    purge: true
+  when: not ansible_check_mode
+
+- name: Quitar su configuración
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/msmtprc, /etc/apt/apt.conf.d/51draupnode-correo]
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Correo saliente {{ 'se quitará' if ansible_check_mode else 'quitado' }}. /etc/aliases se queda como estaba."

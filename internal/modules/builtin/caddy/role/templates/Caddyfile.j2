@@ -21,6 +21,12 @@
 		-Server
 	}
 {% endif %}
+{% if caddy_forward_auth_to and parts[0] in (caddy_forward_auth | default([])) %}
+	forward_auth {{ caddy_forward_auth_to }} {
+		uri /api/authz/forward-auth
+		copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+	}
+{% endif %}
 {% if parts[1].startswith('/') %}
 	root * {{ parts[1] }}
 	file_server

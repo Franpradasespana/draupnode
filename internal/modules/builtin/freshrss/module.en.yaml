@@ -1,0 +1,45 @@
+# Textos en inglés de «freshrss» (los ids, variables y valores están en module.yaml).
+name: FreshRSS (RSS news reader)
+category: 7 · Apps
+description: Follow websites, blogs and channels through RSS in one place, without algorithms. Works with mobile apps (Fever and Google Reader).
+details: |
+  FreshRSS in Docker, with an SQLite database. Draupnode installs it with
+  the “admin” user and its password generated on the server (in
+  “Passwords”; it also works for mobile apps, in
+  “Configuration → Profile → API password”). It checks for new items
+  every 20 minutes.
+  Its data is in /srv/draupnode/apps/freshrss (included in the backups of the
+  Backups module). License: AGPL-3.0.
+uninstall_warning: Stops and removes the FreshRSS containers.
+uninstall_data: Also delete its data (the subscriptions, saved articles and users). This cannot be undone.
+variables:
+  freshrss_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  freshrss_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  freshrss_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  freshrss_update:
+    label: Update FreshRSS when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Source code
+secrets:
+- FreshRSS “admin” user
+prueba:
+  lab: Yes.
+  pasos:
+  - Add “FreshRSS” and apply.
+  - Press “Open (SSH tunnel)”, log in as “admin” and add an RSS feed.
+  comprobar:
+  - You can log in as “admin” with the password from “Passwords”.
+  - The feed's articles show up (they refresh by themselves every 20 minutes).
+  necesita:
+  - Nothing.
+  problemas:
+  - Mobile apps do not connect → enable the API in the user settings; the API password is the same as in “Passwords”.

@@ -1,0 +1,83 @@
+id: garage
+name: "Garage (almacenamiento S3 propio)"
+version: 1.0.0
+category: 7 · Apps
+description: "Tu propio almacenamiento compatible con S3 (como Amazon S3): para copias de seguridad, para apps que guardan ficheros en S3 o para servir ficheros estáticos."
+details: |
+  Garage en Docker, con un solo nodo. Draupnode lo deja listo: prepara
+  el nodo, crea un «bucket» y una clave de acceso con permiso para él (en
+  «Contraseñas»: ID de la clave, secreto, dirección y región «garage»).
+  Úsalo con cualquier cliente de S3 (rclone, restic, aws-cli…) en modo
+  «path-style». Con dominio, se publica en https://dominio.
+  Sus datos están en /srv/draupnode/apps/garage (entran en las copias del
+  módulo Copias). Licencia: AGPL-3.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [garage_public_port]
+proxy_site:
+  domain: garage_domain
+  port: garage_port
+secrets:
+  - file: garage_s3
+    label: Clave S3 de Garage
+uninstall_warning: "Para y quita los contenedores de Garage."
+uninstall_data: "Borrar también sus datos (todos los ficheros guardados y sus metadatos). No se puede deshacer."
+variables:
+  - name: garage_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 3900
+    min: 1024
+    max: 65535
+  - name: garage_domain
+    label: Dominio
+    help: "Opcional: s3.ejemplo.com (con Caddy o nginx) para llegar por HTTPS desde otros servidores."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: garage_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: garage_bucket
+    label: Bucket
+    help: El que se crea con su clave. Más, con «docker exec dn-garage /garage bucket create <nombre>».
+    type: string
+    default: copias
+    pattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+    pattern_help: Minúsculas, números, punto y guion (3-63)
+  - name: garage_capacity
+    label: Espacio que puede usar
+    help: Lo que reserva para los datos (por ejemplo 50G o 1T). Garage no deja pasar de ahí.
+    type: string
+    default: 20G
+    pattern: '^[0-9]+[GT]$'
+    pattern_help: Un número y G o T (50G, 1T)
+links:
+  - label: "Web oficial"
+    url: https://garagehq.deuxfleurs.fr
+  - label: "Documentación"
+    url: https://garagehq.deuxfleurs.fr/documentation/quick-start/
+  - label: "Código fuente"
+    url: https://git.deuxfleurs.fr/Deuxfleurs/garage
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Garage» y aplica."
+    - "Mira en «Contraseñas» la clave S3 y pruébala con un cliente (rclone, aws-cli) contra la dirección, región «garage»."
+  comprobar:
+    - "«docker exec dn-garage /garage status» enseña el nodo con su capacidad."
+    - "Se puede subir y bajar un fichero al bucket con la clave."
+  necesita:
+    - "Nada para probarlo. Para usarlo desde otros servidores, dominio con Caddy o nginx."
+  problemas:
+    - "«Forbidden» o firma no válida → usa la región «garage» y el modo path-style."
+    - "Sin sitio → sube «Espacio que puede usar» y cambia el layout con «garage layout assign» (lo pone Draupnode solo la primera vez)."

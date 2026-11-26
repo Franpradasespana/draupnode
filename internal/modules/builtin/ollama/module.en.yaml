@@ -1,0 +1,52 @@
+# Textos en inglés de «ollama» (los ids, variables y valores están en module.yaml).
+name: Ollama + Hollama (AI on your server)
+category: 7 · Apps
+description: Text AI models (Llama, Mistral, Qwen, Gemma…) on your server, without sending anything out, with a web page to chat.
+details: |
+  Ollama (the models) and Hollama (the chat web page) in Docker, together
+  behind a small nginx: the web page at / and the Ollama API at /api.
+  Applying downloads the models in the list (it takes a while: several GB).
+  Without a graphics card it runs on the CPU: with 8 GB of RAM, 3-4B
+  models (fast) or 8B (slow). In Hollama, “Settings → Servers”, add the
+  same address you use to get in (Ollama type).
+  The API asks for no password: put Authelia in front if you give it a domain.
+  Its data is in /srv/draupnode/apps/ollama (included in the backups of the
+  Backups module). License: MIT (Ollama and Hollama).
+uninstall_warning: Stops and removes the Ollama containers.
+uninstall_data: Also delete its data (the downloaded models). This cannot be undone.
+variables:
+  ollama_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  ollama_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  ollama_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  ollama_models:
+    label: Models to download
+    help: One per line, with its size (ollama.com/library). Removed ones are not deleted.
+    pattern_help: As on ollama.com (qwen2.5:7b)
+  ollama_update:
+    label: Update Ollama and Hollama when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Ollama
+- Models
+- Ollama source code
+- Hollama source code
+prueba:
+  lab: 'Yes, with patience: the default model takes about 2 GB and on CPU it answers slowly.'
+  pasos:
+  - 'Add “Ollama + Hollama” and apply (the first time is slow: it downloads the model).'
+  - Press “Open (SSH tunnel)”; in Hollama, Settings → Servers, add that same address (Ollama type) and chat.
+  comprobar:
+  - The “llama3.2:3b” model shows in Hollama and answers.
+  - “docker exec dn-ollama ollama list” shows the models.
+  necesita:
+  - 'Memory: about 4 GB free for 3B models; 8 GB for 7-8B.'
+  problemas:
+  - 'It answers very slowly → that is the CPU: use a smaller model (qwen2.5:1.5b).'
+  - Hollama sees no models → the server address in Hollama must be the same one you use to get in.

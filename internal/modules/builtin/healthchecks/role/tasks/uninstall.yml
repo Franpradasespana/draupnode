@@ -11,7 +11,7 @@
   when: healthchecks_cf.stat.exists and not ansible_check_mode
 
 - name: Borrar sus datos
-  ansible.builtin.shell: rm -rf /srv/draupnode/apps/healthchecks {{ draupnode_secrets_dir | quote }}/healthchecks_admin
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/healthchecks {{ draupnode_secrets_dir | quote }}/healthchecks_admin {{ draupnode_secrets_dir | quote }}/.healthchecks_admin_pass {{ draupnode_secrets_dir | quote }}/.healthchecks_secret
   when: draupnode_uninstall_purge | bool and not ansible_check_mode
 
 - name: Nota

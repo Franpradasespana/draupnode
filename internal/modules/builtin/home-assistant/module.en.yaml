@@ -1,0 +1,46 @@
+# Textos en inglés de «home-assistant» (los ids, variables y valores están en module.yaml).
+name: Home Assistant (home automation)
+category: 7 · Apps
+description: Control lights, plugs, sensors and home appliances from a web page and your phone, with automations. Works without each manufacturer's cloud.
+details: |
+  Home Assistant (the “Container” edition) in Docker. The first time you
+  open it, it asks you to create your user: do it right after applying.
+  On a server on the internet it does not see the devices on your home
+  network by itself: use it on a home server, or join both networks with
+  WireGuard or Headscale. No USB (Zigbee/Z-Wave) inside the container.
+  Draupnode tells it to trust Caddy/nginx (to use it with a domain).
+  Its data is in /srv/draupnode/apps/home-assistant (included in the backups of the
+  Backups module). License: Apache-2.0.
+uninstall_warning: Stops and removes the Home Assistant containers.
+uninstall_data: Also delete its data (its configuration, automations and history). This cannot be undone.
+variables:
+  home_assistant_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  home_assistant_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  home_assistant_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  home_assistant_update:
+    label: Update Home Assistant when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Docker installation
+- Source code
+prueba:
+  lab: Yes.
+  pasos:
+  - Add “Home Assistant” and apply.
+  - Press “Open (SSH tunnel)” and create your user in the onboarding wizard.
+  comprobar:
+  - You get into the Home Assistant dashboard with your user.
+  - With a domain and Caddy, you get in through https://your-domain without a “400 Bad Request” error.
+  necesita:
+  - Nothing to try it. For your home devices, the server must be on your network (or joined by VPN).
+  problemas:
+  - '“400 Bad Request” with a domain → it does not trust the proxy yet: look at config/configuration.yaml (Draupnode only creates it the first time).'
+  - It finds no devices → a server on the internet does not see your home network.

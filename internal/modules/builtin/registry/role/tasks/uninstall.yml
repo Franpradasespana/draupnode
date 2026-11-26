@@ -11,7 +11,7 @@
   when: registry_cf.stat.exists and not ansible_check_mode
 
 - name: Borrar sus datos
-  ansible.builtin.shell: rm -rf /srv/draupnode/apps/registry {{ draupnode_secrets_dir | quote }}/registry_usuario
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/registry {{ draupnode_secrets_dir | quote }}/registry_usuario {{ draupnode_secrets_dir | quote }}/.registry_pass
   when: draupnode_uninstall_purge | bool and not ansible_check_mode
 
 - name: Nota

@@ -3,7 +3,7 @@
   // VPN…), propone los módulos (con lo básico de cualquier servidor) y crea
   // una plantilla; si eliges un servidor, se la aplica y, si quieres, la
   // instala ya (con su barra de progreso).
-  import { Globe, Rocket, Cloud, KeyRound, Image, Film, Shield, FileText, GitBranch, Activity, Boxes, Check, TriangleAlert, Sparkles } from '@lucide/svelte'
+  import { Globe, Rocket, Cloud, KeyRound, Image, Film, Shield, FileText, GitBranch, Activity, Boxes, Check, TriangleAlert, Sparkles, Bot, House, BookOpen, Network, LockKeyhole } from '@lucide/svelte'
   import { untrack } from 'svelte'
   import Modal from './Modal.svelte'
   import { api, errorText, type Module } from '../lib/api'
@@ -14,7 +14,7 @@
 
   let { onclose, serverId = '' }: { onclose: () => void; serverId?: string } = $props()
 
-  const ICONS: Record<string, typeof Globe> = { globe: Globe, rocket: Rocket, cloud: Cloud, key: KeyRound, image: Image, film: Film, shield: Shield, file: FileText, git: GitBranch, activity: Activity, boxes: Boxes }
+  const ICONS: Record<string, typeof Globe> = { globe: Globe, rocket: Rocket, cloud: Cloud, key: KeyRound, image: Image, film: Film, shield: Shield, file: FileText, git: GitBranch, activity: Activity, boxes: Boxes, bot: Bot, house: House, book: BookOpen, network: Network, lock: LockKeyhole }
   const mods = $derived(ui.modules?.modules ?? [])
   const byId = (id: string) => mods.find((m) => m.id === id)
 

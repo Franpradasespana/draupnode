@@ -1,0 +1,74 @@
+id: mealie
+name: "Mealie (recetas y menú de la semana)"
+version: 1.0.0
+category: 7 · Apps
+description: "Tus recetas en un sitio: las importa de cualquier web con su enlace, planifica el menú de la semana y hace la lista de la compra."
+details: |
+  Mealie en Docker, con base SQLite. Draupnode cambia la contraseña de
+  serie del administrador (changeme@example.com) por una generada en el
+  servidor (en «Contraseñas»). Cambia luego ese correo por el tuyo en
+  tu perfil. El registro de usuarios nuevos queda cerrado: invítalos
+  desde la administración.
+  Sus datos están en /srv/draupnode/apps/mealie (entran en las copias del
+  módulo Copias). Licencia: AGPL-3.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 500
+firewall_ports_from: [mealie_public_port]
+proxy_site:
+  domain: mealie_domain
+  port: mealie_port
+secrets:
+  - file: mealie_admin
+    label: Administrador de Mealie
+uninstall_warning: "Para y quita los contenedores de Mealie."
+uninstall_data: "Borrar también sus datos (las recetas, fotos, menús y usuarios). No se puede deshacer."
+variables:
+  - name: mealie_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 9925
+    min: 1024
+    max: 65535
+  - name: mealie_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: mealie_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: mealie_update
+    label: Actualizar Mealie al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://mealie.io
+  - label: "Documentación"
+    url: https://docs.mealie.io
+  - label: "Código fuente"
+    url: https://github.com/mealie-recipes/mealie
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Mealie» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con changeme@example.com y la contraseña de «Contraseñas», e importa una receta pegando su enlace."
+  comprobar:
+    - "La contraseña de serie («MyPassword») ya no vale; la de «Contraseñas», sí."
+    - "La receta importada sale con sus ingredientes y pasos."
+  necesita:
+    - "Nada."
+  problemas:
+    - "No importa una receta → algunas webs no siguen el formato de recetas; prueba con otra."

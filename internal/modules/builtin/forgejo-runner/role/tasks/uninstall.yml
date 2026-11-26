@@ -1,0 +1,21 @@
+---
+- name: ¿Está el runner?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/forgejo-runner/docker-compose.yml
+  register: fr_cf
+
+- name: Parar y quitar el runner
+  ansible.builtin.command: docker compose -p dn-forgejo-runner down
+  args:
+    chdir: /srv/draupnode/apps/forgejo-runner
+  when: fr_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar su registro y su caché
+  ansible.builtin.file:
+    path: /srv/draupnode/apps/forgejo-runner
+    state: absent
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Runner {{ 'se quitará' if ansible_check_mode else 'quitado' }}. Bórralo también en Forgejo → Actions → Runners."

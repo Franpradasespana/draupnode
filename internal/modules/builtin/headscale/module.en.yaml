@@ -1,0 +1,58 @@
+# Textos en inglés de «headscale» (los ids, variables y valores están en module.yaml).
+name: Headscale (private network between your devices)
+category: 1 · System
+description: A private network between your servers, your laptop and your phone, with the Tailscale apps but with the coordination server at home. Each device connects directly to the others.
+details: |
+  Headscale (the free Tailscale coordination server) in Docker.
+  Unlike WireGuard (everything goes through this server), here devices
+  talk directly to each other; this server only introduces them. The
+  clients are the Tailscale apps (also free).
+  It needs a domain with HTTPS (Caddy or nginx). Draupnode creates the
+  network user and a key to join devices for 30 days (in “Passwords”):
+  on each device,
+  tailscale up --login-server https://your-domain --authkey THE-KEY
+  Its data is in /srv/draupnode/apps/headscale (included in the backups of the
+  Backups module). License: BSD-3-Clause.
+uninstall_warning: Stops and removes the Headscale containers.
+uninstall_data: Also delete its data (the network, its devices and its keys). This cannot be undone.
+variables:
+  headscale_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  headscale_domain:
+    label: Domain
+    help: 'Recommended: Tailscale clients want HTTPS (hs.example.com, with Caddy or nginx).'
+    pattern_help: A domain (app.example.com) or empty
+  headscale_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  headscale_user:
+    label: Network user
+    help: Devices you join with the key are owned by this user.
+    pattern_help: Lowercase letters, numbers and hyphens
+  headscale_base_domain:
+    label: Internal network name
+    help: Each device will be “name.this” inside the network (MagicDNS). It cannot be your public domain.
+    pattern_help: A name like red.interna
+  headscale_update:
+    label: Update Headscale when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Documentation
+- Source code
+- Tailscale apps (clients)
+secrets:
+- Key to join devices to the network
+prueba:
+  lab: Yes (without a domain, the client will warn that it is not HTTPS).
+  pasos:
+  - Add “Headscale” (ideally with a domain and Caddy) and apply.
+  - Install Tailscale on your computer and run “tailscale up --login-server <address> --authkey <key from “Passwords”>”.
+  comprobar:
+  - “docker exec dn-headscale headscale nodes list” (in “Terminal”) shows your device.
+  - With two devices joined, one can ping the other's 100.64.x.x IP.
+  necesita:
+  - To use it for real, a domain with HTTPS.
+  problemas:
+  - The key has expired (30 days) → delete /etc/draupnode/secretos/<server>/headscale_clave and apply again.
+  - Devices cannot see each other → they use Tailscale's DERP servers to get out of difficult networks; check they have internet access.

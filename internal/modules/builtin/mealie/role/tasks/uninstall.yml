@@ -1,0 +1,19 @@
+---
+- name: ¿Está Mealie?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/mealie/docker-compose.yml
+  register: mealie_cf
+
+- name: Parar y quitar Mealie
+  ansible.builtin.command: docker compose -p dn-mealie down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/mealie
+  when: mealie_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/mealie {{ draupnode_secrets_dir | quote }}/mealie_admin {{ draupnode_secrets_dir | quote }}/.mealie_admin_pass
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Mealie {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/mealie: si lo reinstalas, vuelve todo.' }}"

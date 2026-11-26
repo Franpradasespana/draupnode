@@ -1,0 +1,16 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Solo para ver la administración: el correo de verdad necesita dominio, DNS y el puerto 25 abierto."
+  pasos:
+    - "Añade «Stalwart» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y entra en la administración con «admin» y la contraseña de «Contraseñas»."
+    - "Añade tu dominio y crea en tu DNS los registros que te indica."
+  comprobar:
+    - "La administración abre y deja crear un dominio y un buzón."
+    - "Con el DNS hecho, un correo enviado desde fuera llega al buzón (míralo con un cliente IMAP)."
+  necesita:
+    - "Un dominio, su DNS, el puerto 25 de salida abierto por tu proveedor y el DNS inverso de la IP."
+  problemas:
+    - "No hay contraseña en «Contraseñas» → mírala en el registro: docker logs dn-stalwart | grep password."
+    - "No llegan correos de fuera → el puerto 25 cerrado en el proveedor o el registro MX mal."
+    - "Tus correos van a spam → faltan SPF, DKIM o DMARC, o el DNS inverso."

@@ -1,0 +1,75 @@
+---
+- name: Carpeta de Home Assistant
+  ansible.builtin.set_fact:
+    home_assistant_dir: /srv/draupnode/apps/home-assistant
+    home_assistant_url: "{{ ('https://' ~ home_assistant_domain) if home_assistant_domain else ('http://127.0.0.1:' ~ home_assistant_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ home_assistant_dir }}"
+    - "{{ home_assistant_dir }}/config"
+
+- name: Configuración inicial (solo si no hay; luego es tuya)
+  ansible.builtin.copy:
+    dest: "{{ home_assistant_dir }}/config/configuration.yaml"
+    force: false
+    mode: "0644"
+    content: |
+      # Creado por Draupnode la primera vez. Ya es tuyo: Draupnode no lo vuelve a tocar.
+      default_config:
+
+      http:
+        use_x_forwarded_for: true
+        trusted_proxies:
+          - 127.0.0.1
+          - 172.16.0.0/12
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ home_assistant_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: false
+
+- name: Arrancar Home Assistant
+  ansible.builtin.command: docker compose -p dn-home-assistant up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ home_assistant_dir }}"
+  register: home_assistant_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: home_assistant_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in home_assistant_up.stderr or 'Created' in home_assistant_up.stderr or 'Recreated' in home_assistant_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ home_assistant_port }}/"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: home_assistant_http
+  until: home_assistant_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 80
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-home-assistant
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Home Assistant {{ 'responde' if (home_assistant_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-home-assistant logs, en ' ~ home_assistant_dir ~ ')' }} en {{ home_assistant_url }}.
+      Entra ya y crea tu usuario (la primera persona que entre lo crea).

@@ -1,0 +1,148 @@
+---
+- name: Carpeta de Garage
+  ansible.builtin.set_fact:
+    garage_dir: /srv/draupnode/apps/garage
+    garage_url: "{{ ('https://' ~ garage_domain) if garage_domain else ('http://127.0.0.1:' ~ garage_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ garage_dir }}"
+    - "{{ garage_dir }}/meta"
+    - "{{ garage_dir }}/data"
+
+- name: Contraseña «.garage_admin» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    garage_admin_token: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.garage_admin', chars=['ascii_letters', 'digits'], length=48) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Secreto entre nodos (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    garage_rpc: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.garage_rpc', chars=['digits', 'abcdef'], length=64) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: garage.toml
+  ansible.builtin.copy:
+    dest: "{{ garage_dir }}/garage.toml"
+    mode: "0600"
+    content: |
+      # Generado por Draupnode (módulo garage). Se reescribe al aplicar.
+      metadata_dir = "/var/lib/garage/meta"
+      data_dir = "/var/lib/garage/data"
+      db_engine = "sqlite"
+      replication_factor = 1
+      rpc_bind_addr = "[::]:3901"
+      rpc_public_addr = "127.0.0.1:3901"
+      rpc_secret = "{{ garage_rpc }}"
+
+      [s3_api]
+      s3_region = "garage"
+      api_bind_addr = "[::]:3900"
+      root_domain = ".s3.garage.localhost"
+
+      [admin]
+      api_bind_addr = "[::]:3903"
+      admin_token = "{{ garage_admin_token }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ garage_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Garage
+  ansible.builtin.command: docker compose -p dn-garage up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ garage_dir }}"
+  register: garage_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: garage_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in garage_up.stderr or 'Created' in garage_up.stderr or 'Recreated' in garage_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que escuche
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ garage_port }}"
+    timeout: 120
+  register: garage_tcp
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: ¿Escucha?
+  ansible.builtin.set_fact:
+    garage_http: "{{ {'status': 200 if (garage_tcp.state | default('')) == 'started' else 0} }}"
+  when: not ansible_check_mode
+
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-garage
+  when: not ansible_check_mode
+
+- name: Estado del nodo
+  ansible.builtin.command: docker exec dn-garage /garage status
+  register: garage_status
+  changed_when: false
+  retries: 10
+  delay: 3
+  until: garage_status.rc == 0
+  when: not ansible_check_mode
+
+- name: Darle sitio al nodo (solo la primera vez)
+  ansible.builtin.shell: |
+    id=$(docker exec dn-garage /garage node id -q | cut -d@ -f1)
+    docker exec dn-garage /garage layout assign -z dc1 -c {{ garage_capacity | quote }} "$id" &&
+    docker exec dn-garage /garage layout apply --version 1
+  register: garage_layout
+  when: not ansible_check_mode and 'NO ROLE ASSIGNED' in garage_status.stdout
+
+- name: Bucket
+  ansible.builtin.shell: docker exec dn-garage /garage bucket info {{ garage_bucket | quote }} >/dev/null 2>&1 || { docker exec dn-garage /garage bucket create {{ garage_bucket | quote }} && echo creado; }
+  register: garage_b
+  changed_when: "'creado' in garage_b.stdout"
+  when: not ansible_check_mode
+
+- name: ¿Hay ya clave?
+  ansible.builtin.stat:
+    path: "{{ draupnode_secrets_dir }}/garage_s3"
+  register: garage_k
+
+- name: Clave de acceso con permiso para el bucket
+  ansible.builtin.shell: |
+    docker exec dn-garage /garage key info draupnode --show-secret 2>/dev/null || docker exec dn-garage /garage key create draupnode
+  register: garage_key
+  no_log: true
+  when: not ansible_check_mode and not garage_k.stat.exists
+
+- name: Permiso de lectura y escritura en el bucket
+  ansible.builtin.command: docker exec dn-garage /garage bucket allow --read --write --owner {{ garage_bucket | quote }} --key draupnode
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Guardar la clave (en «Contraseñas»)
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/garage_s3"
+    mode: "0600"
+    content: "ID de la clave: {{ garage_key.stdout | regex_search('GK[0-9a-f]+') }}\nSecreto: {{ garage_key.stdout | regex_search('Secret key: *[0-9a-f]+') | regex_replace('^Secret key: *', '') }}\nDirección: {{ ('https://' ~ garage_domain) if garage_domain else ('http://127.0.0.1:' ~ garage_port) }}\nRegión: garage\nBucket: {{ garage_bucket }}\n"
+  no_log: true
+  when: not ansible_check_mode and not garage_k.stat.exists
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Garage {{ 'responde' if (garage_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-garage logs, en ' ~ garage_dir ~ ')' }} en {{ garage_url }}.
+      Bucket «{{ garage_bucket }}» y su clave en «Contraseñas». Clientes S3: región «garage», path-style.

@@ -70,8 +70,16 @@ export function CancelRun(arg1) {
   return window['go']['app']['App']['CancelRun'](arg1);
 }
 
+export function CheckDomains(arg1) {
+  return window['go']['app']['App']['CheckDomains'](arg1);
+}
+
 export function CheckDrift(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['CheckDrift'](arg1, arg2, arg3, arg4);
+}
+
+export function CheckImages(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['CheckImages'](arg1, arg2, arg3, arg4);
 }
 
 export function CheckProject(arg1) {
@@ -146,6 +154,10 @@ export function CreateUserModule(arg1, arg2) {
   return window['go']['app']['App']['CreateUserModule'](arg1, arg2);
 }
 
+export function DNSProviders() {
+  return window['go']['app']['App']['DNSProviders']();
+}
+
 export function DefaultBackupFolder(arg1) {
   return window['go']['app']['App']['DefaultBackupFolder'](arg1);
 }
@@ -164,6 +176,10 @@ export function DeleteRecipe(arg1) {
 
 export function DeleteServer(arg1) {
   return window['go']['app']['App']['DeleteServer'](arg1);
+}
+
+export function DeleteServerSnapshot(arg1, arg2) {
+  return window['go']['app']['App']['DeleteServerSnapshot'](arg1, arg2);
 }
 
 export function DeleteUserModule(arg1) {
@@ -274,8 +290,16 @@ export function LabStatus() {
   return window['go']['app']['App']['LabStatus']();
 }
 
+export function LastDomainChecks() {
+  return window['go']['app']['App']['LastDomainChecks']();
+}
+
 export function LastDrifts() {
   return window['go']['app']['App']['LastDrifts']();
+}
+
+export function LastImageChecks() {
+  return window['go']['app']['App']['LastImageChecks']();
 }
 
 export function LastOverviews() {
@@ -284,6 +308,10 @@ export function LastOverviews() {
 
 export function Legal() {
   return window['go']['app']['App']['Legal']();
+}
+
+export function LinkServerCloud(arg1, arg2) {
+  return window['go']['app']['App']['LinkServerCloud'](arg1, arg2);
 }
 
 export function ListModules() {
@@ -354,6 +382,10 @@ export function PlanUninstallAll(arg1) {
   return window['go']['app']['App']['PlanUninstallAll'](arg1);
 }
 
+export function PointDomain(arg1, arg2, arg3) {
+  return window['go']['app']['App']['PointDomain'](arg1, arg2, arg3);
+}
+
 export function ProjectSecrets(arg1, arg2) {
   return window['go']['app']['App']['ProjectSecrets'](arg1, arg2);
 }
@@ -384,6 +416,10 @@ export function ReloadModules() {
 
 export function RemoveOrphanApp(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['app']['App']['RemoveOrphanApp'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function RestoreServerSnapshot(arg1, arg2) {
+  return window['go']['app']['App']['RestoreServerSnapshot'](arg1, arg2);
 }
 
 export function RunHistory(arg1, arg2, arg3) {
@@ -454,12 +490,24 @@ export function ServerReboot(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['ServerReboot'](arg1, arg2, arg3, arg4);
 }
 
+export function ServerSnapshots(arg1) {
+  return window['go']['app']['App']['ServerSnapshots'](arg1);
+}
+
 export function ServerUpgrade(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['ServerUpgrade'](arg1, arg2, arg3, arg4);
 }
 
 export function SetBackupsAuto(arg1, arg2, arg3) {
   return window['go']['app']['App']['SetBackupsAuto'](arg1, arg2, arg3);
+}
+
+export function SetDNSToken(arg1, arg2) {
+  return window['go']['app']['App']['SetDNSToken'](arg1, arg2);
+}
+
+export function SetExtraDomains(arg1, arg2) {
+  return window['go']['app']['App']['SetExtraDomains'](arg1, arg2);
 }
 
 export function SetLanguage(arg1) {
@@ -478,8 +526,16 @@ export function SetSecretBackend(arg1) {
   return window['go']['app']['App']['SetSecretBackend'](arg1);
 }
 
+export function SetSnapshotOptions(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SetSnapshotOptions'](arg1, arg2, arg3);
+}
+
 export function SetUpdateCheck(arg1) {
   return window['go']['app']['App']['SetUpdateCheck'](arg1);
+}
+
+export function TakeServerSnapshot(arg1) {
+  return window['go']['app']['App']['TakeServerSnapshot'](arg1);
 }
 
 export function TerminalClose(arg1) {
@@ -508,6 +564,14 @@ export function UninstallAll(arg1, arg2, arg3, arg4, arg5) {
 
 export function UninstallModules(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['app']['App']['UninstallModules'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function UnlinkServerCloud(arg1) {
+  return window['go']['app']['App']['UnlinkServerCloud'](arg1);
+}
+
+export function UpdateImages(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['UpdateImages'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function VaultCreate(arg1) {

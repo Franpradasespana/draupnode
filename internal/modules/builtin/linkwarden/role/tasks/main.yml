@@ -1,0 +1,73 @@
+---
+- name: Carpeta de Linkwarden
+  ansible.builtin.set_fact:
+    linkwarden_dir: /srv/draupnode/apps/linkwarden
+    linkwarden_url: "{{ ('https://' ~ linkwarden_domain) if linkwarden_domain else ('http://127.0.0.1:' ~ linkwarden_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    # La de PostgreSQL la deja la imagen en 0700: no se toca (si no, cambiaría en cada aplicación).
+    mode: "{{ omit if item.endswith('/pgdata') else '0750' }}"
+  loop:
+    - "{{ linkwarden_dir }}"
+    - "{{ linkwarden_dir }}/data"
+    - "{{ linkwarden_dir }}/pgdata"
+
+- name: Contraseña «.linkwarden_db» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    linkwarden_db_pass: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.linkwarden_db', chars=['ascii_letters', 'digits'], length=32) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Contraseña «.linkwarden_secret» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    linkwarden_secret: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.linkwarden_secret', chars=['ascii_letters', 'digits'], length=48) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ linkwarden_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar Linkwarden
+  ansible.builtin.command: docker compose -p dn-linkwarden up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ linkwarden_dir }}"
+  register: linkwarden_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: linkwarden_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in linkwarden_up.stderr or 'Created' in linkwarden_up.stderr or 'Recreated' in linkwarden_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ linkwarden_port }}/"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: linkwarden_http
+  until: linkwarden_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 100
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-linkwarden
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Linkwarden {{ 'responde' if (linkwarden_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-linkwarden logs, en ' ~ linkwarden_dir ~ ')' }} en {{ linkwarden_url }}.
+      {{ 'Regístrate ya (la primera cuenta es la administradora) y luego desmarca «Permitir registrarse».' if linkwarden_signup | bool else 'Registro cerrado.' }}

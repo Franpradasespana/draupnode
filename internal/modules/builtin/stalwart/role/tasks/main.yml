@@ -1,0 +1,84 @@
+---
+- name: Carpeta de Stalwart
+  ansible.builtin.set_fact:
+    stalwart_dir: /srv/draupnode/apps/stalwart
+    stalwart_url: "{{ ('https://' ~ stalwart_domain) if stalwart_domain else ('http://127.0.0.1:' ~ stalwart_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ stalwart_dir }}"
+    - "{{ stalwart_dir }}/data"
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ stalwart_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: false
+
+- name: Arrancar Stalwart
+  ansible.builtin.command: docker compose -p dn-stalwart up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ stalwart_dir }}"
+  register: stalwart_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: stalwart_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in stalwart_up.stderr or 'Created' in stalwart_up.stderr or 'Recreated' in stalwart_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ stalwart_port }}/login"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: stalwart_http
+  until: stalwart_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 40
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-stalwart
+  when: not ansible_check_mode
+
+- name: ¿Está ya copiada la contraseña de «admin»?
+  ansible.builtin.stat:
+    path: "{{ draupnode_secrets_dir }}/stalwart_admin"
+  register: stalwart_k
+
+- name: La que creó Stalwart al estrenarse (está en su registro)
+  ansible.builtin.shell: |
+    docker logs dn-stalwart 2>&1 | sed -n "s/^ *password: *//p; s/.*with password '\([^']*\)'.*/\1/p" | head -n1
+  retries: 10
+  delay: 3
+  until: stalwart_pass.stdout | length > 0
+  register: stalwart_pass
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when: not ansible_check_mode and not stalwart_k.stat.exists
+
+- name: Copiarla a «Contraseñas»
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/stalwart_admin"
+    mode: "0600"
+    content: "Usuario: admin\nContraseña: {{ stalwart_pass.stdout }}\nEs la cuenta temporal de arranque: crea tu administrador en la web.\n"
+  no_log: true
+  when: not ansible_check_mode and not stalwart_k.stat.exists and stalwart_pass.stdout | length > 0
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Stalwart {{ 'responde' if (stalwart_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-stalwart logs, en ' ~ stalwart_dir ~ ')' }} en {{ stalwart_url }}.
+      Entra en la administración con «admin» (contraseña en «Contraseñas»), añade tu dominio y crea en tu DNS los registros que te indica.

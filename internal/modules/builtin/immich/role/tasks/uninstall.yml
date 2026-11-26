@@ -11,7 +11,7 @@
   when: immich_cf.stat.exists and not ansible_check_mode
 
 - name: Borrar sus datos
-  ansible.builtin.shell: rm -rf /srv/draupnode/apps/immich 
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/immich {{ draupnode_secrets_dir | quote }}/.immich_db
   when: draupnode_uninstall_purge | bool and not ansible_check_mode
 
 - name: Nota

@@ -1,0 +1,140 @@
+---
+- name: Carpeta de Headscale
+  ansible.builtin.set_fact:
+    headscale_dir: /srv/draupnode/apps/headscale
+    headscale_url: "{{ ('https://' ~ headscale_domain) if headscale_domain else ('http://127.0.0.1:' ~ headscale_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ headscale_dir }}"
+    - "{{ headscale_dir }}/config"
+    - "{{ headscale_dir }}/lib"
+    - "{{ headscale_dir }}/run"
+
+- name: Configuración de Headscale
+  ansible.builtin.copy:
+    dest: "{{ headscale_dir }}/config/config.yaml"
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo headscale). Se reescribe al aplicar.
+      server_url: {{ ('https://' ~ headscale_domain) if headscale_domain else ('http://' ~ ansible_default_ipv4.address | default('127.0.0.1') ~ ':' ~ ((headscale_public_port | int) or (headscale_port | int))) }}
+      listen_addr: 0.0.0.0:8080
+      metrics_listen_addr: 127.0.0.1:9090
+      grpc_listen_addr: 127.0.0.1:50443
+      grpc_allow_insecure: false
+      noise:
+        private_key_path: /var/lib/headscale/noise_private.key
+      prefixes:
+        v4: 100.64.0.0/10
+        v6: fd7a:115c:a1e0::/48
+        allocation: sequential
+      derp:
+        server:
+          enabled: false
+        urls:
+          - https://controlplane.tailscale.com/derpmap/default
+        auto_update_enabled: true
+        update_frequency: 24h
+      disable_check_updates: true
+      ephemeral_node_inactivity_timeout: 30m
+      database:
+        type: sqlite
+        sqlite:
+          path: /var/lib/headscale/db.sqlite
+          write_ahead_log: true
+      dns:
+        magic_dns: true
+        base_domain: {{ headscale_base_domain }}
+        nameservers:
+          global: [1.1.1.1, 9.9.9.9]
+      log:
+        level: info
+      policy:
+        mode: file
+        path: ""
+      unix_socket: /var/run/headscale/headscale.sock
+      unix_socket_permission: "0770"
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ headscale_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: false
+
+- name: Arrancar Headscale
+  ansible.builtin.command: docker compose -p dn-headscale up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ headscale_dir }}"
+  register: headscale_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: headscale_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in headscale_up.stderr or 'Created' in headscale_up.stderr or 'Recreated' in headscale_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ headscale_port }}/health"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: headscale_http
+  until: headscale_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 30
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-headscale
+  when: not ansible_check_mode
+
+- name: Usuario de la red
+  ansible.builtin.command: docker exec dn-headscale headscale users create {{ headscale_user | quote }}
+  register: headscale_u
+  changed_when: headscale_u.rc == 0
+  failed_when: headscale_u.rc != 0 and 'already exists' not in (headscale_u.stderr ~ headscale_u.stdout) and 'UNIQUE' not in (headscale_u.stderr ~ headscale_u.stdout)
+  when: not ansible_check_mode
+
+- name: ¿Hay ya clave para unir equipos?
+  ansible.builtin.stat:
+    path: "{{ draupnode_secrets_dir }}/headscale_clave"
+  register: headscale_k
+
+- name: Usuarios
+  ansible.builtin.command: docker exec dn-headscale headscale users list -o json
+  register: headscale_users
+  changed_when: false
+  when: not ansible_check_mode and not headscale_k.stat.exists
+
+- name: Clave para unir equipos (reutilizable, 30 días)
+  ansible.builtin.command: >-
+    docker exec dn-headscale headscale preauthkeys create --reusable --expiration 720h
+    -u {{ (headscale_users.stdout | from_json | selectattr('name', 'equalto', headscale_user) | first).id }}
+  register: headscale_key
+  no_log: true
+  when: not ansible_check_mode and not headscale_k.stat.exists
+
+- name: Guardarla (en «Contraseñas»)
+  ansible.builtin.copy:
+    dest: "{{ draupnode_secrets_dir }}/headscale_clave"
+    mode: "0600"
+    content: "Clave: {{ headscale_key.stdout_lines | last }}\nÚnete con: tailscale up --login-server {{ ('https://' ~ headscale_domain) if headscale_domain else 'http://IP:PUERTO' }} --authkey CLAVE\nCaduca a los 30 días: para otra, borra este fichero y vuelve a aplicar.\n"
+  no_log: true
+  when: not ansible_check_mode and not headscale_k.stat.exists
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Headscale {{ 'responde' if (headscale_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-headscale logs, en ' ~ headscale_dir ~ ')' }} en {{ headscale_url }}.
+      Une cada equipo con la clave de «Contraseñas»: tailscale up --login-server <dirección> --authkey <clave>. Lista de equipos: docker exec dn-headscale headscale nodes list.

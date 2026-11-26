@@ -1,0 +1,13 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «FreshRSS» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra con «admin» y añade una fuente RSS."
+  comprobar:
+    - "Entras con «admin» y la contraseña de «Contraseñas»."
+    - "Los artículos de la fuente aparecen (se actualizan solos cada 20 minutos)."
+  necesita:
+    - "Nada."
+  problemas:
+    - "Las apps de móvil no conectan → activa la API en la configuración del usuario; la contraseña de la API es la misma de «Contraseñas»."

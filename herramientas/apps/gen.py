@@ -6,6 +6,7 @@ import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from apps import APPS
 import nuevas  # noqa: F401  (añade sus fichas a APPS)
+import mas  # noqa: F401  (las de la 0.71)
 
 def module_yaml(a):
     p = a['id'].replace('-', '_')
@@ -72,7 +73,13 @@ def tasks(a):
 """
     dirs = "\n".join(f"    - \"{{{{ {p}_dir }}}}/{d}\"" for d in a.get('dirs', []))
     pre = a.get('pre_tasks', '')
-    if a.get('db_dir'):
+    if a.get('keep_mode'):
+        # Carpetas cuyos permisos cambia la propia imagen al arrancar: no se tocan
+        # (si no, saldrían cambiadas en cada aplicación).
+        own = ([a['db_dir']] if a.get('db_dir') else []) + a['keep_mode']
+        mode = ("    # Los permisos de " + ', '.join(own) + " los pone la imagen: no se tocan.\n"
+                f"    mode: \"{{{{ omit if (item | basename) in {own} else '0750' }}}}\"")
+    elif a.get('db_dir'):
         mode = ("    # La de PostgreSQL la deja la imagen en 0700: no se toca (si no, cambiaría en cada aplicación).\n"
                 f"    mode: \"{{{{ omit if item.endswith('/{a['db_dir']}') else '0750' }}}}\"")
     else:
@@ -164,7 +171,9 @@ def tasks(a):
 
 def uninstall(a):
     p = a['id'].replace('-', '_')
-    sec = " ".join(f"{{{{ draupnode_secrets_dir | quote }}}}/{s[0]}" for s in a.get('secrets', []))
+    # Con los datos se van también sus contraseñas (las que ve el usuario y las generadas).
+    files = [s[0] for s in a.get('secrets', [])] + [g['file'] for g in a.get('generate', [])] + a.get('secret_files', [])
+    sec = " ".join(f"{{{{ draupnode_secrets_dir | quote }}}}/{f}" for f in files)
     return f"""---
 - name: ¿Está {a['short']}?
   ansible.builtin.stat:

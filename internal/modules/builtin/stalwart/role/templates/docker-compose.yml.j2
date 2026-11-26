@@ -1,0 +1,21 @@
+# Generado por Draupnode (módulo stalwart). No lo edites a mano: se reescribe al aplicar.
+name: dn-stalwart
+
+services:
+  stalwart:
+    image: docker.io/stalwartlabs/stalwart:latest
+    {% if stalwart_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-stalwart
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    volumes:
+      - ./data:/opt/stalwart
+    ports:
+      - "127.0.0.1:{{ stalwart_port }}:8080"
+{% if (stalwart_public_port | default(0) | int) > 0 %}      - "{{ stalwart_public_port }}:8080"
+{% endif %}
+      - "{{ stalwart_smtp }}:25"
+      - "{{ stalwart_submissions }}:465"
+      - "{{ stalwart_submission }}:587"
+      - "{{ stalwart_imaps }}:993"

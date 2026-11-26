@@ -1,0 +1,20 @@
+# Generado por Draupnode (módulo headscale). No lo edites a mano: se reescribe al aplicar.
+name: dn-headscale
+
+services:
+  headscale:
+    image: docker.io/headscale/headscale:0.26
+    {% if headscale_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-headscale
+    restart: unless-stopped
+    command: serve
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    volumes:
+      - ./config:/etc/headscale:ro
+      - ./lib:/var/lib/headscale
+      - ./run:/var/run/headscale
+    ports:
+      - "127.0.0.1:{{ headscale_port }}:8080"
+{% if (headscale_public_port | default(0) | int) > 0 %}      - "{{ headscale_public_port }}:8080"
+{% endif %}

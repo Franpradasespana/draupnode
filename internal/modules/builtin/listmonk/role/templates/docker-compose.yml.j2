@@ -1,0 +1,47 @@
+# Generado por Draupnode (módulo listmonk). No lo edites a mano: se reescribe al aplicar.
+name: dn-listmonk
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    container_name: dn-listmonk-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: listmonk
+      POSTGRES_USER: listmonk
+      POSTGRES_PASSWORD: "{{ listmonk_db_pass }}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U listmonk"]
+      interval: 5s
+      retries: 20
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+  listmonk:
+    image: docker.io/listmonk/listmonk:latest
+    {% if listmonk_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-listmonk
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    command: [sh, -c, "./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''"]
+    environment:
+      LISTMONK_app__address: "0.0.0.0:9000"
+      LISTMONK_app__root_url: "{{ ('https://' ~ listmonk_domain) if listmonk_domain else ('http://127.0.0.1:' ~ listmonk_port) }}"
+      LISTMONK_db__host: db
+      LISTMONK_db__port: "5432"
+      LISTMONK_db__user: listmonk
+      LISTMONK_db__password: "{{ listmonk_db_pass }}"
+      LISTMONK_db__database: listmonk
+      LISTMONK_db__ssl_mode: disable
+      LISTMONK_ADMIN_USER: admin
+      LISTMONK_ADMIN_PASSWORD: "{{ listmonk_admin_pass }}"
+      TZ: Etc/UTC
+    volumes:
+      - ./uploads:/listmonk/uploads
+    ports:
+      - "127.0.0.1:{{ listmonk_port }}:9000"
+{% if (listmonk_public_port | default(0) | int) > 0 %}      - "{{ listmonk_public_port }}:9000"
+{% endif %}

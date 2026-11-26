@@ -1,0 +1,19 @@
+# Generado por Draupnode (módulo home-assistant). No lo edites a mano: se reescribe al aplicar.
+name: dn-home-assistant
+
+services:
+  home-assistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    {% if home_assistant_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-home-assistant
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      TZ: Etc/UTC
+    volumes:
+      - ./config:/config
+    ports:
+      - "127.0.0.1:{{ home_assistant_port }}:8123"
+{% if (home_assistant_public_port | default(0) | int) > 0 %}      - "{{ home_assistant_public_port }}:8123"
+{% endif %}

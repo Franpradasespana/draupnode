@@ -1,0 +1,52 @@
+# Textos en inglés de «garage» (los ids, variables y valores están en module.yaml).
+name: Garage (your own S3 storage)
+category: 7 · Apps
+description: 'Your own S3-compatible storage (like Amazon S3): for backups, for apps that store files in S3, or to serve static files.'
+details: |
+  Garage in Docker, with a single node. Draupnode leaves it ready: it sets
+  up the node, creates a “bucket” and an access key allowed on it (in
+  “Passwords”: key ID, secret, address and region “garage”).
+  Use it with any S3 client (rclone, restic, aws-cli…) in “path-style”
+  mode. With a domain, it is published at https://domain.
+  Its data is in /srv/draupnode/apps/garage (included in the backups of the
+  Backups module). License: AGPL-3.0.
+uninstall_warning: Stops and removes the Garage containers.
+uninstall_data: Also delete its data (all stored files and their metadata). This cannot be undone.
+variables:
+  garage_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  garage_domain:
+    label: Domain
+    help: 'Optional: s3.example.com (with Caddy or nginx) to reach it over HTTPS from other servers.'
+    pattern_help: A domain (app.example.com) or empty
+  garage_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  garage_bucket:
+    label: Bucket
+    help: The one created with its key. More with “docker exec dn-garage /garage bucket create <name>”.
+    pattern_help: Lowercase letters, numbers, dot and hyphen (3-63)
+  garage_capacity:
+    label: Space it can use
+    help: What it reserves for data (for example 50G or 1T). Garage does not go beyond it.
+    pattern_help: A number and G or T (50G, 1T)
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- Garage S3 key
+prueba:
+  lab: Yes.
+  pasos:
+  - Add “Garage” and apply.
+  - Look up the S3 key in “Passwords” and try it with a client (rclone, aws-cli) against the address, region “garage”.
+  comprobar:
+  - “docker exec dn-garage /garage status” shows the node with its capacity.
+  - A file can be uploaded to and downloaded from the bucket with the key.
+  necesita:
+  - Nothing to try it. To use it from other servers, a domain with Caddy or nginx.
+  problemas:
+  - “Forbidden” or invalid signature → use region “garage” and path-style mode.
+  - Out of space → raise “Space it can use” and change the layout with “garage layout assign” (Draupnode only sets it the first time).

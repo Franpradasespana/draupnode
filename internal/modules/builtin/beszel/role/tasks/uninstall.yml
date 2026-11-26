@@ -1,0 +1,19 @@
+---
+- name: ¿Está Beszel?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/beszel/docker-compose.yml
+  register: beszel_cf
+
+- name: Parar y quitar Beszel
+  ansible.builtin.command: docker compose -p dn-beszel down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/beszel
+  when: beszel_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/beszel {{ draupnode_secrets_dir | quote }}/beszel_admin {{ draupnode_secrets_dir | quote }}/.beszel_admin_pass
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Beszel {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/beszel: si lo reinstalas, vuelve todo.' }}"

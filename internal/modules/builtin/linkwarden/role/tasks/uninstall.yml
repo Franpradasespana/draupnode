@@ -1,0 +1,19 @@
+---
+- name: ¿Está Linkwarden?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/linkwarden/docker-compose.yml
+  register: linkwarden_cf
+
+- name: Parar y quitar Linkwarden
+  ansible.builtin.command: docker compose -p dn-linkwarden down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/linkwarden
+  when: linkwarden_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/linkwarden {{ draupnode_secrets_dir | quote }}/.linkwarden_db {{ draupnode_secrets_dir | quote }}/.linkwarden_secret
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Linkwarden {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/linkwarden: si lo reinstalas, vuelve todo.' }}"

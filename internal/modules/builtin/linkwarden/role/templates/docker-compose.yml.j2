@@ -1,0 +1,33 @@
+# Generado por Draupnode (módulo linkwarden). No lo edites a mano: se reescribe al aplicar.
+name: dn-linkwarden
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    container_name: dn-linkwarden-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: linkwarden
+      POSTGRES_USER: linkwarden
+      POSTGRES_PASSWORD: "{{ linkwarden_db_pass }}"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+  linkwarden:
+    image: ghcr.io/linkwarden/linkwarden:latest
+    {% if linkwarden_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-linkwarden
+    restart: unless-stopped
+    depends_on: [db]
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      DATABASE_URL: "postgresql://linkwarden:{{ linkwarden_db_pass }}@db:5432/linkwarden"
+      NEXTAUTH_SECRET: "{{ linkwarden_secret }}"
+      NEXTAUTH_URL: "{{ ('https://' ~ linkwarden_domain) if linkwarden_domain else ('http://127.0.0.1:' ~ linkwarden_port) }}/api/v1/auth"
+      NEXT_PUBLIC_DISABLE_REGISTRATION: "{{ 'false' if linkwarden_signup | bool else 'true' }}"
+    volumes:
+      - ./data:/data/data
+    ports:
+      - "127.0.0.1:{{ linkwarden_port }}:3000"
+{% if (linkwarden_public_port | default(0) | int) > 0 %}      - "{{ linkwarden_public_port }}:3000"
+{% endif %}

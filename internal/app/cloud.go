@@ -118,6 +118,34 @@ func syncProxySites(sel []bundle.Selection) []string {
 	return w
 }
 
+// syncAuthelia: con Authelia y Caddy en el servidor, Caddy pide iniciar
+// sesión en Authelia antes de entrar en los dominios que se eligieron en el
+// módulo Authelia (variables gestionadas de Caddy). Sin Authelia, se vacían.
+func syncAuthelia(sel []bundle.Selection) []string {
+	var caddy, auth map[string]any
+	for _, s := range sel {
+		switch s.Module.ID {
+		case "caddy":
+			caddy = s.Values
+		case "authelia":
+			auth = s.Values
+		}
+	}
+	if caddy == nil {
+		if auth != nil && len(toStrings(auth["authelia_protect"])) > 0 {
+			return []string{i18n.T("Authelia protege tus apps a través de Caddy: añade el módulo Caddy (con nginx no se hace sola).")}
+		}
+		return nil
+	}
+	if auth == nil {
+		caddy["caddy_forward_auth"], caddy["caddy_forward_auth_to"] = []string{}, ""
+		return nil
+	}
+	caddy["caddy_forward_auth"] = toStrings(auth["authelia_protect"])
+	caddy["caddy_forward_auth_to"] = "127.0.0.1:" + strconv.Itoa(toInt(auth["authelia_port"]))
+	return nil
+}
+
 // syncVPNDNS: con AdGuard Home y WireGuard en el proyecto, los dispositivos
 // de la VPN usan AdGuard como DNS (la .1 de la red de la VPN), salvo que el
 // usuario haya puesto otro.

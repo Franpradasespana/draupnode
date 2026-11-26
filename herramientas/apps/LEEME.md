@@ -16,10 +16,10 @@ imágenes), cambia `gen.py` y vuelve a generarlos; para una app, su ficha.
 No edites a mano sus ficheros en `internal/modules/builtin/<app>`: se pisan
 al volver a generar.
 
-Opciones de una ficha además de las básicas: `category`, `depends`, `no_proxy` (sin dominio,
+Opciones de una ficha además de las básicas: `category`, `depends`, `keep_mode` (carpetas cuyos permisos pone la imagen), `no_proxy` (sin dominio,
 p. ej. una base de datos), `no_public`, `probe: 'tcp'` (comprobar que escucha en vez de pedir
 una página), `db_dir` (carpeta de PostgreSQL a la que no se cambian permisos), `pre_tasks`,
-`mid_tasks` (después de generar contraseñas y antes del compose), `post_tasks` y
+`mid_tasks` (después de generar contraseñas y antes del compose), `post_tasks`, `secret_files` (otros ficheros de secretos que se borran al desinstalar con datos) y
 `uninstall_extra`.
 
 Solo software libre (ver la licencia en cada ficha). Por eso, por ejemplo, Valkey en lugar

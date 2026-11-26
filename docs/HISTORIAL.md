@@ -1346,3 +1346,27 @@ otro», descartada).
   Resumen. Lo que encuentre ClamAV sale en «Necesita atención» y en los avisos.
 - Probado el script en Ubuntu desechable (con informes de Lynis/Trivy/ClamAV de ejemplo). Ayuda y capturas
   (`servidor-seguridad`, `servidor`, `servidor-red`) en los dos idiomas.
+
+## 2026-11-26 · 0.71.0 · 14 módulos nuevos (64 en total)
+
+- **Generados** (`herramientas/apps/mas.py`): Authelia (inicio de sesión con doble factor delante de las apps),
+  Headscale (red privada con las apps de Tailscale; crea usuario y clave de 30 días), Garage (S3 propio: nodo, bucket
+  y clave listos), Ollama + Hollama (IA local, web y API detrás de un nginx en el mismo puerto; baja los modelos de la
+  lista), Home Assistant, Beszel (hub + agente por socket compartido, sin abrir puertos; el servidor queda dado de alta
+  solo), Audiobookshelf, FreshRSS, Mealie (cambia la contraseña de serie), Linkwarden, Listmonk y Stalwart (copia la
+  contraseña de arranque a «Contraseñas»; abre 25/465/587/993).
+- **A mano**: msmtp (correo saliente como sendmail del sistema, root → tu dirección, avisos de las actualizaciones
+  automáticas, correo de prueba) y Forgejo Runner (se registra con el token de Forgejo, trabajos en contenedores).
+- **Authelia + Caddy**: variables gestionadas `caddy_forward_auth` / `caddy_forward_auth_to` que rellena
+  `syncAuthelia` con los «Dominios protegidos»; el Caddyfile pone `forward_auth` en esos sitios.
+- **Generador**: opción `keep_mode` (carpetas cuyos permisos pone la imagen) y `secret_files`; al desinstalar con datos
+  se borran también las contraseñas generadas (antes se quedaban los ficheros con punto): regenerados los 21 módulos de
+  apps que ya había (solo cambia esa línea).
+- Fuera a propósito: Netdata (su panel ya no es libre: en su lugar, Beszel) y Stirling-PDF (la imagen trae una parte
+  con licencia propietaria). Open WebUI tampoco (licencia propia): por eso Hollama.
+- **Probados todos** en Ubuntu desechable: aplicar, reaplicar con 0 cambios, comprobar que funcionan (entrar con la
+  contraseña generada, subir y bajar por S3, el modelo contesta, Authelia protege y acepta solo la buena, Beszel ve el
+  servidor, un workflow de Forgejo termina en verde…) y desinstalar con datos sin restos. msmtp, sin SMTP de verdad
+  (configuración y mensaje de error comprobados).
+- Asistente: objetivos nuevos (IA, domótica, leer y escuchar, red privada, puerta delante de las apps; Forgejo con
+  runner). Textos en inglés de todos, catálogo de la demo, README y capturas del catálogo y el asistente.

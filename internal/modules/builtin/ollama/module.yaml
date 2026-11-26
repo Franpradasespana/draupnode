@@ -1,0 +1,83 @@
+id: ollama
+name: "Ollama + Hollama (IA en tu servidor)"
+version: 1.0.0
+category: 7 · Apps
+description: "Modelos de IA de texto (Llama, Mistral, Qwen, Gemma…) en tu servidor, sin mandar nada fuera, con una web para chatear."
+details: |
+  Ollama (los modelos) y Hollama (la web de chat) en Docker, juntos detrás
+  de un nginx pequeño: la web en / y la API de Ollama en /api.
+  Al aplicar se descargan los modelos de la lista (tarda: varios GB).
+  Sin tarjeta gráfica va en la CPU: con 8 GB de RAM, modelos de 3-4B
+  (rápido) u 8B (lento). En Hollama, «Settings → Servers», añade la
+  misma dirección por la que entras (tipo Ollama).
+  La API no pide contraseña: ponle Authelia delante si le das dominio.
+  Sus datos están en /srv/draupnode/apps/ollama (entran en las copias del
+  módulo Copias). Licencia: MIT (Ollama y Hollama).
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 4000
+firewall_ports_from: [ollama_public_port]
+proxy_site:
+  domain: ollama_domain
+  port: ollama_port
+uninstall_warning: "Para y quita los contenedores de Ollama."
+uninstall_data: "Borrar también sus datos (los modelos descargados). No se puede deshacer."
+variables:
+  - name: ollama_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8150
+    min: 1024
+    max: 65535
+  - name: ollama_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: ollama_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: ollama_models
+    label: Modelos que descargar
+    help: Uno por línea, con su tamaño (ollama.com/library). Los que quites no se borran.
+    type: list
+    default: ["llama3.2:3b"]
+    pattern: '^[a-z0-9][a-z0-9._/-]*(:[a-zA-Z0-9._-]+)?$'
+    pattern_help: Como en ollama.com (qwen2.5:7b)
+  - name: ollama_update
+    label: Actualizar Ollama y Hollama al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Ollama"
+    url: https://ollama.com
+  - label: "Modelos"
+    url: https://ollama.com/library
+  - label: "Código de Ollama"
+    url: https://github.com/ollama/ollama
+  - label: "Código de Hollama"
+    url: https://github.com/fmaclen/hollama
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí, con paciencia: el modelo de serie ocupa unos 2 GB y en CPU responde despacio."
+  pasos:
+    - "Añade «Ollama + Hollama» y aplica (la primera vez tarda: baja el modelo)."
+    - "Pulsa «Abrir (túnel SSH)»; en Hollama, Settings → Servers, añade esa misma dirección (tipo Ollama) y chatea."
+  comprobar:
+    - "El modelo «llama3.2:3b» sale en Hollama y contesta."
+    - "«docker exec dn-ollama ollama list» enseña los modelos."
+  necesita:
+    - "Memoria: unos 4 GB libres para modelos de 3B; 8 GB para 7-8B."
+  problemas:
+    - "Responde muy despacio → es la CPU: usa un modelo más pequeño (qwen2.5:1.5b)."
+    - "Hollama no ve modelos → la dirección del servidor en Hollama tiene que ser la misma por la que entras."

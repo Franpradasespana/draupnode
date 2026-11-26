@@ -12,7 +12,7 @@ details: |
   La primera vez descarga su base de vulnerabilidades (~1 GB en disco).
 depends: [docker]
 # Después de todo lo que arranca contenedores: así los revisa al aplicar.
-after: [adguard, adminer, alerts, argocd, auditd, backup-target, backups, base, caddy, chrony, clamav, cockpit, coolify, crowdsec, docker, dozzle, firewall, forgejo, git-app, healthchecks, immich, jellyfin, k3s, keycloak, logs, lynis, mariadb, monitoring, navidrome, nextcloud, nginx, ntfy, openbao, opentofu, paperless, portainer, postgres, registry, samba, ssh, syncthing, umami, uptime-kuma, valkey, vaultwarden, vikunja, wikijs, wireguard]
+after: [adguard, adminer, alerts, argocd, audiobookshelf, auditd, authelia, backup-target, backups, base, beszel, caddy, chrony, clamav, cockpit, coolify, crowdsec, docker, dozzle, firewall, forgejo, forgejo-runner, freshrss, garage, git-app, headscale, healthchecks, home-assistant, immich, jellyfin, k3s, keycloak, linkwarden, listmonk, logs, lynis, mariadb, mealie, monitoring, msmtp, navidrome, nextcloud, nginx, ntfy, ollama, openbao, opentofu, paperless, portainer, postgres, registry, samba, ssh, stalwart, syncthing, umami, uptime-kuma, valkey, vaultwarden, vikunja, wikijs, wireguard]
 requires:
   os: [ubuntu, debian]
   min_disk_gb: 3

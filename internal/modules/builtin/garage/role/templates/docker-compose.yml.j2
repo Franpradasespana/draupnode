@@ -1,0 +1,18 @@
+# Generado por Draupnode (módulo garage). No lo edites a mano: se reescribe al aplicar.
+name: dn-garage
+
+services:
+  garage:
+    image: docker.io/dxflrs/garage:v1.1.0
+    container_name: dn-garage
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - ./meta:/var/lib/garage/meta
+      - ./data:/var/lib/garage/data
+    ports:
+      - "127.0.0.1:{{ garage_port }}:3900"
+{% if (garage_public_port | default(0) | int) > 0 %}      - "{{ garage_public_port }}:3900"
+{% endif %}

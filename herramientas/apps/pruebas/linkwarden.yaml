@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (la imagen es grande: tarda en bajar)."
+  pasos:
+    - "Añade «Linkwarden» (con «Permitir registrarse») y aplica."
+    - "Pulsa «Abrir (túnel SSH)», regístrate y guarda un enlace."
+    - "Desmarca «Permitir registrarse» y aplica otra vez."
+  comprobar:
+    - "El enlace guardado tiene su captura y su copia en PDF al rato."
+    - "Después de desmarcar, la página de registro ya no deja crear cuentas."
+  necesita:
+    - "Unos 1-2 GB de memoria libres (usa un navegador interno para las copias)."
+  problemas:
+    - "No se puede iniciar sesión por el dominio → NEXTAUTH_URL depende del dominio: vuelve a aplicar tras ponerlo."

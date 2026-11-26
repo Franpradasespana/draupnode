@@ -1,0 +1,91 @@
+id: headscale
+name: "Headscale (red privada entre tus equipos)"
+version: 1.0.0
+category: 1 · Sistema
+description: "Una red privada entre tus servidores, tu portátil y tu móvil, con las apps de Tailscale pero con el servidor de coordinación en tu casa. Cada equipo se conecta directo con los demás."
+details: |
+  Headscale (el servidor libre de coordinación de Tailscale) en Docker.
+  A diferencia de WireGuard (todo pasa por este servidor), aquí los
+  equipos se hablan directamente entre ellos; este servidor solo los
+  presenta. Los clientes son las apps de Tailscale (también libres).
+  Necesita un dominio con HTTPS (Caddy o nginx). Draupnode crea el usuario
+  de la red y una clave para unir equipos durante 30 días (en
+  «Contraseñas»): en cada equipo,
+  tailscale up --login-server https://tu-dominio --authkey LA-CLAVE
+  Sus datos están en /srv/draupnode/apps/headscale (entran en las copias del
+  módulo Copias). Licencia: BSD-3-Clause.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+firewall_ports_from: [headscale_public_port]
+proxy_site:
+  domain: headscale_domain
+  port: headscale_port
+secrets:
+  - file: headscale_clave
+    label: Clave para unir equipos a la red
+uninstall_warning: "Para y quita los contenedores de Headscale."
+uninstall_data: "Borrar también sus datos (la red, sus equipos y sus claves). No se puede deshacer."
+variables:
+  - name: headscale_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 8380
+    min: 1024
+    max: 65535
+  - name: headscale_domain
+    label: Dominio
+    help: "Recomendado: los clientes de Tailscale quieren HTTPS (hs.ejemplo.com, con Caddy o nginx)."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: headscale_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: headscale_user
+    label: Usuario de la red
+    help: Los equipos que unas con la clave quedan a su nombre.
+    type: string
+    default: casa
+    pattern: '^[a-z0-9][a-z0-9-]{0,31}$'
+    pattern_help: Minúsculas, números y guiones
+  - name: headscale_base_domain
+    label: Nombre interno de la red
+    help: Cada equipo será «nombre.esto» dentro de la red (MagicDNS). No puede ser tu dominio público.
+    type: string
+    default: red.interna
+    pattern: '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$'
+    pattern_help: Un nombre como red.interna
+  - name: headscale_update
+    label: Actualizar Headscale al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Documentación"
+    url: https://headscale.net
+  - label: "Código fuente"
+    url: https://github.com/juanfont/headscale
+  - label: "Apps de Tailscale (clientes)"
+    url: https://tailscale.com/download
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (sin dominio, el cliente avisará de que no es HTTPS)."
+  pasos:
+    - "Añade «Headscale» (mejor con dominio y Caddy) y aplica."
+    - "Instala Tailscale en tu equipo y ejecuta «tailscale up --login-server <dirección> --authkey <clave de «Contraseñas»>»."
+  comprobar:
+    - "«docker exec dn-headscale headscale nodes list» (en «Terminal») enseña tu equipo."
+    - "Con dos equipos unidos, uno hace ping a la IP 100.64.x.x del otro."
+  necesita:
+    - "Para usarlo de verdad, un dominio con HTTPS."
+  problemas:
+    - "La clave ha caducado (30 días) → borra /etc/draupnode/secretos/<servidor>/headscale_clave y vuelve a aplicar."
+    - "Los equipos no se ven entre sí → usan los servidores DERP de Tailscale para salir de redes difíciles; comprueba que tienen salida a internet."

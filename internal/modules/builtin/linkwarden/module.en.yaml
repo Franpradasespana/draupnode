@@ -1,0 +1,48 @@
+# Textos en inglés de «linkwarden» (los ids, variables y valores están en module.yaml).
+name: Linkwarden (bookmarks that do not get lost)
+category: 7 · Apps
+description: Save links in collections, with a copy of each page (screenshot, PDF and text) in case the original site disappears. With a browser extension.
+details: |
+  Linkwarden in Docker, with its own PostgreSQL. The first person who
+  signs up becomes the administrator: sign up right after applying, then
+  untick “Allow sign-up” and apply again.
+  It keeps a copy of each page with an internal browser: the image is
+  big (about 2 GB) and each copy takes space.
+  Its data is in /srv/draupnode/apps/linkwarden (included in the backups of the
+  Backups module). License: AGPL-3.0.
+uninstall_warning: Stops and removes the Linkwarden containers.
+uninstall_data: Also delete its data (the links, their copies and the database). This cannot be undone.
+variables:
+  linkwarden_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  linkwarden_domain:
+    label: Domain
+    help: Optional. With Caddy or nginx on the server, it is published at https://domain.
+    pattern_help: A domain (app.example.com) or empty
+  linkwarden_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  linkwarden_signup:
+    label: Allow registration
+    help: Keep it ticked until you create your user; then untick it so nobody else can sign up.
+  linkwarden_update:
+    label: Update Linkwarden when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Documentation
+- Source code
+prueba:
+  lab: 'Yes (the image is big: it takes a while to download).'
+  pasos:
+  - Add “Linkwarden” (with “Allow sign-up”) and apply.
+  - Press “Open (SSH tunnel)”, sign up and save a link.
+  - Untick “Allow sign-up” and apply again.
+  comprobar:
+  - The saved link gets its screenshot and PDF copy after a while.
+  - After unticking, the sign-up page no longer lets anyone create accounts.
+  necesita:
+  - About 1-2 GB of free memory (it uses an internal browser for the copies).
+  problemas:
+  - 'Cannot log in through the domain → NEXTAUTH_URL depends on the domain: apply again after setting it.'

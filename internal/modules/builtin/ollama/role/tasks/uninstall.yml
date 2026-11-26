@@ -1,0 +1,19 @@
+---
+- name: ¿Está Ollama?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/ollama/docker-compose.yml
+  register: ollama_cf
+
+- name: Parar y quitar Ollama
+  ansible.builtin.command: docker compose -p dn-ollama down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/ollama
+  when: ollama_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/ollama 
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Ollama {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/ollama: si lo reinstalas, vuelve todo.' }}"

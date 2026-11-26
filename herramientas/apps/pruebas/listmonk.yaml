@@ -1,0 +1,13 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Listmonk» y aplica."
+    - "Pulsa «Abrir (túnel SSH)», entra en /admin con «admin» y crea una lista y una campaña."
+  comprobar:
+    - "Entras con «admin» y la contraseña de «Contraseñas»."
+    - "Con un SMTP puesto en Settings → SMTP, «Enviar prueba» llega a tu correo."
+  necesita:
+    - "Para enviar de verdad, un servidor SMTP."
+  problemas:
+    - "No envía → revisa Settings → SMTP (y los registros SPF/DKIM de tu dominio para no ir a spam)."

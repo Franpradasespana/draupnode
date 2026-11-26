@@ -1,0 +1,19 @@
+---
+- name: ¿Está Audiobookshelf?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/audiobookshelf/docker-compose.yml
+  register: audiobookshelf_cf
+
+- name: Parar y quitar Audiobookshelf
+  ansible.builtin.command: docker compose -p dn-audiobookshelf down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/audiobookshelf
+  when: audiobookshelf_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/audiobookshelf {{ draupnode_secrets_dir | quote }}/audiobookshelf_admin {{ draupnode_secrets_dir | quote }}/.audiobookshelf_admin_pass
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Audiobookshelf {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/audiobookshelf: si lo reinstalas, vuelve todo.' }}"

@@ -1,0 +1,108 @@
+---
+- name: Carpeta del runner
+  ansible.builtin.file:
+    path: /srv/draupnode/apps/forgejo-runner/data
+    state: directory
+    mode: "0750"
+
+- name: ¿Está ya registrado?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/forgejo-runner/data/.runner
+  register: fr_reg
+
+- name: Hace falta el token para registrarlo
+  ansible.builtin.assert:
+    that: fr_reg.stat.exists or (forgejo_runner_token | default('')) | length > 0
+    fail_msg: "Pon el token de registro (Forgejo → Actions → Runners → «Create new runner»)."
+
+- name: docker-compose.yml
+  ansible.builtin.copy:
+    dest: /srv/draupnode/apps/forgejo-runner/docker-compose.yml
+    mode: "0600"
+    content: |
+      # Generado por Draupnode (módulo forgejo-runner). Se reescribe al aplicar.
+      name: dn-forgejo-runner
+      services:
+        runner:
+          image: code.forgejo.org/forgejo/runner:6.3.1
+          container_name: dn-forgejo-runner
+          restart: unless-stopped
+          user: "0:0"
+          working_dir: /data
+          command: forgejo-runner daemon --config /data/config.yml
+          labels:
+            draupnode.proyecto: "{{ draupnode_project }}"
+          volumes:
+            - ./data:/data
+            - /var/run/docker.sock:/var/run/docker.sock
+
+- name: config.yml del runner
+  ansible.builtin.copy:
+    dest: /srv/draupnode/apps/forgejo-runner/data/config.yml
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo forgejo-runner). Se reescribe al aplicar.
+      log:
+        level: info
+      runner:
+        file: .runner
+        capacity: {{ forgejo_runner_capacity }}
+        timeout: 3h
+      cache:
+        enabled: true
+        dir: /data/cache
+      container:
+        network: bridge
+        privileged: false
+        docker_host: automount
+
+- name: Registrarlo en Forgejo (solo la primera vez)
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - /srv/draupnode/apps/forgejo-runner/data:/data
+      - -w
+      - /data
+      - --user
+      - "0:0"
+      - code.forgejo.org/forgejo/runner:6.3.1
+      - forgejo-runner
+      - register
+      - --no-interactive
+      - --instance
+      - "{{ forgejo_runner_url }}"
+      - --token
+      - "{{ forgejo_runner_token }}"
+      - --name
+      - "{{ forgejo_runner_name or ansible_hostname }}"
+      - --labels
+      - "{{ forgejo_runner_labels | join(',') }}"
+  no_log: true
+  register: fr_register
+  when: not fr_reg.stat.exists and not ansible_check_mode
+
+- name: Arrancar el runner
+  ansible.builtin.command: docker compose -p dn-forgejo-runner up -d --quiet-pull --remove-orphans
+  args:
+    chdir: /srv/draupnode/apps/forgejo-runner
+  register: fr_up
+  until: fr_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in fr_up.stderr or 'Created' in fr_up.stderr or 'Recreated' in fr_up.stderr"
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-forgejo-runner
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Runner {{ 'registrado ahora' if (fr_register is changed) else 'ya registrado' }} en {{ forgejo_runner_url }}; mira en Forgejo → Actions → Runners que sale «Idle»."

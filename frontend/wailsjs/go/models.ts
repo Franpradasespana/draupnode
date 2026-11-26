@@ -351,6 +351,26 @@ export namespace app {
 	        this.hasToken = source["hasToken"];
 	    }
 	}
+	export class DNSProvider {
+	    id: string;
+	    name: string;
+	    hasToken: boolean;
+	    tokenUrl: string;
+	    tokenHelp: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DNSProvider(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.hasToken = source["hasToken"];
+	        this.tokenUrl = source["tokenUrl"];
+	        this.tokenHelp = source["tokenHelp"];
+	    }
+	}
 	export class DockerFile {
 	    name: string;
 	    content: string;
@@ -478,6 +498,81 @@ export namespace app {
 		}
 	}
 	
+	export class DomainCheck {
+	    domain: string;
+	    source: string;
+	    ips: string[];
+	    pointsHere: boolean;
+	    dnsError?: string;
+	    status?: number;
+	    timeMs?: number;
+	    webError?: string;
+	    certDays?: number;
+	    certIssuer?: string;
+	    certValid: boolean;
+	    certError?: string;
+	    redirect: boolean;
+	    httpStatus?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DomainCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.domain = source["domain"];
+	        this.source = source["source"];
+	        this.ips = source["ips"];
+	        this.pointsHere = source["pointsHere"];
+	        this.dnsError = source["dnsError"];
+	        this.status = source["status"];
+	        this.timeMs = source["timeMs"];
+	        this.webError = source["webError"];
+	        this.certDays = source["certDays"];
+	        this.certIssuer = source["certIssuer"];
+	        this.certValid = source["certValid"];
+	        this.certError = source["certError"];
+	        this.redirect = source["redirect"];
+	        this.httpStatus = source["httpStatus"];
+	    }
+	}
+	export class DomainReport {
+	    // Go type: time
+	    at: any;
+	    serverIp: string;
+	    domains: DomainCheck[];
+	    extra?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DomainReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.at = this.convertValues(source["at"], null);
+	        this.serverIp = source["serverIp"];
+	        this.domains = this.convertValues(source["domains"], DomainCheck);
+	        this.extra = source["extra"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class DriftItem {
 	    kind: string;
 	    module?: string;
@@ -706,6 +801,139 @@ export namespace app {
 	        this.postCommand = source["postCommand"];
 	        this.framework = source["framework"];
 	        this.postService = source["postService"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ImageCompose {
+	    project: string;
+	    dir: string;
+	    files: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImageCompose(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.project = source["project"];
+	        this.dir = source["dir"];
+	        this.files = source["files"];
+	    }
+	}
+	export class ImageInfo {
+	    image: string;
+	    containers: string[];
+	    compose: ImageCompose[];
+	    coolify: boolean;
+	    status: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImageInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.image = source["image"];
+	        this.containers = source["containers"];
+	        this.compose = this.convertValues(source["compose"], ImageCompose);
+	        this.coolify = source["coolify"];
+	        this.status = source["status"];
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ImageReport {
+	    // Go type: time
+	    at: any;
+	    images: ImageInfo[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ImageReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.at = this.convertValues(source["at"], null);
+	        this.images = this.convertValues(source["images"], ImageInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ImagesResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    report?: ImageReport;
+	    output?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImagesResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.report = this.convertValues(source["report"], ImageReport);
+	        this.output = source["output"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1092,6 +1320,24 @@ export namespace app {
 		}
 	}
 	
+	export class PointDomainResult {
+	    zone: string;
+	    action: string;
+	    before?: string;
+	    ip: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PointDomainResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.zone = source["zone"];
+	        this.action = source["action"];
+	        this.before = source["before"];
+	        this.ip = source["ip"];
+	    }
+	}
 	export class ProjectCheck {
 	    order: string[];
 	    added: string[];
@@ -1477,6 +1723,7 @@ export namespace app {
 	    // Go type: time
 	    createdAt: any;
 	    lastCheck?: store.CheckResult;
+	    cloud?: store.CloudLink;
 	    hasSecret: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -1497,6 +1744,7 @@ export namespace app {
 	        this.notes = source["notes"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.lastCheck = this.convertValues(source["lastCheck"], store.CheckResult);
+	        this.cloud = this.convertValues(source["cloud"], store.CloudLink);
 	        this.hasSecret = source["hasSecret"];
 	    }
 	
@@ -1520,6 +1768,40 @@ export namespace app {
 	}
 	
 	
+	export class SnapshotInfo {
+	    snapshots: cloudapi.Snapshot[];
+	    pricePerGb: number;
+	    currency: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SnapshotInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.snapshots = this.convertValues(source["snapshots"], cloudapi.Snapshot);
+	        this.pricePerGb = source["pricePerGb"];
+	        this.currency = source["currency"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	export class TemplateResult {
 	    project: store.Project;
@@ -1788,6 +2070,46 @@ export namespace cloudapi {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.regions = this.convertValues(source["regions"], Option);
 	        this.sizes = this.convertValues(source["sizes"], Option);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class Snapshot {
+	    id: string;
+	    name: string;
+	    // Go type: time
+	    created: any;
+	    sizeGb: number;
+	    draupnode: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Snapshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.created = this.convertValues(source["created"], null);
+	        this.sizeGb = source["sizeGb"];
+	        this.draupnode = source["draupnode"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2443,6 +2765,26 @@ export namespace store {
 		    return a;
 		}
 	}
+	export class CloudLink {
+	    provider: string;
+	    id: string;
+	    name?: string;
+	    snapshotBeforeApply?: boolean;
+	    keepSnapshots?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CloudLink(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.provider = source["provider"];
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.snapshotBeforeApply = source["snapshotBeforeApply"];
+	        this.keepSnapshots = source["keepSnapshots"];
+	    }
+	}
 	export class FetchInfo {
 	    // Go type: time
 	    at: any;
@@ -2688,6 +3030,7 @@ export namespace store {
 	    // Go type: time
 	    createdAt: any;
 	    lastCheck?: CheckResult;
+	    cloud?: CloudLink;
 	
 	    static createFrom(source: any = {}) {
 	        return new Server(source);
@@ -2707,6 +3050,7 @@ export namespace store {
 	        this.notes = source["notes"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.lastCheck = this.convertValues(source["lastCheck"], CheckResult);
+	        this.cloud = this.convertValues(source["cloud"], CloudLink);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

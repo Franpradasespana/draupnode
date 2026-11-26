@@ -1,0 +1,21 @@
+# Generado por Draupnode (módulo mealie). No lo edites a mano: se reescribe al aplicar.
+name: dn-mealie
+
+services:
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:latest
+    {% if mealie_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-mealie
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      ALLOW_SIGNUP: "false"
+      TZ: Etc/UTC
+      BASE_URL: "{{ ('https://' ~ mealie_domain) if mealie_domain else ('http://127.0.0.1:' ~ mealie_port) }}"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:{{ mealie_port }}:9000"
+{% if (mealie_public_port | default(0) | int) > 0 %}      - "{{ mealie_public_port }}:9000"
+{% endif %}

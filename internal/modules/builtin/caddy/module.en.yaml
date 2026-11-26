@@ -23,6 +23,11 @@ variables:
     help: 'One line per site: «domain target». Target = 127.0.0.1:PORT (an app) or /folder (static website).'
     pattern_help: 'Example: photos.example.com 127.0.0.1:2283'
     placeholder: photos.example.com 127.0.0.1:2283
+  caddy_forward_auth:
+    label: Domains protected with Authelia (set by Draupnode)
+    help: The ones you choose in the Authelia module. Logging in to Authelia is required before reaching them.
+  caddy_forward_auth_to:
+    label: Authelia address (set by Draupnode)
   caddy_email:
     label: Email for Let's Encrypt
     help: Optional. They warn you if a certificate cannot be renewed.

@@ -1,0 +1,77 @@
+id: linkwarden
+name: "Linkwarden (marcadores que no se pierden)"
+version: 1.0.0
+category: 7 · Apps
+description: "Guarda enlaces en colecciones, con una copia de cada página (captura, PDF y texto) por si la web original desaparece. Con extensión para el navegador."
+details: |
+  Linkwarden en Docker, con su propio PostgreSQL. La primera persona que
+  se registra es la administradora: regístrate nada más aplicar y luego
+  desmarca «Permitir registrarse» y vuelve a aplicar.
+  Guarda una copia de cada página con un navegador interno: la imagen es
+  grande (unos 2 GB) y cada copia ocupa.
+  Sus datos están en /srv/draupnode/apps/linkwarden (entran en las copias del
+  módulo Copias). Licencia: AGPL-3.0.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+  min_ram_mb: 1000
+firewall_ports_from: [linkwarden_public_port]
+proxy_site:
+  domain: linkwarden_domain
+  port: linkwarden_port
+uninstall_warning: "Para y quita los contenedores de Linkwarden."
+uninstall_data: "Borrar también sus datos (los enlaces, sus copias y la base de datos). No se puede deshacer."
+variables:
+  - name: linkwarden_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 3005
+    min: 1024
+    max: 65535
+  - name: linkwarden_domain
+    label: Dominio
+    help: "Opcional. Con Caddy o nginx en el servidor, se publica en https://dominio."
+    type: string
+    default: ""
+    pattern: '^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})?$'
+    pattern_help: Un dominio (app.ejemplo.com) o vacío
+  - name: linkwarden_public_port
+    label: Abrir un puerto a internet
+    help: "0 = no (lo normal, con dominio o por la VPN). Si no, http://IP:puerto y se abre en el Cortafuegos."
+    type: int
+    default: 0
+    min: 0
+    max: 65535
+  - name: linkwarden_signup
+    label: Permitir registrarse
+    help: Déjalo marcado hasta crear tu usuario; luego desmárcalo para que nadie más se registre.
+    type: bool
+    default: true
+  - name: linkwarden_update
+    label: Actualizar Linkwarden al aplicar
+    help: Descarga la última versión de la imagen cada vez que aplicas.
+    type: bool
+    default: true
+links:
+  - label: "Web oficial"
+    url: https://linkwarden.app
+  - label: "Documentación"
+    url: https://docs.linkwarden.app
+  - label: "Código fuente"
+    url: https://github.com/linkwarden/linkwarden
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí (la imagen es grande: tarda en bajar)."
+  pasos:
+    - "Añade «Linkwarden» (con «Permitir registrarse») y aplica."
+    - "Pulsa «Abrir (túnel SSH)», regístrate y guarda un enlace."
+    - "Desmarca «Permitir registrarse» y aplica otra vez."
+  comprobar:
+    - "El enlace guardado tiene su captura y su copia en PDF al rato."
+    - "Después de desmarcar, la página de registro ya no deja crear cuentas."
+  necesita:
+    - "Unos 1-2 GB de memoria libres (usa un navegador interno para las copias)."
+  problemas:
+    - "No se puede iniciar sesión por el dominio → NEXTAUTH_URL depende del dominio: vuelve a aplicar tras ponerlo."

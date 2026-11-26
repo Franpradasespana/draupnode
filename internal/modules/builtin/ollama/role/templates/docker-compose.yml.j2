@@ -1,0 +1,35 @@
+# Generado por Draupnode (módulo ollama). No lo edites a mano: se reescribe al aplicar.
+name: dn-ollama
+
+services:
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    {% if ollama_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-ollama
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    environment:
+      OLLAMA_ORIGINS: "*"
+    volumes:
+      - ./models:/root/.ollama
+  hollama:
+    image: ghcr.io/fmaclen/hollama:latest
+    {% if ollama_update | bool %}pull_policy: always
+    {% endif %}container_name: dn-hollama
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+  web:
+    image: docker.io/library/nginx:alpine
+    container_name: dn-ollama-web
+    restart: unless-stopped
+    depends_on: [ollama, hollama]
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:{{ ollama_port }}:80"
+{% if (ollama_public_port | default(0) | int) > 0 %}      - "{{ ollama_public_port }}:80"
+{% endif %}

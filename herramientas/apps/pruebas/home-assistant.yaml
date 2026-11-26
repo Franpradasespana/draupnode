@@ -1,0 +1,14 @@
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Añade «Home Assistant» y aplica."
+    - "Pulsa «Abrir (túnel SSH)» y crea tu usuario en el asistente de inicio."
+  comprobar:
+    - "Entras en el panel de Home Assistant con tu usuario."
+    - "Con dominio y Caddy, entras por https://tu-dominio sin error «400 Bad Request»."
+  necesita:
+    - "Nada para probarlo. Para tus aparatos de casa, que el servidor esté en tu red (o unido por VPN)."
+  problemas:
+    - "«400 Bad Request» con dominio → falta que se fíe del proxy: mira config/configuration.yaml (Draupnode lo crea solo la primera vez)."
+    - "No encuentra aparatos → en un servidor de internet no ve tu red de casa."

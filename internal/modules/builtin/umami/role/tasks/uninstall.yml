@@ -11,7 +11,7 @@
   when: umami_cf.stat.exists and not ansible_check_mode
 
 - name: Borrar sus datos
-  ansible.builtin.shell: rm -rf /srv/draupnode/apps/umami {{ draupnode_secrets_dir | quote }}/umami_admin
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/umami {{ draupnode_secrets_dir | quote }}/umami_admin {{ draupnode_secrets_dir | quote }}/.umami_admin_pass {{ draupnode_secrets_dir | quote }}/.umami_db {{ draupnode_secrets_dir | quote }}/.umami_secret
   when: draupnode_uninstall_purge | bool and not ansible_check_mode
 
 - name: Nota

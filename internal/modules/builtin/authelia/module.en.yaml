@@ -1,0 +1,59 @@
+# Textos en inglés de «authelia» (los ids, variables y valores están en module.yaml).
+name: Authelia (single sign-on and two-factor)
+category: 8 · Security
+description: 'A gate in front of your apps: you have to log in (with two-factor if you want) before reaching them. Protects apps that have no users of their own or should not be in plain sight.'
+details: |
+  Authelia in Docker, with its SQLite database and an “admin” user with the
+  password generated on the server (in “Passwords”).
+  It needs its own domain (for example auth.example.com) and the apps it
+  protects must be under the same main domain (example.com), because the
+  session lives in a cookie for that domain. In “Protected domains” put
+  the ones of the apps you want to cover: Draupnode configures Caddy to
+  ask Authelia before letting anyone through (it is not automatic with nginx).
+  Messages Authelia would send by email (for example, the code to register
+  two-factor) are written to config/notificaciones.txt.
+  Its data is in /srv/draupnode/apps/authelia (included in the backups of the
+  Backups module). License: Apache-2.0.
+uninstall_warning: Stops and removes the Authelia containers.
+uninstall_data: Also delete its data (its users, the database and the configuration). This cannot be undone.
+variables:
+  authelia_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  authelia_domain:
+    label: Domain
+    help: 'Required: the domain of the Authelia portal (auth.example.com). Needs Caddy on the server.'
+    pattern_help: A domain (app.example.com) or empty
+  authelia_public_port:
+    label: Open a port to the internet
+    help: 0 = no (the usual, with a domain or through the VPN). Otherwise http://IP:port and it is opened in the Firewall.
+  authelia_protect:
+    label: Protected domains
+    help: One per line. Logging in to Authelia will be required to reach them. They must be under the same main domain as Authelia's.
+    pattern_help: A domain (app.example.com)
+  authelia_policy:
+    label: How to log in
+    help: “two_factor” = password plus a code from your phone (recommended). “one_factor” = password only.
+  authelia_update:
+    label: Update Authelia when applying
+    help: Downloads the latest version of the image every time you apply.
+links:
+- Official website
+- Documentation
+- Source code
+secrets:
+- Authelia “admin” user
+prueba:
+  lab: 'Not fully: logging in needs a real domain with HTTPS (Caddy). On the test server it only checks that it starts.'
+  pasos:
+  - Add “Caddy” and “Authelia” with the domain auth.your-domain and, in “Protected domains”, the one of some app (for example kuma.your-domain for Uptime Kuma).
+  - Apply and open https://kuma.your-domain.
+  comprobar:
+  - Before showing the app it sends you to https://auth.your-domain to log in.
+  - With “admin”, the password from “Passwords” (and the two-factor code) you get into the app.
+  necesita:
+  - A domain with its subdomains pointing to the server, and Caddy.
+  problemas:
+  - It asks for the two-factor registration code → it is in /srv/draupnode/apps/authelia/config/notificaciones.txt (look at it in “Terminal”).
+  - Redirect loop → the app and Authelia must hang from the same main domain.
+  - Nothing is protected with nginx → for now automatic protection is Caddy only.

@@ -1,0 +1,19 @@
+---
+- name: ¿Está FreshRSS?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/freshrss/docker-compose.yml
+  register: freshrss_cf
+
+- name: Parar y quitar FreshRSS
+  ansible.builtin.command: docker compose -p dn-freshrss down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/freshrss
+  when: freshrss_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/freshrss {{ draupnode_secrets_dir | quote }}/freshrss_admin {{ draupnode_secrets_dir | quote }}/.freshrss_admin_pass
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "FreshRSS {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/freshrss: si lo reinstalas, vuelve todo.' }}"

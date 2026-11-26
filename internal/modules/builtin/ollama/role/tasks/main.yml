@@ -1,0 +1,96 @@
+---
+- name: Carpeta de Ollama
+  ansible.builtin.set_fact:
+    ollama_dir: /srv/draupnode/apps/ollama
+    ollama_url: "{{ ('https://' ~ ollama_domain) if ollama_domain else ('http://127.0.0.1:' ~ ollama_port ~ ' (en el servidor: usa «Abrir» en la página del módulo)') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ ollama_dir }}"
+    - "{{ ollama_dir }}/models"
+
+- name: nginx de delante (web y API en la misma dirección)
+  ansible.builtin.copy:
+    dest: "{{ ollama_dir }}/nginx.conf"
+    mode: "0644"
+    content: |
+      # Generado por Draupnode (módulo ollama).
+      server {
+        listen 80;
+        client_max_body_size 100m;
+        location /api/ {
+          proxy_pass http://ollama:11434;
+          proxy_buffering off;
+          proxy_read_timeout 900s;
+          proxy_set_header Host localhost;
+        }
+        location / {
+          proxy_pass http://hollama:4173;
+          proxy_set_header Host $host;
+        }
+      }
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ ollama_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: false
+
+- name: Arrancar Ollama
+  ansible.builtin.command: docker compose -p dn-ollama up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ ollama_dir }}"
+  register: ollama_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: ollama_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in ollama_up.stderr or 'Created' in ollama_up.stderr or 'Recreated' in ollama_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ ollama_port }}/api/version"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: ollama_http
+  until: ollama_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 40
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-ollama
+  when: not ansible_check_mode
+
+- name: Modelos que ya tiene
+  ansible.builtin.command: docker exec dn-ollama ollama list
+  register: ollama_have
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Descargar los modelos (puede tardar mucho)
+  ansible.builtin.command: docker exec dn-ollama ollama pull {{ item | quote }}
+  loop: "{{ ollama_models }}"
+  when: not ansible_check_mode and (item if ':' in item else item ~ ':latest') not in ollama_have.stdout
+  register: ollama_pull
+  retries: 2
+  delay: 10
+  until: ollama_pull.rc == 0
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Ollama {{ 'responde' if (ollama_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-ollama logs, en ' ~ ollama_dir ~ ')' }} en {{ ollama_url }}.
+      En Hollama, Settings → Servers: añade la dirección por la que entras, tipo Ollama. Modelos: {{ ollama_models | join(', ') }}.
