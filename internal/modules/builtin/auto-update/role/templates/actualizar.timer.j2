@@ -1,0 +1,11 @@
+# Generado por Draupnode (módulo auto-update).
+[Unit]
+Description=Actualizar las apps de Draupnode ({{ draupnode_project }})
+
+[Timer]
+OnCalendar={{ {'todos': '', 'lunes': 'Mon ', 'martes': 'Tue ', 'miercoles': 'Wed ', 'jueves': 'Thu ', 'viernes': 'Fri ', 'sabado': 'Sat ', 'domingo': 'Sun '}[auto_update_days] }}*-*-* {{ auto_update_time }}:00
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

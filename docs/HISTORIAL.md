@@ -1420,3 +1420,16 @@ otro», descartada).
   15 días.
 - Probado en Ubuntu desechable con PostgreSQL y una base con datos: bien (ficheros y volcado abiertos, carpeta
   temporal borrada); con un volcado roto metido en la copia, falla y lo nombra.
+
+## 2026-11-26 · 0.75.0 · Actualizar las apps solas, con vuelta atrás
+
+- Módulo nuevo **auto-update** («Actualizar las apps solas», hecho a mano): temporizador
+  `draupnode-actualizar-<proyecto>` a la hora y los días elegidos. Su script (Python) hace antes la copia del módulo
+  Copias (si se marca; si falla, no actualiza), y para cada proyecto Compose (solo los de Draupnode, o todos menos los
+  de Coolify; con lista de excluidos) baja las imágenes (`pull --ignore-buildable`), recrea solo si alguna cambió,
+  espera y, si algún contenedor se queda reiniciándose o «unhealthy», vuelve a etiquetar las imágenes anteriores y
+  recrea (vuelta atrás). Resultado en `/var/lib/draupnode/actualizaciones/<proyecto>.json`.
+- Ficha: parte `autoupdate` del script (próxima vez y último resultado); pantalla «Actualizaciones» con la fila
+  «Solas»; avisos si algo se volvió atrás o falló.
+- Probado en Ubuntu desechable: todo al día («iguales»), una app con imagen vieja se actualiza, y otra cuya imagen
+  nueva queda «unhealthy» vuelve sola a la anterior. Reaplicar 0 cambios; desinstalar quita el temporizador.

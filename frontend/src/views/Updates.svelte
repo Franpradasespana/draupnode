@@ -4,13 +4,13 @@
   // seguridad), si hace falta reiniciar e imágenes Docker con versión nueva
   // (Draupnode pregunta a cada registro). Se instala servidor a servidor o en
   // todos, uno detrás de otro.
-  import { RefreshCw, PackageCheck, Power, Container, CircleCheck, LoaderCircle, ChevronDown, ChevronRight, Server as ServerIcon } from '@lucide/svelte'
+  import { RefreshCw, PackageCheck, Power, Container, CalendarClock, CircleCheck, LoaderCircle, ChevronDown, ChevronRight, Server as ServerIcon } from '@lucide/svelte'
   import { api, errorText, type DockerResult, type ImageInfo, type ImagesResult, type ServerOverviewResult } from '../lib/api'
-  import { ui, toast, timeAgo, openServer, confirmDialog } from '../lib/state.svelte'
+  import { ui, toast, timeAgo, openServer, openServerModules, confirmDialog } from '../lib/state.svelte'
   import { withConnection } from '../lib/connect'
   import { alerts, rememberOverview, newImages, updatableProjects } from '../lib/alerts.svelte'
   import { runBulk, bulk, type BulkKind } from '../lib/bulk.svelte'
-  import { t, plural } from '../lib/i18n.svelte'
+  import { t, plural, locale } from '../lib/i18n.svelte'
 
   const rows = $derived(
     ui.servers.map((s) => {
@@ -26,6 +26,7 @@
         rebootFor: ov?.updates?.rebootFor ?? [],
         newImgs: newImages(im),
         projects: updatableProjects(im),
+        auto: ov?.autoupdate ?? [],
         docker: !!ov?.docker,
       }
     }),
@@ -126,6 +127,7 @@
     await runBulk(title, list.map((r) => ({ serverId: r.s.id, kind })))
   }
 
+  const nextText = (ts: number) => new Date(ts * 1000).toLocaleString(locale(), { weekday: 'short', hour: '2-digit', minute: '2-digit' })
   const statusText = (i: ImageInfo) =>
     i.status === 'new' ? (i.coolify ? t('nueva · la actualiza Coolify') : !i.compose.length ? t('nueva · contenedor suelto: actualízalo a mano') : t('nueva'))
     : i.status === 'same' ? t('al día')
@@ -237,6 +239,25 @@
           {/if}
         {/if}
 
+        <div class="line">
+          <CalendarClock size={16} />
+          <div class="what">
+            <strong>{t('Solas')}</strong>
+            {#if !r.auto.length}
+              <span class="muted">{t('no: con el módulo «Actualizar las apps solas» se actualizan de madrugada y vuelven atrás si fallan')}</span>
+            {:else}
+              {#each r.auto as a}
+                <span>{a.active ? t('sí') : t('temporizador parado')}{#if a.next}{' · '}{t('la próxima, {0}', nextText(a.next))}{/if}</span>
+                {#if a.last}
+                  <span class="muted small">· {t('la última, {0}', timeAgo(new Date(a.last.at * 1000).toISOString()))}:
+                    {t(a.last.updated.length === 1 ? '1 actualizada' : '{0} actualizadas', a.last.updated.length)}{#if a.last.rolledBack.length}{', '}<span class="warn-t">{t('vuelta atrás: {0}', a.last.rolledBack.join(', '))}</span>{/if}{#if a.last.failed.length}{', '}<span class="bad-t">{t('fallos: {0}', a.last.failed.join(', '))}</span>{/if}</span>
+                {/if}
+              {/each}
+            {/if}
+          </div>
+          <button class="btn sm ghost" onclick={() => openServerModules(r.s.id)}>{r.auto.length ? t('Cambiar…') : t('Añadir…')}</button>
+        </div>
+
         {#if output[r.s.id]}
           <pre class="out">{output[r.s.id]}</pre>
         {/if}
@@ -270,6 +291,7 @@
   .small { font-size: 12px; }
   .ok-t { color: var(--success); }
   .warn-t { color: var(--warning); }
+  .bad-t { color: var(--danger); }
   .lnk { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-align: left; }
   .lnk:hover { text-decoration: underline; }
   .lnk:disabled { opacity: .5; cursor: default; }

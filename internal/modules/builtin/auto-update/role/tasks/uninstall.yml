@@ -1,0 +1,27 @@
+---
+- name: Parar el temporizador
+  ansible.builtin.systemd:
+    name: "draupnode-actualizar-{{ draupnode_project }}.timer"
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Quitar script, servicio, temporizador y resultado
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/usr/local/sbin/draupnode-actualizar-{{ draupnode_project }}"
+    - "/etc/systemd/system/draupnode-actualizar-{{ draupnode_project }}.service"
+    - "/etc/systemd/system/draupnode-actualizar-{{ draupnode_project }}.timer"
+    - "/var/lib/draupnode/actualizaciones/{{ draupnode_project }}.json"
+  register: au_quitado
+
+- name: Recargar systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: au_quitado is changed and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "Actualización automática {{ 'se quitará' if ansible_check_mode else 'quitada' }}: las apps ya no se actualizan solas."

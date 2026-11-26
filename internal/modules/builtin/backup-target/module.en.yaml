@@ -54,7 +54,7 @@ variables:
   backup_target_prune_time:
     label: Rotation time
     help: Better far from the backup time (while it rotates, the source waits to back up).
-    pattern_help: Format HH:MM
+    pattern_help: HH:MM format
   backup_target_keys:
     label: Backup passwords (Draupnode sets them)
 links:

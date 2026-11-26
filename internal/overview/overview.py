@@ -394,6 +394,23 @@ def _():
     h["auditd"] = run("systemctl", "is-active", "auditd").strip() == "active"
     return h
 
+@part("autoupdate")
+def _():
+    # Módulo «Actualizar las apps solas»: su temporizador y el último resultado.
+    res = []
+    for f in sorted(glob.glob("/etc/systemd/system/draupnode-actualizar-*.timer")):
+        slug = os.path.basename(f)[len("draupnode-actualizar-"):-len(".timer")]
+        last = None
+        try:
+            last = json.load(open("/var/lib/draupnode/actualizaciones/%s.json" % slug))
+        except Exception:
+            pass
+        nxt = run("systemctl", "show", os.path.basename(f), "-p", "NextElapseUSecRealtime", "--value").strip()
+        ts = run("date", "+%s", "-d", nxt).strip() if nxt and nxt != "n/a" else ""
+        res.append({"slug": slug, "last": last, "next": int(ts) if ts.isdigit() else None,
+                    "active": run("systemctl", "is-active", os.path.basename(f)).strip() == "active"})
+    return res
+
 @part("certs")
 def _():
     # Caducidad de los certificados HTTPS de los dominios de nginx/Caddy (los 10 primeros).

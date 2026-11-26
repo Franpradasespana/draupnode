@@ -1,0 +1,49 @@
+# Textos en inglés de «auto-update» (los ids, variables y valores están en module.yaml).
+name: Update apps by themselves
+category: 2 · Containers
+description: Every night (or on the day you choose), the server pulls the new images of your apps and recreates them; if one does not start properly with the new one, it goes back to the previous one by itself. It works even with Draupnode closed.
+details: |
+  A timer on the server that, at the chosen time, takes a backup (if the
+  Backups module is there and you tick it), and for each Docker Compose app
+  pulls its images with the same tag (postgres:16 stays on 16) and
+  recreates only the ones that changed. It waits a bit and, if any
+  container keeps restarting or is “unhealthy”, goes back to the previous
+  image. Coolify's are not touched (Coolify updates them).
+  The result shows on the “Updates” screen and, if something failed or was
+  rolled back, in the alerts.
+uninstall_warning: 'Removes the timer: the apps stop updating by themselves.'
+variables:
+  auto_update_time:
+    label: Time
+    help: At this time (with up to 20 random minutes of margin).
+    pattern_help: HH:MM format
+  auto_update_days:
+    label: Which days
+  auto_update_backup:
+    label: Take a backup first
+    help: If the Backups module is there, it runs it before updating; if the backup fails, nothing is updated.
+  auto_update_only_draupnode:
+    label: Only Draupnode apps
+    help: Unticked, also the other Docker Compose apps on the server (not Coolify's).
+  auto_update_exclude:
+    label: Do not update these projects
+    help: Compose project names, one per line (for example dn-immich). You can see them on the “Updates” screen.
+    pattern_help: Lowercase letters, numbers, hyphen and underscore
+  auto_update_wait:
+    label: Seconds to wait before checking they start
+links:
+- docker compose pull
+- systemd timers
+prueba:
+  lab: Yes.
+  pasos:
+  - With some app installed (for example Uptime Kuma), add “Update apps by themselves” and apply.
+  - 'In “Terminal”: sudo systemctl start draupnode-actualizar-<server> (do not wait for the night).'
+  comprobar:
+  - The “Updates” screen says when the last run was and what was updated.
+  - “systemctl list-timers” shows the draupnode-actualizar-… timer
+  necesita:
+  - Apps in Docker Compose (Draupnode's or yours).
+  problemas:
+  - 'An app shows “rolled back” → the new image did not start properly: look at its log (Containers tab) and, if it needs some change, add it to “Do not update these projects” meanwhile.'
+  - '“could not pull the images” → the image registry does not answer or asks for a user: look at the service log (journalctl -u draupnode-actualizar-…).'

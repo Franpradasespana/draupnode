@@ -196,7 +196,7 @@
   const secScore = $derived(ov ? securityScore(securityChecks(ov, project?.installedModules ?? [])) : null)
   const domainIssues = $derived((alerts.domains[id]?.domains ?? []).map(domainProblem).filter((p) => !!p))
   // Avisos del sistema (reinicio, actualizaciones de seguridad, certificados, hora, SSH).
-  const sysFindings = $derived(findings.filter((f) => /^(reboot|secupd|cert|clock|ssh|clamav)/.test(f.id)))
+  const sysFindings = $derived(findings.filter((f) => /^(reboot|secupd|cert|clock|ssh|clamav|auto)/.test(f.id)))
   const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + sysFindings.length + (pendingMods ? 1 : 0) + (drifted ? 1 : 0))
   const tabs = $derived([
     { id: 'resumen' as Tab, label: tr('Resumen'), icon: LayoutDashboard, badge: attention, bad: isDown || findings.some((f) => f.bad) },

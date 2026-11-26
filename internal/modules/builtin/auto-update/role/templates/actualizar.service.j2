@@ -1,0 +1,10 @@
+# Generado por Draupnode (módulo auto-update).
+[Unit]
+Description=Actualizar las apps de Draupnode ({{ draupnode_project }})
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/draupnode-actualizar-{{ draupnode_project }}
+Nice=10

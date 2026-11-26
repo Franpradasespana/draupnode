@@ -692,6 +692,7 @@ export interface ServerOverview {
   databases?: { container: string; engine: string; image: string; databases: { name: string; size: number }[] }[]
   coolify?: { apps: { kind: string; name: string; urls: string[]; status: string }[]; panel: string } | null
   sites?: { server: string; domain: string; target: string; https: boolean; file: string }[]
+  autoupdate?: { slug: string; next: number | null; active: boolean; last: { at: number; ok: boolean; updated: string[]; same: string[]; rolledBack: string[]; failed: string[]; backup: boolean | null; duration?: number } | null }[]
   hardening?: {
     ssh?: { password: boolean; kbd: boolean; root: string; port: number }
     autoUpdates?: boolean
@@ -2102,6 +2103,7 @@ function mockBackend(): Backend {
         updates: lab ? { total: 0, security: 0, reboot: false, packages: [] } : { total: 12, security: 3, reboot: true, packages: ['openssl', 'libssl3', 'linux-image-generic', 'curl'], rebootFor: ['linux-image-6.8.0-52-generic'] },
         clock: { synced: true, known: true, timezone: 'Europe/Madrid' },
         security: lab ? { failed24h: 0, ips: 0, top: [], fail2ban: null } : { failed24h: 412, ips: 37, top: [{ ip: '198.51.100.23', count: 96 }, { ip: '203.0.113.77', count: 41 }], fail2ban: { banned: 6, total: 58 } },
+        autoupdate: lab ? [] : [{ slug: 'produccion', active: true, next: Math.floor(Date.now() / 1000) + 9 * 3600, last: { at: Math.floor(Date.now() / 1000) - 15 * 3600, ok: true, updated: ['dn-vaultwarden'], same: ['draupnode-monitor', 'dn-uptime-kuma'], rolledBack: [], failed: [], backup: true, duration: 312 } }],
         hardening: lab ? { ssh: { password: true, kbd: false, root: 'no', port: 22 }, autoUpdates: true, auditd: false }
           : { ssh: { password: false, kbd: false, root: 'prohibit-password', port: 22 }, autoUpdates: true, lynis: { index: 66, warnings: 1, suggestions: 31, ago: 2 * 86400 }, trivy: { vulns: 14, images: 5, failed: 0, ago: 3 * 86400 }, auditd: false },
         certs: lab ? [] : [{ domain: 'estado.ejemplo.com', days: 12, issuer: tr('Let\'s Encrypt') }],

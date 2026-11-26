@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+# Generado por Draupnode (módulo auto-update, proyecto {{ draupnode_project }}). Se reescribe al aplicar.
+# Actualiza las imágenes de las apps (proyectos Docker Compose) y, si una app
+# no arranca bien con la nueva, vuelve a la imagen anterior. Deja el resultado
+# en /var/lib/draupnode/actualizaciones/{{ draupnode_project }}.json.
+import json, os, subprocess, sys, time
+
+SOLO_DRAUPNODE = {{ 'True' if auto_update_only_draupnode | bool else 'False' }}
+EXCLUIR = set({{ auto_update_exclude | to_json }})
+COPIA = {{ ('"/usr/local/sbin/draupnode-copia-' ~ draupnode_project ~ '"') if auto_update_backup | bool else 'None' }}
+ESPERA = {{ auto_update_wait | int }}
+OUT = "/var/lib/draupnode/actualizaciones/{{ draupnode_project }}.json"
+
+
+def sh(*cmd, timeout=1800):
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    return r.returncode, (r.stdout + r.stderr).strip()
+
+
+def log(m):
+    print(time.strftime("[%F %T] ") + m, flush=True)
+
+
+def proyectos():
+    """Proyectos Compose con su carpeta y ficheros (los de Coolify no: los actualiza Coolify)."""
+    rc, out = sh("docker", "ps", "-a", "--format", "{{ '{{' }}json .Labels{{ '}}' }}")
+    res = {}
+    ids = sh("docker", "ps", "-aq")[1].split()
+    if not ids:
+        return res
+    fmt = "{{ '{{' }}json .Config.Labels{{ '}}' }}|{{ '{{' }}.Name{{ '}}' }}|{{ '{{' }}.Config.Image{{ '}}' }}|{{ '{{' }}.Image{{ '}}' }}"
+    for l in sh("docker", "inspect", "-f", fmt, *ids)[1].splitlines():
+        try:
+            lab, name, ref, iid = l.split("|", 3)
+            lab = json.loads(lab) or {}
+        except Exception:
+            continue
+        p = lab.get("com.docker.compose.project")
+        if not p or lab.get("coolify.managed") == "true" or p in EXCLUIR:
+            continue
+        if SOLO_DRAUPNODE and not lab.get("draupnode.proyecto"):
+            continue
+        d = res.setdefault(p, {"dir": lab.get("com.docker.compose.project.working_dir", ""),
+                               "files": lab.get("com.docker.compose.project.config_files", ""), "imgs": {}})
+        d["imgs"][ref] = iid
+    return {k: v for k, v in res.items() if v["dir"]}
+
+
+def compose(p, d, *args, timeout=1800):
+    cmd = ["docker", "compose", "-p", p]
+    for f in d["files"].split(","):
+        if f.strip():
+            cmd += ["-f", f.strip()]
+    r = subprocess.run(cmd + list(args), capture_output=True, text=True, cwd=d["dir"], timeout=timeout)
+    return r.returncode, (r.stdout + r.stderr).strip()
+
+
+def enfermos(p):
+    bad = []
+    for l in sh("docker", "ps", "-a", "--filter", "label=com.docker.compose.project=" + p,
+                "--format", "{{ '{{' }}.Names{{ '}}' }}|{{ '{{' }}.State{{ '}}' }}|{{ '{{' }}.Status{{ '}}' }}")[1].splitlines():
+        n, st, status = (l.split("|") + ["", ""])[:3]
+        if st in ("restarting", "dead") or "unhealthy" in status:
+            bad.append(n)
+    return bad
+
+
+def main():
+    inicio = time.time()
+    r = {"at": int(inicio), "ok": True, "updated": [], "same": [], "rolledBack": [], "failed": [], "backup": None}
+    if COPIA and os.path.exists(COPIA):
+        log("Copia antes de actualizar")
+        rc, _ = sh(COPIA, timeout=6 * 3600)
+        r["backup"] = rc == 0
+        if rc != 0:
+            log("La copia falló: no se actualiza nada")
+            r["ok"] = False
+            r["failed"].append("(copia)")
+            return r
+    for p, d in sorted(proyectos().items()):
+        rc, out = compose(p, d, "pull", "-q", "--ignore-buildable")
+        if rc != 0:
+            rc, out = compose(p, d, "pull", "-q")
+        if rc != 0:
+            log("%s: no se pudieron bajar las imágenes: %s" % (p, out[-300:]))
+            r["failed"].append(p)
+            continue
+        nuevas = {ref: sh("docker", "image", "inspect", "-f", "{{ '{{' }}.Id{{ '}}' }}", ref)[1] for ref in d["imgs"]}
+        if all(nuevas[ref] == iid for ref, iid in d["imgs"].items()):
+            r["same"].append(p)
+            continue
+        log("%s: imagen nueva, recreando" % p)
+        rc, out = compose(p, d, "up", "-d", "--remove-orphans")
+        time.sleep(ESPERA)
+        bad = enfermos(p) if rc == 0 else ["(compose up)"]
+        if not bad:
+            r["updated"].append(p)
+            continue
+        log("%s: no arranca bien (%s): vuelve a la imagen anterior" % (p, ", ".join(bad)))
+        for ref, iid in d["imgs"].items():
+            sh("docker", "tag", iid, ref)
+        compose(p, d, "up", "-d", "--remove-orphans")
+        r["rolledBack"].append(p)
+    if r["updated"]:
+        sh("docker", "image", "prune", "-f")
+    r["ok"] = not r["failed"] and not r["rolledBack"]
+    r["duration"] = int(time.time() - inicio)
+    return r
+
+
+if __name__ == "__main__":
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    try:
+        res = main()
+    except Exception as e:  # noqa: BLE001
+        res = {"at": int(time.time()), "ok": False, "updated": [], "same": [], "rolledBack": [], "failed": [str(e)[:200]]}
+    open(OUT, "w").write(json.dumps(res))
+    log("Hecho: %d actualizadas, %d iguales, %d vueltas atrás, %d fallos" % (len(res["updated"]), len(res["same"]), len(res["rolledBack"]), len(res["failed"])))
+    sys.exit(0 if res["ok"] else 1)

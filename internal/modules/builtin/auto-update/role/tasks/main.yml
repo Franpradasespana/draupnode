@@ -1,0 +1,31 @@
+---
+- name: Script de actualizar las apps
+  ansible.builtin.template:
+    src: actualizar.py.j2
+    dest: "/usr/local/sbin/draupnode-actualizar-{{ draupnode_project }}"
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Servicio y temporizador
+  ansible.builtin.template:
+    src: "actualizar.{{ item }}.j2"
+    dest: "/etc/systemd/system/draupnode-actualizar-{{ draupnode_project }}.{{ item }}"
+    mode: "0644"
+  loop: [service, timer]
+  register: au_units
+
+- name: Temporizador activo
+  ansible.builtin.systemd:
+    name: "draupnode-actualizar-{{ draupnode_project }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: "{{ au_units is changed }}"
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      Las apps se actualizan solas {{ 'cada día' if auto_update_days == 'todos' else 'los ' ~ auto_update_days }} a las {{ auto_update_time }}
+      {{- ' (con una copia antes)' if auto_update_backup | bool else '' }}. Si una no arranca bien con la imagen nueva, vuelve sola a la anterior.
+      Pruébalo ya con: sudo systemctl start draupnode-actualizar-{{ draupnode_project }}

@@ -1,0 +1,74 @@
+id: auto-update
+name: Actualizar las apps solas
+version: 1.0.0
+category: 2 · Contenedores
+description: "Cada noche (o el día que elijas), el servidor baja las imágenes nuevas de tus apps y las recrea; si una no arranca bien con la nueva, vuelve sola a la anterior. Funciona aunque Draupnode esté cerrado."
+details: |
+  Un temporizador en el servidor que, a la hora elegida, hace una copia
+  (si está el módulo Copias y lo marcas), y para cada app en Docker
+  Compose baja sus imágenes con la misma etiqueta (postgres:16 sigue en
+  la 16) y recrea solo las que han cambiado. Espera un poco y, si algún
+  contenedor se queda reiniciándose o «unhealthy», vuelve a la imagen
+  anterior. Las de Coolify no se tocan (las actualiza Coolify).
+  El resultado sale en la pantalla «Actualizaciones» y, si algo falló o
+  se volvió atrás, en los avisos.
+depends: [docker]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: "Quita el temporizador: las apps dejan de actualizarse solas."
+variables:
+  - name: auto_update_time
+    label: Hora
+    help: A esta hora (con hasta 20 minutos de margen al azar).
+    type: string
+    default: "04:30"
+    pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+    pattern_help: Formato HH:MM
+  - name: auto_update_days
+    label: Qué días
+    type: select
+    options: [todos, lunes, martes, miercoles, jueves, viernes, sabado, domingo]
+    default: todos
+  - name: auto_update_backup
+    label: Hacer una copia antes
+    help: Si está el módulo Copias, la lanza antes de actualizar; si la copia falla, no se actualiza nada.
+    type: bool
+    default: true
+  - name: auto_update_only_draupnode
+    label: Solo las apps de Draupnode
+    help: Desmarcado, también las demás apps en Docker Compose del servidor (no las de Coolify).
+    type: bool
+    default: true
+  - name: auto_update_exclude
+    label: No actualizar estos proyectos
+    help: Nombres de proyectos Compose, uno por línea (por ejemplo dn-immich). Los ves en la pantalla «Actualizaciones».
+    type: list
+    default: []
+    pattern: '^[a-z0-9][a-z0-9_-]*$'
+    pattern_help: Minúsculas, números, guion y guion bajo
+  - name: auto_update_wait
+    label: Segundos de espera antes de comprobar que arrancan
+    type: int
+    default: 60
+    min: 10
+    max: 900
+links:
+  - label: "docker compose pull"
+    url: https://docs.docker.com/reference/cli/docker/compose/pull/
+  - label: "Temporizadores de systemd"
+    url: https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "Sí."
+  pasos:
+    - "Con alguna app instalada (por ejemplo Uptime Kuma), añade «Actualizar las apps solas» y aplica."
+    - "En «Terminal»: sudo systemctl start draupnode-actualizar-<servidor> (no esperes a la noche)."
+  comprobar:
+    - "La pantalla «Actualizaciones» dice cuándo fue la última vez y qué se actualizó."
+    - "«systemctl list-timers» enseña el temporizador draupnode-actualizar-…"
+  necesita:
+    - "Apps en Docker Compose (las de Draupnode o las tuyas)."
+  problemas:
+    - "Sale «vuelta atrás» en una app → la imagen nueva no arrancaba bien: mira su registro (pestaña Contenedores) y, si necesita algún cambio, añádela a «No actualizar estos proyectos» mientras tanto."
+    - "«no se pudieron bajar las imágenes» → el registro de imágenes no responde o pide usuario: mira el registro del servicio (journalctl -u draupnode-actualizar-…)."
