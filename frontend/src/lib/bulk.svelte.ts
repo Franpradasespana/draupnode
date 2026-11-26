@@ -4,10 +4,10 @@
 import { api, errorText, type DockerResult } from './api'
 import { ui, startRun, refreshProjects, toast } from './state.svelte'
 import { withConnection } from './connect'
-import { rememberOverview } from './alerts.svelte'
+import { rememberOverview, alerts, updatableProjects } from './alerts.svelte'
 import { t } from './i18n.svelte'
 
-export type BulkKind = 'apply' | 'simulate' | 'upgrade' | 'reboot'
+export type BulkKind = 'apply' | 'simulate' | 'upgrade' | 'reboot' | 'images'
 export interface BulkJob {
   serverId: string
   projectId?: string
@@ -19,7 +19,7 @@ export interface BulkJob {
 export const bulk = $state({ title: '', jobs: [] as BulkJob[], running: false, stop: false })
 
 export const kindLabel = (k: BulkKind) =>
-  k === 'apply' ? t('Aplicar módulos') : k === 'simulate' ? t('Simular') : k === 'upgrade' ? t('Instalar actualizaciones') : t('Reiniciar')
+  k === 'apply' ? t('Aplicar módulos') : k === 'simulate' ? t('Simular') : k === 'upgrade' ? t('Instalar actualizaciones') : k === 'images' ? t('Actualizar imágenes') : t('Reiniciar')
 
 /** Espera a que termine una ejecución (sus eventos llegan por ui.runs). */
 export function waitRun(projectId: string, runId: string): Promise<boolean> {
@@ -49,6 +49,16 @@ async function runJob(j: BulkJob) {
     const ok = await waitRun(pid, r.runId!)
     j.state = ok ? 'ok' : 'fail'
     if (!ok) j.detail = ui.runs[pid]?.summary?.error || t('Ha fallado: ábrelo para ver qué pasó.')
+    return
+  }
+  if (j.kind === 'images') {
+    const projects = updatableProjects(alerts.images[j.serverId])
+    if (!projects.length) { j.state = 'skip'; j.detail = t('nada que actualizar'); return }
+    const r = await withConnection(srv, (s, a, u) => api.UpdateImages(j.serverId, projects, s, a, u))
+    if (!r) { j.state = 'skip'; j.detail = t('Cancelado'); return }
+    if (r.report) alerts.images[j.serverId] = r.report
+    j.state = r.status === 'ok' ? 'ok' : 'fail'
+    j.detail = r.status === 'ok' ? '' : r.message || t('No se pudo')
     return
   }
   const call = j.kind === 'upgrade' ? api.ServerUpgrade : api.ServerReboot

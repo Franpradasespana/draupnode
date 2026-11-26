@@ -3,7 +3,7 @@ import { api, onEvent, vaultCode, type RecipeView, type AppInfo, type ModulesInf
 import { applyPalette, BUILTIN_PALETTES, DEFAULT_PALETTE_ID, isHex, COLOR_KEYS, type Palette } from './palettes'
 import { t } from './i18n.svelte'
 
-export type View = 'dashboard' | 'servers' | 'catalog' | 'projects' | 'lab' | 'docker' | 'terminal' | 'settings' | 'alerts' | 'modules'
+export type View = 'dashboard' | 'servers' | 'catalog' | 'projects' | 'lab' | 'docker' | 'terminal' | 'settings' | 'alerts' | 'modules' | 'updates'
 
 /** «git-app@blog» → ['git-app', 'blog'] (otra copia de un módulo repetible). */
 export function splitModuleId(id: string): [string, string] {

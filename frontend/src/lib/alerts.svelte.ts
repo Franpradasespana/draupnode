@@ -1,7 +1,7 @@
 // Avisos de la app: lo que conviene mirar, en un solo sitio (pantalla
 // «Avisos», el número en el menú y la campana de arriba). Así no hace falta
 // una franja en todas las pantallas: solo el Panel los enseña.
-import { api, isDesktop, onEvent, type BackupDue, type BackupFetchProgress, type BackupResult, type CachedOverview, type DriftReport, type ServerOverview } from './api'
+import { api, isDesktop, onEvent, type BackupDue, type BackupFetchProgress, type BackupResult, type CachedOverview, type DriftReport, type ImageReport, type ServerOverview } from './api'
 import { ui, toast, refreshProjects, moduleName } from './state.svelte'
 import { withConnection } from './connect'
 import { sameValues } from './modules'
@@ -70,6 +70,8 @@ export const alerts = $state({
   fichas: {} as Record<string, CachedOverview>,
   // Última comprobación de «¿Ha cambiado algo a mano?» de cada servidor.
   drifts: {} as Record<string, DriftReport>,
+  // Última comprobación de imágenes Docker de cada servidor.
+  images: {} as Record<string, ImageReport>,
   progress: null as BackupFetchProgress | null,
 })
 
@@ -112,6 +114,11 @@ export function alertItems(): AlertItem[] {
     const srv = ui.servers.find((x) => x.id === sid)
     const n = driftOpen(r).length
     if (srv && n) out.push({ kind: 'server', key: `s:${sid}:drift:${driftOpen(r).map((i) => i.key).join(',')}`, serverId: sid, name: srv.name, text: t(n === 1 ? 'Ha cambiado fuera de Draupnode: {0}' : 'Han cambiado {1} cosas fuera de Draupnode: {0}', driftOpen(r).slice(0, 2).map(driftLabel).join(', ') + (n > 2 ? '…' : ''), n), bad: false, at: r.at })
+  }
+  for (const [sid, r] of Object.entries(alerts.images)) {
+    const srv = ui.servers.find((x) => x.id === sid)
+    const n = newImages(r).length
+    if (srv && n) out.push({ kind: 'server', key: `s:${sid}:img:${newImages(r).map((i) => i.image).join(',')}`, serverId: sid, name: srv.name, text: t(n === 1 ? 'Hay versión nueva de 1 imagen Docker: {1}' : 'Hay versión nueva de {0} imágenes Docker: {1}', n, newImages(r).slice(0, 2).map((i) => i.image).join(', ') + (n > 2 ? '…' : '')), bad: false, at: r.at })
   }
   // Servidores con módulos sin aplicar (nuevos o con la configuración cambiada).
   for (const p of ui.projects) {
@@ -157,6 +164,7 @@ export async function fetchBackups(d: BackupDue, quiet = false): Promise<boolean
 export async function loadAlerts() {
   api.LastOverviews().then((f) => (alerts.fichas = f ?? {})).catch(() => {})
   api.LastDrifts().then((d) => (alerts.drifts = d ?? {})).catch(() => {})
+  api.LastImageChecks().then((d) => (alerts.images = d ?? {})).catch(() => {})
   api.BackupStatus().then((b) => (alerts.lastExport = b.lastExport ?? null)).catch(() => {})
   api.CheckUpdate().then((u) => (alerts.update = u.newer && u.url ? { latest: u.latest, url: u.url } : null)).catch(() => {})
   try {
@@ -236,4 +244,17 @@ export function driftLabel(i: { kind: string; module?: string; name: string }): 
   if (i.kind === 'container') return t('contenedor {0} parado', i.name)
   const mod = i.module ? moduleName(i.module) : ''
   return mod ? `${mod} · ${i.name}` : i.name
+}
+
+// Cada cuántas horas se buscan solas (desde el Panel) versiones nuevas de las imágenes.
+export const IMAGES_HOURS = 24
+
+/** Imágenes con versión nueva que se pueden actualizar desde Draupnode o Coolify. */
+export function newImages(r: ImageReport | undefined) {
+  return (r?.images ?? []).filter((i) => i.status === 'new')
+}
+
+/** Proyectos Compose con alguna imagen nueva que Draupnode puede actualizar (no los de Coolify). */
+export function updatableProjects(r: ImageReport | undefined): string[] {
+  return [...new Set(newImages(r).filter((i) => !i.coolify).flatMap((i) => i.compose.map((c) => c.project)))]
 }

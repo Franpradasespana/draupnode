@@ -144,6 +144,7 @@ const ALL_SHOTS = [
   { name: 'asistente-modulos', view: 'projects', act: [['click', 'button', '¿Qué quieres montar?'], ['wait', 500], ['click', 'button.goal', 'Mi nube'], ['click', 'button.goal', 'Gestor de contraseñas'], ['click', 'button', 'Siguiente'], ['wait', 400]] },
   { name: 'nube', view: 'servers', act: [['click', 'button', 'Crear en la nube'], ['wait', 600], ['click', 'button.prov', 'Hetzner Cloud'], ['wait', 1200]] },
   { name: 'aplicando', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 900], ['click', 'button', 'Simular'], ['wait', 4200]] },
+  { name: 'actualizaciones', view: 'updates', act: [['wait', 600], ['click', 'button', 'Buscar en todos'], ['wait', 7000], ['js', `document.querySelectorAll('.srv')[0]?.querySelectorAll('.line .exp')[1]?.click()`], ['wait', 300]] },
   { name: 'ajustes', view: 'settings' },
   { name: 'barra-estado', view: 'dashboard', act: [['wait', 800]], clip: 'footer.status', scale: 1.5 },
 ]

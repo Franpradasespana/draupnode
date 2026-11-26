@@ -4,7 +4,7 @@
   // botones para hacerlo en los marcados, uno detrás de otro.
   import { Hammer, PackageCheck, RotateCcw, CircleCheck } from '@lucide/svelte'
   import { ui, openServerModules, openServer, confirmDialog } from '../lib/state.svelte'
-  import { alerts, pendingModules } from '../lib/alerts.svelte'
+  import { alerts, pendingModules, updatableProjects } from '../lib/alerts.svelte'
   import { bulk, runBulk, type BulkKind } from '../lib/bulk.svelte'
   import { t, plural } from '../lib/i18n.svelte'
 
@@ -13,17 +13,19 @@
       .map((s) => {
         const p = ui.projects.find((x) => x.serverId === s.id)
         const up = alerts.fichas[s.id]?.overview.updates
-        return { s, mods: p ? pendingModules(p) : 0, updates: up?.total ?? 0, security: up?.security ?? 0, reboot: !!up?.reboot, read: !!alerts.fichas[s.id] }
+        return { s, mods: p ? pendingModules(p) : 0, updates: up?.total ?? 0, security: up?.security ?? 0, reboot: !!up?.reboot, read: !!alerts.fichas[s.id], images: updatableProjects(alerts.images[s.id]).length }
       })
-      .filter((r) => r.mods || r.updates || r.reboot),
+      .filter((r) => r.mods || r.updates || r.reboot || r.images),
   )
   let picked = $state<Record<string, boolean>>({})
   const sel = $derived(rows.filter((r) => picked[r.s.id] ?? true))
   const nMods = $derived(sel.filter((r) => r.mods).length)
   const nUpd = $derived(sel.filter((r) => r.updates).length)
   const nReb = $derived(sel.filter((r) => r.reboot).length)
+  const nImg = $derived(sel.filter((r) => r.images).length)
 
   async function go(kind: BulkKind) {
+    if (kind === 'images') { ui.view = 'updates'; return }
     const list = sel.filter((r) => (kind === 'apply' ? r.mods : kind === 'upgrade' ? r.updates : r.reboot))
     if (!list.length) return
     const names = list.map((r) => r.s.name).join(', ')
@@ -53,6 +55,7 @@
             <th>{t('Servidor')}</th>
             <th>{t('Módulos sin aplicar')}</th>
             <th>{t('Actualizaciones')}</th>
+            <th>{t('Imágenes')}</th>
             <th>{t('Reinicio')}</th>
           </tr>
         </thead>
@@ -63,6 +66,7 @@
               <td><button class="lnk" onclick={() => openServer(r.s.id)}>{r.s.name}</button></td>
               <td>{#if r.mods}<button class="lnk info-t" onclick={() => openServerModules(r.s.id)}>{plural(r.mods, 'módulo', 'módulos')}</button>{:else}<span class="muted">—</span>{/if}</td>
               <td>{#if r.updates}{t('{0} pendientes', r.updates)}{#if r.security}{' · '}<span class="warn-t">{t('{0} de seguridad', r.security)}</span>{/if}{:else}<span class="muted">{r.read ? t('al día') : '—'}</span>{/if}</td>
+              <td>{#if r.images}<button class="lnk info-t" onclick={() => (ui.view = 'updates')}>{t(r.images === 1 ? '1 app con versión nueva' : '{0} apps con versión nueva', r.images)}</button>{:else}<span class="muted">—</span>{/if}</td>
               <td>{#if r.reboot}<span class="warn-t">{t('pendiente')}</span>{:else}<span class="muted">—</span>{/if}</td>
             </tr>
           {/each}
@@ -73,6 +77,7 @@
         <button class="btn sm primary" disabled={!nMods || bulk.running} onclick={() => go('apply')}><Hammer size={14} /> {t('Aplicar módulos ({0})', nMods)}</button>
         <button class="btn sm" disabled={!nUpd || bulk.running} onclick={() => go('upgrade')}><PackageCheck size={14} /> {t('Instalar actualizaciones ({0})', nUpd)}</button>
         <button class="btn sm" disabled={!nReb || bulk.running} onclick={() => go('reboot')}><RotateCcw size={14} /> {t('Reiniciar ({0})', nReb)}</button>
+        {#if nImg}<button class="btn sm ghost" onclick={() => go('images')}>{t('Imágenes: ver en Actualizaciones')}</button>{/if}
       </div>
       <p class="muted small note">{t('Las actualizaciones y el reinicio salen de la última lectura de cada ficha (el Panel las vuelve a leer cada 5 minutos si la contraseña está guardada).')}</p>
     </div>

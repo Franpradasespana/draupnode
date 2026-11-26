@@ -1295,3 +1295,21 @@ otro», descartada).
   lista con tamaño y coste al mes, «Hacer una ahora», «Volver a esta…» (escribiendo el nombre del servidor) y borrar;
   «No está en ninguno: ocultar» para servidores de otros proveedores.
 - Tests con APIs falsas de los dos proveedores (no probado contra las de verdad: falta una cuenta).
+
+## 2026-11-26 · 0.68.0 · Pantalla «Actualizaciones» e imágenes Docker con versión nueva
+
+- **Imágenes con versión nueva** (`internal/overview/imagenes.py`, `internal/app/images.go`): en el servidor, para cada
+  imagen de los contenedores se pide al registro (Docker Hub, ghcr.io, gcr.io, quay.io… con el token anónimo que da
+  cada uno) el digest de su etiqueta con un HEAD (no gasta descargas de Docker Hub) y se compara con los `RepoDigests`
+  locales. Estados: nueva, al día, construida en el servidor, fijada por digest o sin poder comprobar. Resultado en
+  `imagenes/<servidor>.json` (`CheckImages`, `LastImageChecks`).
+- **Actualizar** (`UpdateImages`): solo proyectos Compose de la última comprobación (los de Coolify no):
+  `docker compose -p … -f … pull -q --ignore-buildable` + `up -d` en su carpeta, `docker image prune -f` (solo las
+  colgadas) y vuelve a comprobar. La etiqueta no cambia (postgres:16 sigue en la 16).
+- **Pantalla «Actualizaciones»** en el menú (con número de servidores con algo pendiente): por servidor, paquetes del
+  sistema (cuáles y de seguridad) con «Instalar…», reinicio pendiente (y por qué) con «Reiniciar…», imágenes con
+  «Actualizar…» (todas o una), y arriba lo mismo en todos a la vez con las tareas en grupo (nuevo tipo `images`).
+- Panel: columna «Imágenes» en «Pendiente en tus servidores», aviso en la campana y comprobación sola una vez al día.
+- Probado en Ubuntu desechable: imágenes de Docker Hub y gcr.io al día; una busybox vieja etiquetada `latest` sale
+  como nueva, «Actualizar» la baja y recrea el contenedor, y vuelve a salir al día. Ayuda y captura
+  `actualizaciones` en los dos idiomas.

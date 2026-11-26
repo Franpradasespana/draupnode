@@ -1,7 +1,7 @@
 <script lang="ts">
   import BulkPanel from './components/BulkPanel.svelte'
   import { onMount } from 'svelte'
-  import { LayoutDashboard, Server, Boxes, FolderGit2, Container, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X, Bell, ChevronRight, Puzzle } from '@lucide/svelte'
+  import { LayoutDashboard, Server, Boxes, FolderGit2, Container, SquareTerminal, Settings, CircleCheck, FlaskConical, CircleAlert, CircleHelp, Menu, X, Bell, ChevronRight, Puzzle, PackageCheck } from '@lucide/svelte'
   import Logo from './components/Logo.svelte'
   import Dashboard from './views/Dashboard.svelte'
   import Servers from './views/Servers.svelte'
@@ -20,12 +20,13 @@
   import Alerts from './views/Alerts.svelte'
   import TerminalView from './views/Terminal.svelte'
   import ModuleEditor from './views/ModuleEditor.svelte'
-  import { alertItems, loadAlerts, watchServers } from './lib/alerts.svelte'
+  import Updates from './views/Updates.svelte'
+  import { alertItems, loadAlerts, watchServers, alerts, updatableProjects } from './lib/alerts.svelte'
   import { ui, boot, toast, openServer, openRecipe, type View } from './lib/state.svelte'
   import { errorText, isDesktop } from './lib/api'
   import { t } from './lib/i18n.svelte'
 
-  type NavItem = { id: View; label: string; icon: typeof Server; soon?: boolean }
+  type NavItem = { id: View; label: string; icon: typeof Server; soon?: boolean; count?: () => number }
   // Servidores y Proyectos se despliegan en el menú para entrar directo a cada uno.
   // Lo desplegado se recuerda en este equipo.
   let expanded = $state<Record<string, boolean>>(loadExpanded())
@@ -51,6 +52,11 @@
     { id: 'dashboard', label: t('Panel'), icon: LayoutDashboard },
     { id: 'servers', label: t('Servidores'), icon: Server },
     { id: 'projects', label: t('Plantillas'), icon: FolderGit2 },
+    // Servidores con algo que poner al día (paquetes, reinicio o imágenes).
+    { id: 'updates', label: t('Actualizaciones'), icon: PackageCheck, count: () => ui.servers.filter((s) => {
+      const u = alerts.fichas[s.id]?.overview.updates
+      return u?.total || u?.reboot || updatableProjects(alerts.images[s.id]).length
+    }).length },
   ]
   const tools: NavItem[] = [
     { id: 'docker', label: t('Docker Creator'), icon: Container },
@@ -61,7 +67,7 @@
 
   const titles: Record<View, string> = {
     dashboard: t('Panel'), servers: t('Servidores'), catalog: t('Catálogo'), projects: t('Plantillas'),
-    docker: t('Docker Creator'), terminal: t('Terminal'), settings: t('Ajustes'), lab: t('Servidor de pruebas'), alerts: t('Avisos'), modules: t('Editor de módulos'),
+    docker: t('Docker Creator'), terminal: t('Terminal'), settings: t('Ajustes'), lab: t('Servidor de pruebas'), alerts: t('Avisos'), modules: t('Editor de módulos'), updates: t('Actualizaciones'),
   }
 
   let ready = $state(false)
@@ -127,6 +133,7 @@
           <button class="nav-item" class:active={ui.view === item.id && !kids.some((k) => k.active)} onclick={() => go(item.id)}>
             <item.icon size={17} strokeWidth={1.8} />
             <span>{item.label}</span>
+            {#if item.count?.()}<span class="count info">{item.count()}</span>{/if}
           </button>
           {#if kids.length}
             <button class="nav-fold" class:open={isOpen(item.id)} onclick={() => toggle(item.id)}
@@ -177,6 +184,7 @@
       {:else if ui.view === 'settings'}<SettingsView />
       {:else if ui.view === 'alerts'}<Alerts />
       {:else if ui.view === 'modules'}<ModuleEditor />
+      {:else if ui.view === 'updates'}<Updates />
       {:else if ui.view === 'terminal'}<!-- abajo, siempre montada -->
       {:else}<Upcoming view={ui.view} />
       {/if}
@@ -245,6 +253,7 @@
   }
   .count { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--warning); color: #1a1a1a; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
   .bell .count { margin-left: 2px; }
+  .count.info { background: var(--info); color: #fff; }
   nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; flex: 1; }
   .nav-item {
     display: flex; align-items: center; gap: 11px;

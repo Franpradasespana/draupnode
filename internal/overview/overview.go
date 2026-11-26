@@ -21,3 +21,9 @@ var Script = Historial + "\n" + overviewPy
 // HistoryVersion es la versión de historial.py que trae esta Draupnode; si la
 // del servidor es anterior, la ficha ofrece actualizarla.
 const HistoryVersion = 1
+
+// Images es imagenes.py: ¿hay versión nueva de las imágenes de los
+// contenedores? Pregunta a cada registro por el digest de la etiqueta. Solo lee.
+//
+//go:embed imagenes.py
+var Images string

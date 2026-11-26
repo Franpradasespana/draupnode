@@ -601,6 +601,19 @@ export interface TemplateResult {
   notes: string[]
 }
 
+// Imágenes Docker con versión nueva (CheckImages).
+export interface ImageCompose { project: string; dir: string; files: string }
+export interface ImageInfo {
+  image: string
+  containers: string[]
+  compose: ImageCompose[]
+  coolify: boolean
+  status: 'new' | 'same' | 'local' | 'pinned' | 'unknown'
+  error?: string
+}
+export interface ImageReport { at: string; images: ImageInfo[] }
+export interface ImagesResult extends RunStart { report?: ImageReport; output?: string }
+
 // «¿Ha cambiado algo a mano?» (CheckDrift).
 export interface DriftItem {
   kind: 'config' | 'timer' | 'container'
@@ -870,6 +883,9 @@ interface Backend {
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
   LastOverviews(): Promise<Record<string, CachedOverview>>
   CheckDrift(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DriftResult>
+  CheckImages(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ImagesResult>
+  LastImageChecks(): Promise<Record<string, ImageReport>>
+  UpdateImages(serverId: string, projects: string[], secret: string, accept: string, sudoPassword: string): Promise<ImagesResult>
   LastDrifts(): Promise<Record<string, DriftReport>>
   AcceptDrift(serverId: string, keys: string[]): Promise<DriftReport>
   ForgetAcceptedDrift(serverId: string): Promise<DriftReport>
@@ -1861,6 +1877,35 @@ function mockBackend(): Backend {
       all[sid] = rep
       save('desvios', all)
       return { status: 'ok', report: rep }
+    },
+    async CheckImages(sid) {
+      await wait(1500)
+      const all = load<Record<string, ImageReport>>('imagenes', {})
+      const done = load<string[]>('imagenes-actualizadas', [])
+      const ci = (image: string, containers: string[], project: string, dir: string, status: ImageInfo['status'], coolify = false): ImageInfo =>
+        ({ image, containers, compose: project ? [{ project, dir, files: dir + '/docker-compose.yml' }] : [], coolify, status: status === 'new' && done.includes(sid + ':' + project) ? 'same' : status })
+      const rep: ImageReport = { at: new Date().toISOString(), images: sid === 'lab'
+        ? [ci('louislam/uptime-kuma:2', ['dn-uptime-kuma'], 'dn-uptime-kuma', '/srv/draupnode/apps/uptime-kuma', 'same')]
+        : [
+          ci('ghcr.io/coollabsio/coolify:4', ['coolify'], 'source', '/data/coolify/source', 'new', true),
+          ci('grafana/grafana-oss:11.3.1', ['dn-grafana'], 'draupnode-monitor', '/srv/draupnode/monitor', 'same'),
+          ci('prom/prometheus:v2.55.1', ['dn-prometheus'], 'draupnode-monitor', '/srv/draupnode/monitor', 'same'),
+          ci('vaultwarden/server:latest', ['dn-vaultwarden'], 'dn-vaultwarden', '/srv/draupnode/apps/vaultwarden', 'new'),
+          ci('postgres:16-alpine', ['pg-compartido'], 'draupnode-postgres', '/srv/draupnode/postgres', 'new'),
+          ci('tienda-web', ['dn-tienda-web-1'], 'dn-tienda', '/srv/draupnode/apps/tienda', 'local'),
+        ] }
+      all[sid] = rep
+      save('imagenes', all)
+      return { status: 'ok', report: rep }
+    },
+    async LastImageChecks() {
+      return load<Record<string, ImageReport>>('imagenes', {})
+    },
+    async UpdateImages(sid, projects) {
+      await wait(2200)
+      save('imagenes-actualizadas', [...load<string[]>('imagenes-actualizadas', []), ...projects.map((p) => sid + ':' + p)])
+      const r = await (this.CheckImages as (id: string) => Promise<ImagesResult>)(sid)
+      return { ...r, output: projects.map((p) => `== ${p}\n Image Pulled\n Container Recreated\n Container Started`).join('\n') }
     },
     async LastDrifts() {
       return load<Record<string, DriftReport>>('desvios', {})

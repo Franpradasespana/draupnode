@@ -12,7 +12,7 @@
   import SetupWizard from '../components/SetupWizard.svelte'
   import { api } from '../lib/api'
   import { ui, openServer } from '../lib/state.svelte'
-  import { alerts, alertItems, rememberOverview, pendingModules, DRIFT_HOURS } from '../lib/alerts.svelte'
+  import { alerts, alertItems, rememberOverview, pendingModules, DRIFT_HOURS, IMAGES_HOURS } from '../lib/alerts.svelte'
   import { t as tr, plural } from '../lib/i18n.svelte'
 
   const servers = $derived(ui.servers)
@@ -85,6 +85,17 @@
         try {
           const r = await api.CheckDrift(s.id, '', '', '')
           if (r.status === 'ok' && r.report) alerts.drifts[s.id] = r.report
+        } catch { /* siguiente vuelta */ }
+      }
+      // Imágenes Docker con versión nueva: también una vez al día, sin preguntar.
+      for (const s of ui.servers) {
+        if (!alerts.fichas[s.id]?.overview.docker || (alerts.ping[s.id] && !alerts.ping[s.id].reachable)) continue
+        const im = alerts.images[s.id]
+        if (im && Date.now() - new Date(im.at).getTime() < IMAGES_HOURS * 3600000) continue
+        if (ui.view !== 'dashboard') break
+        try {
+          const r = await api.CheckImages(s.id, '', '', '')
+          if (r.status === 'ok' && r.report) alerts.images[s.id] = r.report
         } catch { /* siguiente vuelta */ }
       }
     } finally {

@@ -58,6 +58,16 @@ export const HELP: HelpSection[] = [
     ],
   },
   {
+    id: 'updates',
+    title: t('Actualizaciones'),
+    intro: t('Todo lo que se puede poner al día en tus servidores, en una sola pantalla. El número azul del menú dice cuántos servidores tienen algo pendiente.'),
+    steps: [
+      { title: t('Por servidor'), text: t('Sistema: los paquetes pendientes (pulsa para ver cuáles) y cuántos son de seguridad, con «Instalar…» (apt upgrade). Reinicio: si hace falta para terminar de aplicar alguna actualización (y por qué paquete), con «Reiniciar…». Imágenes Docker: Draupnode pregunta a cada registro (Docker Hub, ghcr.io, quay.io…) si hay algo más nuevo publicado con la misma etiqueta que usa cada contenedor; «Actualizar…» baja las nuevas y vuelve a crear sus contenedores (docker compose pull + up -d), sin tocar sus datos.'), img: 'actualizaciones' },
+      { title: t('Qué no se actualiza desde aquí'), text: t('Las imágenes de las apps de Coolify (las actualiza Coolify), los contenedores sueltos (sin Docker Compose), las imágenes construidas en el servidor (como «Tu app»: se actualizan al aplicar) y las fijadas a una versión exacta. Tampoco se cambia de versión grande: postgres:16 sigue en la 16; para pasar a la 17 cambia la opción del módulo.') },
+      { title: t('En todos a la vez'), text: t('Arriba, «Instalar paquetes», «Actualizar imágenes» y «Reiniciar» lo hacen en todos los servidores que lo necesitan, uno detrás de otro (con el recuadro de tareas en grupo). «Buscar en todos» vuelve a mirar cada servidor; además, el Panel lo mira solo una vez al día si la contraseña está guardada.') },
+    ],
+  },
+  {
     id: 'servers',
     title: t('Servidores'),
     intro: t('Las máquinas que Draupnode va a preparar y cómo conectarse a ellas por SSH.'),
