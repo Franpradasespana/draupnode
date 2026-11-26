@@ -1380,3 +1380,14 @@ otro», descartada).
   Keycloak para apps con OIDC/SAML y Authelia delante de las que no tienen inicio de sesión), Beszel + Monitorización
   (vigilan lo mismo), Stalwart + msmtp (el correo del servidor por tu Stalwart) y Listmonk sin SMTP. Salen en los
   módulos del servidor, en el asistente de aplicar y en el editor de plantillas (también en la demo).
+
+## 2026-11-26 · 0.72.0 · Explorador de ficheros del servidor
+
+- Ficha → pestaña **«Ficheros»** (`FilesPanel.svelte`, `internal/app/files.go`): listar (con tamaño, fecha, permisos y
+  dueño; enlaces con su destino), migas de pan, ir a una ruta, ver y editar ficheros de texto (hasta 2 MB, con
+  CodeMirror y Ctrl+S), descargar (carpetas en .tar.gz), subir varios (no pisa los que existen), nueva carpeta,
+  renombrar y borrar. Por SSH con sudo (no SFTP) para llegar también a /etc y /srv entrando con un usuario normal.
+- Guardar escribe en un temporal y lo cambia de golpe, conservando dueño y permisos. Las carpetas del sistema (/,
+  /etc, /srv, /var/lib/docker…) no se pueden borrar ni renombrar. Rutas absolutas limpias, sin saltos de línea.
+- Probado en Ubuntu desechable entrando como «ubuntu»: listar, leer, guardar un fichero de root (sigue 0640 y de
+  root), carpetas, renombrar, subir (y negarse a pisar), detectar binarios, descargar una carpeta y borrar.

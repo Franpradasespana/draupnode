@@ -1344,6 +1344,7 @@ export namespace app {
 	    errors: Record<string, any>;
 	    general: string[];
 	    warnings: string[];
+	    tips: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectCheck(source);
@@ -1356,6 +1357,7 @@ export namespace app {
 	        this.errors = source["errors"];
 	        this.general = source["general"];
 	        this.warnings = source["warnings"];
+	        this.tips = source["tips"];
 	    }
 	}
 	export class ProjectSecret {

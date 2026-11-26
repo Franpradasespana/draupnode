@@ -7,7 +7,7 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
-    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole, Gauge, Earth, ShieldCheck,
+    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole, Gauge, Earth, ShieldCheck, FolderOpen,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectEditor from './ProjectEditor.svelte'
@@ -23,6 +23,7 @@
   import DriftPanel from '../components/DriftPanel.svelte'
   import SnapshotsPanel from '../components/SnapshotsPanel.svelte'
   import DomainsPanel from '../components/DomainsPanel.svelte'
+  import FilesPanel from '../components/FilesPanel.svelte'
   import SecurityPanel from '../components/SecurityPanel.svelte'
   import { securityChecks, securityScore, scoreLevel } from '../lib/security'
   import Sparkline from '../components/Sparkline.svelte'
@@ -180,7 +181,7 @@
   const badContainers = $derived((ov?.containers ?? []).filter((c) => c.state !== 'running' || c.health === 'unhealthy'))
 
   // ---- Pestañas (se recuerda la última abierta)
-  type Tab = 'resumen' | 'modulos' | 'apps' | 'dominios' | 'contenedores' | 'copias' | 'red' | 'registros'
+  type Tab = 'resumen' | 'modulos' | 'apps' | 'dominios' | 'contenedores' | 'copias' | 'red' | 'ficheros' | 'registros'
   const ping = $derived(alerts.ping[id])
   const isDown = $derived(!!ping && !ping.reachable && !ping.lab)
   const findings = $derived(ov ? serverFindings(ov) : [])
@@ -205,6 +206,7 @@
     { id: 'contenedores' as Tab, label: tr('Contenedores'), icon: Box, count: ov?.containers?.length ?? 0, badge: sickContainers.length, bad: true },
     ...(backupDeps.length || ov?.backups?.length ? [{ id: 'copias' as Tab, label: tr('Copias'), icon: DatabaseBackup, count: 0, badge: backupFindings.length, bad: backupFindings.some((f) => f.bad) }] : []),
     { id: 'red' as Tab, label: tr('Red y seguridad'), icon: Network, count: 0, badge: 0, bad: false },
+    { id: 'ficheros' as Tab, label: tr('Ficheros'), icon: FolderOpen, count: 0, badge: 0, bad: false },
     { id: 'registros' as Tab, label: tr('Registros'), icon: ScrollText, count: 0, badge: ov?.failed?.length ?? 0, bad: true },
   ])
   let tab = $state<Tab>(readTab())
@@ -725,6 +727,10 @@
       <p class="muted small">{tr('El módulo «Sistema base» ya instala solo las de seguridad cada día; esto es para hacerlo ahora. Si hace falta reiniciar, tus apps vuelven solas (si su reinicio es «unless-stopped»).')}</p>
       {#if sysOutput}<pre class="log selectable">{sysOutput}</pre>{/if}
     </section>
+  {/if}
+
+  {#if current === 'ficheros' && server}
+    <FilesPanel {server} />
   {/if}
 
   {#if current === 'registros'}

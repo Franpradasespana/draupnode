@@ -77,3 +77,14 @@ func TestUpdateImagesSoloLoConocido(t *testing.T) {
 		t.Fatalf("%+v", got)
 	}
 }
+
+func TestRutasDelServidor(t *testing.T) {
+	for in, want := range map[string]string{"/srv/x/../y/": "/srv/y", "srv": "", "/a\nb": "", " /etc ": "/etc", "": ""} {
+		if got := cleanRemotePath(in); got != want {
+			t.Errorf("%q → %q", in, got)
+		}
+	}
+	if !protectedPath("/") || !protectedPath("/etc") || protectedPath("/etc/caddy") || protectedPath("/srv/draupnode/apps/x") {
+		t.Fatal("rutas protegidas")
+	}
+}

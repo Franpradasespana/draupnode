@@ -432,7 +432,7 @@ export interface ProjectCheck {
 
 export type RunStatus =
   | 'started' | 'ok' | 'needs_secret' | 'bad_secret' | 'vault_locked' | 'vault_missing' | 'unknown_host'
-  | 'host_changed' | 'needs_sudo' | 'bad_sudo' | 'busy' | 'error'
+  | 'host_changed' | 'needs_sudo' | 'bad_sudo' | 'busy' | 'error' | 'canceled'
 
 export interface RunStart {
   status: RunStatus
@@ -602,6 +602,10 @@ export interface TemplateResult {
   recipe: Recipe
   notes: string[]
 }
+
+// Explorador de ficheros del servidor.
+export interface FileEntry { name: string; type: 'dir' | 'file' | 'link' | 'other'; size: number; mode: string; owner: string; mtime: number; target?: string; dir: boolean }
+export interface FilesResult extends RunStart { path?: string; entries?: FileEntry[]; content?: string; size?: number; binary?: boolean; saved?: string; count?: number }
 
 // Dominios vistos desde fuera (CheckDomains).
 export interface DomainCheck {
@@ -918,6 +922,14 @@ interface Backend {
   CheckDrift(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DriftResult>
   CheckImages(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ImagesResult>
   CheckDomains(serverId: string): Promise<DomainReport>
+  FilesList(serverId: string, dir: string, secret: string, accept: string, sudoPassword: string): Promise<FilesResult>
+  FilesRead(serverId: string, file: string, secret: string, accept: string, sudoPassword: string): Promise<FilesResult>
+  FilesWrite(serverId: string, file: string, content: string, secret: string, accept: string, sudoPassword: string): Promise<FilesResult>
+  FilesMkdir(serverId: string, dir: string, secret: string, accept: string, sudoPassword: string): Promise<FilesResult>
+  FilesRename(serverId: string, from: string, to: string, secret: string, accept: string, sudoPassword: string): Promise<FilesResult>
+  FilesDelete(serverId: string, target: string, secret: string, accept: string, sudoPassword: string): Promise<FilesResult>
+  FilesDownload(serverId: string, target: string, isDir: boolean, secret: string, accept: string, sudoPassword: string): Promise<FilesResult>
+  FilesUpload(serverId: string, dir: string, secret: string, accept: string, sudoPassword: string): Promise<FilesResult>
   LastDomainChecks(): Promise<Record<string, DomainReport>>
   SetExtraDomains(serverId: string, domains: string[]): Promise<DomainReport>
   DNSProviders(): Promise<DNSProvider[]>
@@ -1937,6 +1949,29 @@ function mockBackend(): Backend {
       save('imagenes', all)
       return { status: 'ok', report: rep }
     },
+    async FilesList(_sid, dir) {
+      await wait(250)
+      const fs = demoFS()
+      const d = fs[dir]
+      if (!d) return { status: 'error', message: tr('no existe') }
+      return { status: 'ok', path: dir, entries: d }
+    },
+    async FilesRead(_sid, file) {
+      await wait(250)
+      const c = demoFiles[file]
+      if (c === undefined) return { status: 'ok', path: file, binary: true, message: tr('no es un fichero de texto: descárgalo') }
+      return { status: 'ok', path: file, content: c, size: c.length }
+    },
+    async FilesWrite(_sid, file, content) {
+      await wait(400)
+      demoFiles[file] = content
+      return { status: 'ok', path: file }
+    },
+    async FilesMkdir(_sid, dir) { await wait(200); return { status: 'ok', path: dir } },
+    async FilesRename(_sid, _f, to) { await wait(200); return { status: 'ok', path: to } },
+    async FilesDelete(_sid, target) { await wait(200); return { status: 'ok', path: target } },
+    async FilesDownload(_sid, target, isDir) { await wait(700); return { status: 'ok', path: target, saved: '/home/demo/Descargas/' + target.split('/').pop() + (isDir ? '.tar.gz' : ''), size: 48213 } },
+    async FilesUpload(_sid, dir) { await wait(700); return { status: 'ok', path: dir, count: 2 } },
     async CheckDomains(sid) {
       await wait(900)
       const all = load<Record<string, DomainReport>>('dominios', {})
@@ -2278,6 +2313,28 @@ const MOCK_MODULES: Module[] = (i18n.lang === 'en' ? demoModulesEN : demoModules
 
 // ---- Historial de ejemplo (demo y capturas): ondas suaves y deterministas.
 let mockHistoryOn = true
+// Ficheros de la demo (explorador de ficheros).
+const demoFiles: Record<string, string> = {
+  '/srv/draupnode/apps/vaultwarden/docker-compose.yml': '# Generado por Draupnode (módulo vaultwarden). No lo edites a mano: se reescribe al aplicar.\nname: dn-vaultwarden\n\nservices:\n  vaultwarden:\n    image: vaultwarden/server:latest\n    container_name: dn-vaultwarden\n    restart: unless-stopped\n    ports:\n      - "127.0.0.1:8222:80"\n',
+  '/etc/caddy/Caddyfile': 'tienda.example.com {\n\treverse_proxy 127.0.0.1:3000\n}\n',
+  '/srv/draupnode/apps/tienda/.env': 'DB_ENGINE=postgres\nDJANGO_DEBUG=false\n',
+}
+function demoFS(): Record<string, FileEntry[]> {
+  const t0 = Math.floor(Date.now() / 1000)
+  const d = (name: string, ago = 3600): FileEntry => ({ name, type: 'dir', size: 4096, mode: 'drwxr-x---', owner: 'root', mtime: t0 - ago, dir: true })
+  const f = (name: string, size: number, ago = 7200, mode = '-rw-------'): FileEntry => ({ name, type: 'file', size, mode, owner: 'root', mtime: t0 - ago, dir: false })
+  return {
+    '/': [d('bin', 9e6), d('etc', 600), d('home', 9e6), d('opt', 9e6), d('root', 9e5), d('srv', 3e5), d('usr', 9e6), d('var', 600)],
+    '/srv': [d('draupnode', 3e5)],
+    '/srv/draupnode': [d('apps', 7200), d('monitor', 9e4)],
+    '/srv/draupnode/apps': [d('tienda', 600), d('uptime-kuma', 9e4), d('vaultwarden', 3e5)],
+    '/srv/draupnode/apps/vaultwarden': [d('data', 120), f('docker-compose.yml', 402, 3e5)],
+    '/srv/draupnode/apps/tienda': [d('media', 600), f('.env', 38, 600), f('docker-compose.draupnode.yml', 1290, 600), f('Dockerfile', 811, 600, '-rw-r--r--')],
+    '/etc': [d('caddy', 600), d('draupnode', 3e5), f('hostname', 8, 9e6, '-rw-r--r--')],
+    '/etc/caddy': [f('Caddyfile', 52, 600, '-rw-r--r--')],
+  }
+}
+
 function mockHistory(lab: boolean): ServerHistory {
   if (!mockHistoryOn) return { installed: false, hasData: false }
   const gb = 1024 ** 3

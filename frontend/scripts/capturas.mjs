@@ -88,6 +88,8 @@ const ALL_SHOTS = [
   { name: 'servidor-apps', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Apps y bases'], ['wait', 600],
     ['js', `document.querySelector('table.usage')?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300]] },
   { name: 'servidor-dominios', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Dominios'], ['wait', 1800]] },
+  { name: 'servidor-ficheros', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Ficheros'], ['wait', 900], ['click', 'button.lnk', 'tienda'], ['wait', 700]] },
+  { name: 'servidor-ficheros-editar', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Ficheros'], ['wait', 900], ['click', 'button.lnk', 'vaultwarden'], ['wait', 700], ['click', 'button.lnk', 'docker-compose.yml'], ['wait', 1200]] },
   { name: 'servidor-red', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Red y seguridad'], ['wait', 600], ['js', `document.getElementById('puertos')?.scrollIntoView({ block: 'start' })`], ['wait', 300]] },
   { name: 'servidor-seguridad', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Red y seguridad'], ['wait', 600], ['js', `[...document.querySelectorAll('.card.block .lnk.small')].find((b) => /\(\d+\)$/.test(b.textContent.trim()))?.click()`], ['wait', 300]] },
   { name: 'despliegue', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 1200]] },
