@@ -1,19 +1,20 @@
 <script lang="ts">
   // Asistente al aplicar: una ventana por cada módulo nuevo que tenga
   // opciones y, al final, el resumen con «Finalizar y aplicar».
-  import { ArrowLeft, ArrowRight, Eye, Hammer, TriangleAlert, CircleCheck } from '@lucide/svelte'
+  import { ArrowLeft, ArrowRight, Eye, Hammer, TriangleAlert, CircleCheck, Lightbulb } from '@lucide/svelte'
   import Modal from './Modal.svelte'
   import ModuleForm from './ModuleForm.svelte'
   import type { Module, ProjectModule } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
 
-  let { modules = $bindable(), steps, install, changed, errors, warnings, projectId, where, busy = false, onsecret, onpreview, onapply, onclose }: {
+  let { modules = $bindable(), steps, install, changed, errors, warnings, tips = [], projectId, where, busy = false, onsecret, onpreview, onapply, onclose }: {
     modules: ProjectModule[]
     steps: Module[] // módulos nuevos con opciones, en orden de instalación
     install: Module[] // todos los módulos que se van a instalar, en orden
     changed: Module[] // instalados cuya configuración ha cambiado
     errors: Record<string, Record<string, string>>
     warnings: string[]
+    tips?: string[]
     projectId: string
     where: string
     busy?: boolean
@@ -64,6 +65,9 @@
     {#if warnings.length}
       <div class="warns">{#each warnings as w}<p><TriangleAlert size={14} /> {w}</p>{/each}</div>
     {/if}
+    {#if tips.length}
+      <div class="tips">{#each tips as tip}<p><Lightbulb size={14} /> {tip}</p>{/each}</div>
+    {/if}
     {#if allErrors}
       <p class="bad"><TriangleAlert size={14} /> {t('Hay {0} opción(es) con errores: vuelve al paso marcado en rojo.', allErrors)}</p>
     {:else}
@@ -101,4 +105,6 @@
   .warns :global(svg) { color: var(--warning); flex: none; margin-top: 2px; }
   .bad { color: var(--danger); }
   .sp { flex: 1; }
+  .tips p { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0; font-size: 13px; color: var(--info); }
+  .tips :global(svg) { flex: none; margin-top: 2px; }
 </style>

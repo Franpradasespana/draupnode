@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack, tick, type Snippet } from 'svelte'
-  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, Unlink, Pencil, Plus, Search, X, Upload, Undo2, Sparkles } from '@lucide/svelte'
+  import { ArrowLeft, Save, Eye, Hammer, Download, Trash2, TriangleAlert, LoaderCircle, CircleCheck, CircleX, ChevronRight, Server as ServerIcon, Unlink, Pencil, Plus, Search, X, Upload, Undo2, Sparkles, Lightbulb } from '@lucide/svelte'
   import SetupWizard from '../components/SetupWizard.svelte'
   import Modal from '../components/Modal.svelte'
   import { moduleIcon } from '../lib/icons'
@@ -629,6 +629,7 @@
           <p class="bad-t small"><CircleX size={13} /> {tr('La última aplicación falló ({0}){1}. Mira su registro abajo, en el historial.', timeAgo(stored.lastRun.at), stored.lastRun.error ? ': ' + stored.lastRun.error : '')}</p>
         {/if}
         {#each [...(check?.general ?? []), ...(wizard ? [] : check?.warnings ?? [])] as w}<p class="warn-l small"><TriangleAlert size={13} /> {w}</p>{/each}
+        {#each wizard ? [] : check?.tips ?? [] as tip}<p class="tip-l small"><Lightbulb size={13} /> {tip}</p>{/each}
       </section>
     {/if}
 
@@ -731,7 +732,7 @@
     steps={pending.map(modView).filter((m): m is Module => !!m?.variables?.some((v) => !v.managed))}
     install={pending.map(modView).filter((m): m is Module => !!m)}
     changed={changedInstalled.map(modView).filter((m): m is Module => !!m)}
-    errors={check?.errors ?? {}} warnings={[...(check?.general ?? []), ...(check?.warnings ?? [])]}
+    errors={check?.errors ?? {}} warnings={[...(check?.general ?? []), ...(check?.warnings ?? [])]} tips={check?.tips ?? []}
     projectId={draft.id} where={`${server?.name ?? ''} › ${draft.name}`} busy={saving || running}
     onsecret={() => recheck++} onpreview={() => wizardRun(true)} onapply={() => wizardRun(false)} onclose={() => (wizard = false)} />
 {/if}
@@ -836,6 +837,8 @@
   .okline { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--success); font-size: 13.5px; }
   .bad-t { color: var(--danger); display: flex; gap: 6px; align-items: center; margin: 0; }
   .warn-l { color: var(--warning); display: flex; gap: 6px; align-items: flex-start; margin: 0; }
+  .tip-l { color: var(--info); display: flex; gap: 6px; align-items: flex-start; margin: 0; }
+  .tip-l :global(svg) { flex: none; margin-top: 2px; }
   .tag { display: inline-block; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--sidebar-hover); color: var(--muted); white-space: nowrap; margin-right: 4px; }
   .tag.ok { background: var(--success-soft); color: var(--success); }
   .tag.info { background: color-mix(in srgb, var(--info) 14%, transparent); color: var(--info); }

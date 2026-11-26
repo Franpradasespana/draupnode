@@ -426,6 +426,8 @@ export interface ProjectCheck {
   errors: Record<string, Record<string, string>>
   general: string[]
   warnings: string[]
+  /** Consejos por cómo se combinan los módulos (no son problemas). */
+  tips?: string[]
 }
 
 export type RunStatus =
@@ -2192,7 +2194,13 @@ function mockBackend(): Backend {
         }
       }
     }
-    return { order, added: order.filter((x) => !want.includes(x)), errors, general: want.length ? [] : [tr('elige al menos un módulo')], warnings: [] }
+    const has = (id: string) => order.includes(id)
+    const tips: string[] = []
+    if (has('authelia') && has('keycloak')) tips.push(tr('Authelia y Keycloak llevan cada uno sus propios usuarios: Authelia no puede usar los de Keycloak. Lo práctico: Keycloak para las apps que admiten OIDC o SAML (Nextcloud, Forgejo, Grafana, Immich…) y Authelia solo delante de las que no tienen inicio de sesión propio. Si quieres un único sitio de usuarios, quédate con Keycloak y quita Authelia.'))
+    if (has('beszel') && has('monitoring')) tips.push(tr('Beszel y «Monitorización» (Prometheus + Grafana) vigilan lo mismo: con uno basta. Beszel gasta mucho menos; Grafana da más detalle y paneles propios.'))
+    if (has('stalwart') && has('msmtp')) tips.push(tr('El correo del servidor (msmtp) puede salir por tu propio Stalwart: en «Correo saliente», servidor 127.0.0.1, puerto 587 y un buzón de Stalwart como usuario.'))
+    if (has('listmonk') && !has('stalwart') && !has('msmtp')) tips.push(tr('Listmonk necesita un servidor SMTP para enviar: ponlo en su web (Settings → SMTP), o añade Stalwart para tener el tuyo.'))
+    return { order, added: order.filter((x) => !want.includes(x)), errors, general: want.length ? [] : [tr('elige al menos un módulo')], warnings: [], tips }
   }
   function mockRun(p: Project, runId: string, check: boolean) {
     const ev = (e: Partial<RunEvent>) => mockEmit('run', { runId, projectId: p.id, ...e })

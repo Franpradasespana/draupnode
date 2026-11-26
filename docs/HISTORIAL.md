@@ -1370,3 +1370,13 @@ otro», descartada).
   (configuración y mensaje de error comprobados).
 - Asistente: objetivos nuevos (IA, domótica, leer y escuchar, red privada, puerta delante de las apps; Forgejo con
   runner). Textos en inglés de todos, catálogo de la demo, README y capturas del catálogo y el asistente.
+
+## 2026-11-26 · 0.71.1 · Consejos al combinar módulos
+
+- Authentik descartado (decisión del usuario): su imagen trae el código «enterprise» con licencia no libre, como
+  Stirling-PDF. Keycloak (OIDC/SAML) y Authelia (puerta delante de las apps) ya cubren lo mismo.
+- `ProjectCheck.Tips` (`internal/app/tips.go`): consejos, en azul con una bombilla, según cómo se combinan los
+  módulos (no son avisos): Authelia + Keycloak (cada uno con sus usuarios; Authelia no puede usar los de Keycloak:
+  Keycloak para apps con OIDC/SAML y Authelia delante de las que no tienen inicio de sesión), Beszel + Monitorización
+  (vigilan lo mismo), Stalwart + msmtp (el correo del servidor por tu Stalwart) y Listmonk sin SMTP. Salen en los
+  módulos del servidor, en el asistente de aplicar y en el editor de plantillas (también en la demo).

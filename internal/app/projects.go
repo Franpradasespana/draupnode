@@ -119,6 +119,7 @@ type ProjectCheck struct {
 	Errors   map[string]map[string]string `json:"errors"`   // módulo → variable → error
 	General  []string                     `json:"general"`  // errores que no son de un campo
 	Warnings []string                     `json:"warnings"` // requisitos que el servidor no parece cumplir
+	Tips     []string                     `json:"tips"`     // consejos por cómo se combinan los módulos (no son problemas)
 }
 
 // OK indica si no hay errores.
@@ -137,7 +138,7 @@ func (a *App) resolveProject(p store.Project) (ProjectCheck, []bundle.Selection)
 // resolveModules: recipe = es una receta (sin servidor): los datos secretos
 // se escriben en cada despliegue, así que aquí no se exigen.
 func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bundle.Selection) {
-	res := ProjectCheck{Order: []string{}, Added: []string{}, Errors: map[string]map[string]string{}, General: []string{}, Warnings: []string{}}
+	res := ProjectCheck{Order: []string{}, Added: []string{}, Errors: map[string]map[string]string{}, General: []string{}, Warnings: []string{}, Tips: []string{}}
 	c := a.cat()
 	vals := map[string]map[string]any{}
 	var ids []string
@@ -234,6 +235,7 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 	res.Warnings = append(res.Warnings, missingPorts(sel)...)
 	res.Warnings = append(res.Warnings, syncProxySites(sel)...)
 	res.Warnings = append(res.Warnings, syncAuthelia(sel)...)
+	res.Tips = moduleTips(sel)
 	syncVPNDNS(sel)
 	srv, srvErr := a.store.Server(p.ServerID)
 	if srvErr == nil {

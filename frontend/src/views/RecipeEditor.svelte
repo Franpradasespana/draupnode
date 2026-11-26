@@ -4,7 +4,7 @@
   // servidor, no aquí. Al guardar, los servidores que la usan reciben los
   // cambios (sin aplicarlos) y conservan lo suyo.
   import { untrack } from 'svelte'
-  import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck, Sparkles, Check, Undo2, Layers } from '@lucide/svelte'
+  import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck, Sparkles, Check, Undo2, Layers, Lightbulb } from '@lucide/svelte'
   import ModuleCard from '../components/ModuleCard.svelte'
   import VarField from '../components/VarField.svelte'
   import Modal from '../components/Modal.svelte'
@@ -211,6 +211,9 @@
   {/if}
 </div>
 
+{#if check?.tips?.length}
+  <div class="card tips">{#each check.tips as tip}<p><Lightbulb size={15} /> {tip}</p>{/each}</div>
+{/if}
 {#if check?.general?.length}
   <div class="card warns">{#each check.general as g}<p><TriangleAlert size={15} /> {g}</p>{/each}</div>
 {/if}
@@ -340,4 +343,7 @@
   .group { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 8px; font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
   @media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
+  .tips { padding: 10px 14px; margin-bottom: 12px; }
+  .tips p { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; font-size: 13px; color: var(--info); }
+  .tips :global(svg) { flex: none; margin-top: 2px; }
 </style>
