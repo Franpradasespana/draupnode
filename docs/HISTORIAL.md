@@ -1253,3 +1253,27 @@ algo, conectarse…), volver a aplicar (0 cambios), desinstalar con sus datos y 
   (sin plantillas), en Plantillas y en un servidor sin módulos.
 - Ayuda y capturas nuevas (`pendientes`, `asistente`, `asistente-modulos`, `nube`, `aplicando`) en los dos idiomas;
   traducidos algunos restos («terminada», «cancelada», «fallidas», «libres», «arrancado/parado»…).
+
+## 2026-11-26 · 0.66.0 · «¿Ha cambiado algo a mano?» (cambios hechos fuera de Draupnode)
+
+Primera de las mejoras elegidas por el usuario (1, 3, 4, 5 y 6 de la lista propuesta; la 2, «mover un servidor a
+otro», descartada).
+- **Comprobación de desvíos** (`internal/app/drift.go`, `CheckDrift`): simula (Ansible `--check`) los módulos del
+  servidor tal como se aplicaron y recoge las tareas que saldrían cambiadas, con su diff (la ruta temporal de Ansible
+  en la cabecera se cambia por la del fichero). No compara si hay módulos sin aplicar (`skipped: pending`) o si nunca
+  se aplicó (`never`). Solo lee: lo de «carpeta» se sube a la carpeta de simulación y se borra.
+- **Lo que la simulación no ve** (no arranca servicios): al terminar bien cada aplicación se apunta lo que queda en
+  marcha (temporizadores `draupnode-*.timer` activos y contenedores con la etiqueta `draupnode.proyecto` que se
+  reinician solos) como base; si algo de eso se para, sale como desvío. Los temporizadores apagados a propósito (p. ej.
+  el resumen diario de Alertas) no cuentan. Servidores aplicados con una versión anterior: la primera comprobación sirve
+  de base.
+- Resultado guardado en este equipo (`desvios/<servidor>.json`): `LastDrifts`, `AcceptDrift` («Dejarlo así»: no avisa
+  mientras siga igual), `ForgetAcceptedDrift`. Aplicar bien deja el informe limpio.
+- Interfaz: recuadro «¿Ha cambiado algo a mano?» en el Resumen de la ficha (`DriftPanel.svelte`, con diff en colores,
+  «Comprobar ahora», «Volver a dejarlo como dice Draupnode» → Módulos, «Dejarlo así»/«Dejarlo todo así»), línea en
+  «Necesita atención», aviso en la campana/Panel, y el Panel lo comprueba solo una vez al día por servidor si la
+  contraseña está guardada.
+- Probado en Ubuntu desechable con 8 módulos (base, cortafuegos, Docker, copias, alertas, Caddy, Uptime Kuma,
+  monitorización): recién aplicado, 0 diferencias (sin falsos avisos, ~30 s); Caddyfile tocado, temporizador de copias
+  desactivado y Uptime Kuma parado salen los tres; aplicar los deja como estaban.
+- Ayuda y captura `servidor-desvios` en los dos idiomas.

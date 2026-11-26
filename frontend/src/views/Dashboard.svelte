@@ -12,7 +12,7 @@
   import SetupWizard from '../components/SetupWizard.svelte'
   import { api } from '../lib/api'
   import { ui, openServer } from '../lib/state.svelte'
-  import { alerts, alertItems, rememberOverview, pendingModules } from '../lib/alerts.svelte'
+  import { alerts, alertItems, rememberOverview, pendingModules, DRIFT_HOURS } from '../lib/alerts.svelte'
   import { t as tr, plural } from '../lib/i18n.svelte'
 
   const servers = $derived(ui.servers)
@@ -73,6 +73,18 @@
           else if (['needs_secret', 'vault_locked', 'needs_sudo', 'vault_missing'].includes(r.status)) notes[s.id] = tr('para leerlo solo, guarda su contraseña')
           else if (r.status === 'unknown_host') notes[s.id] = tr('confirma su huella con ↻')
           else notes[s.id] = r.message || tr('no se pudo leer')
+        } catch { /* siguiente vuelta */ }
+      }
+      // «¿Ha cambiado algo a mano?»: una vez al día por servidor, sin preguntar.
+      for (const s of ui.servers) {
+        const p = ui.projects.find((x) => x.serverId === s.id)
+        if (!p?.installedModules?.length || (alerts.ping[s.id] && !alerts.ping[s.id].reachable)) continue
+        const d = alerts.drifts[s.id]
+        if (d && Date.now() - new Date(d.at).getTime() < DRIFT_HOURS * 3600000) continue
+        if (ui.view !== 'dashboard') break
+        try {
+          const r = await api.CheckDrift(s.id, '', '', '')
+          if (r.status === 'ok' && r.report) alerts.drifts[s.id] = r.report
         } catch { /* siguiente vuelta */ }
       }
     } finally {

@@ -748,6 +748,10 @@ func (a *App) runInBackground(ctx context.Context, runID string, p store.Project
 			notice(msg)
 		}
 	}
+	if sum.OK && !check {
+		// Lo que queda en marcha: base para «¿Ha cambiado algo a mano?».
+		a.saveDriftBaseline(c, su, p)
+	}
 	if lw != nil {
 		fmt.Fprintf(lw, "# Fin: ok=%v cambios=%d fallos=%d %s\n", sum.OK, sum.Changed, sum.Failed, sum.Error)
 		_ = lw.Flush()

@@ -1,8 +1,8 @@
 // Avisos de la app: lo que conviene mirar, en un solo sitio (pantalla
 // «Avisos», el número en el menú y la campana de arriba). Así no hace falta
 // una franja en todas las pantallas: solo el Panel los enseña.
-import { api, isDesktop, onEvent, type BackupDue, type BackupFetchProgress, type BackupResult, type CachedOverview, type ServerOverview } from './api'
-import { ui, toast, refreshProjects } from './state.svelte'
+import { api, isDesktop, onEvent, type BackupDue, type BackupFetchProgress, type BackupResult, type CachedOverview, type DriftReport, type ServerOverview } from './api'
+import { ui, toast, refreshProjects, moduleName } from './state.svelte'
 import { withConnection } from './connect'
 import { sameValues } from './modules'
 import type { Project } from './api'
@@ -68,6 +68,8 @@ export const alerts = $state({
   ping: {} as Record<string, { reachable: boolean; latencyMs: number; at: string; lab: boolean }>,
   // Última ficha leída de cada servidor (guardada en este equipo): el Panel y los avisos del servidor.
   fichas: {} as Record<string, CachedOverview>,
+  // Última comprobación de «¿Ha cambiado algo a mano?» de cada servidor.
+  drifts: {} as Record<string, DriftReport>,
   progress: null as BackupFetchProgress | null,
 })
 
@@ -105,6 +107,11 @@ export function alertItems(): AlertItem[] {
     for (const f of serverFindings(c.overview)) {
       out.push({ kind: 'server', key: `s:${sid}:${f.id}`, serverId: sid, name: srv.name, text: f.text, bad: f.bad, at: c.at })
     }
+  }
+  for (const [sid, r] of Object.entries(alerts.drifts)) {
+    const srv = ui.servers.find((x) => x.id === sid)
+    const n = driftOpen(r).length
+    if (srv && n) out.push({ kind: 'server', key: `s:${sid}:drift:${driftOpen(r).map((i) => i.key).join(',')}`, serverId: sid, name: srv.name, text: t(n === 1 ? 'Ha cambiado fuera de Draupnode: {0}' : 'Han cambiado {1} cosas fuera de Draupnode: {0}', driftOpen(r).slice(0, 2).map(driftLabel).join(', ') + (n > 2 ? '…' : ''), n), bad: false, at: r.at })
   }
   // Servidores con módulos sin aplicar (nuevos o con la configuración cambiada).
   for (const p of ui.projects) {
@@ -149,6 +156,7 @@ export async function fetchBackups(d: BackupDue, quiet = false): Promise<boolean
 // Al abrir la app: mira las copias pendientes y trae solas las que lo tienen así.
 export async function loadAlerts() {
   api.LastOverviews().then((f) => (alerts.fichas = f ?? {})).catch(() => {})
+  api.LastDrifts().then((d) => (alerts.drifts = d ?? {})).catch(() => {})
   api.BackupStatus().then((b) => (alerts.lastExport = b.lastExport ?? null)).catch(() => {})
   api.CheckUpdate().then((u) => (alerts.update = u.newer && u.url ? { latest: u.latest, url: u.url } : null)).catch(() => {})
   try {
@@ -211,4 +219,21 @@ export function rememberOverview(serverId: string, overview: ServerOverview) {
 /** Módulos de un servidor por instalar o con la configuración cambiada desde que se aplicó. */
 export function pendingModules(p: Project): number {
   return p.modules.filter((m) => !(p.installedModules ?? []).includes(m.id) || !sameValues(m.values, p.installedValues?.[m.id] ?? {})).length
+}
+
+// Cada cuántas horas se comprueba solo (desde el Panel) si algo ha cambiado a mano.
+export const DRIFT_HOURS = 24
+
+/** Lo cambiado fuera de Draupnode que no se ha dado por bueno. */
+export function driftOpen(r: DriftReport | undefined) {
+  if (!r || r.skipped) return []
+  return (r.items ?? []).filter((i) => !(r.accepted ?? []).includes(i.key))
+}
+
+/** Nombre corto de una diferencia, para los avisos. */
+export function driftLabel(i: { kind: string; module?: string; name: string }): string {
+  if (i.kind === 'timer') return t('tarea programada {0} parada', i.name.replace(/\.timer$/, ''))
+  if (i.kind === 'container') return t('contenedor {0} parado', i.name)
+  const mod = i.module ? moduleName(i.module) : ''
+  return mod ? `${mod} · ${i.name}` : i.name
 }

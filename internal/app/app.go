@@ -23,7 +23,7 @@ import (
 )
 
 // Version de la aplicación.
-const Version = "0.65.0"
+const Version = "0.66.0"
 
 // Prefijos que la interfaz reconoce en los errores para abrir el diálogo
 // de la bóveda (crear o desbloquear) y reintentar.

@@ -20,8 +20,9 @@
   import { withConnection } from '../lib/connect'
   import BackupsPanel from '../components/BackupsPanel.svelte'
   import HistoryPanel from '../components/HistoryPanel.svelte'
+  import DriftPanel from '../components/DriftPanel.svelte'
   import Sparkline from '../components/Sparkline.svelte'
-  import { alerts, rememberOverview, serverFindings } from '../lib/alerts.svelte'
+  import { alerts, rememberOverview, serverFindings, driftOpen } from '../lib/alerts.svelte'
   import { t as tr, agoText } from '../lib/i18n.svelte'
 
   let { id }: { id: string } = $props()
@@ -186,9 +187,10 @@
   const appCount = $derived(draupnodeApps.length + grafanaDeps.length + (ov?.coolify ? 1 + ov.coolify.apps.length : 0) + (ov?.sites?.length ?? 0))
   const rootDisk = $derived(ov?.disks?.find((d) => d.mount === '/') ?? ov?.disks?.[0])
   // Lo mismo que lista «Necesita atención» en el Resumen.
+  const drifted = $derived(driftOpen(alerts.drifts[id]).length)
   // Avisos del sistema (reinicio, actualizaciones de seguridad, certificados, hora, SSH).
   const sysFindings = $derived(findings.filter((f) => /^(reboot|secupd|cert|clock|ssh)/.test(f.id)))
-  const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + sysFindings.length + (pendingMods ? 1 : 0))
+  const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + sysFindings.length + (pendingMods ? 1 : 0) + (drifted ? 1 : 0))
   const tabs = $derived([
     { id: 'resumen' as Tab, label: tr('Resumen'), icon: LayoutDashboard, badge: attention, bad: isDown || findings.some((f) => f.bad) },
     { id: 'modulos' as Tab, label: tr('Módulos'), icon: Blocks, count: project?.modules.length ?? 0, badge: pendingMods, bad: false },
@@ -403,10 +405,13 @@
           {#each findings.filter((f) => f.id.startsWith('disk')) as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}</li>{/each}
           {#each backupFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text} <button class="lnk" onclick={() => setTab('copias')}>{tr('ver copias')}</button></li>{/each}
           {#each sysFindings as f}<li class:bad-t={f.bad} class:warn-t={!f.bad}>{f.text}{' '}{#if f.id === 'reboot'}<button class="lnk" onclick={reboot}>{tr('reiniciar…')}</button>{:else if f.id.startsWith('secupd')}<button class="lnk" onclick={upgrade}>{tr('instalar…')}</button>{:else}<button class="lnk" onclick={() => setTab('red')}>{tr('ver')}</button>{/if}</li>{/each}
+          {#if drifted}<li class="warn-t">{tr(drifted === 1 ? '1 cosa ha cambiado fuera de Draupnode' : '{0} cosas han cambiado fuera de Draupnode', drifted)} <button class="lnk" onclick={() => document.getElementById('desvios')?.scrollIntoView({ behavior: 'smooth' })}>{tr('ver qué')}</button></li>{/if}
           {#if pendingMods}<li class="info-t">{tr('{0} sin aplicar', pendingMods === 1 ? tr('Hay 1 módulo') : tr('Hay {0} módulos', pendingMods))} <button class="lnk" onclick={() => setTab('modulos')}>{tr('ver módulos')}</button></li>{/if}
         </ul>
     </section>
     {/if}
+
+    {#if server}<div id="desvios"><DriftPanel {server} onfix={() => setTab('modulos')} /></div>{/if}
 
     {#if ov}<HistoryPanel {server} history={ov.history} {loading} onchange={load} />{/if}
 

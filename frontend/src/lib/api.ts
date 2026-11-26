@@ -579,6 +579,28 @@ export interface TemplateResult {
   notes: string[]
 }
 
+// «¿Ha cambiado algo a mano?» (CheckDrift).
+export interface DriftItem {
+  kind: 'config' | 'timer' | 'container'
+  module?: string
+  name: string
+  diff?: string
+  key: string
+}
+export interface DriftReport {
+  at: string
+  skipped?: 'pending' | 'never'
+  error?: string
+  items: DriftItem[]
+  accepted?: string[]
+  duration: number
+  baseline?: string[]
+  baselineAt?: string
+}
+export interface DriftResult extends RunStart {
+  report?: DriftReport
+}
+
 export interface ServerOverviewResult extends RunStart {
   overview?: ServerOverview
 }
@@ -825,6 +847,10 @@ interface Backend {
   ForgetTemplate(serverId: string, recipeId: string): Promise<Project>
   ServerOverview(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ServerOverviewResult>
   LastOverviews(): Promise<Record<string, CachedOverview>>
+  CheckDrift(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DriftResult>
+  LastDrifts(): Promise<Record<string, DriftReport>>
+  AcceptDrift(serverId: string, keys: string[]): Promise<DriftReport>
+  ForgetAcceptedDrift(serverId: string): Promise<DriftReport>
   PublishDockerApp(dir: string, spec: DockerSpec, serverId: string): Promise<PublishResult>
   ServerUpgrade(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DockerResult>
   CloudProviders(): Promise<CloudProvider[]>
@@ -1734,6 +1760,40 @@ function mockBackend(): Backend {
       p.updatedAt = new Date().toISOString()
       save('projects', projects)
       return { projectId: p.id, serverId: sid, moduleId: id, notes: [tr('«{0}» añadida a los módulos del servidor: sale de {1}; Draupnode la sube al aplicar.', spec.name, dir)], review: [tr('EMAIL_HOST: clave de otro servicio, solo la tienes tú')] }
+    },
+    async CheckDrift(sid) {
+      await wait(1800)
+      const p = serverProject(sid)
+      const prev = load<Record<string, DriftReport>>('desvios', {})[sid]
+      const rep: DriftReport = { at: new Date().toISOString(), items: [], accepted: prev?.accepted ?? [], duration: 41000 }
+      if (!p.installedModules?.length) rep.skipped = 'never'
+      else if (p.modules.some((m) => !(p.installedModules ?? []).includes(m.id))) rep.skipped = 'pending'
+      else if (sid !== 'lab') {
+        rep.items = [
+          { kind: 'config', module: 'caddy', name: 'Caddyfile (se comprueba antes de ponerlo)', key: 'config:caddy:Caddyfile', diff: '--- before: /etc/caddy/Caddyfile\n+++ after: /etc/caddy/Caddyfile\n@@ -12,4 +12,3 @@\n     reverse_proxy 127.0.0.1:3001\n }\n-# probado a mano\n-tienda.example.com { reverse_proxy 127.0.0.1:9000 }\n' },
+          { kind: 'timer', name: 'draupnode-copia-produccion.timer', key: 'timer:draupnode-copia-produccion.timer' },
+        ]
+      }
+      const all = load<Record<string, DriftReport>>('desvios', {})
+      all[sid] = rep
+      save('desvios', all)
+      return { status: 'ok', report: rep }
+    },
+    async LastDrifts() {
+      return load<Record<string, DriftReport>>('desvios', {})
+    },
+    async AcceptDrift(sid, keys) {
+      const all = load<Record<string, DriftReport>>('desvios', {})
+      const r = all[sid]
+      r.accepted = [...new Set([...(r.accepted ?? []), ...(keys.length ? keys : r.items.map((i) => i.key))])]
+      save('desvios', all)
+      return r
+    },
+    async ForgetAcceptedDrift(sid) {
+      const all = load<Record<string, DriftReport>>('desvios', {})
+      all[sid].accepted = []
+      save('desvios', all)
+      return all[sid]
     },
     async LastOverviews() {
       const out: Record<string, CachedOverview> = {}

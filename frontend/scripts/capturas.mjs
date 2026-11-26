@@ -72,6 +72,14 @@ const ALL_SHOTS = [
   { name: 'servidor-historial', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 600],
     ['js', `document.querySelector('.charts')?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300],
     ['js', `(() => { const p = document.querySelector('.charts .plot'); const r = p.getBoundingClientRect(); p.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left + r.width * 0.62, clientY: r.top + 40, bubbles: true })) })()`], ['wait', 300]] },
+  { name: 'servidor-desvios', view: 'servers', seed: (d) => {
+      d.desvios = { demo1: { at: ago(25), duration: 38000, accepted: [], items: [
+        { kind: 'config', module: 'caddy', name: 'Caddyfile (se comprueba antes de ponerlo)', key: 'config:caddy:Caddyfile', diff: '--- before: /etc/caddy/Caddyfile\n+++ after: /etc/caddy/Caddyfile\n@@ -12,4 +12,3 @@\n     reverse_proxy 127.0.0.1:3001\n }\n-# probado a mano\n-tienda.example.com { reverse_proxy 127.0.0.1:9000 }\n' },
+        { kind: 'timer', name: 'draupnode-copia-produccion.timer', key: 'timer:draupnode-copia-produccion.timer' },
+        { kind: 'container', name: 'dn-uptime-kuma', key: 'container:dn-uptime-kuma' }] } }
+    },
+    act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Resumen'], ['wait', 600],
+      ['js', `document.getElementById('desvios')?.scrollIntoView({ block: 'start' })`], ['click', 'button.exp', 'Caddy'], ['wait', 300]] },
   { name: 'servidor-apps', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Apps y bases'], ['wait', 600],
     ['js', `document.querySelector('table.usage')?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300]] },
   { name: 'servidor-red', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Red y seguridad'], ['wait', 600]] },
