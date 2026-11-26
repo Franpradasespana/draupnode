@@ -14,7 +14,10 @@ func moduleTips(sel []bundle.Selection) []string {
 	}
 	tips := []string{}
 	if has["authelia"] && has["keycloak"] {
-		tips = append(tips, i18n.T("Authelia y Keycloak llevan cada uno sus propios usuarios: Authelia no puede usar los de Keycloak. Lo práctico: Keycloak para las apps que admiten OIDC o SAML (Nextcloud, Forgejo, Grafana, Immich…) y Authelia solo delante de las que no tienen inicio de sesión propio. Si quieres un único sitio de usuarios, quédate con Keycloak y quita Authelia."))
+		tips = append(tips, i18n.T("Authelia y Keycloak llevan cada uno sus propios usuarios: Authelia no puede usar los de Keycloak. Si quieres un único sitio de usuarios, quita Authelia y pon «Inicio de sesión con Keycloak» (oauth2-proxy) delante de las apps sin inicio de sesión propio; las que admiten OIDC o SAML (Nextcloud, Forgejo, Grafana, Immich…), conéctalas a Keycloak directamente."))
+	}
+	if has["keycloak"] && !has["authelia"] && !has["oauth2-proxy"] {
+		tips = append(tips, i18n.T("Con «Inicio de sesión con Keycloak» (oauth2-proxy) puedes proteger con tus usuarios de Keycloak también las apps que no tienen inicio de sesión propio."))
 	}
 	if has["beszel"] && has["monitoring"] {
 		tips = append(tips, i18n.T("Beszel y «Monitorización» (Prometheus + Grafana) vigilan lo mismo: con uno basta. Beszel gasta mucho menos; Grafana da más detalle y paneles propios."))

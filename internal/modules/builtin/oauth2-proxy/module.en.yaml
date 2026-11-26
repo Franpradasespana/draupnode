@@ -1,0 +1,54 @@
+# Textos en inglés de «oauth2-proxy» (los ids, variables y valores están en module.yaml).
+name: Log in with Keycloak (oauth2-proxy)
+category: 8 · Security
+description: 'Protects the apps that have no login of their own with your Keycloak users (and their two-factor): logging in to Keycloak is required before getting in.'
+details: |
+  oauth2-proxy in Docker, next to Keycloak and Caddy on this server. When
+  applying, Draupnode creates the chosen realm in Keycloak (if missing) and
+  its “oauth2-proxy” client with the callback of each protected domain, and
+  configures Caddy to ask for a login before reaching them.
+  Users are created in Keycloak, in that realm (with their email). That way
+  all your apps use the same users: those that support OIDC, with Keycloak
+  directly; the rest, with this in front.
+  Keycloak needs a domain, and the protected domains must hang from the
+  same main domain. It uses Keycloak's temporary “admin” administrator to
+  create the client: if you already deleted it, create the client by hand
+  (the note when applying explains how).
+  Its data is in /srv/draupnode/apps/oauth2-proxy (included in the backups of the
+  Backups module). License: MIT.
+uninstall_warning: Stops and removes the oauth2-proxy containers.
+uninstall_data: Also delete its data (its configuration; users stay in Keycloak). This cannot be undone.
+variables:
+  oauth2_proxy_port:
+    label: Port on the server (local only)
+    help: The app listens on 127.0.0.1 on this port. It is reached through the domain (Caddy/nginx), through the VPN or with «Open» (SSH tunnel).
+  oauth2_proxy_protect:
+    label: Protected domains
+    help: One per line. Logging in to Keycloak will be required to reach them. They must hang from the same main domain.
+    pattern_help: A domain (app.example.com)
+  oauth2_proxy_realm:
+    label: Keycloak realm
+    help: Where the users allowed in are. Created if it does not exist. Better a dedicated one than “master” (the one for managing Keycloak).
+    pattern_help: Letters, numbers, hyphen and underscore
+  oauth2_proxy_kc_domain:
+    label: Keycloak domain (set by Draupnode)
+  oauth2_proxy_kc_port:
+    label: Keycloak port (set by Draupnode)
+links:
+- Documentation
+- Source code
+prueba:
+  lab: 'Not fully: logging in needs real domains with HTTPS for Keycloak and for the app.'
+  pasos:
+  - With Caddy and Keycloak (with a domain, for example kc.your-domain), add “Log in with Keycloak” and put an app's domain in “Protected domains” (for example kuma.your-domain).
+  - Apply; in Keycloak, realm “apps”, create a user with an email and a password.
+  - Open https://kuma.your-domain.
+  comprobar:
+  - Before the app it takes you to the Keycloak login page.
+  - With the “apps” realm user you get into the app; with any other, you do not.
+  necesita:
+  - Keycloak with a domain, Caddy and the apps' domains pointing to the server, all under the same main domain.
+  problemas:
+  - '“Could not create the client” → you deleted Keycloak''s temporary administrator: create the client by hand as the message says and save its secret where it indicates.'
+  - “Invalid redirect uri” in Keycloak → apply again (Draupnode sets the callbacks of the protected domains).
+  - It asks to log in again after logging in → the domains must hang from the same main domain (the cookie belongs to that domain).

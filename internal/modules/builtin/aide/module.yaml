@@ -13,7 +13,7 @@ details: |
   Tras actualizar el sistema verás cambios en programas: es normal.
 depends: [base]
 # Al final de todo: así la foto incluye lo que cambia esta misma aplicación.
-after: [adguard, adminer, alerts, argocd, audiobookshelf, auditd, authelia, backup-target, backups, base, beszel, caddy, chrony, clamav, cockpit, coolify, crowdsec, docker, dozzle, firewall, forgejo, forgejo-runner, freshrss, garage, git-app, headscale, healthchecks, home-assistant, immich, jellyfin, k3s, keycloak, linkwarden, listmonk, logs, lynis, mariadb, mealie, monitoring, msmtp, navidrome, nextcloud, nginx, ntfy, ollama, openbao, opentofu, paperless, portainer, postgres, registry, samba, ssh, stalwart, syncthing, trivy, umami, uptime-kuma, valkey, vaultwarden, vikunja, wikijs, wireguard]
+after: [adguard, adminer, alerts, argocd, audiobookshelf, auditd, authelia, backup-target, backups, base, beszel, caddy, chrony, clamav, cockpit, coolify, crowdsec, docker, dozzle, firewall, forgejo, forgejo-runner, freshrss, garage, git-app, headscale, healthchecks, home-assistant, immich, jellyfin, k3s, keycloak, linkwarden, listmonk, logs, lynis, mariadb, mealie, monitoring, msmtp, navidrome, nextcloud, nginx, ntfy, oauth2-proxy, ollama, openbao, opentofu, paperless, portainer, postgres, registry, samba, ssh, stalwart, syncthing, trivy, umami, uptime-kuma, valkey, vaultwarden, vikunja, wikijs, wireguard]
 requires:
   os: [ubuntu, debian]
 uninstall_warning: Quita AIDE y su revisión diaria.

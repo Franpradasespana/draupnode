@@ -1,0 +1,80 @@
+id: oauth2-proxy
+name: "Inicio de sesión con Keycloak (oauth2-proxy)"
+version: 1.0.0
+category: 8 · Seguridad
+description: "Protege con tus usuarios de Keycloak (y su doble factor) las apps que no tienen inicio de sesión propio: antes de entrar, hay que iniciar sesión en Keycloak."
+details: |
+  oauth2-proxy en Docker, junto a Keycloak y Caddy en este servidor. Al
+  aplicar, Draupnode crea en Keycloak el realm elegido (si no existe) y
+  su cliente «oauth2-proxy» con la vuelta de cada dominio protegido, y
+  configura Caddy para que pida iniciar sesión antes de entrar en ellos.
+  Los usuarios se crean en Keycloak, en ese realm (con su correo). Así
+  todas tus apps usan los mismos usuarios: las que admiten OIDC, con
+  Keycloak directamente; las demás, con esto delante.
+  Necesita que Keycloak tenga dominio y que los dominios protegidos
+  cuelguen del mismo dominio principal. Usa el administrador temporal
+  «admin» de Keycloak para crear el cliente: si ya lo borraste, crea el
+  cliente a mano (lo explica la nota al aplicar).
+  Sus datos están en /srv/draupnode/apps/oauth2-proxy (entran en las copias del
+  módulo Copias). Licencia: MIT.
+depends: [docker, keycloak, caddy]
+requires:
+  os: [ubuntu, debian]
+uninstall_warning: "Para y quita los contenedores de oauth2-proxy."
+uninstall_data: "Borrar también sus datos (su configuración; los usuarios siguen en Keycloak). No se puede deshacer."
+variables:
+  - name: oauth2_proxy_port
+    label: Puerto en el servidor (solo local)
+    help: "La app escucha en 127.0.0.1 en este puerto. Se llega por el dominio (Caddy/nginx), por la VPN o con «Abrir» (túnel SSH)."
+    type: int
+    default: 4180
+    min: 1024
+    max: 65535
+  - name: oauth2_proxy_protect
+    label: Dominios protegidos
+    help: Uno por línea. Para entrar en ellos habrá que iniciar sesión en Keycloak. Tienen que colgar del mismo dominio principal.
+    type: list
+    default: []
+    pattern: '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$'
+    pattern_help: Un dominio (app.ejemplo.com)
+  - name: oauth2_proxy_realm
+    label: Realm de Keycloak
+    help: Donde están los usuarios que pueden entrar. Si no existe, se crea. Mejor uno propio que «master» (el de administrar Keycloak).
+    type: string
+    default: apps
+    pattern: '^[A-Za-z0-9_-]{1,64}$'
+    pattern_help: Letras, números, guion y guion bajo
+  - name: oauth2_proxy_kc_domain
+    label: Dominio de Keycloak (lo pone Draupnode)
+    type: string
+    default: ""
+    managed: true
+  - name: oauth2_proxy_kc_port
+    label: Puerto de Keycloak (lo pone Draupnode)
+    type: int
+    default: 8180
+    min: 1
+    max: 65535
+    managed: true
+links:
+  - label: "Documentación"
+    url: https://oauth2-proxy.github.io/oauth2-proxy/
+  - label: "Código fuente"
+    url: https://github.com/oauth2-proxy/oauth2-proxy
+
+# Cómo probarlo (Ayuda → Catálogo → «Probar cada módulo»).
+prueba:
+  lab: "No del todo: el inicio de sesión necesita dominios de verdad con HTTPS para Keycloak y para la app."
+  pasos:
+    - "Con Caddy y Keycloak (con dominio, por ejemplo kc.tu-dominio), añade «Inicio de sesión con Keycloak» y pon en «Dominios protegidos» el de una app (por ejemplo kuma.tu-dominio)."
+    - "Aplica; en Keycloak, realm «apps», crea un usuario con su correo y su contraseña."
+    - "Abre https://kuma.tu-dominio."
+  comprobar:
+    - "Antes de la app te lleva a la página de inicio de sesión de Keycloak."
+    - "Con el usuario del realm «apps» entras en la app; con otro, no."
+  necesita:
+    - "Keycloak con dominio, Caddy y los dominios de las apps apuntando al servidor, todos del mismo dominio principal."
+  problemas:
+    - "«No se pudo crear el cliente» → borraste el administrador temporal de Keycloak: crea el cliente a mano como dice el mensaje y guarda su secreto donde indica."
+    - "«Invalid redirect uri» en Keycloak → vuelve a aplicar (Draupnode pone las direcciones de vuelta de los dominios protegidos)."
+    - "Tras iniciar sesión vuelve a pedirla → los dominios tienen que colgar del mismo dominio principal (la cookie es de ese dominio)."

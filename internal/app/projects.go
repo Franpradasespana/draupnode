@@ -235,6 +235,7 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 	res.Warnings = append(res.Warnings, missingPorts(sel)...)
 	res.Warnings = append(res.Warnings, syncProxySites(sel)...)
 	res.Warnings = append(res.Warnings, syncAuthelia(sel)...)
+	res.Warnings = append(res.Warnings, syncOAuth2(sel)...)
 	res.Tips = moduleTips(sel)
 	syncVPNDNS(sel)
 	srv, srvErr := a.store.Server(p.ServerID)

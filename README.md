@@ -52,11 +52,12 @@ En macOS: clic derecho sobre Draupnode → Abrir. En Windows: «Más informació
   Las contraseñas se generan en el propio servidor. Cada módulo se puede desinstalar, con o sin sus datos, y
   **«Desinstalar todo»** deja el servidor como recién preparado.
 - **Plantillas**: conjuntos de módulos con su configuración para añadirlos de una vez a cualquier servidor.
-- **Catálogo** de 64 módulos de código abierto, con su web, su código y su licencia, y una **guía para probar cada uno**
+- **Catálogo** de 65 módulos de código abierto, con su web, su código y su licencia, y una **guía para probar cada uno**
   en el servidor de pruebas (pasos y qué deberías ver), con una lista para ir marcando los que ya has comprobado:
   - **Sistema y red**: base, cortafuegos, SSH seguro con fail2ban, hora exacta (chrony), WireGuard, Headscale, Caddy, nginx, AdGuard,
     correo saliente (msmtp).
-  - **Seguridad**: CrowdSec, Lynis, ClamAV, AIDE, auditd, Trivy, Keycloak, OpenBao y Authelia (inicio de sesión con
+  - **Seguridad**: CrowdSec, Lynis, ClamAV, AIDE, auditd, Trivy, Keycloak (con oauth2-proxy delante de las apps sin
+    inicio de sesión propio), OpenBao y Authelia (inicio de sesión con
     doble factor delante de tus apps).
   - **Contenedores y Kubernetes**: Docker, Coolify, Portainer, registro de imágenes, Kubernetes (k3s con Helm),
     Argo CD y OpenTofu (la continuación libre de Terraform).

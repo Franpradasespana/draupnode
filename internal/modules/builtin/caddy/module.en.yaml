@@ -28,6 +28,11 @@ variables:
     help: The ones you choose in the Authelia module. Logging in to Authelia is required before reaching them.
   caddy_forward_auth_to:
     label: Authelia address (set by Draupnode)
+  caddy_oauth2:
+    label: Domains protected with Keycloak (set by Draupnode)
+    help: The ones you choose in the “Log in with Keycloak” module. Logging in to Keycloak is required before reaching them.
+  caddy_oauth2_to:
+    label: oauth2-proxy address (set by Draupnode)
   caddy_email:
     label: Email for Let's Encrypt
     help: Optional. They warn you if a certificate cannot be renewed.

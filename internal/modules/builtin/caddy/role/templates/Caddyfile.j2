@@ -27,7 +27,31 @@
 		copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
 	}
 {% endif %}
+{% if caddy_oauth2_to and parts[0] in (caddy_oauth2 | default([])) %}
+	handle /oauth2/* {
+		reverse_proxy {{ caddy_oauth2_to }} {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-Uri {uri}
+		}
+	}
+	handle {
+		forward_auth {{ caddy_oauth2_to }} {
+			uri /oauth2/auth
+			header_up X-Real-IP {remote_host}
+			copy_headers X-Auth-Request-User X-Auth-Request-Email
+			@sin_sesion status 401
+			handle_response @sin_sesion {
+				redir * /oauth2/sign_in?rd={scheme}://{host}{uri} 302
+			}
+		}
 {% if parts[1].startswith('/') %}
+		root * {{ parts[1] }}
+		file_server
+{% else %}
+		reverse_proxy {{ parts[1] }}
+{% endif %}
+	}
+{% elif parts[1].startswith('/') %}
 	root * {{ parts[1] }}
 	file_server
 {% else %}

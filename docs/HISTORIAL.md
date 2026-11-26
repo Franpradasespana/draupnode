@@ -1391,3 +1391,18 @@ otro», descartada).
   /etc, /srv, /var/lib/docker…) no se pueden borrar ni renombrar. Rutas absolutas limpias, sin saltos de línea.
 - Probado en Ubuntu desechable entrando como «ubuntu»: listar, leer, guardar un fichero de root (sigue 0640 y de
   root), carpetas, renombrar, subir (y negarse a pisar), detectar binarios, descargar una carpeta y borrar.
+
+## 2026-11-26 · 0.73.0 · Inicio de sesión con Keycloak delante de cualquier app (oauth2-proxy)
+
+- Módulo **oauth2-proxy** (MIT, generado en `mas.py`; depende de Docker, Keycloak y Caddy): con el administrador
+  temporal de Keycloak, Draupnode crea el realm (por defecto «apps») y el cliente «oauth2-proxy» con la vuelta de cada
+  dominio protegido (y las pone al día si cambian), guarda su secreto en el servidor y arranca oauth2-proxy unido a la
+  red de Keycloak: el navegador va a Keycloak por su dominio y oauth2-proxy le habla por dentro de Docker. Si el
+  administrador temporal ya no existe, explica cómo crear el cliente a mano.
+- Caddy: variables gestionadas `caddy_oauth2` / `caddy_oauth2_to` (`syncOAuth2`, que también copia el dominio y el
+  puerto de Keycloak al módulo, porque cada rol solo ve sus variables); en esos sitios, `/oauth2/*` va a oauth2-proxy
+  y el resto pasa por `forward_auth` con redirección a iniciar sesión. Aviso si un dominio está a la vez en Authelia.
+- Consejos actualizados: Authelia + Keycloak recomienda este módulo para un único sitio de usuarios; Keycloak solo
+  lo sugiere.
+- Probado en Ubuntu desechable con Caddy en certificados locales: sin sesión redirige a Keycloak; un usuario del realm
+  «apps» inicia sesión (formulario de Keycloak) y entra en la app; reaplicar 0 cambios; desinstalar sin restos.

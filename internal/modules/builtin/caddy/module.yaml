@@ -43,6 +43,17 @@ variables:
     type: string
     default: ""
     managed: true
+  - name: caddy_oauth2
+    label: Dominios protegidos con Keycloak (los pone Draupnode)
+    help: Los que elijas en el módulo «Inicio de sesión con Keycloak». Antes de entrar en ellos hay que iniciar sesión en Keycloak.
+    type: list
+    default: []
+    managed: true
+  - name: caddy_oauth2_to
+    label: Dirección de oauth2-proxy (la pone Draupnode)
+    type: string
+    default: ""
+    managed: true
   - name: caddy_email
     label: Correo para Let's Encrypt
     help: Opcional. Te avisan si un certificado no se puede renovar.

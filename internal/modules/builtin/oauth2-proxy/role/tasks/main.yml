@@ -1,0 +1,184 @@
+---
+- name: Carpeta de oauth2-proxy
+  ansible.builtin.set_fact:
+    oauth2_proxy_dir: /srv/draupnode/apps/oauth2-proxy
+    oauth2_proxy_url: "127.0.0.1:{{ oauth2_proxy_port }} (solo en el servidor)"
+
+- name: Keycloak necesita dominio
+  ansible.builtin.assert:
+    that: oauth2_proxy_kc_domain | length > 0
+    fail_msg: "Pon un dominio a Keycloak (con Caddy): el inicio de sesión tiene que verse desde internet."
+- name: Hace falta al menos un dominio protegido
+  ansible.builtin.assert:
+    that: oauth2_proxy_protect | length > 0
+    fail_msg: "Pon en «Dominios protegidos» los de las apps que quieras tapar."
+- name: Dominio principal (el de la cookie de la sesión)
+  ansible.builtin.set_fact:
+    oauth2_proxy_cookie_domain: "{{ oauth2_proxy_protect[0].split('.', 1)[1] }}"
+    oauth2_proxy_kc: "http://127.0.0.1:{{ oauth2_proxy_kc_port }}"
+    oauth2_proxy_issuer: "https://{{ oauth2_proxy_kc_domain }}/realms/{{ oauth2_proxy_realm }}"
+    oauth2_proxy_callbacks: "{{ oauth2_proxy_protect | map('regex_replace', '^', 'https://') | map('regex_replace', '$', '/oauth2/callback') | list }}"
+- name: Los dominios protegidos tienen que colgar del mismo dominio principal
+  ansible.builtin.assert:
+    that: oauth2_proxy_protect | reject('search', '(^|\\.)' ~ (oauth2_proxy_cookie_domain | regex_escape) ~ '$') | list | length == 0
+    fail_msg: "Estos dominios no son de {{ oauth2_proxy_cookie_domain }}: {{ oauth2_proxy_protect | reject('search', '(^|\\.)' ~ (oauth2_proxy_cookie_domain | regex_escape) ~ '$') | join(', ') }}"
+
+- name: Carpetas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ oauth2_proxy_dir }}"
+
+
+- name: Contraseña «.oauth2_proxy_cookie» (se genera en el servidor la primera vez)
+  ansible.builtin.set_fact:
+    oauth2_proxy_cookie_secret: "{{ lookup('ansible.builtin.password', draupnode_secrets_dir ~ '/.oauth2_proxy_cookie', chars=['ascii_letters', 'digits'], length=32) }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Entrar en Keycloak como administrador
+  ansible.builtin.uri:
+    url: "{{ oauth2_proxy_kc }}/realms/master/protocol/openid-connect/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      grant_type: password
+      client_id: admin-cli
+      username: admin
+      password: "{{ lookup('ansible.builtin.file', draupnode_secrets_dir ~ '/.keycloak_admin_pass') }}"
+    status_code: [200, 401]
+  register: oauth2_proxy_tok
+  retries: 20
+  delay: 5
+  until: oauth2_proxy_tok.status in [200, 401]
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Sin el administrador temporal no se puede crear el cliente
+  ansible.builtin.fail:
+    msg: >-
+      Keycloak no acepta el administrador temporal «admin» (¿lo borraste?). Crea a mano, en el realm
+      {{ oauth2_proxy_realm }}, el cliente «oauth2-proxy» (OpenID Connect, «Client authentication» activado)
+      con estas «Valid redirect URIs»: {{ oauth2_proxy_callbacks | join(', ') }};
+      y guarda su secreto en {{ draupnode_secrets_dir }}/.oauth2_proxy_client. Luego vuelve a aplicar.
+  when: not ansible_check_mode and oauth2_proxy_tok.status != 200 and not (lookup('ansible.builtin.fileglob', draupnode_secrets_dir ~ '/.oauth2_proxy_client') | length > 0)
+
+- name: Preparar el realm y el cliente en Keycloak
+  when: not ansible_check_mode and oauth2_proxy_tok.status == 200
+  no_log: true
+  block:
+    - name: ¿Existe el realm?
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}"
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+        status_code: [200, 404]
+      register: oauth2_proxy_realm_q
+    - name: Crear el realm
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms"
+        method: POST
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+        body_format: json
+        body: {realm: "{{ oauth2_proxy_realm }}", enabled: true}
+        status_code: [201]
+      when: oauth2_proxy_realm_q.status == 404
+    - name: ¿Existe el cliente?
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients?clientId=oauth2-proxy"
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+      register: oauth2_proxy_cl
+    - name: Crear el cliente «oauth2-proxy»
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients"
+        method: POST
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+        body_format: json
+        body:
+          clientId: oauth2-proxy
+          name: "Draupnode (oauth2-proxy)"
+          protocol: openid-connect
+          publicClient: false
+          standardFlowEnabled: true
+          directAccessGrantsEnabled: false
+          redirectUris: "{{ oauth2_proxy_callbacks }}"
+          webOrigins: ["+"]
+        status_code: [201]
+      when: oauth2_proxy_cl.json | length == 0
+    - name: El cliente (otra vez, con su id)
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients?clientId=oauth2-proxy"
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+      register: oauth2_proxy_cl2
+    - name: Dominios de vuelta al día
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients/{{ oauth2_proxy_cl2.json[0].id }}"
+        method: PUT
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+        body_format: json
+        body: "{{ oauth2_proxy_cl2.json[0] | combine({'redirectUris': oauth2_proxy_callbacks}) }}"
+        status_code: [204]
+      when: (oauth2_proxy_cl2.json[0].redirectUris | sort) != (oauth2_proxy_callbacks | sort)
+      changed_when: true
+    - name: Secreto del cliente
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients/{{ oauth2_proxy_cl2.json[0].id }}/client-secret"
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+      register: oauth2_proxy_sec
+    - name: Guardarlo en el servidor
+      ansible.builtin.copy:
+        dest: "{{ draupnode_secrets_dir }}/.oauth2_proxy_client"
+        content: "{{ oauth2_proxy_sec.json.value }}"
+        mode: "0600"
+
+- name: Leer el secreto del cliente
+  ansible.builtin.set_fact:
+    oauth2_proxy_client_secret: "{{ lookup('ansible.builtin.file', draupnode_secrets_dir ~ '/.oauth2_proxy_client') }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ oauth2_proxy_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+
+- name: Arrancar oauth2-proxy
+  ansible.builtin.command: docker compose -p dn-oauth2-proxy up -d --quiet-pull --remove-orphans
+  args:
+    chdir: "{{ oauth2_proxy_dir }}"
+  register: oauth2_proxy_up
+  # Los registros de imágenes a veces responden «demasiadas peticiones»: se reintenta.
+  until: oauth2_proxy_up.rc == 0
+  retries: 3
+  delay: 30
+  changed_when: "'Started' in oauth2_proxy_up.stderr or 'Created' in oauth2_proxy_up.stderr or 'Recreated' in oauth2_proxy_up.stderr"
+  when: not ansible_check_mode
+
+- name: Esperar a que responda
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ oauth2_proxy_port }}/ping"
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403]
+    follow_redirects: none
+  register: oauth2_proxy_http
+  until: oauth2_proxy_http.status in [200, 204, 301, 302, 303, 307, 308, 401, 403]
+  retries: 30
+  delay: 3
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar que no se reinicia sin parar
+  ansible.builtin.include_role:
+    name: draupnode_preflight
+    tasks_from: no_reinicia
+  vars:
+    dn_compose_project: dn-oauth2-proxy
+  when: not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: >-
+      oauth2-proxy {{ 'responde' if (oauth2_proxy_http.status | default(0)) in [200, 204, 301, 302, 303, 307, 308, 401, 403] else 'NO responde todavía (mira: docker compose -p dn-oauth2-proxy logs, en ' ~ oauth2_proxy_dir ~ ')' }} en {{ oauth2_proxy_url }}.
+      Crea los usuarios en Keycloak, realm «{{ oauth2_proxy_realm }}» (con su correo). Dominios protegidos: {{ oauth2_proxy_protect | join(', ') }}.

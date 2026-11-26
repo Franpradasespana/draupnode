@@ -991,3 +991,213 @@ lo pides) y el DNS inverso de la IP con tu dominio.""",
     check='/login', retries=40,
     note="Entra en la administración con «admin» (contraseña en «Contraseñas»), añade tu dominio y crea en tu DNS los registros que te indica.",
 )
+
+# ------------------------------------------------------------------ Keycloak delante de las apps
+
+APPS['oauth2-proxy'] = dict(
+    category=SEG,
+    depends=['docker', 'keycloak', 'caddy'],
+    links=[('Documentación', 'https://oauth2-proxy.github.io/oauth2-proxy/'), ('Código fuente', 'https://github.com/oauth2-proxy/oauth2-proxy')],
+    id='oauth2-proxy', name='Inicio de sesión con Keycloak (oauth2-proxy)', short='oauth2-proxy', license='MIT',
+    description='Protege con tus usuarios de Keycloak (y su doble factor) las apps que no tienen inicio de sesión propio: antes de entrar, hay que iniciar sesión en Keycloak.',
+    details="""oauth2-proxy en Docker, junto a Keycloak y Caddy en este servidor. Al
+aplicar, Draupnode crea en Keycloak el realm elegido (si no existe) y
+su cliente «oauth2-proxy» con la vuelta de cada dominio protegido, y
+configura Caddy para que pida iniciar sesión antes de entrar en ellos.
+Los usuarios se crean en Keycloak, en ese realm (con su correo). Así
+todas tus apps usan los mismos usuarios: las que admiten OIDC, con
+Keycloak directamente; las demás, con esto delante.
+Necesita que Keycloak tenga dominio y que los dominios protegidos
+cuelguen del mismo dominio principal. Usa el administrador temporal
+«admin» de Keycloak para crear el cliente: si ya lo borraste, crea el
+cliente a mano (lo explica la nota al aplicar).""",
+    port=4180, cport=4180, no_proxy=True, no_public=True, data_desc='su configuración; los usuarios siguen en Keycloak', dirs=[],
+    generate=[dict(file='.oauth2_proxy_cookie', var='cookie_secret', len=32)],
+    secret_files=['.oauth2_proxy_client'],
+    vars=["""- name: oauth2_proxy_protect
+  label: Dominios protegidos
+  help: Uno por línea. Para entrar en ellos habrá que iniciar sesión en Keycloak. Tienen que colgar del mismo dominio principal.
+  type: list
+  default: []
+  pattern: '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$'
+  pattern_help: Un dominio (app.ejemplo.com)""",
+          """- name: oauth2_proxy_realm
+  label: Realm de Keycloak
+  help: Donde están los usuarios que pueden entrar. Si no existe, se crea. Mejor uno propio que «master» (el de administrar Keycloak).
+  type: string
+  default: apps
+  pattern: '^[A-Za-z0-9_-]{1,64}$'
+  pattern_help: Letras, números, guion y guion bajo""",
+          """- name: oauth2_proxy_kc_domain
+  label: Dominio de Keycloak (lo pone Draupnode)
+  type: string
+  default: ""
+  managed: true""",
+          """- name: oauth2_proxy_kc_port
+  label: Puerto de Keycloak (lo pone Draupnode)
+  type: int
+  default: 8180
+  min: 1
+  max: 65535
+  managed: true"""],
+    pre_tasks="""
+- name: Keycloak necesita dominio
+  ansible.builtin.assert:
+    that: oauth2_proxy_kc_domain | length > 0
+    fail_msg: "Pon un dominio a Keycloak (con Caddy): el inicio de sesión tiene que verse desde internet."
+- name: Hace falta al menos un dominio protegido
+  ansible.builtin.assert:
+    that: oauth2_proxy_protect | length > 0
+    fail_msg: "Pon en «Dominios protegidos» los de las apps que quieras tapar."
+- name: Dominio principal (el de la cookie de la sesión)
+  ansible.builtin.set_fact:
+    oauth2_proxy_cookie_domain: "{{ oauth2_proxy_protect[0].split('.', 1)[1] }}"
+    oauth2_proxy_kc: "http://127.0.0.1:{{ oauth2_proxy_kc_port }}"
+    oauth2_proxy_issuer: "https://{{ oauth2_proxy_kc_domain }}/realms/{{ oauth2_proxy_realm }}"
+    oauth2_proxy_callbacks: "{{ oauth2_proxy_protect | map('regex_replace', '^', 'https://') | map('regex_replace', '$', '/oauth2/callback') | list }}"
+- name: Los dominios protegidos tienen que colgar del mismo dominio principal
+  ansible.builtin.assert:
+    that: oauth2_proxy_protect | reject('search', '(^|\\\\.)' ~ (oauth2_proxy_cookie_domain | regex_escape) ~ '$') | list | length == 0
+    fail_msg: "Estos dominios no son de {{ oauth2_proxy_cookie_domain }}: {{ oauth2_proxy_protect | reject('search', '(^|\\\\.)' ~ (oauth2_proxy_cookie_domain | regex_escape) ~ '$') | join(', ') }}"
+""",
+    mid_tasks="""
+- name: Entrar en Keycloak como administrador
+  ansible.builtin.uri:
+    url: "{{ oauth2_proxy_kc }}/realms/master/protocol/openid-connect/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      grant_type: password
+      client_id: admin-cli
+      username: admin
+      password: "{{ lookup('ansible.builtin.file', draupnode_secrets_dir ~ '/.keycloak_admin_pass') }}"
+    status_code: [200, 401]
+  register: oauth2_proxy_tok
+  retries: 20
+  delay: 5
+  until: oauth2_proxy_tok.status in [200, 401]
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Sin el administrador temporal no se puede crear el cliente
+  ansible.builtin.fail:
+    msg: >-
+      Keycloak no acepta el administrador temporal «admin» (¿lo borraste?). Crea a mano, en el realm
+      {{ oauth2_proxy_realm }}, el cliente «oauth2-proxy» (OpenID Connect, «Client authentication» activado)
+      con estas «Valid redirect URIs»: {{ oauth2_proxy_callbacks | join(', ') }};
+      y guarda su secreto en {{ draupnode_secrets_dir }}/.oauth2_proxy_client. Luego vuelve a aplicar.
+  when: not ansible_check_mode and oauth2_proxy_tok.status != 200 and not (lookup('ansible.builtin.fileglob', draupnode_secrets_dir ~ '/.oauth2_proxy_client') | length > 0)
+
+- name: Preparar el realm y el cliente en Keycloak
+  when: not ansible_check_mode and oauth2_proxy_tok.status == 200
+  no_log: true
+  block:
+    - name: ¿Existe el realm?
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}"
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+        status_code: [200, 404]
+      register: oauth2_proxy_realm_q
+    - name: Crear el realm
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms"
+        method: POST
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+        body_format: json
+        body: {realm: "{{ oauth2_proxy_realm }}", enabled: true}
+        status_code: [201]
+      when: oauth2_proxy_realm_q.status == 404
+    - name: ¿Existe el cliente?
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients?clientId=oauth2-proxy"
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+      register: oauth2_proxy_cl
+    - name: Crear el cliente «oauth2-proxy»
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients"
+        method: POST
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+        body_format: json
+        body:
+          clientId: oauth2-proxy
+          name: "Draupnode (oauth2-proxy)"
+          protocol: openid-connect
+          publicClient: false
+          standardFlowEnabled: true
+          directAccessGrantsEnabled: false
+          redirectUris: "{{ oauth2_proxy_callbacks }}"
+          webOrigins: ["+"]
+        status_code: [201]
+      when: oauth2_proxy_cl.json | length == 0
+    - name: El cliente (otra vez, con su id)
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients?clientId=oauth2-proxy"
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+      register: oauth2_proxy_cl2
+    - name: Dominios de vuelta al día
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients/{{ oauth2_proxy_cl2.json[0].id }}"
+        method: PUT
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+        body_format: json
+        body: "{{ oauth2_proxy_cl2.json[0] | combine({'redirectUris': oauth2_proxy_callbacks}) }}"
+        status_code: [204]
+      when: (oauth2_proxy_cl2.json[0].redirectUris | sort) != (oauth2_proxy_callbacks | sort)
+      changed_when: true
+    - name: Secreto del cliente
+      ansible.builtin.uri:
+        url: "{{ oauth2_proxy_kc }}/admin/realms/{{ oauth2_proxy_realm }}/clients/{{ oauth2_proxy_cl2.json[0].id }}/client-secret"
+        headers: {Authorization: "Bearer {{ oauth2_proxy_tok.json.access_token }}"}
+      register: oauth2_proxy_sec
+    - name: Guardarlo en el servidor
+      ansible.builtin.copy:
+        dest: "{{ draupnode_secrets_dir }}/.oauth2_proxy_client"
+        content: "{{ oauth2_proxy_sec.json.value }}"
+        mode: "0600"
+
+- name: Leer el secreto del cliente
+  ansible.builtin.set_fact:
+    oauth2_proxy_client_secret: "{{ lookup('ansible.builtin.file', draupnode_secrets_dir ~ '/.oauth2_proxy_client') }}"
+  no_log: true
+  when: not ansible_check_mode
+""",
+    compose="""  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.12.0
+    container_name: dn-oauth2-proxy
+    restart: unless-stopped
+    labels:
+      draupnode.proyecto: "{{ draupnode_project }}"
+    networks: [default, keycloak]
+    environment:
+      OAUTH2_PROXY_PROVIDER: keycloak-oidc
+      OAUTH2_PROXY_CLIENT_ID: oauth2-proxy
+      OAUTH2_PROXY_CLIENT_SECRET: "{{ oauth2_proxy_client_secret | default('') }}"
+      OAUTH2_PROXY_OIDC_ISSUER_URL: "{{ oauth2_proxy_issuer }}"
+      # El navegador va a Keycloak por su dominio; oauth2-proxy le habla por dentro de Docker.
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "true"
+      OAUTH2_PROXY_LOGIN_URL: "{{ oauth2_proxy_issuer }}/protocol/openid-connect/auth"
+      OAUTH2_PROXY_REDEEM_URL: "http://keycloak:8080/realms/{{ oauth2_proxy_realm }}/protocol/openid-connect/token"
+      OAUTH2_PROXY_OIDC_JWKS_URL: "http://keycloak:8080/realms/{{ oauth2_proxy_realm }}/protocol/openid-connect/certs"
+      OAUTH2_PROXY_PROFILE_URL: "http://keycloak:8080/realms/{{ oauth2_proxy_realm }}/protocol/openid-connect/userinfo"
+      OAUTH2_PROXY_VALIDATE_URL: "http://keycloak:8080/realms/{{ oauth2_proxy_realm }}/protocol/openid-connect/userinfo"
+      OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_INSECURE_OIDC_ALLOW_UNVERIFIED_EMAIL: "true"
+      OAUTH2_PROXY_COOKIE_SECRET: "{{ oauth2_proxy_cookie_secret }}"
+      OAUTH2_PROXY_COOKIE_SECURE: "true"
+      OAUTH2_PROXY_COOKIE_DOMAINS: ".{{ oauth2_proxy_cookie_domain }}"
+      OAUTH2_PROXY_WHITELIST_DOMAINS: ".{{ oauth2_proxy_cookie_domain }}"
+      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_UPSTREAMS: "static://202"
+@@PORTS@@
+
+networks:
+  keycloak:
+    name: dn-keycloak_default
+    external: true""",
+    check='/ping', retries=30,
+    note="Crea los usuarios en Keycloak, realm «{{ oauth2_proxy_realm }}» (con su correo). Dominios protegidos: {{ oauth2_proxy_protect | join(', ') }}.",
+)

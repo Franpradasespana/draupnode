@@ -53,11 +53,12 @@ On macOS: right-click Draupnode → Open. On Windows: «More info» → «Run an
   Passwords are generated on the server itself. Each module can be uninstalled, with or without its data, and
   **«Uninstall everything»** leaves the server as freshly prepared.
 - **Templates**: sets of modules with their configuration to add them all at once to any server.
-- A **catalog** of 64 open-source modules, with their website, source code and licence, and a **guide to test each one**
+- A **catalog** of 65 open-source modules, with their website, source code and licence, and a **guide to test each one**
   on the test server (steps and what you should see), with a list to tick off the ones you have checked:
   - **System and network**: base, firewall, secure SSH with fail2ban, exact time (chrony), WireGuard, Headscale, Caddy, nginx, AdGuard,
     outgoing email (msmtp).
-  - **Security**: CrowdSec, Lynis, ClamAV, AIDE, auditd, Trivy, Keycloak, OpenBao and Authelia (two-factor login in
+  - **Security**: CrowdSec, Lynis, ClamAV, AIDE, auditd, Trivy, Keycloak (with oauth2-proxy in front of apps without
+    their own login), OpenBao and Authelia (two-factor login in
     front of your apps).
   - **Containers and Kubernetes**: Docker, Coolify, Portainer, image registry, Kubernetes (k3s with Helm),
     Argo CD and OpenTofu (the free continuation of Terraform).

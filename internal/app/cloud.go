@@ -146,6 +146,49 @@ func syncAuthelia(sel []bundle.Selection) []string {
 	return nil
 }
 
+// syncOAuth2: como syncAuthelia, para «Inicio de sesión con Keycloak»
+// (oauth2-proxy): Caddy manda a iniciar sesión en Keycloak antes de entrar en
+// sus dominios protegidos. Un dominio no puede estar protegido por los dos.
+func syncOAuth2(sel []bundle.Selection) []string {
+	var caddy, o2, auth, kc map[string]any
+	for _, s := range sel {
+		switch s.Module.ID {
+		case "caddy":
+			caddy = s.Values
+		case "oauth2-proxy":
+			o2 = s.Values
+		case "authelia":
+			auth = s.Values
+		case "keycloak":
+			kc = s.Values
+		}
+	}
+	if o2 != nil && kc != nil {
+		// Cada módulo solo ve sus variables: el de oauth2-proxy necesita las de Keycloak.
+		o2["oauth2_proxy_kc_domain"], _ = kc["keycloak_domain"].(string)
+		o2["oauth2_proxy_kc_port"] = toInt(kc["keycloak_port"])
+	}
+	if caddy == nil {
+		return nil
+	}
+	if o2 == nil {
+		caddy["caddy_oauth2"], caddy["caddy_oauth2_to"] = []string{}, ""
+		return nil
+	}
+	doms := toStrings(o2["oauth2_proxy_protect"])
+	caddy["caddy_oauth2"] = doms
+	caddy["caddy_oauth2_to"] = "127.0.0.1:" + strconv.Itoa(toInt(o2["oauth2_proxy_port"]))
+	var w []string
+	if auth != nil {
+		for _, d := range toStrings(auth["authelia_protect"]) {
+			if contains(doms, d) {
+				w = append(w, i18n.Sprintf("%s está protegido a la vez por Authelia y por Keycloak (oauth2-proxy): quítalo de uno de los dos.", d))
+			}
+		}
+	}
+	return w
+}
+
 // syncVPNDNS: con AdGuard Home y WireGuard en el proyecto, los dispositivos
 // de la VPN usan AdGuard como DNS (la .1 de la red de la VPN), salvo que el
 // usuario haya puesto otro.

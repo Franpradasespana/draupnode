@@ -1,0 +1,19 @@
+---
+- name: ¿Está oauth2-proxy?
+  ansible.builtin.stat:
+    path: /srv/draupnode/apps/oauth2-proxy/docker-compose.yml
+  register: oauth2_proxy_cf
+
+- name: Parar y quitar oauth2-proxy
+  ansible.builtin.command: docker compose -p dn-oauth2-proxy down {{ '-v' if draupnode_uninstall_purge | bool else '' }}
+  args:
+    chdir: /srv/draupnode/apps/oauth2-proxy
+  when: oauth2_proxy_cf.stat.exists and not ansible_check_mode
+
+- name: Borrar sus datos
+  ansible.builtin.shell: rm -rf /srv/draupnode/apps/oauth2-proxy {{ draupnode_secrets_dir | quote }}/.oauth2_proxy_cookie {{ draupnode_secrets_dir | quote }}/.oauth2_proxy_client
+  when: draupnode_uninstall_purge | bool and not ansible_check_mode
+
+- name: Nota
+  ansible.builtin.debug:
+    msg: "oauth2-proxy {{ 'se quitará' if ansible_check_mode else 'quitado' }}.{{ ' También sus datos.' if draupnode_uninstall_purge | bool else ' Sus datos siguen en /srv/draupnode/apps/oauth2-proxy: si lo reinstalas, vuelve todo.' }}"
