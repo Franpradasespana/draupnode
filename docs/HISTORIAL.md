@@ -1313,3 +1313,20 @@ otro», descartada).
 - Probado en Ubuntu desechable: imágenes de Docker Hub y gcr.io al día; una busybox vieja etiquetada `latest` sale
   como nueva, «Actualizar» la baja y recrea el contenedor, y vuelve a salir al día. Ayuda y captura
   `actualizaciones` en los dos idiomas.
+
+## 2026-11-26 · 0.69.0 · Dominios vistos desde fuera y apuntarlos al servidor por API
+
+- **Comprobación desde este equipo** (`internal/app/domains.go`, `CheckDomains`), sin SSH: los dominios salen de la
+  última ficha (nginx, Caddy, Coolify: panel y apps) y de los añadidos a mano (`SetExtraDomains`). Para cada uno: DNS
+  (¿apunta a la IP del servidor? ¿existe?), certificado (se lee aunque no sea válido para decir por qué: caducado, de
+  otro dominio, autofirmado), web por HTTPS (código y tiempo) y si http:// lleva a https://. Se conecta a la IP
+  resuelta (la del servidor si hay varias). Resultado en `dominios/<servidor>.json`.
+- **Apuntar el dominio** (`internal/dnsapi`, `PointDomain`): Cloudflare y DigitalOcean. Busca la zona que contiene el
+  dominio y crea o cambia el registro A (TTL 300, sin proxy). Token de Cloudflare en la bóveda (`dns:cloudflare`); el
+  de DigitalOcean es el mismo que para crear servidores. Solo dominios de la última comprobación de ese servidor.
+  Hetzner DNS se deja fuera por ahora (está cambiando de API).
+- **Ficha → pestaña «Dominios»** (`DomainsPanel.svelte`): tabla con todo lo anterior, «Apuntar a este servidor…»,
+  «Vigilar este dominio». Se mira solo cada 30 minutos mientras la app está abierta (`watchDomains`) y lo que falle
+  sale en los avisos (si un certificado ya se mira desde fuera, no se avisa dos veces por el de dentro).
+- Tests con servidores HTTPS/HTTP de prueba y APIs falsas; ayuda y capturas (`servidor-dominios` y las de la ficha,
+  por la pestaña nueva) en los dos idiomas.

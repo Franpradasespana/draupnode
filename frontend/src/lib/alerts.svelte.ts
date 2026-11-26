@@ -1,7 +1,7 @@
 // Avisos de la app: lo que conviene mirar, en un solo sitio (pantalla
 // «Avisos», el número en el menú y la campana de arriba). Así no hace falta
 // una franja en todas las pantallas: solo el Panel los enseña.
-import { api, isDesktop, onEvent, type BackupDue, type BackupFetchProgress, type BackupResult, type CachedOverview, type DriftReport, type ImageReport, type ServerOverview } from './api'
+import { api, isDesktop, onEvent, type BackupDue, type BackupFetchProgress, type BackupResult, type CachedOverview, type DomainCheck, type DomainReport, type DriftReport, type ImageReport, type ServerOverview } from './api'
 import { ui, toast, refreshProjects, moduleName } from './state.svelte'
 import { withConnection } from './connect'
 import { sameValues } from './modules'
@@ -72,6 +72,8 @@ export const alerts = $state({
   drifts: {} as Record<string, DriftReport>,
   // Última comprobación de imágenes Docker de cada servidor.
   images: {} as Record<string, ImageReport>,
+  // Última comprobación de dominios (desde este equipo) de cada servidor.
+  domains: {} as Record<string, DomainReport>,
   progress: null as BackupFetchProgress | null,
 })
 
@@ -106,7 +108,9 @@ export function alertItems(): AlertItem[] {
   for (const [sid, c] of Object.entries(alerts.fichas)) {
     const srv = ui.servers.find((x) => x.id === sid)
     if (!srv) continue
+    const outside = new Set((alerts.domains[sid]?.domains ?? []).map((d) => d.domain))
     for (const f of serverFindings(c.overview)) {
+      if (f.id.startsWith('cert:') && outside.has(f.id.slice(5))) continue
       out.push({ kind: 'server', key: `s:${sid}:${f.id}`, serverId: sid, name: srv.name, text: f.text, bad: f.bad, at: c.at })
     }
   }
@@ -119,6 +123,14 @@ export function alertItems(): AlertItem[] {
     const srv = ui.servers.find((x) => x.id === sid)
     const n = newImages(r).length
     if (srv && n) out.push({ kind: 'server', key: `s:${sid}:img:${newImages(r).map((i) => i.image).join(',')}`, serverId: sid, name: srv.name, text: t(n === 1 ? 'Hay versión nueva de 1 imagen Docker: {1}' : 'Hay versión nueva de {0} imágenes Docker: {1}', n, newImages(r).slice(0, 2).map((i) => i.image).join(', ') + (n > 2 ? '…' : '')), bad: false, at: r.at })
+  }
+  for (const [sid, r] of Object.entries(alerts.domains)) {
+    const srv = ui.servers.find((x) => x.id === sid)
+    if (!srv) continue
+    for (const d of r.domains ?? []) {
+      const p = domainProblem(d)
+      if (p) out.push({ kind: 'server', key: `s:${sid}:dom:${d.domain}:${p.id}`, serverId: sid, name: srv.name, text: `${d.domain}: ${p.text}`, bad: p.bad, at: r.at })
+    }
   }
   // Servidores con módulos sin aplicar (nuevos o con la configuración cambiada).
   for (const p of ui.projects) {
@@ -165,6 +177,7 @@ export async function loadAlerts() {
   api.LastOverviews().then((f) => (alerts.fichas = f ?? {})).catch(() => {})
   api.LastDrifts().then((d) => (alerts.drifts = d ?? {})).catch(() => {})
   api.LastImageChecks().then((d) => (alerts.images = d ?? {})).catch(() => {})
+  api.LastDomainChecks().then((d) => (alerts.domains = d ?? {})).catch(() => {})
   api.BackupStatus().then((b) => (alerts.lastExport = b.lastExport ?? null)).catch(() => {})
   api.CheckUpdate().then((u) => (alerts.update = u.newer && u.url ? { latest: u.latest, url: u.url } : null)).catch(() => {})
   try {
@@ -257,4 +270,34 @@ export function newImages(r: ImageReport | undefined) {
 /** Proyectos Compose con alguna imagen nueva que Draupnode puede actualizar (no los de Coolify). */
 export function updatableProjects(r: ImageReport | undefined): string[] {
   return [...new Set(newImages(r).filter((i) => !i.coolify).flatMap((i) => i.compose.map((c) => c.project)))]
+}
+
+/** Lo que falla de un dominio visto desde fuera (lo más grave), o null si va bien. */
+export function domainProblem(d: DomainCheck): { id: string; text: string; bad: boolean } | null {
+  if (d.dnsError) return { id: 'dns', text: d.dnsError, bad: true }
+  if (d.webError && !d.status) return { id: 'web', text: t('la web no responde ({0})', d.webError), bad: true }
+  if (d.certError) return { id: 'cert', text: t('certificado: {0}', d.certError), bad: true }
+  if (d.certDays !== undefined && d.certDays < 21) return { id: 'certdays', text: d.certDays < 0 ? t('el certificado ha caducado') : t('el certificado caduca en {0} días', d.certDays), bad: d.certDays < 7 }
+  if (d.status && d.status >= 500) return { id: 'status', text: t('la web da error {0}', d.status), bad: true }
+  if (!d.pointsHere) return { id: 'ip', text: t('el DNS apunta a {0}, no a este servidor', d.ips.join(', ')), bad: false }
+  return null
+}
+
+// Cada cuántos minutos se miran solos los dominios (desde este equipo, sin SSH).
+export const DOMAINS_MINUTES = 30
+let watchingDomains = false
+/** Mira los dominios de los servidores mientras la app está abierta. */
+export function watchDomains() {
+  if (watchingDomains) return
+  watchingDomains = true
+  const tick = async () => {
+    for (const s of ui.servers) {
+      const r = alerts.domains[s.id]
+      const has = (alerts.fichas[s.id]?.overview.sites?.length ?? 0) + (alerts.fichas[s.id]?.overview.coolify?.apps.length ?? 0) + (r?.extra?.length ?? 0)
+      if (!has || (r && Date.now() - new Date(r.at).getTime() < DOMAINS_MINUTES * 60000)) continue
+      try { alerts.domains[s.id] = await api.CheckDomains(s.id) } catch { /* siguiente vuelta */ }
+    }
+  }
+  setTimeout(tick, 20000)
+  setInterval(tick, 5 * 60000)
 }

@@ -7,7 +7,7 @@
   import {
     ArrowLeft, RefreshCw, Pencil, SquareTerminal, LoaderCircle, Cpu, MemoryStick, HardDrive, Clock, FolderGit2, Plus, ExternalLink,
     Database, Box, ScrollText, TriangleAlert, Globe, Network, CircleCheck, CircleAlert, KeyRound,
-    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole, Gauge,
+    LayoutDashboard, DatabaseBackup, ArrowRight, History, Blocks, Play, Square, RotateCw, Eraser, ShieldExclamationPoint, PackageCheck, Power, ClockExclamationPoint, LockKeyhole, Gauge, Earth,
   } from '@lucide/svelte'
   import Modal from '../components/Modal.svelte'
   import ProjectEditor from './ProjectEditor.svelte'
@@ -22,8 +22,9 @@
   import HistoryPanel from '../components/HistoryPanel.svelte'
   import DriftPanel from '../components/DriftPanel.svelte'
   import SnapshotsPanel from '../components/SnapshotsPanel.svelte'
+  import DomainsPanel from '../components/DomainsPanel.svelte'
   import Sparkline from '../components/Sparkline.svelte'
-  import { alerts, rememberOverview, serverFindings, driftOpen } from '../lib/alerts.svelte'
+  import { alerts, rememberOverview, serverFindings, driftOpen, domainProblem } from '../lib/alerts.svelte'
   import { t as tr, agoText } from '../lib/i18n.svelte'
 
   let { id }: { id: string } = $props()
@@ -177,7 +178,7 @@
   const badContainers = $derived((ov?.containers ?? []).filter((c) => c.state !== 'running' || c.health === 'unhealthy'))
 
   // ---- Pestañas (se recuerda la última abierta)
-  type Tab = 'resumen' | 'modulos' | 'apps' | 'contenedores' | 'copias' | 'red' | 'registros'
+  type Tab = 'resumen' | 'modulos' | 'apps' | 'dominios' | 'contenedores' | 'copias' | 'red' | 'registros'
   const ping = $derived(alerts.ping[id])
   const isDown = $derived(!!ping && !ping.reachable && !ping.lab)
   const findings = $derived(ov ? serverFindings(ov) : [])
@@ -189,6 +190,7 @@
   const rootDisk = $derived(ov?.disks?.find((d) => d.mount === '/') ?? ov?.disks?.[0])
   // Lo mismo que lista «Necesita atención» en el Resumen.
   const drifted = $derived(driftOpen(alerts.drifts[id]).length)
+  const domainIssues = $derived((alerts.domains[id]?.domains ?? []).map(domainProblem).filter((p) => !!p))
   // Avisos del sistema (reinicio, actualizaciones de seguridad, certificados, hora, SSH).
   const sysFindings = $derived(findings.filter((f) => /^(reboot|secupd|cert|clock|ssh)/.test(f.id)))
   const attention = $derived((isDown ? 1 : 0) + sickContainers.length + (ov?.failed?.length ?? 0) + findings.filter((f) => f.id.startsWith('disk') || f.id.startsWith('bk')).length + sysFindings.length + (pendingMods ? 1 : 0) + (drifted ? 1 : 0))
@@ -196,6 +198,7 @@
     { id: 'resumen' as Tab, label: tr('Resumen'), icon: LayoutDashboard, badge: attention, bad: isDown || findings.some((f) => f.bad) },
     { id: 'modulos' as Tab, label: tr('Módulos'), icon: Blocks, count: project?.modules.length ?? 0, badge: pendingMods, bad: false },
     { id: 'apps' as Tab, label: tr('Apps y bases'), icon: Globe, count: appCount + (ov?.databases?.reduce((t, d) => t + d.databases.length, 0) ?? 0), badge: 0, bad: false },
+    { id: 'dominios' as Tab, label: tr('Dominios'), icon: Earth, count: alerts.domains[id]?.domains.length ?? 0, badge: domainIssues.length, bad: domainIssues.some((p) => p.bad) },
     { id: 'contenedores' as Tab, label: tr('Contenedores'), icon: Box, count: ov?.containers?.length ?? 0, badge: sickContainers.length, bad: true },
     ...(backupDeps.length || ov?.backups?.length ? [{ id: 'copias' as Tab, label: tr('Copias'), icon: DatabaseBackup, count: 0, badge: backupFindings.length, bad: backupFindings.some((f) => f.bad) }] : []),
     { id: 'red' as Tab, label: tr('Red y seguridad'), icon: Network, count: 0, badge: 0, bad: false },
@@ -560,6 +563,10 @@
     </section>
   {/if}
 
+  {#if current === 'dominios' && server}
+    <DomainsPanel {server} />
+  {/if}
+
   {#if current === 'contenedores'}
     <section class="card block">
       <div class="h2row">
@@ -774,7 +781,7 @@
   .err { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; border-color: var(--danger); }
   .err :global(svg) { color: var(--danger); flex: none; }
   .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
-  .tab { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; font: inherit; font-size: 13.5px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .tab { display: inline-flex; align-items: center; gap: 6px; padding: 9px 9px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; }
   .tab:hover { color: var(--text); }
   .tab.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
   .tab.on :global(svg) { color: var(--accent); }

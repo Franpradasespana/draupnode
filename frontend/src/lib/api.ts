@@ -601,6 +601,27 @@ export interface TemplateResult {
   notes: string[]
 }
 
+// Dominios vistos desde fuera (CheckDomains).
+export interface DomainCheck {
+  domain: string
+  source: string
+  ips: string[]
+  pointsHere: boolean
+  dnsError?: string
+  status?: number
+  timeMs?: number
+  webError?: string
+  certDays?: number
+  certIssuer?: string
+  certValid: boolean
+  certError?: string
+  redirect: boolean
+  httpStatus?: number
+}
+export interface DNSProvider { id: string; name: string; hasToken: boolean; tokenUrl: string; tokenHelp: string }
+export interface PointDomainResult { zone: string; action: 'created' | 'updated' | 'same'; before?: string; ip: string }
+export interface DomainReport { at: string; serverIp: string; domains: DomainCheck[]; extra?: string[] }
+
 // Imágenes Docker con versión nueva (CheckImages).
 export interface ImageCompose { project: string; dir: string; files: string }
 export interface ImageInfo {
@@ -884,6 +905,12 @@ interface Backend {
   LastOverviews(): Promise<Record<string, CachedOverview>>
   CheckDrift(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<DriftResult>
   CheckImages(serverId: string, secret: string, accept: string, sudoPassword: string): Promise<ImagesResult>
+  CheckDomains(serverId: string): Promise<DomainReport>
+  LastDomainChecks(): Promise<Record<string, DomainReport>>
+  SetExtraDomains(serverId: string, domains: string[]): Promise<DomainReport>
+  DNSProviders(): Promise<DNSProvider[]>
+  SetDNSToken(provider: string, token: string): Promise<void>
+  PointDomain(serverId: string, domain: string, provider: string): Promise<PointDomainResult>
   LastImageChecks(): Promise<Record<string, ImageReport>>
   UpdateImages(serverId: string, projects: string[], secret: string, accept: string, sudoPassword: string): Promise<ImagesResult>
   LastDrifts(): Promise<Record<string, DriftReport>>
@@ -1897,6 +1924,56 @@ function mockBackend(): Backend {
       all[sid] = rep
       save('imagenes', all)
       return { status: 'ok', report: rep }
+    },
+    async CheckDomains(sid) {
+      await wait(900)
+      const all = load<Record<string, DomainReport>>('dominios', {})
+      const extra = all[sid]?.extra ?? []
+      const ip = servers.find((x) => x.id === sid)?.host ?? ''
+      const ok = (domain: string, source: string, days: number, ms: number): DomainCheck => ({ domain, source, ips: [ip], pointsHere: true, status: 200, timeMs: ms, certDays: days, certIssuer: "Let's Encrypt", certValid: true, redirect: true, httpStatus: 308 })
+      const doms: DomainCheck[] = sid === 'lab' ? [] : [
+        ok('coolify.example.com', 'Coolify', 61, 182),
+        ok('tienda.example.com', 'Coolify', 12, 240),
+        { domain: 'blog.example.com', source: 'Coolify', ips: ['198.51.100.23'], pointsHere: false, webError: tr('no contesta (tiempo agotado)'), certValid: false, certError: tr('no contesta (tiempo agotado)'), redirect: false },
+        ok('grafana.example.com', 'Caddy', 74, 95),
+      ]
+      for (const d of extra) doms.push({ domain: d, source: 'manual', ips: [], pointsHere: false, dnsError: tr('el dominio no existe en el DNS'), certValid: false, redirect: false })
+      all[sid] = { at: new Date().toISOString(), serverIp: ip, domains: doms.sort((a, b) => a.domain.localeCompare(b.domain)), extra }
+      save('dominios', all)
+      return all[sid]
+    },
+    async DNSProviders() {
+      return [
+        { id: 'cloudflare', name: 'Cloudflare', hasToken: !!cloudTokens['dns:cloudflare'], tokenUrl: 'https://dash.cloudflare.com/profile/api-tokens', tokenHelp: tr('En Cloudflare: Mi perfil → API Tokens → Create Token → plantilla «Edit zone DNS», con tu dominio en «Zone Resources».') },
+        { id: 'digitalocean', name: 'DigitalOcean', hasToken: !!cloudTokens.digitalocean, tokenUrl: 'https://cloud.digitalocean.com/account/api/tokens', tokenHelp: tr('En DigitalOcean: API → Tokens → Generate New Token, con permiso de escritura (o el de «domain»). Es el mismo token que para crear servidores.') },
+      ]
+    },
+    async SetDNSToken(provider, token) {
+      await wait(500)
+      if (!vault.exists) throw tr('VAULT_MISSING: no hay bóveda')
+      if (!vault.unlocked) throw tr('VAULT_LOCKED: la bóveda está bloqueada')
+      if (token.trim().length < 8) throw tr('el proveedor no acepta el token (403): comprueba que es correcto y que puede editar el DNS')
+      cloudTokens[provider === 'digitalocean' ? provider : 'dns:' + provider] = token
+    },
+    async PointDomain(sid, domain) {
+      await wait(900)
+      const ip = servers.find((x) => x.id === sid)?.host ?? ''
+      const all = load<Record<string, DomainReport>>('dominios', {})
+      const d = all[sid]?.domains.find((x) => x.domain === domain)
+      const before = d?.ips[0]
+      if (d) { d.ips = [ip]; d.pointsHere = true; delete d.dnsError; save('dominios', all) }
+      return { zone: domain.split('.').slice(-2).join('.'), action: before ? 'updated' : 'created', before, ip }
+    },
+    async LastDomainChecks() {
+      return load<Record<string, DomainReport>>('dominios', {})
+    },
+    async SetExtraDomains(sid, domains) {
+      const all = load<Record<string, DomainReport>>('dominios', {})
+      const bad = domains.find((d) => !/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]+$/i.test(d.trim()))
+      if (bad) throw tr('«{0}» no es un dominio válido', bad)
+      all[sid] = { ...(all[sid] ?? { at: new Date().toISOString(), serverIp: '', domains: [] }), extra: domains.map((d) => d.trim().toLowerCase()) }
+      save('dominios', all)
+      return all[sid]
     },
     async LastImageChecks() {
       return load<Record<string, ImageReport>>('imagenes', {})

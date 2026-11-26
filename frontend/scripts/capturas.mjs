@@ -87,6 +87,7 @@ const ALL_SHOTS = [
       ['js', `[...document.querySelectorAll('h2')].find((h) => /Instant|Snapshot/.test(h.textContent))?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300]] },
   { name: 'servidor-apps', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Apps y bases'], ['wait', 600],
     ['js', `document.querySelector('table.usage')?.closest('section')?.scrollIntoView({ block: 'start' })`], ['wait', 300]] },
+  { name: 'servidor-dominios', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Dominios'], ['wait', 1800]] },
   { name: 'servidor-red', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Red y seguridad'], ['wait', 600]] },
   { name: 'despliegue', view: 'servers', act: [['click', 'article.srv', 'Servidor web'], ['wait', 1500], ['click', 'button.tab', 'Módulos'], ['wait', 1200]] },
   { name: 'catalogo', view: 'catalog', act: [['wait', 1200], ['click', 'button.mod', 'Coolify'], ['wait', 700]] },
