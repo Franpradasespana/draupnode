@@ -77,6 +77,7 @@
 - Dejar hechas algunas **plantillas de serie** con los módulos más habituales, para que quien empiece no tenga que montarlas.
 - Antes hay que **averiguar qué combinaciones son las más habituales** (qué suele montar la gente en un VPS: p. ej. servidor web con dominio, PaaS tipo Coolify, servidor casero con VPN y apps, base de datos con copias, monitorización…) y decidir con el usuario la lista.
 - Pendiente de decidir: si vienen dentro de la app (de solo lectura, «duplicar para editar») o se copian a Plantillas al primer arranque.
+- **Estudio hecho (2026-11-27):** `docs/PLANTILLAS_DE_SERIE.md` (encuesta selfh.st 2025 + RAM por app; propuesta de 9 plantillas + «Seguridad reforzada»; pendiente de que el usuario elija).
 
 ### Rediseño pedido por el usuario (anotado 2026-11-21; HECHO en la 0.35.0 y la 0.36.0)
 
