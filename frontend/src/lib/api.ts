@@ -390,6 +390,15 @@ export interface UserModule {
   usedBy?: string[]
 }
 
+// Una versión guardada de la configuración (módulos y opciones) de un servidor o una plantilla.
+export interface ConfigVersion {
+  id: string
+  at: string
+  reason?: string
+  changes: string[]
+  modules: ProjectModule[]
+}
+
 export interface RunEntry {
   projectId: string
   project: string
@@ -919,6 +928,8 @@ interface Backend {
   RecoverFromServer(serverId: string, markerJson: string): Promise<{ project: Project; notes: string[] }>
   RunHistory(serverId: string, projectId: string, limit: number): Promise<RunEntry[]>
   ReadRunLog(projectId: string, name: string): Promise<string>
+  ConfigHistory(kind: string, id: string): Promise<ConfigVersion[]>
+  RestoreConfigVersion(kind: string, id: string, versionId: string): Promise<void>
   LabStatus(): Promise<LabStatus>
   LabAction(action: string): Promise<void>
   LabRegister(): Promise<Server>
@@ -2195,6 +2206,10 @@ function mockBackend(): Backend {
       }
       return { reachable: true, latencyMs: 38, webUrl: `http://${srv.host}:8000`, webLabel: tr('Coolify') }
     },
+    async ConfigHistory() {
+      return []
+    },
+    async RestoreConfigVersion() {},
     async ReadRunLog() {
       return ''
     },

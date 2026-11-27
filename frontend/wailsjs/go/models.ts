@@ -111,6 +111,36 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class BackupVerifyInfo {
+	    at: number;
+	    duration: number;
+	    ok: boolean;
+	    check: boolean;
+	    partial: boolean;
+	    files: number;
+	    bytes: number;
+	    dumps: number;
+	    dumpsBad: string[];
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupVerifyInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.at = source["at"];
+	        this.duration = source["duration"];
+	        this.ok = source["ok"];
+	        this.check = source["check"];
+	        this.partial = source["partial"];
+	        this.files = source["files"];
+	        this.bytes = source["bytes"];
+	        this.dumps = source["dumps"];
+	        this.dumpsBad = source["dumpsBad"];
+	        this.error = source["error"];
+	    }
+	}
 	export class Snapshot {
 	    id: string;
 	    // Go type: time
@@ -163,6 +193,7 @@ export namespace app {
 	    output?: string;
 	    ok: boolean;
 	    fetch?: store.FetchInfo;
+	    verify?: BackupVerifyInfo;
 	    entries?: SnapEntry[];
 	
 	    static createFrom(source: any = {}) {
@@ -181,6 +212,7 @@ export namespace app {
 	        this.output = source["output"];
 	        this.ok = source["ok"];
 	        this.fetch = this.convertValues(source["fetch"], store.FetchInfo);
+	        this.verify = this.convertValues(source["verify"], BackupVerifyInfo);
 	        this.entries = this.convertValues(source["entries"], SnapEntry);
 	    }
 	
@@ -213,6 +245,7 @@ export namespace app {
 	    output?: string;
 	    ok: boolean;
 	    fetch?: store.FetchInfo;
+	    verify?: BackupVerifyInfo;
 	
 	    static createFrom(source: any = {}) {
 	        return new BackupResult(source);
@@ -230,6 +263,7 @@ export namespace app {
 	        this.output = source["output"];
 	        this.ok = source["ok"];
 	        this.fetch = this.convertValues(source["fetch"], store.FetchInfo);
+	        this.verify = this.convertValues(source["verify"], BackupVerifyInfo);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -301,6 +335,7 @@ export namespace app {
 	        this.notes = source["notes"];
 	    }
 	}
+	
 	export class CloudCreateRequest {
 	    provider: string;
 	    name: string;
@@ -350,6 +385,45 @@ export namespace app {
 	        this.image = source["image"];
 	        this.hasToken = source["hasToken"];
 	    }
+	}
+	export class ConfigVersion {
+	    id: string;
+	    // Go type: time
+	    at: any;
+	    reason?: string;
+	    changes: string[];
+	    modules: store.ProjectModule[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigVersion(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.at = this.convertValues(source["at"], null);
+	        this.reason = source["reason"];
+	        this.changes = source["changes"];
+	        this.modules = this.convertValues(source["modules"], store.ProjectModule);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class DNSProvider {
 	    id: string;
@@ -732,6 +806,86 @@ export namespace app {
 	        this.fingerprint = source["fingerprint"];
 	        this.count = source["count"];
 	    }
+	}
+	export class FileEntry {
+	    name: string;
+	    type: string;
+	    size: number;
+	    mode: string;
+	    owner: string;
+	    mtime: number;
+	    target?: string;
+	    dir: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.size = source["size"];
+	        this.mode = source["mode"];
+	        this.owner = source["owner"];
+	        this.mtime = source["mtime"];
+	        this.target = source["target"];
+	        this.dir = source["dir"];
+	    }
+	}
+	export class FilesResult {
+	    status: string;
+	    runId?: string;
+	    message?: string;
+	    secretKind?: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    path?: string;
+	    entries?: FileEntry[];
+	    content?: string;
+	    size?: number;
+	    binary?: boolean;
+	    saved?: string;
+	    count?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FilesResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.runId = source["runId"];
+	        this.message = source["message"];
+	        this.secretKind = source["secretKind"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.path = source["path"];
+	        this.entries = this.convertValues(source["entries"], FileEntry);
+	        this.content = source["content"];
+	        this.size = source["size"];
+	        this.binary = source["binary"];
+	        this.saved = source["saved"];
+	        this.count = source["count"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class GitEnvVar {
 	    key: string;

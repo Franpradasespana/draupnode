@@ -50,6 +50,10 @@ export function BackupStatus() {
   return window['go']['app']['App']['BackupStatus']();
 }
 
+export function BackupVerify(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['BackupVerify'](arg1, arg2, arg3, arg4);
+}
+
 export function BackupsDue() {
   return window['go']['app']['App']['BackupsDue']();
 }
@@ -142,6 +146,10 @@ export function CloudSetToken(arg1, arg2) {
   return window['go']['app']['App']['CloudSetToken'](arg1, arg2);
 }
 
+export function ConfigHistory(arg1, arg2) {
+  return window['go']['app']['App']['ConfigHistory'](arg1, arg2);
+}
+
 export function ContainerAction(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['app']['App']['ContainerAction'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
@@ -228,6 +236,38 @@ export function FetchBackups(arg1, arg2, arg3, arg4, arg5) {
 
 export function FetchProjectSecrets(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['FetchProjectSecrets'](arg1, arg2, arg3, arg4);
+}
+
+export function FilesDelete(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['FilesDelete'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function FilesDownload(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['app']['App']['FilesDownload'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function FilesList(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['FilesList'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function FilesMkdir(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['FilesMkdir'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function FilesRead(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['FilesRead'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function FilesRename(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['app']['App']['FilesRename'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function FilesUpload(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['FilesUpload'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function FilesWrite(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['app']['App']['FilesWrite'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function FindKeys() {
@@ -416,6 +456,10 @@ export function ReloadModules() {
 
 export function RemoveOrphanApp(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['app']['App']['RemoveOrphanApp'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function RestoreConfigVersion(arg1, arg2, arg3) {
+  return window['go']['app']['App']['RestoreConfigVersion'](arg1, arg2, arg3);
 }
 
 export function RestoreServerSnapshot(arg1, arg2) {

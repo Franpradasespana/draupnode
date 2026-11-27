@@ -325,6 +325,11 @@ func contains(l []string, s string) bool {
 // SaveProject valida y guarda. Las dependencias que falten se añaden al
 // proyecto con sus valores por defecto, en el orden de ejecución.
 func (a *App) SaveProject(p store.Project) (store.Project, error) {
+	return a.saveProjectWith(p, "")
+}
+
+// saveProjectWith es SaveProject con el motivo que queda en el historial de la configuración.
+func (a *App) saveProjectWith(p store.Project, reason string) (store.Project, error) {
 	if p.ID == "" {
 		// Un servidor tiene un solo conjunto de módulos.
 		if other, ok := a.store.ServerProject(p.ServerID); ok {
@@ -340,7 +345,7 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 	// para ejecutarlo sí hace falta al menos uno.
 	if len(p.Modules) == 0 {
 		p.Modules = []store.ProjectModule{}
-		return a.store.SaveProject(p)
+		return a.saveProjectV(p, reason)
 	}
 	chk, sel := a.resolveProject(p)
 	if !chk.OK() {
@@ -361,7 +366,7 @@ func (a *App) SaveProject(p store.Project) (store.Project, error) {
 	}
 	p.Modules = mods
 	p.RecipeID, p.Overrides = "", nil
-	return a.store.SaveProject(p)
+	return a.saveProjectV(p, reason)
 }
 
 func (a *App) DeleteProject(id string) error {
@@ -373,6 +378,7 @@ func (a *App) DeleteProject(id string) error {
 		return err
 	}
 	a.deleteProjectSecrets(id)
+	a.deleteVersions("p", id)
 	return nil
 }
 

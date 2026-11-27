@@ -6,6 +6,7 @@
   import { untrack } from 'svelte'
   import { ArrowLeft, Save, Trash2, Server as ServerIcon, Plus, TriangleAlert, ChevronDown, ChevronRight, CircleCheck, Sparkles, Check, Undo2, Layers, Lightbulb } from '@lucide/svelte'
   import ModuleCard from '../components/ModuleCard.svelte'
+  import ConfigHistory from '../components/ConfigHistory.svelte'
   import VarField from '../components/VarField.svelte'
   import Modal from '../components/Modal.svelte'
   import { bulk, runBulk } from '../lib/bulk.svelte'
@@ -112,6 +113,17 @@
     } finally {
       saving = false
     }
+  }
+
+  // Tras «Volver a esta versión» del historial: el borrador pasa a ser lo guardado.
+  async function restored() {
+    await refreshProjects()
+    const r = ui.recipes.find((x) => x.id === draft.id)
+    if (!r) return
+    draft = JSON.parse(JSON.stringify({ id: r.id, name: r.name, notes: r.notes ?? '', modules: r.modules }))
+    savedKey = key(draft)
+    savedDraft = JSON.stringify(draft)
+    toReview = []
   }
 
   // Vuelve a lo último guardado (o a la plantilla vacía si aún no se guardó).
@@ -265,6 +277,10 @@
   </div>
 {/each}
 
+{#if draft.id}
+  <div class="cfg-hist"><ConfigHistory kind="r" id={draft.id} refreshKey={savedKey} {dirty} onrestored={restored} /></div>
+{/if}
+
 <!-- Siempre a la vista: estado y botones. Se colorea si hay algo que hacer. -->
 <div class="foot" class:dirty={dirty || !draft.id} class:bad={errorCount > 0}>
   <div class="foot-msg">
@@ -300,6 +316,7 @@
 {/if}
 
 <style>
+  .cfg-hist { margin-top: 18px; }
   .mlist { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-height: 40vh; overflow: auto; }
   .mrow { display: flex; gap: 8px; align-items: center; font-size: 13.5px; cursor: pointer; }
   .mrow.now { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--border-soft); }

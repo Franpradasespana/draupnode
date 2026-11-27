@@ -7,6 +7,7 @@
   import RunPanel from '../components/RunPanel.svelte'
   import ProjectSecrets from '../components/ProjectSecrets.svelte'
   import RunHistory from '../components/RunHistory.svelte'
+  import ConfigHistory from '../components/ConfigHistory.svelte'
   import UninstallDialog from '../components/UninstallDialog.svelte'
   import ModuleCard from '../components/ModuleCard.svelte'
   import ModuleDetail from '../components/ModuleDetail.svelte'
@@ -669,6 +670,7 @@
 
     {#if draft.id && draft.serverId}
       <div class="hist-gap"><RunHistory serverId={draft.serverId} projectId={draft.id} refreshKey={stored?.lastRun?.at ?? ''} /></div>
+      <ConfigHistory kind="p" id={draft.id} refreshKey={savedKey} {dirty} onrestored={async () => { await refreshProjects(); reloadDraft() }} />
     {/if}
 
 

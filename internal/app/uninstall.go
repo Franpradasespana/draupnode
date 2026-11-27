@@ -303,7 +303,7 @@ func (a *App) UninstallAll(projectID string, purge bool, secret, accept, sudoPas
 		if err != nil {
 			return RunStart{Status: "error", Message: err.Error()}
 		}
-		if _, err := a.store.SaveProject(withoutModules(p, plan.Unmark)); err != nil {
+		if _, err := a.saveProjectV(withoutModules(p, plan.Unmark), i18n.T("Desinstalar todo")); err != nil {
 			return RunStart{Status: "error", Message: err.Error()}
 		}
 	}

@@ -75,12 +75,18 @@ func (a *App) SaveRecipe(r store.Recipe) (store.Recipe, error) {
 			r.Modules = append(r.Modules, store.ProjectModule{ID: s.Key(), Values: s.Values})
 		}
 	}
-	return a.store.SaveRecipe(r)
+	return a.saveRecipeV(r, "")
 }
 
 // DeleteRecipe borra una plantilla. Los servidores en los que se aplicó
 // conservan sus módulos.
-func (a *App) DeleteRecipe(id string) error { return a.store.DeleteRecipe(id) }
+func (a *App) DeleteRecipe(id string) error {
+	if err := a.store.DeleteRecipe(id); err != nil {
+		return err
+	}
+	a.deleteVersions("r", id)
+	return nil
+}
 
 // ServerModules devuelve los módulos del servidor (los crea vacíos la
 // primera vez).
@@ -134,7 +140,7 @@ func (a *App) ApplyTemplate(serverID, recipeID string) (TemplateResult, error) {
 	if !contains(p.Templates, r.ID) {
 		p.Templates = append(p.Templates, r.ID)
 	}
-	if p, err = a.SaveProject(p); err != nil {
+	if p, err = a.saveProjectWith(p, i18n.Sprintf("Plantilla «%s» aplicada", r.Name)); err != nil {
 		return res, err
 	}
 	if len(added) > 0 {

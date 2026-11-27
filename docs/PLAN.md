@@ -72,6 +72,12 @@
 - Alertas: el servidor no puede avisar de que él mismo se ha caído (se cubre con «Vigilar otros servidores» desde otro servidor o con el aviso diario).
 - ~~Módulo genérico «App con Docker Compose»~~ hecho como «App desde Git» (0.23.0); las apps de la lista, como módulos propios (0.25.0–0.34.0).
 
+### Idea del usuario (anotada 2026-11-27): plantillas de serie
+
+- Dejar hechas algunas **plantillas de serie** con los módulos más habituales, para que quien empiece no tenga que montarlas.
+- Antes hay que **averiguar qué combinaciones son las más habituales** (qué suele montar la gente en un VPS: p. ej. servidor web con dominio, PaaS tipo Coolify, servidor casero con VPN y apps, base de datos con copias, monitorización…) y decidir con el usuario la lista.
+- Pendiente de decidir: si vienen dentro de la app (de solo lectura, «duplicar para editar») o se copian a Plantillas al primer arranque.
+
 ### Rediseño pedido por el usuario (anotado 2026-11-21; HECHO en la 0.35.0 y la 0.36.0)
 
 **Idea del usuario.** El servidor es la pieza principal. Un **proyecto es una «carta a los Reyes»**: una plantilla de lo que quiero instalar y cómo, que puede existir **sin servidor**. Cuando tengo un servidor, entro en él, le **asocio un proyecto**, lo simulo, lo compruebo y lo aplico. Un mismo proyecto se puede desplegar en varios servidores. En cada servidor habría, en principio, un solo proyecto.

@@ -1433,3 +1433,16 @@ otro», descartada).
   «Solas»; avisos si algo se volvió atrás o falló.
 - Probado en Ubuntu desechable: todo al día («iguales»), una app con imagen vieja se actualiza, y otra cuya imagen
   nueva queda «unhealthy» vuelve sola a la anterior. Reaplicar 0 cambios; desinstalar quita el temporizador.
+
+## 2026-11-27 · 0.76.0 · Historial de la configuración, con vuelta atrás
+
+- Cada vez que cambian los módulos o sus opciones de un servidor o de una plantilla se guarda la versión nueva con
+  un resumen de lo que cambió («Añadido «Docker»», «PostgreSQL compartido · Carpeta: /srv/uno → /srv/dos»; las
+  contraseñas solo «cambiada», sin el valor). Guardar sin cambios no apunta nada. Se guardan hasta 100 versiones por
+  servidor o plantilla en `versiones/<p|r>-<id>.json`, junto a la configuración de Draupnode; se borran con él/ella.
+- Recuadro «Historial de la configuración» en los módulos del servidor (debajo del historial de ejecuciones) y al
+  final del editor de plantillas: fecha, motivo (p. ej. «Plantilla «X» aplicada», «Desinstalar todo»), cambios
+  desplegables y «Volver» con confirmación. Volver solo cambia la configuración (en el servidor nada cambia hasta
+  Aplicar, y quitar un módulo de la lista no lo desinstala); la vuelta atrás también queda apuntada, así que se
+  puede deshacer. Si hay cambios sin guardar, pide guardarlos o deshacerlos antes.
+- Tests: `internal/app/versions_test.go` (servidor y plantilla: apunta, no duplica, vuelve, borra).

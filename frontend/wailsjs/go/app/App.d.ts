@@ -31,6 +31,8 @@ export function BackupSnapshots(arg1:string,arg2:boolean,arg3:string,arg4:string
 
 export function BackupStatus():Promise<app.BackupStatus>;
 
+export function BackupVerify(arg1:string,arg2:string,arg3:string,arg4:string):Promise<app.BackupResult>;
+
 export function BackupsDue():Promise<Array<app.BackupDue>>;
 
 export function BuildDockerImage(arg1:string,arg2:dockerize.Spec):Promise<void>;
@@ -77,6 +79,8 @@ export function CloudProviders():Promise<Array<app.CloudProvider>>;
 
 export function CloudSetToken(arg1:string,arg2:string):Promise<void>;
 
+export function ConfigHistory(arg1:string,arg2:string):Promise<Array<app.ConfigVersion>>;
+
 export function ContainerAction(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<app.DockerResult>;
 
 export function CreateBackupTarget(arg1:string,arg2:string,arg3:number):Promise<app.BackupTargetResult>;
@@ -120,6 +124,22 @@ export function ExportUserModule(arg1:string):Promise<string>;
 export function FetchBackups(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<app.BackupResult>;
 
 export function FetchProjectSecrets(arg1:string,arg2:string,arg3:string,arg4:string):Promise<app.FetchSecretsResult>;
+
+export function FilesDelete(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<app.FilesResult>;
+
+export function FilesDownload(arg1:string,arg2:string,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<app.FilesResult>;
+
+export function FilesList(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<app.FilesResult>;
+
+export function FilesMkdir(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<app.FilesResult>;
+
+export function FilesRead(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<app.FilesResult>;
+
+export function FilesRename(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<app.FilesResult>;
+
+export function FilesUpload(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<app.FilesResult>;
+
+export function FilesWrite(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<app.FilesResult>;
 
 export function FindKeys():Promise<Array<sshx.KeyInfo>>;
 
@@ -214,6 +234,8 @@ export function RecoverFromServer(arg1:string,arg2:string):Promise<app.RecoverRe
 export function ReloadModules():Promise<app.ModulesInfo>;
 
 export function RemoveOrphanApp(arg1:string,arg2:string,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<app.DockerResult>;
+
+export function RestoreConfigVersion(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function RestoreServerSnapshot(arg1:string,arg2:string):Promise<void>;
 
