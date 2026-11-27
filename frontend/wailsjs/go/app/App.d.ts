@@ -37,6 +37,8 @@ export function BackupsDue():Promise<Array<app.BackupDue>>;
 
 export function BuildDockerImage(arg1:string,arg2:dockerize.Spec):Promise<void>;
 
+export function BuiltinMissing():Promise<number>;
+
 export function CancelDockerBuild():Promise<boolean>;
 
 export function CancelDockerLabTest():Promise<boolean>;
@@ -234,6 +236,8 @@ export function RecoverFromServer(arg1:string,arg2:string):Promise<app.RecoverRe
 export function ReloadModules():Promise<app.ModulesInfo>;
 
 export function RemoveOrphanApp(arg1:string,arg2:string,arg3:boolean,arg4:string,arg5:string,arg6:string):Promise<app.DockerResult>;
+
+export function RestoreBuiltinTemplates():Promise<number>;
 
 export function RestoreConfigVersion(arg1:string,arg2:string,arg3:string):Promise<void>;
 

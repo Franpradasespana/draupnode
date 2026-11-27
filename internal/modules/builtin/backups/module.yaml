@@ -135,6 +135,7 @@ variables:
     default: 22
     min: 1
     max: 65535
+    elsewhere: true
   - name: backups_remote_user
     label: Usuario del destino (rest-server) o Access Key (s3)
     type: string

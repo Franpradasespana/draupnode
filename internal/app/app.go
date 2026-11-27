@@ -23,7 +23,7 @@ import (
 )
 
 // Version de la aplicación.
-const Version = "0.76.0"
+const Version = "0.77.0"
 
 // Prefijos que la interfaz reconoce en los errores para abrir el diálogo
 // de la bóveda (crear o desbloquear) y reintentar.
@@ -71,7 +71,10 @@ func NewApp(st *store.Store, kr secrets.Keyring, v *secrets.Vault) *App {
 	return a
 }
 
-func (a *App) startup(ctx context.Context) { a.ctx = ctx }
+func (a *App) startup(ctx context.Context) {
+	a.ctx = ctx
+	a.ensureBuiltinTemplates()
+}
 
 // OnStartup y OnShutdown son para main.go: van fuera de App para que Wails
 // no los ofrezca a la interfaz.

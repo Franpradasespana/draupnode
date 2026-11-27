@@ -199,7 +199,8 @@ func (a *App) resolveModules(p store.Project, recipe bool) (ProjectCheck, []bund
 					e["git_app_compose"] = i18n.T("no está en ") + dir + i18n.T(" (créalo con Docker Creator)")
 				}
 			}
-		} else if r, _ := s.Values["git_app_repo"].(string); strings.TrimSpace(r) == "" {
+		} else if r, _ := s.Values["git_app_repo"].(string); strings.TrimSpace(r) == "" && !recipe {
+			// En una plantilla puede quedar vacío: el repositorio se pone en cada servidor.
 			e["git_app_repo"] = i18n.T("es obligatorio")
 		}
 		if len(e) > 0 {
@@ -1017,7 +1018,7 @@ func portClashes(sel []bundle.Selection, res *ProjectCheck, name func(string) st
 		var mine []use
 		var ports []int
 		for _, v := range s.Module.Variables {
-			if v.Type != "int" || !strings.HasSuffix(v.Name, "_port") || udp[v.Name] {
+			if v.Type != "int" || !strings.HasSuffix(v.Name, "_port") || udp[v.Name] || v.Elsewhere {
 				continue
 			}
 			n, ok := s.Values[v.Name].(int)

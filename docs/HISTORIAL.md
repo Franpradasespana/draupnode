@@ -1446,3 +1446,26 @@ otro», descartada).
   Aplicar, y quitar un módulo de la lista no lo desinstala); la vuelta atrás también queda apuntada, así que se
   puede deshacer. Si hay cambios sin guardar, pide guardarlos o deshacerlos antes.
 - Tests: `internal/app/versions_test.go` (servidor y plantilla: apunta, no duplica, vuelve, borra).
+
+## 2026-11-27 · 0.77.0 · Plantillas de serie
+
+- Draupnode trae 11 plantillas hechas con los módulos más habituales (estudio en `docs/PLANTILLAS_DE_SERIE.md`):
+  Servidor seguro, Webs con HTTPS, Plataforma de apps (Coolify), Familia, Multimedia, Acceso privado (VPN sin
+  anuncios), Vigilancia, Vigilancia ligera, Taller de desarrollo, Oficina y documentos y Seguridad reforzada. Todas
+  llevan la base (sistema, hora, cortafuegos, SSH seguro, copias y alertas), así que cada una vale sola. Definidas
+  en `internal/app/builtin_templates.go`, en español e inglés.
+- Al abrir la app se crean como plantillas normales (marca `builtin`): se aplican en un servidor, se configuran allí
+  y se publican como cualquier otra. Si el usuario borra una, no vuelve sola (`builtinSeen`); «Recuperar las
+  borradas» la trae. Si no la ha tocado (huella `builtinHash`), una versión nueva de Draupnode o el cambio de idioma
+  la actualizan; si la ha cambiado, se respeta. Guardarla desde el editor conserva la marca.
+- Pantalla Plantillas: apartado «De serie» debajo de las tuyas; en sus tarjetas la base se resume en la etiqueta
+  «Servidor seguro». El menú lateral solo lista las de serie que ya están en algún servidor.
+- En «Plataforma de apps (Coolify)», PostgreSQL va en la red `coolify` (para que lo vean las apps de Coolify), y el
+  módulo PostgreSQL se instala después de Coolify (`after: [coolify]`).
+- Arreglos que salieron al validar las plantillas:
+  - Puertos repetidos: el puerto SSH del destino de las copias (22) chocaba con el SSH del propio servidor; también
+    el del servidor de correo de msmtp y el de Keycloak en oauth2-proxy. Esos puertos son de otra máquina: nueva
+    opción de variable `elsewhere: true`, que no cuenta para los puertos repetidos.
+  - En una plantilla, «Tu app» puede quedar sin repositorio (se pone en cada servidor; al aplicar sigue pidiéndose).
+- Tests: `internal/app/builtin_templates_test.go` (cada plantilla pasa la validación del catálogo; se crean una vez,
+  no pisan lo del usuario, se actualizan si no se tocaron, borrar y recuperar).

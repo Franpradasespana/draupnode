@@ -235,6 +235,9 @@ func (a *App) saveRecipeV(r store.Recipe, reason string) (store.Recipe, error) {
 	if r.ID != "" {
 		if old, err := a.store.Recipe(r.ID); err == nil {
 			before = cloneModules(old.Modules)
+			if r.Builtin == "" { // la interfaz no la manda: se conserva la marca «de serie»
+				r.Builtin, r.BuiltinHash = old.Builtin, old.BuiltinHash
+			}
 		}
 	}
 	saved, err := a.store.SaveRecipe(r)

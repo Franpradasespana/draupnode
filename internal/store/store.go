@@ -179,6 +179,9 @@ type data struct {
 	Settings Settings  `json:"settings"`
 	// LastExport: cuándo se exportó por última vez una copia de Draupnode.
 	LastExport *time.Time `json:"lastExport,omitempty"`
+	// BuiltinSeen: plantillas de serie que ya se crearon alguna vez (si el
+	// usuario borra una, no vuelve a aparecer sola).
+	BuiltinSeen []string `json:"builtinSeen,omitempty"`
 }
 
 // Recipe es un proyecto «receta»: qué módulos y con qué opciones, sin
@@ -191,6 +194,11 @@ type Recipe struct {
 	Modules   []ProjectModule `json:"modules"`
 	CreatedAt time.Time       `json:"createdAt"`
 	UpdatedAt time.Time       `json:"updatedAt"`
+	// Builtin: id de la plantilla de serie de la que salió (vacío si es del
+	// usuario). BuiltinHash: cómo la dejó Draupnode la última vez; si sigue
+	// igual, el usuario no la ha tocado y se puede actualizar con la app.
+	Builtin     string `json:"builtin,omitempty"`
+	BuiltinHash string `json:"builtinHash,omitempty"`
 }
 
 // Overrides: en qué se diferencia un despliegue de su receta (módulos
@@ -795,6 +803,21 @@ func (s *Store) Recipes() []Recipe {
 	out := append([]Recipe(nil), s.d.Recipes...)
 	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
 	return out
+}
+
+// BuiltinSeen: las plantillas de serie que ya se crearon alguna vez.
+func (s *Store) BuiltinSeen() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.d.BuiltinSeen...)
+}
+
+// SetBuiltinSeen guarda qué plantillas de serie ya se crearon alguna vez.
+func (s *Store) SetBuiltinSeen(ids []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.d.BuiltinSeen = append([]string(nil), ids...)
+	return s.saveLocked()
 }
 
 // Recipe devuelve una receta.

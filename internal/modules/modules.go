@@ -58,6 +58,9 @@ type Variable struct {
 	// el instalar.sh exportado). Hoy solo para datos secretos calculados al
 	// Aplicar, como las contraseñas de copias que necesita el destino para rotar.
 	Managed bool `yaml:"managed" json:"managed,omitempty"`
+	// Elsewhere: el puerto es de otra máquina (el destino de las copias, el
+	// servidor de correo…), no de este servidor: no cuenta para los puertos repetidos.
+	Elsewhere bool `yaml:"elsewhere" json:"elsewhere,omitempty"`
 }
 
 // Requires son los requisitos mínimos del servidor.

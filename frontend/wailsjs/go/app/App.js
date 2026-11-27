@@ -62,6 +62,10 @@ export function BuildDockerImage(arg1, arg2) {
   return window['go']['app']['App']['BuildDockerImage'](arg1, arg2);
 }
 
+export function BuiltinMissing() {
+  return window['go']['app']['App']['BuiltinMissing']();
+}
+
 export function CancelDockerBuild() {
   return window['go']['app']['App']['CancelDockerBuild']();
 }
@@ -456,6 +460,10 @@ export function ReloadModules() {
 
 export function RemoveOrphanApp(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['app']['App']['RemoveOrphanApp'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function RestoreBuiltinTemplates() {
+  return window['go']['app']['App']['RestoreBuiltinTemplates']();
 }
 
 export function RestoreConfigVersion(arg1, arg2, arg3) {

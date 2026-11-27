@@ -44,7 +44,7 @@
   const isOpen = (id: string) => expanded[id] ?? true
   const children = (id: View) =>
     id === 'servers' ? ui.servers.map((s) => ({ id: s.id, label: s.name, active: ui.view === 'servers' && ui.serverId === s.id, open: () => { openServer(s.id); menuOpen = false } }))
-    : id === 'projects' ? ui.recipes.map((r) => ({ id: r.id, label: r.name, active: ui.view === 'projects' && ui.recipeId === r.id, open: () => { openRecipe(r.id); menuOpen = false } }))
+    : id === 'projects' ? ui.recipes.filter((r) => !r.builtin || r.servers.length || (ui.view === 'projects' && ui.recipeId === r.id)).map((r) => ({ id: r.id, label: r.name, active: ui.view === 'projects' && ui.recipeId === r.id, open: () => { openRecipe(r.id); menuOpen = false } }))
     : []
   // Lo principal arriba; las herramientas en «Utilidades»; el Catálogo
   // (lo que se puede instalar) abajo, junto a la Ayuda.

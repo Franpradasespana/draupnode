@@ -1597,6 +1597,8 @@ export namespace app {
 	    createdAt: any;
 	    // Go type: time
 	    updatedAt: any;
+	    builtin?: string;
+	    builtinHash?: string;
 	    servers: RecipeServer[];
 	
 	    static createFrom(source: any = {}) {
@@ -1611,6 +1613,8 @@ export namespace app {
 	        this.modules = this.convertValues(source["modules"], store.ProjectModule);
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	        this.builtin = source["builtin"];
+	        this.builtinHash = source["builtinHash"];
 	        this.servers = this.convertValues(source["servers"], RecipeServer);
 	    }
 	
@@ -2653,6 +2657,7 @@ export namespace modules {
 	    max?: number;
 	    placeholder?: string;
 	    managed?: boolean;
+	    elsewhere?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Variable(source);
@@ -2673,6 +2678,7 @@ export namespace modules {
 	        this.max = source["max"];
 	        this.placeholder = source["placeholder"];
 	        this.managed = source["managed"];
+	        this.elsewhere = source["elsewhere"];
 	    }
 	}
 	export class Requires {
@@ -3138,6 +3144,8 @@ export namespace store {
 	    createdAt: any;
 	    // Go type: time
 	    updatedAt: any;
+	    builtin?: string;
+	    builtinHash?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Recipe(source);
@@ -3151,6 +3159,8 @@ export namespace store {
 	        this.modules = this.convertValues(source["modules"], ProjectModule);
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	        this.builtin = source["builtin"];
+	        this.builtinHash = source["builtinHash"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

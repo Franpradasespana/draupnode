@@ -9,6 +9,8 @@ details: |
   vez y se guardan en /etc/draupnode/secretos/<proyecto>/ (solo root); nunca se
   pisan al relanzar.
 depends: [docker]
+# Después de Coolify si está: así, con la red «coolify», no se crea antes que su instalador.
+after: [coolify]
 requires:
   os: [ubuntu, debian]
   min_ram_mb: 900

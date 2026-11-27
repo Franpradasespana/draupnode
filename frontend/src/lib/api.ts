@@ -608,6 +608,8 @@ export interface Recipe {
   modules: ProjectModule[]
   createdAt?: string
   updatedAt?: string
+  // Plantilla de serie de la que salió (vacío si es del usuario).
+  builtin?: string
 }
 
 export interface RecipeServer {
@@ -938,6 +940,8 @@ interface Backend {
   DockerInfo(): Promise<DockerInfo>
   SetBackupsAuto(projectId: string, mode: string, days: number): Promise<void>
   ListRecipes(): Promise<RecipeView[]>
+  BuiltinMissing(): Promise<number>
+  RestoreBuiltinTemplates(): Promise<number>
   CheckRecipe(r: Recipe): Promise<ProjectCheck>
   SaveRecipe(r: Recipe): Promise<Recipe>
   DeleteRecipe(id: string): Promise<void>
@@ -1074,7 +1078,14 @@ function mockBackend(): Backend {
     // (la demo también rellena con valores por defecto lo que traigan los datos de ejemplo)
   }))
   // Recetas: si los datos de ejemplo no traen, cada proyecto pasa a ser una receta (como hace la app).
-  let recipes: Recipe[] = load<Recipe[]>('recipes', [])
+  // Unas cuantas plantillas de serie de ejemplo (las de verdad las crea la app al abrirse).
+  const demoBase = ['base', 'chrony', 'firewall', 'ssh', 'backups', 'alerts']
+  const demoBuiltin = (id: string, name: string, notes: string, extra: string[]): Recipe => ({ id: 'serie-' + id, builtin: id, name, notes, modules: [...demoBase, ...extra].map((m) => ({ id: m, values: defaults(m) })) })
+  let recipes: Recipe[] = load<Recipe[]>('recipes', [
+    demoBuiltin('servidor-seguro', tr('Servidor seguro'), tr('El punto de partida para cualquier servidor: sistema al día, hora exacta, cortafuegos, SSH seguro con fail2ban, copias diarias cifradas y alertas al móvil. Todas las demás plantillas ya lo llevan. Servidor mínimo: 1 GB de RAM.'), []),
+    demoBuiltin('webs-https', tr('Webs con HTTPS'), tr('Para publicar tu web o tu app desde Git con dominio y HTTPS automático (Caddy), con PostgreSQL compartido, gráficas del servidor (Grafana), aviso si la web cae (Uptime Kuma) y estadísticas de visitas (Umami). En el servidor tendrás que poner el repositorio y el dominio. Servidor mínimo: 3 GB de RAM.'), ['docker', 'caddy', 'git-app', 'postgres', 'monitoring', 'uptime-kuma', 'umami']),
+    demoBuiltin('familia', tr('Familia: contraseñas, fotos y archivos'), tr('Gestor de contraseñas (Vaultwarden), fotos y vídeos del móvil (Immich) y tu nube de archivos (Nextcloud), con HTTPS. Servidor mínimo: 4 GB de RAM (6-8 GB si Immich reconoce caras y objetos).'), ['docker', 'caddy', 'vaultwarden', 'immich', 'nextcloud']),
+  ])
   for (const p of projects) {
     if (p.templates) continue // ya en el modelo de la 0.50 (módulos del servidor)
     if (p.recipeId && recipes.some((r) => r.id === p.recipeId)) continue
@@ -1806,6 +1817,12 @@ function mockBackend(): Backend {
         out.push({ projectId: p.id, name: p.name, mode: auto.mode, days: auto.days, age, dest: '/home/demo/Draupnode-copias/' + p.id })
       }
       return out
+    },
+    async BuiltinMissing() {
+      return 0
+    },
+    async RestoreBuiltinTemplates() {
+      return 0
     },
     async ListRecipes() {
       await wait(80)

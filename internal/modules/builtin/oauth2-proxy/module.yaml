@@ -56,6 +56,7 @@ variables:
     min: 1
     max: 65535
     managed: true
+    elsewhere: true
 links:
   - label: "Documentación"
     url: https://oauth2-proxy.github.io/oauth2-proxy/

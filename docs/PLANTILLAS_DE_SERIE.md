@@ -100,8 +100,11 @@ Combinaciones típicas: 1 + 6 + 4 (casa con VPN), 1 + 2 + 7b (web pequeña), 1 +
   Al montarla: en esta plantilla `postgres_network: coolify`, para que las apps de Coolify vean la base, y el
   módulo PostgreSQL con `after: [coolify]`, para no crear la red `coolify` antes que el instalador de Coolify.
 
+- **Cómo van en la app (decidido por el usuario):** al bajarse la app y abrirla, las plantillas ya están en
+  Plantillas; se conecta un servidor, se le añade la plantilla, se configura y se publica. Hecho en la 0.77.0: se
+  crean como plantillas normales con la marca «De serie» (ver HISTORIAL).
+
 ## Por decidir con el usuario
 
 1. ¿Vale la lista de 9 (+ «Seguridad reforzada»), o quitamos o juntamos alguna?
-2. ¿Las de serie se quedan de solo lectura con «Duplicar», o se copian a tus plantillas la primera vez que abres la app?
-3. ¿Hace falta una plantilla «Domótica / servidor en casa» (Home Assistant, Samba, Syncthing)?
+2. ¿Hace falta una plantilla «Domótica / servidor en casa» (Home Assistant, Samba, Syncthing)?
