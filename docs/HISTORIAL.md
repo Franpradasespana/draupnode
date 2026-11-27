@@ -1469,3 +1469,9 @@ otro», descartada).
   - En una plantilla, «Tu app» puede quedar sin repositorio (se pone en cada servidor; al aplicar sigue pidiéndose).
 - Tests: `internal/app/builtin_templates_test.go` (cada plantilla pasa la validación del catálogo; se crean una vez,
   no pisan lo del usuario, se actualizan si no se tocaron, borrar y recuperar).
+
+## 2026-11-27 · 0.78.0 · Plantilla de serie «Domótica y servidor en casa»
+
+- Nueva plantilla de serie (la 12.ª): Home Assistant, Samba, Syncthing y WireGuard, además de la base. Pensada para
+  un servidor en casa: Home Assistant solo ve los aparatos de la red en la que está el servidor, y Samba escucha solo
+  en la red local o en la VPN. En quien ya tenga las demás, aparece sola al abrir la app.

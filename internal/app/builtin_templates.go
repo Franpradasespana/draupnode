@@ -47,6 +47,8 @@ func builtinTemplates() []builtinTemplate {
 			Notes: i18n.T("Películas y series (Jellyfin), música (Navidrome) y audiolibros y pódcasts (Audiobookshelf), con HTTPS. Servidor mínimo: 2 GB de RAM (más si Jellyfin tiene que convertir vídeo).")},
 		{ID: "vpn", Name: i18n.T("Acceso privado (VPN sin anuncios)"), Modules: with("wireguard", "adguard"),
 			Notes: i18n.T("Entra en tu servidor y en tus apps desde fuera sin abrir nada más (WireGuard), y navega sin anuncios ni rastreadores cuando estés conectado (AdGuard Home). Servidor mínimo: 1 GB de RAM.")},
+		{ID: "domotica", Name: i18n.T("Domótica y servidor en casa"), Modules: with("docker", "wireguard", "home-assistant", "samba", "syncthing"),
+			Notes: i18n.T("Para un servidor en casa (un mini PC, una Raspberry Pi…): domótica sin la nube de cada fabricante (Home Assistant), carpetas compartidas en la red de casa (Samba), sincronizar carpetas con tus equipos (Syncthing) y entrar desde fuera por la VPN (WireGuard). Home Assistant ve los aparatos de tu red si el servidor está en ella. Servidor mínimo: 2 GB de RAM.")},
 		{ID: "vigilancia", Name: i18n.T("Vigilancia"), Modules: with("docker", "monitoring", "logs", "uptime-kuma", "ntfy", "dozzle"),
 			Notes: i18n.T("Gráficas del servidor y de cada contenedor (Prometheus y Grafana), registros (Loki), aviso si una web cae (Uptime Kuma), tu propio servidor de avisos (ntfy) y los registros de Docker a mano (Dozzle). Servidor mínimo: 2 GB de RAM.")},
 		{ID: "vigilancia-ligera", Name: i18n.T("Vigilancia ligera"), Modules: with("docker", "beszel", "uptime-kuma", "ntfy"),

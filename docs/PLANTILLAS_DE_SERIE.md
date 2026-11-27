@@ -107,4 +107,4 @@ Combinaciones típicas: 1 + 6 + 4 (casa con VPN), 1 + 2 + 7b (web pequeña), 1 +
 ## Por decidir con el usuario
 
 1. ¿Vale la lista de 9 (+ «Seguridad reforzada»), o quitamos o juntamos alguna?
-2. ¿Hace falta una plantilla «Domótica / servidor en casa» (Home Assistant, Samba, Syncthing)?
+- ~~¿Plantilla «Domótica / servidor en casa»?~~ Sí: hecha en la 0.78.0 con Home Assistant, Samba, Syncthing y WireGuard.
