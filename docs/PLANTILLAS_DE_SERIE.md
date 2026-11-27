@@ -56,8 +56,8 @@ plantilla 1. RAM = lo que usan las apps, aproximado.
 | # | Plantilla | Para quién | Módulos (además de la base) | RAM mínima del servidor |
 |---|---|---|---|---|
 | 1 | **Servidor seguro** (el punto de partida) | Todos | base, chrony, firewall, ssh, backups, alerts, msmtp | 1 GB |
-| 2 | **Webs con HTTPS** | Quien publica una web o una app propia | docker, caddy, git-app, postgres, uptime-kuma, umami | 2 GB |
-| 3 | **Plataforma tipo Heroku (Coolify)** | Quien quiere desplegar desde un panel | docker, coolify, uptime-kuma · *no se suma a las que traen Caddy* | 2 GB (mejor 4) |
+| 2 | **Webs con HTTPS** | Quien publica una web o una app propia | docker, caddy, git-app, postgres, monitoring, uptime-kuma, umami | 3 GB (2 GB cambiando monitoring por beszel) |
+| 3 | **Plataforma tipo Heroku (Coolify)** | Quien quiere desplegar desde un panel | docker, coolify, postgres (en la red `coolify`), monitoring, uptime-kuma · *no se suma a las que traen Caddy* | 4 GB |
 | 4 | **Familia: contraseñas, fotos y archivos** | Una casa | docker, caddy, vaultwarden, immich, nextcloud | 4 GB (6-8 con reconocimiento en Immich) |
 | 5 | **Multimedia** | Películas, música y audiolibros | docker, caddy, jellyfin, navidrome, audiobookshelf | 2 GB (más si Jellyfin convierte vídeo) |
 | 6 | **Acceso privado (VPN sin anuncios)** | Entrar desde fuera sin abrir nada más | wireguard, adguard | 1 GB |
@@ -90,6 +90,15 @@ Combinaciones típicas: 1 + 6 + 4 (casa con VPN), 1 + 2 + 7b (web pequeña), 1 +
   que ya hay (por ejemplo, Coolify con Caddy).
 - Test: que cada plantilla de serie pase la validación del catálogo (dependencias, choques y valores) para que no se
   rompa al cambiar un módulo.
+
+## Decidido con el usuario (2026-11-27)
+
+- La 2 lleva también **Monitorización** (Prometheus + Grafana).
+- La 3 (Coolify) lleva **PostgreSQL compartido** y **Monitorización**. Comprobado que no chocan: la base interna de
+  Coolify es `coolify-db` y la compartida `pg-compartido`; Grafana va en 127.0.0.1:3000 y Prometheus en
+  127.0.0.1:19090, y Coolify usa el 8000, 6001, 6002, 80, 443 y el 8080 de su proxy (cAdvisor no publica el suyo).
+  Al montarla: en esta plantilla `postgres_network: coolify`, para que las apps de Coolify vean la base, y el
+  módulo PostgreSQL con `after: [coolify]`, para no crear la red `coolify` antes que el instalador de Coolify.
 
 ## Por decidir con el usuario
 
